@@ -7,7 +7,7 @@ Klasa `CPythonNetworkStream` stanowi glowne ogniwo komunikacyjne miedzy klientem
 - **Odpowiedzialnosc wysokopoziomowa (`CPythonNetworkStream`)**: Abstrakcja dla warstwy Python, mapowanie zdarzen serwera (np. odswiezanie UI) na odpowiednie hooki, utrzymanie stanu rozgrywki (tzw. "Fazy": OffLine, HandShake, Login, Select, Loading, Game). Faza HandShake (uzywajaca pakietu `HEADER_GC_HANDSHAKE` i pakietu `HEADER_GC_BINDUDP`) pozwala na synchronizacje czasu lokalnego ze strefa serwera oraz przesylanie poczatkowych kluczy kryptograficznych (w przypadku pakietow `HEADER_GC_HYBRIDCRYPT_KEYS`).
 
 ## 2. Diagram Architektury i Przeplywu Danych (Mermaid)
-Poniższy diagram obrazuje przepływ danych w fazie inicjalizacji i Handshake.
+Ponizszy diagram obrazuje przeplyw danych w fazie inicjalizacji i Handshake.
 
 ```mermaid
 sequenceDiagram
@@ -42,15 +42,15 @@ sequenceDiagram
 Struktury w ukladzie pamieci uzywane przez sieciowe gniazda:
 
 ### Struktura: `TPacketGCHandshake` (Z pliku `Packet.h`)
-Reprezentuje informacje przesyłane podczas synchronizacji czasu pomiędzy klientem a serwerem.
+Reprezentuje informacje przesylane podczas synchronizacji czasu pomiedzy klientem a serwerem.
 - `BYTE header`: (1 bajt) Oznaczenie operacji, np. `HEADER_GC_HANDSHAKE` (0xFF).
-- `DWORD dwHandshake`: (4 bajty) Unikalny numer iteracji bądź identyfikatora handshake'u.
+- `DWORD dwHandshake`: (4 bajty) Unikalny numer iteracji badz identyfikatora handshake'u.
 - `DWORD dwTime`: (4 bajty) Aktualny czas na serwerze (w milisekundach).
-- `LONG lDelta`: (4 bajty) Opóźnienie / delta czasowa (może być ujemna, dlatego LONG).
-- **Rozmiar całkowity**: 13 bajtów (Brak jawnego wyrównywania pamieci/packingu za pomoca pragma, standardowe wyrownanie C++ bedzie obejmowac padding miedzy byte a dword, zazwyczaj osiagajac 16 bajtow).
+- `LONG lDelta`: (4 bajty) Opoznienie / delta czasowa (moze byc ujemna, dlatego LONG).
+- **Rozmiar calkowity**: 13 bajtow (Brak jawnego wyrownywania pamieci/packingu za pomoca pragma, standardowe wyrownanie C++ bedzie obejmowac padding miedzy byte a dword, zazwyczaj osiagajac 16 bajtow).
 
 ### Struktura pomocnicza w `CPythonNetworkStream`: `SServerTimeSync`
-Struktura słuzaca do plynnego zapisu czasu serwerowego.
+Struktura sluzaca do plynnego zapisu czasu serwerowego.
 - `DWORD m_dwChangeServerTime`: Czas serwera zapisany w chwili handshake'a.
 - `DWORD m_dwChangeClientTime`: Czas lokalny klienta `ELTimer_GetMSec()` w chwili handshake'a.
 
@@ -74,7 +74,7 @@ Zawiera obiekty uzywane w bazowym procesie TCP:
 - `bool CNetworkStream::Connect(const char* c_szAddr, int port, int limitSec)`
   **Logika:** Tworzy gniazdo TCP (non-blocking). Ustala `m_connectLimitTime` aby w razie timeoutu rozlaczyc klienta. Konfiguruje bufory obiorcze.
 - `bool CNetworkStream::__RecvInternalBuffer()`
-  **Logika:** Bezpośrednie pobranie danych z socketu TCP (`recv` WINAPI). Jeśli dane przyszły, przenosi `m_recvBufOutputPos` oraz odszyfrowuje dane w locie z uzyciem kluczy m_szDecryptKey jezeli wlaczony jest `m_isSecurityMode` (badz ulepszony system Crypto++).
+  **Logika:** Bezposrednie pobranie danych z socketu TCP (`recv` WINAPI). Jesli dane przyszly, przenosi `m_recvBufOutputPos` oraz odszyfrowuje dane w locie z uzyciem kluczy m_szDecryptKey jezeli wlaczony jest `m_isSecurityMode` (badz ulepszony system Crypto++).
 - `bool CNetworkStream::CheckPacket(TPacketHeader * pRetHeader)` (Uzyte przez klase podrzedna)
   **Logika:** Korzysta z `CNetworkPacketHeaderMap` by dynamicznie zidentyfikowac rozmiar pakietu (dynamiczny vs statyczny wielkosciowy - `isDynamicSizePacket`). 
 
