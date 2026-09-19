@@ -1,0 +1,906 @@
+6:UINT CActorInstance::__GetMotionType()
+7-{
+8:	if (!m_pkCurRaceMotionData)
+9:		return CRaceMotionData::TYPE_NONE;
+10-	
+11:	return m_pkCurRaceMotionData->GetType();
+12-}
+13-
+14:void CActorInstance::__MotionEventProcess(BOOL isPC)
+15-{
+16-	if (isAttacking())
+17-	{
+18-		DWORD dwNextFrame = DWORD(GetAttackingElapsedTime() * g_fGameFPS);
+19-		for (; m_kCurMotNode.dwcurFrame < dwNextFrame; ++m_kCurMotNode.dwcurFrame)
+20-		{
+21:			MotionEventProcess();
+22-			SoundEventProcess(!isPC);
+23-		}
+24-	}
+25-	else
+26-	{
+27:		MotionEventProcess();
+28-		SoundEventProcess(!isPC);
+29-
+30-		++m_kCurMotNode.dwcurFrame;
+31-	}
+32-}
+33-
+34:void CActorInstance::MotionProcess(BOOL isPC)
+35-{
+36:	__MotionEventProcess(isPC);
+37:	CurrentMotionProcess();
+38:	ReservingMotionProcess();
+39-}
+40-
+41:void CActorInstance::HORSE_MotionProcess(BOOL isPC)
+42-{
+43:	__MotionEventProcess(isPC);
+44-
+45:	if (MOTION_TYPE_LOOP == m_kCurMotNode.iMotionType)
+46-		if (m_kCurMotNode.dwcurFrame >= m_kCurMotNode.dwFrameCount)
+47-			m_kCurMotNode.dwcurFrame = 0;
+48-}
+49-
+50:void CActorInstance::ReservingMotionProcess()
+51-{
+52:	if (m_MotionDeque.empty())
+53-		return;
+54-
+55:	TReservingMotionNode & rReservingMotionNode = m_MotionDeque.front();
+56-
+57-	float fCurrentTime = GetLocalTime();
+58:	if (rReservingMotionNode.fStartTime > fCurrentTime)
+59-		return;
+60-
+61:	DWORD dwNextMotionIndex = GET_MOTION_INDEX(rReservingMotionNode.dwMotionKey);
+62:	switch (dwNextMotionIndex)
+63-	{
+64:		case CRaceMotionData::NAME_STAND_UP:
+65:		case CRaceMotionData::NAME_STAND_UP_BACK:
+66-			if (IsFaint())
+67-			{
+68-				//Tracenf("ÀÏ¾î¼­·Á°í ÇßÀ¸³ª ±âÀýÁß");
+69-
+70:				SetEndStopMotion();
+71-
+72-				// ÀÌÈÄÀÇ ¸ð¼Ç ÀüºÎ 1ÃÊ¾¿ µô·¹ÀÌ
+73:				TMotionDeque::iterator itor = m_MotionDeque.begin();
+74:				for (; itor != m_MotionDeque.end(); ++itor)
+75-				{
+76:					TReservingMotionNode & rNode = *itor;
+77-					rNode.fStartTime += 1.0f;
+78-				}
+79-				return;
+80-			}
+81-			break;
+82-	}
+83-
+84:	SCurrentMotionNode kPrevMotionNode=m_kCurMotNode;
+85-
+86:	EMotionPushType iMotionType=rReservingMotionNode.iMotionType;
+87:	float fSpeedRatio=rReservingMotionNode.fSpeedRatio;
+88:	float fBlendTime=rReservingMotionNode.fBlendTime;
+89-
+90:	DWORD dwMotionKey=rReservingMotionNode.dwMotionKey;
+91-
+92:	m_MotionDeque.pop_front();
+93-
+94:	DWORD dwCurrentMotionIndex=GET_MOTION_INDEX(dwMotionKey);
+95:	switch (dwCurrentMotionIndex)
+96-	{
+97:		case CRaceMotionData::NAME_STAND_UP:
+98:		case CRaceMotionData::NAME_STAND_UP_BACK:
+99-			if (IsDead())
+100-			{
+101-				//Tracenf("ÀÏ¾î¼­·Á°í ÇßÀ¸³ª »ç¸Á");
+102-				// ¿¹Àü µ¥ÀÌÅÍ·Î º¹±¸
+103:				m_kCurMotNode=kPrevMotionNode;
+104:				__ClearMotion(); 
+105-
+106-				// ÀÌÀü µ¿ÀÛ ¸¶Áö¸· »óÅÂ À¯Áö
+107:				SetEndStopMotion();
+108-				return;
+109-			}
+110-			break;
+111-	}
+112-
+113:	//Tracenf("MOTION %d", GET_MOTION_INDEX(dwMotionKey));
+114-
+115-	int iLoopCount;
+116:	if (MOTION_TYPE_ONCE == iMotionType)
+117-		iLoopCount=1;
+118-	else
+119-		iLoopCount=0;
+120-
+121:	SSetMotionData kSetMotData;
+122:	kSetMotData.dwMotKey=dwMotionKey;
+123-	kSetMotData.fBlendTime=fBlendTime;
+124-	kSetMotData.fSpeedRatio=fSpeedRatio;
+125-	kSetMotData.iLoopCount=iLoopCount;
+126-
+127:	DWORD dwRealMotionKey = __SetMotion(kSetMotData);
+128-
+129:	if (0 == dwRealMotionKey)
+130-		return;
+131-
+132:	// FIX: À§¿¡¼­ È£ÃâÇÑ __SetMotion ÇÔ¼ö ¾È¿¡¼­ ·£´ýÀ¸·Î ´Ù¸¥ ¸ð¼ÇÀ» Àç»ýÇÒ °¡´É¼ºµµ ÀÖÀ¸¹Ç·Î durationÀº 'ÇöÀç Àç»ýÁßÀÎ' ¸ð¼ÇÀÇ duration°ªÀ» »ç¿ëÇØ¾ß ÇÔ.
+133:	//float fDurationTime=rReservingMotionNode.fDuration;
+134:	float fDurationTime = GetMotionDuration(dwRealMotionKey) / fSpeedRatio;
+135:	float fStartTime = rReservingMotionNode.fStartTime;
+136-	float fEndTime = fStartTime + fDurationTime;
+137-
+138:	if (dwRealMotionKey == 16777473)
+139-	{
+140-		int bp = 0;
+141-		bp++;
+142-	}
+143-
+144-	m_kCurMotNode.uSkill = 0;
+145:	m_kCurMotNode.iMotionType = iMotionType;
+146-	m_kCurMotNode.fSpeedRatio = fSpeedRatio;
+147-	m_kCurMotNode.fStartTime = fStartTime;	
+148-	m_kCurMotNode.fEndTime = fEndTime;
+149:	m_kCurMotNode.dwMotionKey = dwRealMotionKey;
+150-	m_kCurMotNode.dwcurFrame = 0;
+151-	m_kCurMotNode.dwFrameCount = fDurationTime / (1.0f / g_fGameFPS);
+152-}
+153-
+154:void CActorInstance::CurrentMotionProcess()
+155-{
+156:	if (MOTION_TYPE_LOOP == m_kCurMotNode.iMotionType) // ÀÓ½Ã´Ù. ÃÖÁ¾ÀûÀÎ ¸ñÇ¥´Â Onceµµ Àý´ë·Î ³Ñ¾î°¡¼± ¾ÈµÈ´Ù. - [levites]
+157-		if (m_kCurMotNode.dwcurFrame >= m_kCurMotNode.dwFrameCount)
+158-			m_kCurMotNode.dwcurFrame = 0;
+159-
+160-	if (IsDead())
+161-		return;
+162-
+163:	if (!m_MotionDeque.empty())
+164-		return;
+165-
+166-	float fCurrentTime = GetLocalTime();
+167-
+168:	DWORD dwMotionIndex=GET_MOTION_INDEX(m_kCurMotNode.dwMotionKey);
+169-
+170-	bool isLooping=false;
+171-
+172-	// ³¡³µ´Ù¸é Playing Flag¸¦ ²ö´Ù
+173:	if (m_pkCurRaceMotionData && m_pkCurRaceMotionData->IsLoopMotion())
+174-	{
+175-		if (m_kCurMotNode.iLoopCount > 1 || m_kCurMotNode.iLoopCount == -1)
+176-		{
+177:			if (fCurrentTime - m_kCurMotNode.fStartTime > m_pkCurRaceMotionData->GetLoopEndTime())
+178-			{
+179:				m_kCurMotNode.dwcurFrame = DWORD(m_pkCurRaceMotionData->GetLoopStartTime() * g_fGameFPS);
+180:				__SetLocalTime(m_kCurMotNode.fStartTime + m_pkCurRaceMotionData->GetLoopStartTime());
+181-				if (-1 != m_kCurMotNode.iLoopCount)
+182-					--m_kCurMotNode.iLoopCount;
+183-
+184-				isLooping=true;
+185-			}
+186-		}
+187-		else if (!m_kQue_kFlyTarget.empty())
+188-		{
+189-			if (!m_kBackupFlyTarget.IsObject())
+190-			{
+191-				m_kBackupFlyTarget = m_kFlyTarget;
+192-			}
+193-
+194:			if (fCurrentTime - m_kCurMotNode.fStartTime > m_pkCurRaceMotionData->GetLoopEndTime())
+195-			{
+196:				m_kCurMotNode.dwcurFrame = DWORD(m_pkCurRaceMotionData->GetLoopStartTime() * g_fGameFPS);
+197:				__SetLocalTime(m_kCurMotNode.fStartTime + m_pkCurRaceMotionData->GetLoopStartTime());
+198-
+199-				SetFlyTarget(m_kQue_kFlyTarget.front());
+200-				m_kQue_kFlyTarget.pop_front();
+201-
+202-				isLooping=true;
+203-			}
+204-		}
+205-	}
+206-
+207-	if (!isLooping)
+208-	{
+209-		if (fCurrentTime > m_kCurMotNode.fEndTime)
+210-		{
+211-			if (m_kBackupFlyTarget.IsValidTarget())
+212-			{
+213-				m_kFlyTarget = m_kBackupFlyTarget;
+214-				m_kBackupFlyTarget.Clear();
+215-			}
+216-
+217-			////////////////////////////////////////////
+218-
+219:			if (MOTION_TYPE_ONCE == m_kCurMotNode.iMotionType)
+220-			{
+221:				switch (dwMotionIndex)
+222-				{
+223:					case CRaceMotionData::NAME_DAMAGE_FLYING:
+224:					case CRaceMotionData::NAME_DAMAGE_FLYING_BACK:
+225:					case CRaceMotionData::NAME_DEAD:
+226:					case CRaceMotionData::NAME_INTRO_SELECTED:
+227:					case CRaceMotionData::NAME_INTRO_NOT_SELECTED:
+228-						m_kCurMotNode.fEndTime+=3.0f;
+229:						SetEndStopMotion();
+230-						break;
+231-					default:
+232:						InterceptLoopMotion(CRaceMotionData::NAME_WAIT);
+233-						break;
+234-				}
+235-			}
+236:			else if (MOTION_TYPE_LOOP == m_kCurMotNode.iMotionType)
+237-			{
+238:				if (CRaceMotionData::NAME_WAIT == dwMotionIndex)
+239-				{
+240:					PushLoopMotion(CRaceMotionData::NAME_WAIT, 0.5f);
+241-				}
+242-			}
+243-		}
+244-	}
+245-}
+246-
+247:void CActorInstance::SetMotionMode(int iMotionMode)
+248-{
+249-	if (IsPoly())
+250:		iMotionMode=CRaceMotionData::MODE_GENERAL;
+251-
+252:	m_wcurMotionMode = iMotionMode;
+253-}
+254-
+255:int CActorInstance::GetMotionMode()
+256-{
+257:	return m_wcurMotionMode;
+258-}
+259-
+260:void CActorInstance::SetMotionLoopCount(int iCount)
+261-{
+262-	assert(iCount >= -1 && iCount < 100);
+263-	m_kCurMotNode.iLoopCount = iCount;
+264-}
+265-
+266:void CActorInstance::PushMotion(EMotionPushType iMotionType, DWORD dwMotionKey, float fBlendTime, float fSpeedRatio)
+267-{
+268:	if (!CheckMotionThingIndex(dwMotionKey))
+269-	{
+270:		Tracef(" Error - Not found want to using motion : %d\n", GET_MOTION_INDEX(dwMotionKey));
+271-		return;
+272-	}
+273-
+274:	TReservingMotionNode MotionNode;
+275-
+276:	MotionNode.iMotionType = iMotionType;
+277:	MotionNode.dwMotionKey = dwMotionKey;
+278:	MotionNode.fStartTime = GetLastMotionTime(fBlendTime);
+279:	MotionNode.fBlendTime = fBlendTime;
+280:	MotionNode.fSpeedRatio = fSpeedRatio;
+281:	MotionNode.fDuration = GetMotionDuration(dwMotionKey);
+282-
+283:	m_MotionDeque.push_back(MotionNode);
+284-}
+285-
+286:bool CActorInstance::InterceptOnceMotion(DWORD dwMotion, float fBlendTime, UINT uSkill, float fSpeedRatio)
+287-{
+288:	return InterceptMotion(MOTION_TYPE_ONCE, dwMotion, fBlendTime, uSkill, fSpeedRatio);
+289-}
+290-
+291:bool CActorInstance::InterceptLoopMotion(DWORD dwMotion, float fBlendTime)
+292-{
+293:	return InterceptMotion(MOTION_TYPE_LOOP, dwMotion, fBlendTime);
+294-}
+295-
+296:void CActorInstance::SetLoopMotion(DWORD dwMotion, float fBlendTime, float fSpeedRatio)
+297-{
+298-	if (!m_pkCurRaceData)
+299-	{
+300:		Tracenf("CActorInstance::SetLoopMotion(dwMotion=%d, fBlendTime=%f, fSpeedRatio=%f)", 
+301:			dwMotion, fBlendTime, fSpeedRatio);
+302-		return;
+303-	}
+304-
+305:	MOTION_KEY dwMotionKey;
+306:	if (!m_pkCurRaceData->GetMotionKey(m_wcurMotionMode, dwMotion, &dwMotionKey))
+307-	{
+308:		Tracenf("CActorInstance::SetLoopMotion(dwMotion=%d, fBlendTime=%f, fSpeedRatio=%f) - GetMotionKey(m_wcurMotionMode=%d, dwMotion=%d, &MotionKey) ERROR", 
+309:			dwMotion, fBlendTime, fSpeedRatio, m_wcurMotionMode, dwMotion);
+310-		return;
+311-	}
+312-
+313:	__ClearMotion();
+314-
+315:	SSetMotionData kSetMotData;
+316:	kSetMotData.dwMotKey=dwMotionKey;
+317-	kSetMotData.fBlendTime=fBlendTime;
+318-	kSetMotData.fSpeedRatio=fSpeedRatio;
+319-
+320:	DWORD dwRealMotionKey = __SetMotion(kSetMotData);
+321-
+322:	if (0 == dwRealMotionKey)
+323-		return;	
+324-
+325:	m_kCurMotNode.iMotionType = MOTION_TYPE_LOOP;
+326-	m_kCurMotNode.fStartTime = GetLocalTime();
+327:	m_kCurMotNode.dwMotionKey = dwRealMotionKey;
+328-	m_kCurMotNode.fEndTime = 0.0f;
+329-	m_kCurMotNode.fSpeedRatio = fSpeedRatio;
+330-	m_kCurMotNode.dwcurFrame = 0;
+331:	m_kCurMotNode.dwFrameCount = GetMotionDuration(dwRealMotionKey) / (1.0f / g_fGameFPS);
+332-	m_kCurMotNode.uSkill = 0;
+333-}
+334-
+335:// ¸®ÅÏ°ª == SetMotionÀÇ ¸®ÅÏ°ª == ½ÇÁ¦·Î ¾Ö´Ï¸ÞÀÌ¼Ç µ¥ÀÌÅÍ¸¦ ÇÃ·¹ÀÌ Çß´À³Ä?
+336:bool CActorInstance::InterceptMotion(EMotionPushType iMotionType, WORD wMotion, float fBlendTime, UINT uSkill, float fSpeedRatio)
+337-{
+338-	if (!m_pkCurRaceData)
+339-	{
+340:		Tracef("CActorInstance::InterceptMotion(iMotionType=%d, wMotion=%d, fBlendTime=%f) - m_pkCurRaceData=NULL", iMotionType, wMotion, fBlendTime);
+341-		return false;
+342-	}
+343-
+344:	MOTION_KEY dwMotionKey;
+345:	if (!m_pkCurRaceData->GetMotionKey(m_wcurMotionMode, wMotion, &dwMotionKey))
+346-	{
+347:		Tracenf("CActorInstance::InterceptMotion(iLoopType=%d, wMotionMode=%d, wMotion=%d, fBlendTime=%f) - GetMotionKey(m_wcurMotionMode=%d, wMotion=%d, &MotionKey) ERROR", 
+348:			iMotionType, m_wcurMotionMode, wMotion, fBlendTime, m_wcurMotionMode, wMotion);
+349-		return false;
+350-	}
+351-
+352:	__ClearMotion();
+353-
+354-	int iLoopCount;
+355:	if (MOTION_TYPE_ONCE == iMotionType)
+356-		iLoopCount=1;
+357-	else
+358-		iLoopCount=0;
+359-
+360:	SSetMotionData kSetMotData;
+361:	kSetMotData.dwMotKey=dwMotionKey;
+362-	kSetMotData.fBlendTime=fBlendTime;
+363-	kSetMotData.iLoopCount=iLoopCount;
+364-	kSetMotData.fSpeedRatio=fSpeedRatio;
+365-	kSetMotData.uSkill=uSkill;
+366-
+367:	DWORD dwRealMotionKey = __SetMotion(kSetMotData);
+368-
+369:	if (0 == dwRealMotionKey)
+370-		return false;
+371-
+372-	if (m_pFlyEventHandler)
+373-	{
+374:		if (__IsNeedFlyTargetMotion())
+375-		{		
+376-			m_pFlyEventHandler->OnSetFlyTarget();
+377-		}	
+378-	}
+379-
+380:	assert(NULL != m_pkCurRaceMotionData);
+381-
+382:	// FIX : À§¿¡¼­ È£ÃâÇÑ __SetMotion ÇÔ¼ö ³»¿¡¼­ ·£´ýÀ¸·Î ´Ù¸¥ ¸ð¼ÇÀ» ¼±ÅÃÇÒ ¼öµµ ÀÖ±â ¶§¹®¿¡ dwMotionKey°ªÀº À¯È¿ÇÏÁö ¾Ê°í
+383-	// µû¶ó¼­ ÇØ´ç Å°·Î »êÃâÇÑ durationÀº À¯È¿ÇÏÁö ¾ÊÀ½. ´ç¿¬È÷ ÇöÀç playÁßÀÎ ¸ð¼ÇÀÇ ½Ã°£À» ±¸ÇØ¾ß ÇÔ.. -_-;; 
+384:	// float fDuration=GetMotionDuration(dwMotionKey)/fSpeedRatio;
+385:	float fDuration = GetMotionDuration(dwRealMotionKey) / fSpeedRatio;
+386-
+387:	m_kCurMotNode.iMotionType = iMotionType;
+388-	m_kCurMotNode.fStartTime = GetLocalTime();
+389-	m_kCurMotNode.fEndTime = m_kCurMotNode.fStartTime + fDuration;
+390:	m_kCurMotNode.dwMotionKey = dwRealMotionKey;	
+391-	m_kCurMotNode.dwcurFrame = 0;
+392-	m_kCurMotNode.dwFrameCount = fDuration / (1.0f / g_fGameFPS);
+393-	m_kCurMotNode.uSkill = uSkill;
+394-	m_kCurMotNode.fSpeedRatio = fSpeedRatio;
+395-
+396-	return true;
+397-}
+398-
+399:bool CActorInstance::PushOnceMotion(DWORD dwMotion, float fBlendTime, float fSpeedRatio)
+400-{
+401-	assert(m_pkCurRaceData);
+402-
+403:	MOTION_KEY MotionKey;
+404:	if (!m_pkCurRaceData->GetMotionKey(m_wcurMotionMode, dwMotion, &MotionKey))
+405-		return false;
+406-
+407:	PushMotion(MOTION_TYPE_ONCE, MotionKey, fBlendTime, fSpeedRatio);
+408-	return true;
+409-}
+410-
+411:bool CActorInstance::PushLoopMotion(DWORD dwMotion, float fBlendTime, float fSpeedRatio)
+412-{
+413-	assert(m_pkCurRaceData);
+414-
+415:	MOTION_KEY MotionKey;
+416:	if (!m_pkCurRaceData->GetMotionKey(m_wcurMotionMode, dwMotion, &MotionKey))
+417-		return false;
+418-
+419:	PushMotion(MOTION_TYPE_LOOP, MotionKey, fBlendTime, fSpeedRatio);
+420-	return true;
+421-}
+422-
+423:WORD CActorInstance::__GetCurrentMotionIndex()
+424-{
+425:	return GET_MOTION_INDEX(m_kCurMotNode.dwMotionKey);
+426-}
+427-
+428:DWORD CActorInstance::__GetCurrentMotionKey()
+429-{
+430:	return m_kCurMotNode.dwMotionKey;
+431-}
+432-
+433-BOOL CActorInstance::IsUsingSkill()
+434-{
+435:	DWORD dwCurMotionIndex=__GetCurrentMotionIndex();
+436-
+437:	if (dwCurMotionIndex>=CRaceMotionData::NAME_SKILL && dwCurMotionIndex<CRaceMotionData::NAME_SKILL_END)
+438-		return TRUE;
+439-
+440:	switch (dwCurMotionIndex)
+441-	{
+442:		case CRaceMotionData::NAME_SPECIAL_1:
+443:		case CRaceMotionData::NAME_SPECIAL_2:
+444:		case CRaceMotionData::NAME_SPECIAL_3:
+445:		case CRaceMotionData::NAME_SPECIAL_4:
+446:		case CRaceMotionData::NAME_SPECIAL_5:
+447:		case CRaceMotionData::NAME_SPECIAL_6:
+448-			return TRUE;
+449-	}
+450-	
+451-	return FALSE;
+452-}
+453-
+454-BOOL CActorInstance::IsFishing()
+455-{
+456:	if (!m_pkCurRaceMotionData)
+457-		return FALSE;
+458-
+459:	if (__GetCurrentMotionIndex() == CRaceMotionData::NAME_FISHING_WAIT ||
+460:		__GetCurrentMotionIndex() == CRaceMotionData::NAME_FISHING_REACT)
+461-		return TRUE;
+462-
+463-	return FALSE;
+464-}
+465-
+466-BOOL CActorInstance::CanCancelSkill()
+467-{
+468-	assert(IsUsingSkill());
+469:	return m_pkCurRaceMotionData->IsCancelEnableSkill();
+470-}
+471-
+472-BOOL CActorInstance::isLock()
+473-{
+474:	DWORD dwCurMotionIndex=__GetCurrentMotionIndex();
+475-
+476-	// Locked during attack
+477:	switch (dwCurMotionIndex)
+478-	{
+479:		case CRaceMotionData::NAME_NORMAL_ATTACK:
+480:		case CRaceMotionData::NAME_COMBO_ATTACK_1:
+481:		case CRaceMotionData::NAME_COMBO_ATTACK_2:
+482:		case CRaceMotionData::NAME_COMBO_ATTACK_3:
+483:		case CRaceMotionData::NAME_COMBO_ATTACK_4:
+484:		case CRaceMotionData::NAME_COMBO_ATTACK_5:
+485:		case CRaceMotionData::NAME_COMBO_ATTACK_6:
+486:		case CRaceMotionData::NAME_COMBO_ATTACK_7:
+487:		case CRaceMotionData::NAME_COMBO_ATTACK_8:
+488:		case CRaceMotionData::NAME_SPECIAL_1:
+489:		case CRaceMotionData::NAME_SPECIAL_2:
+490:		case CRaceMotionData::NAME_SPECIAL_3:
+491:		case CRaceMotionData::NAME_SPECIAL_4:
+492:		case CRaceMotionData::NAME_SPECIAL_5:
+493:		case CRaceMotionData::NAME_SPECIAL_6:
+494:		case CRaceMotionData::NAME_FISHING_THROW:
+495:		case CRaceMotionData::NAME_FISHING_WAIT:
+496:		case CRaceMotionData::NAME_FISHING_STOP:
+497:		case CRaceMotionData::NAME_FISHING_REACT:
+498:		case CRaceMotionData::NAME_FISHING_CATCH:
+499:		case CRaceMotionData::NAME_FISHING_FAIL:
+500:		case CRaceMotionData::NAME_CLAP:
+501:		case CRaceMotionData::NAME_DANCE_1:
+502:		case CRaceMotionData::NAME_DANCE_2:	
+503:		case CRaceMotionData::NAME_DANCE_3:
+504:		case CRaceMotionData::NAME_DANCE_4:
+505:		case CRaceMotionData::NAME_DANCE_5:
+506:		case CRaceMotionData::NAME_DANCE_6:
+507:		case CRaceMotionData::NAME_CONGRATULATION:
+508:		case CRaceMotionData::NAME_FORGIVE:
+509:		case CRaceMotionData::NAME_ANGRY:
+510:		case CRaceMotionData::NAME_ATTRACTIVE:
+511:		case CRaceMotionData::NAME_SAD:
+512:		case CRaceMotionData::NAME_SHY:
+513:		case CRaceMotionData::NAME_CHEERUP:
+514:		case CRaceMotionData::NAME_BANTER:
+515:		case CRaceMotionData::NAME_JOY:
+516:		case CRaceMotionData::NAME_CHEERS_1:
+517:		case CRaceMotionData::NAME_CHEERS_2:
+518:		case CRaceMotionData::NAME_KISS_WITH_WARRIOR:
+519:		case CRaceMotionData::NAME_KISS_WITH_ASSASSIN:
+520:		case CRaceMotionData::NAME_KISS_WITH_SURA:
+521:		case CRaceMotionData::NAME_KISS_WITH_SHAMAN:
+522:		case CRaceMotionData::NAME_FRENCH_KISS_WITH_WARRIOR:
+523:		case CRaceMotionData::NAME_FRENCH_KISS_WITH_ASSASSIN:
+524:		case CRaceMotionData::NAME_FRENCH_KISS_WITH_SURA:
+525:		case CRaceMotionData::NAME_FRENCH_KISS_WITH_SHAMAN:
+526:		case CRaceMotionData::NAME_SLAP_HIT_WITH_WARRIOR:
+527:		case CRaceMotionData::NAME_SLAP_HIT_WITH_ASSASSIN:
+528:		case CRaceMotionData::NAME_SLAP_HIT_WITH_SURA:
+529:		case CRaceMotionData::NAME_SLAP_HIT_WITH_SHAMAN:
+530:		case CRaceMotionData::NAME_SLAP_HURT_WITH_WARRIOR:
+531:		case CRaceMotionData::NAME_SLAP_HURT_WITH_ASSASSIN:
+532:		case CRaceMotionData::NAME_SLAP_HURT_WITH_SURA:
+533:		case CRaceMotionData::NAME_SLAP_HURT_WITH_SHAMAN:
+534-			return TRUE;
+535-			break;
+536-	}
+537-
+538-	// Locked during using skill
+539-	if (IsUsingSkill())
+540-	{
+541:		if (m_pkCurRaceMotionData->IsCancelEnableSkill())
+542-			return FALSE;
+543-
+544-		return TRUE;
+545-	}
+546-
+547-	return FALSE;
+548-}
+549-
+550:float CActorInstance::GetLastMotionTime(float fBlendTime)
+551-{
+552:	if (m_MotionDeque.empty())
+553-	{
+554:		if (MOTION_TYPE_ONCE == m_kCurMotNode.iMotionType)
+555-			return (m_kCurMotNode.fEndTime - fBlendTime);
+556-
+557-		return GetLocalTime();
+558-	}
+559-
+560:	TReservingMotionNode & rMotionNode = m_MotionDeque[m_MotionDeque.size()-1];
+561-
+562:	return rMotionNode.fStartTime + rMotionNode.fDuration - fBlendTime;
+563-}
+564-
+565:float CActorInstance::GetMotionDuration(DWORD dwMotionKey)
+566-{
+567:	CGraphicThing * pMotion;
+568-	
+569:	if (!GetMotionThingPointer(dwMotionKey, &pMotion))
+570-	{
+571:		Tracenf("CActorInstance::GetMotionDuration - Cannot get motion: %d / %d",
+572:			GET_MOTION_MODE(dwMotionKey), GET_MOTION_INDEX(dwMotionKey));
+573-		return 0.0f;
+574-	}
+575-
+576:	if (0 == pMotion->GetMotionCount())
+577-	{
+578-#ifdef _DEBUG
+579:		Tracenf("CActorInstance::GetMotionDuration - Invalid Motion Key : %d, %d, %d",
+580:				GET_MOTION_MODE(dwMotionKey), GET_MOTION_INDEX(dwMotionKey), GET_MOTION_SUB_INDEX(dwMotionKey));
+581-#endif
+582-		return 0.0f;
+583-	}
+584-
+585:	CGrannyMotion * pGrannyMotion = pMotion->GetMotionPointer(0);
+586:	return pGrannyMotion->GetDuration();
+587-}
+588-
+589:MOTION_KEY CActorInstance::GetRandomMotionKey(MOTION_KEY dwMotionKey)
+590-{
+591-	// NOTE : ÀÚÁÖ È£Ãâ µÇ´Â ºÎºÐÀº ¾Æ´ÏÁö¸¸ ¾î´À Á¤µµÀÇ ÃÖÀûÈ­ ¿©Áö°¡ ÀÖÀ½ - [levites]
+592-	// FIXME : Ã³À½¿¡ ¼±ÅÃµÈ ¸ð¼ÇÀÌ ¾ø´Â °Í¿¡ ´ëÇÑ Ã³¸®°¡ µÇ¾î ÀÖÁö ¾Ê´Ù.
+593:	WORD wMode = GET_MOTION_MODE(dwMotionKey);
+594:	WORD wIndex = GET_MOTION_INDEX(dwMotionKey);
+595-
+596:	const CRaceData::TMotionVector * c_pMotionVector;
+597:	if (m_pkCurRaceData->GetMotionVectorPointer(wMode, wIndex, &c_pMotionVector))
+598:	if (c_pMotionVector->size() > 1)
+599-	{
+600-		int iPercentage = random() % 100;
+601:		for (DWORD i = 0; i < c_pMotionVector->size(); ++i)
+602-		{
+603:			const CRaceData::TMotion & c_rMotion = c_pMotionVector->at(i);
+604:			iPercentage -= c_rMotion.byPercentage;
+605-
+606-			if (iPercentage < 0)
+607-			{
+608:				dwMotionKey = MAKE_RANDOM_MOTION_KEY(wMode, wIndex, i);
+609-
+610-				// Temporary
+611-				// NOTE: ÇöÀç·Î¼± ¿©±â¼­ ÇØºÃÀÚ ÀÇ¹Ì¾ø´Ù. ÀüÃ¼ÀûÀ¸·Î È®ÀÎ°á°ú ¾Æ·¡´Â ¾ÃÈ÷´Â ÄÚµå°í ´Ù¸¥°÷¿¡¼­ ÇØ°áÇØ¾ß ÇÏ¹Ç·Î ÀÏ´Ü ÁÖ¼®Ã³¸®ÇÔ. ³ªÁß¿¡ ÅëÃ¤·Î Áö¿ìÀÚ..
+612:				// m_kCurMotNode.fEndTime = m_kCurMotNode.fStartTime + GetMotionDuration(dwMotionKey);
+613-				// Temporary
+614-
+615:				return dwMotionKey;
+616-			}
+617-		}
+618-	}
+619-
+620:	return dwMotionKey;
+621-}
+622-
+623-void CActorInstance::PreAttack()
+624-{
+625-}
+626-
+627:void CActorInstance::__ClearMotion()
+628-{
+629-	__HideWeaponTrace();
+630-
+631:	m_MotionDeque.clear();
+632-	m_kCurMotNode.dwcurFrame=0;
+633-	m_kCurMotNode.dwFrameCount=0;
+634-	m_kCurMotNode.uSkill=0;
+635-	m_kCurMotNode.iLoopCount=0;
+636:	m_kCurMotNode.iMotionType=MOTION_TYPE_NONE;
+637-}
+638-
+639-
+640:DWORD CActorInstance::__SetMotion(const SSetMotionData& c_rkSetMotData, DWORD dwRandMotKey)
+641-{
+642-	DWORD dwMotKey = dwRandMotKey;
+643-
+644-	if (dwMotKey == 0)
+645:		dwMotKey = GetRandomMotionKey(c_rkSetMotData.dwMotKey);
+646-
+647-	UINT uNextMot = GET_MOTION_INDEX(c_rkSetMotData.dwMotKey);
+648-
+649-	if (IsDead())
+650-	{
+651:		if (uNextMot!=CRaceMotionData::NAME_DAMAGE_FLYING && uNextMot!=CRaceMotionData::NAME_DAMAGE_FLYING_BACK && uNextMot!=CRaceMotionData::NAME_DEAD && uNextMot!=CRaceMotionData::NAME_DEAD_BACK)
+652-			return 0;
+653-	}
+654-	if (IsUsingSkill())
+655-	{
+656-		__OnStop();
+657-	}
+658-
+659:	if (__IsStandUpMotion())
+660-	{
+661-		__OnStop();
+662-	}
+663-
+664-
+665:	if (__IsMoveMotion())
+666-	{
+667:		if (uNextMot==CRaceMotionData::NAME_DAMAGE || uNextMot==CRaceMotionData::NAME_DAMAGE_BACK || uNextMot==CRaceMotionData::NAME_DAMAGE_FLYING || uNextMot==CRaceMotionData::NAME_DAMAGE_FLYING_BACK)
+668-		{
+669-			if (!m_isMain)
+670-			{
+671-				Logn(0, "ÁÖÀÎ°øÀÌ ¾Æ´Ï¶ó¸é ÀÌµ¿ÁßÀÌ¶ó µ¥¹ÌÁö µ¿ÀÛÀ» ÃëÇÏÁö ¾ÊÀ½");
+672-				return false;
+673-			}
+674-		}
+675-
+676:		if (uNextMot!=CRaceMotionData::NAME_RUN &&
+677:			uNextMot!=CRaceMotionData::NAME_WALK &&
+678-			!__IsMovingSkill(c_rkSetMotData.uSkill))
+679-		{
+680-			__OnStop();
+681-		}
+682-	}
+683-	else
+684-	{
+685:		if (uNextMot==CRaceMotionData::NAME_RUN || __IsMovingSkill(c_rkSetMotData.uSkill))
+686-		{
+687-			__OnMove();
+688-		}
+689-	}
+690-
+691-
+692-	// NOTE : ½ºÅ³ »ç¿ëÁß »ç¶óÁö´Â ¹®Á¦¸¦ À§ÇÑ ¾ÈÀü ÀåÄ¡ - [levites]
+693-	if (__IsHiding())
+694-	{
+695-		__ShowEvent();
+696-	}
+697-
+698-
+699-	if (-1 != m_iFishingEffectID)
+700-	{
+701-		CEffectManager& rkEftMgr=CEffectManager::Instance();
+702- 		rkEftMgr.DeactiveEffectInstance(m_iFishingEffectID);
+703-
+704-		m_iFishingEffectID = -1;
+705-	}
+706-
+707-	if (m_pkHorse)
+708-	{
+709:		WORD wMotionIndex = GET_MOTION_INDEX(dwMotKey);
+710:		WORD wMotionSubIndex = GET_MOTION_SUB_INDEX(dwMotKey);
+711:		DWORD dwChildMotKey = MAKE_RANDOM_MOTION_KEY(m_pkHorse->m_wcurMotionMode, wMotionIndex, wMotionSubIndex);
+712-
+713:		if (CRaceMotionData::NAME_DEAD == wMotionIndex)
+714:			CGraphicThingInstance::ChangeMotion(dwMotKey, c_rkSetMotData.iLoopCount, c_rkSetMotData.fSpeedRatio);
+715-		else
+716:			CGraphicThingInstance::SetMotion(dwMotKey, c_rkSetMotData.fBlendTime, c_rkSetMotData.iLoopCount, c_rkSetMotData.fSpeedRatio);
+717-
+718:		m_pkHorse->SetMotion(dwChildMotKey, c_rkSetMotData.fBlendTime, c_rkSetMotData.iLoopCount, c_rkSetMotData.fSpeedRatio);
+719:		m_pkHorse->__BindMotionData(dwChildMotKey);
+720-
+721-		if (c_rkSetMotData.iLoopCount)
+722:			m_pkHorse->m_kCurMotNode.iMotionType = MOTION_TYPE_ONCE; // ¹«Á¶°Ç ÀÌÀü ¸ð¼Ç Å¸ÀÔÀ¸·Î ¼³Á¤µÇ°í ÀÖ¾úÀ½
+723-		else
+724:			m_pkHorse->m_kCurMotNode.iMotionType = MOTION_TYPE_LOOP;
+725-
+726:		m_pkHorse->m_kCurMotNode.dwFrameCount	= m_pkHorse->GetMotionDuration(dwChildMotKey) / (1.0f / g_fGameFPS);
+727-		m_pkHorse->m_kCurMotNode.dwcurFrame		= 0;
+728:		m_pkHorse->m_kCurMotNode.dwMotionKey	= dwChildMotKey;
+729-	}
+730-	else
+731-	{
+732:		CGraphicThingInstance::SetMotion(dwMotKey, c_rkSetMotData.fBlendTime, c_rkSetMotData.iLoopCount, c_rkSetMotData.fSpeedRatio);
+733-	}
+734-	
+735-	__HideWeaponTrace();
+736-
+737:	if (__BindMotionData(dwMotKey))
+738-	{
+739-		int iLoopCount = __GetLoopCount();
+740:		SetMotionLoopCount(iLoopCount);
+741-
+742-		if (__CanAttack())
+743-		{
+744-			// ¿©±â¼­ °ø°Ý ¸ð¼ÇÀÏ °æ¿ìÀÇ Ã³¸®¸¦ ÇÕ´Ï´Ù - [levites]
+745-			__ShowWeaponTrace();
+746-
+747-			m_HitDataMap.clear();
+748-			//PreAttack();
+749-		}
+750-
+751-		if (__IsComboAttacking())
+752-		{
+753-			if (!__CanNextComboAttack())
+754-			{
+755-				// 2004.11.19.myevan.µ¿¹° º¯½Å½Ã ÀÌºÎºÐ¿¡¼­ ¹Ù·Î ¸®¼ÂµÇ¾î ´ÙÀ½µ¿ÀÛ ¾È³ª¿Â´Ù
+756-				m_dwcurComboIndex = 0; // ÄÞº¸ ¸®¼Â - [levites]
+757-
+758-				// NOTE : ClearCombo() ¸¦ ¼öÇàÇØ¼­´Â ¾ÈµÈ´Ù.
+759:				//        ÄÞº¸ ´ÙÀ½¿¡ ½ºÅ³À» ÀÌ¾î¼­ »ç¿ëÇÒ °æ¿ì m_pkCurRaceMotionData±îÁö ÃÊ±âÈ­ µÇ¾î ¹ö¸°´Ù.
+760:				//Tracef("MotionData¿¡ ÄÞº¸ µ¥ÀÌÅ¸°¡ µé¾î ÀÖÁö ¾Ê½À´Ï´Ù.\n");
+761-			}
+762-		}
+763-	}
+764-
+765-	return dwMotKey;
+766-}
+767-
+768:bool CActorInstance::__BindMotionData(DWORD dwMotionKey)
+769-{
+770:	if (!m_pkCurRaceData->GetMotionDataPointer(dwMotionKey, &m_pkCurRaceMotionData))
+771-	{
+772-		Tracen("Failed to bind motion.");
+773:		m_pkCurRaceMotionData=NULL;
+774-		m_dwcurComboIndex=0;
+775-		return false;
+776-	}
+777-
+778-	return true;
+779-}
+780-
+781-int CActorInstance::__GetLoopCount()
+782-{
+783:	if (!m_pkCurRaceMotionData)
+784-	{
+785:		TraceError("CActorInstance::__GetLoopCount() - m_pkCurRaceMotionData==NULL");
+786-		return -1;
+787-	}
+788-
+789:	return m_pkCurRaceMotionData->GetLoopCount();
+790-}
+791-
+792-bool CActorInstance::__CanAttack()
+793-{
+794:	if (!m_pkCurRaceMotionData)
+795-	{
+796:		TraceError("CActorInstance::__CanAttack() - m_pkCurRaceMotionData==NULL");
+797-		return false;
+798-	}
+799-
+800:	if (!m_pkCurRaceMotionData->isAttackingMotion())
+801-		return false;
+802-
+803-	return true;
+804-}
+805-
+806-bool CActorInstance::__CanNextComboAttack()
+807-{
+808:	if (!m_pkCurRaceMotionData)
+809-	{
+810:		TraceError("CActorInstance::__CanNextComboAttack() - m_pkCurRaceMotionData==NULL");
+811-		return false;
+812-	}
+813-
+814:	if (!m_pkCurRaceMotionData->IsComboInputTimeData())
+815-		return false;
+816-
+817-	return true;
+818-}
+819-
+820-bool CActorInstance::__IsComboAttacking()
+821-{
+822-	if (0 == m_dwcurComboIndex)
+823-		return false;
+824-
+825-	return true;
+826-}
+827-
+828:bool CActorInstance::__IsNeedFlyTargetMotion()
+829-{
+830:	if (!m_pkCurRaceMotionData)
+831-		return true;
+832-
+833:	for (DWORD i = 0; i < m_pkCurRaceMotionData->GetMotionEventDataCount(); ++i)
+834-	{
+835:		const CRaceMotionData::TMotionEventData * c_pData;
+836:		if (!m_pkCurRaceMotionData->GetMotionEventDataPointer(i, &c_pData))
+837-			continue;
+838-
+839:		if (c_pData->iType == CRaceMotionData::MOTION_EVENT_TYPE_WARP)
+840-			return true;
+841-
+842:		if (c_pData->iType == CRaceMotionData::MOTION_EVENT_TYPE_FLY)
+843-			return true;
+844-
+845:		if (c_pData->iType == CRaceMotionData::MOTION_EVENT_TYPE_EFFECT_TO_TARGET)
+846-			return true;
+847-	}
+848-
+849-	return false;
+850-}
+851-
+852:bool CActorInstance::__HasMotionFlyEvent()
+853-{
+854:	if (!m_pkCurRaceMotionData)
+855-		return true;
+856-
+857:	for (DWORD i = 0; i < m_pkCurRaceMotionData->GetMotionEventDataCount(); ++i)
+858-	{
+859:		const CRaceMotionData::TMotionEventData * c_pData;
+860:		if (!m_pkCurRaceMotionData->GetMotionEventDataPointer(i, &c_pData))
+861-			continue;
+862-
+863:		if (c_pData->iType == CRaceMotionData::MOTION_EVENT_TYPE_FLY)
+864-			return true;
+865-	}
+866-	return false;
+867-}
+868-
+869:bool CActorInstance::__IsWaitMotion()
+870-{
+871:	return (__GetMotionType()==CRaceMotionData::TYPE_WAIT);
+872-}
+873-
+874:bool CActorInstance::__IsMoveMotion()
+875-{
+876:	return (__GetMotionType()==CRaceMotionData::TYPE_MOVE);
+877-}
+878-
+879:bool CActorInstance::__IsAttackMotion()
+880-{
+881:	return (__GetMotionType()==CRaceMotionData::TYPE_ATTACK);	
+882-}
+883-
+884:bool CActorInstance::__IsComboAttackMotion()
+885-{
+886:	return (__GetMotionType()==CRaceMotionData::TYPE_COMBO);
+887-}
+888-
+889-
+890:bool CActorInstance::__IsDamageMotion()
+891-{
+892:	return (__GetMotionType()==CRaceMotionData::TYPE_DAMAGE);
+893-}
+894-
+895:bool CActorInstance::__IsKnockDownMotion()
+896-{
+897:	return (__GetMotionType()==CRaceMotionData::TYPE_KNOCKDOWN);
+898-}
+899-
+900:bool CActorInstance::__IsDieMotion()
+901-{
+902:	if (__IsKnockDownMotion())
+903-		return true;
+904-
+905:	return (__GetMotionType()==CRaceMotionData::TYPE_DIE);
+906-}
+907-
+908:bool CActorInstance::__IsStandUpMotion()
+909-{
+910:	return (__GetMotionType()==CRaceMotionData::TYPE_STANDUP);
+911-}
