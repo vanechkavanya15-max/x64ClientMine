@@ -1,156 +1,121 @@
 # Podsystem GameLib: CActorInstance - Rdzen Postaci, Kosci i Dolaczanie Modeli
 
 ## 1. Cel Architektoniczny i Rola Modulu
-
-`CActorInstance` stanowi serce logiki postaci i obiektow w swiecie gry. Odpowiada za wszystkie byty posiadajace reprezentacje wizualna i logike przestrzenna (gracze, NPC, potwory, konie, a takze elementy otoczenia takie jak kamienie Metin, drzwi, czy efekty statyczne traktowane jako "Object").
-Klasa agreguje zachowania zwiazane z ruchem, animacja, fizyka, kolizjami, wyswietlaniem stanow efektow wizualnych i obsluga kosci modelu (Bone) na ktorych opiera sie dolaczanie pancerzy, broni i fryzur.
+`CActorInstance` to centralny silnik logiki postaci (graczy, mobow, NPC, metinow) w kliencie gry. Odpowiada za integracje pomiedzy warstwa graficzna (EterLib/DirectX), systemem animacji i kosci (Granny3D), oraz warstwa fizyczna (kolizje terenu - CPythonBackground).
+Glowne obowiazki:
+- Zarzadzanie ruchem i blendingiem animacji (pomiedzy postawa, biegiem, a atakiem).
+- Attachowanie (dolaczanie) pancerzy, wlosow, broni, i efektow czasteczkowych do konkretnych kosci szkieletu (`Bone Index`) uzywajac Granny.
+- Aktualizowanie wektorow kolizji (Bounding Sphere) wzgledem terenu.
+- Synchronizacja z jazda konna (przesuniecie srodka ciezkosci obiektu `m_pkHorse`).
 
 ### Zaleznosci
-- **Wywolujacy:** Kod aplikacji (np. `CPythonCharacterManager`, `CPythonPlayer`, `CPythonBackground`), warstwa sieciowa (odbior pakietow o stanie postaci i ruchu) i interfejs Pythona (metody wywolywane bezposrednio z logiki skryptowej klienta).
-- **Wykorzystywane Biblioteki:**
-  - `EterLib`: Do zarzadzania renderowaniem, stanow graficznych, tekstur i interakcji z DirectX.
-  - `EterGrnLib` / `SpeedTreeLib`: Do manipulacji na modelach i kosciach Granny3D, obslugi drzew.
-  - `PhysicsObject` / `AreaTerrain`: Rozwiazywanie problemow z kolizjami terenowymi.
+- **Kto wywoluje:** `CPythonCharacterManager` zarzadza lista aktorow. Skrypty Python (`root/player.py`) poprzez API C++ (`CPythonPlayer`) wysylaja polecenia np. ataku czy przemieszczenia (MOVE_TO z pakietow sieciowych).
+- **Biblioteki:** `EterLib` (render, shadery, DirectX), `EterGrnLib` (animacje .msa, kosci postaci .gr2), `PhysicsObject` (Sphere collision).
 
 ## 2. Diagram Architektury i Przeplywu Danych (Mermaid)
-
 ```mermaid
 graph TD
-    subgraph Siec
-        SP[Server Packets]
+    subgraph Warstwa Zewnetrzna
+        NET[Siec / Pakiety Serwera]
+        PY[Python C-API / Skrypty]
     end
 
-    subgraph Skrypty Python
-        PY[Python C-API Methods]
+    subgraph CActorInstance (Rdzen)
+        AI_Render[Renderowanie i Transformacja]
+        AI_Motion[Zarzadzanie Ruchem i Blending]
+        AI_Attach[Zarzadzanie Ekwipunkiem i Kosci]
+        AI_Event[Zdarzenia i Dzwieki]
     end
+
+    subgraph Moduly Pomocnicze
+        GRN[Granny3D - Skeletal Mesh]
+        D3D[EterLib - D3D8 Device]
+        TER[AreaTerrain - Wysokosc Terenu]
+    end
+
+    NET -->|Aktualizacje Pozycji, Atak| AI_Motion
+    PY -->|Zmiana Broni, Umiejetnosci| AI_Attach
     
-    subgraph GameLib - Rdzen
-        AI(CActorInstance)
-        AI_Motion[Motion Processing]
-        AI_Attach[Attach & Equipment]
-        AI_Render[Transform & Render]
-        AI_Event[Event Handlers]
-        
-        AI --> AI_Motion
-        AI --> AI_Attach
-        AI --> AI_Render
-        AI --> AI_Event
-    end
-
-    subgraph EterLib / DirectX
-        D3D[Direct3D 8 API]
-        GRN[Granny3D Model]
-        VT[VRAM Buffers]
-    end
-
-    SP -->|Pozycja, HP, Status| AI
-    PY -->|Wywolanie skilli, zmiana eq| AI
-    AI_Attach --> GRN
-    AI_Render --> D3D
-    AI_Render --> VT
+    AI_Motion -->|Pobieranie Klatek (Frames)| GRN
+    AI_Attach -->|Mapowanie Kosci (Bip01)| GRN
+    
+    AI_Render -->|Pobieranie Z-Pos| TER
+    AI_Render -->|Wysylanie Macierzy| D3D
+    AI_Event -->|Czasteczki/Efekty| D3D
 ```
 
 ## 3. Rejestr Struktur Danych i Pamieci (Memory & Struct Layout)
 
-Poniższe struktury stanowia fundament stanow instancji aktorow.
+Ponizsze struktury posiadaja wyrownanie zgodne z domyslnym kompilatorem x86 (MSVC, 4 bajty).
 
-### enum EType
-Definiuje podstawowe typy instancji:
-- `TYPE_ENEMY = 0` - Potwor (mob).
-- `TYPE_NPC = 1` - Postac niezalezna (NPC).
-- `TYPE_STONE = 2` - Kamien Metin.
-- `TYPE_WARP = 3` - Portal/Warp.
-- `TYPE_DOOR = 4` - Brama/Drzwi.
-- `TYPE_BUILDING = 5` - Budynek.
-- `TYPE_PC = 6` - Gracz (Player Character).
-- `TYPE_POLY = 7` - Transformacja (Polymorph).
-- `TYPE_HORSE = 8` - Kon.
-- `TYPE_GOTO = 9`
-- `TYPE_OBJECT = 10` - Tylko dla uzytku klienckiego (statyczne obiekty wizualne).
-**Wyrównanie (Packing):** Zgodnie z natywnym wyrównaniem C++ (zazwyczaj 4 bajty).
+### `enum EType`
+Klasyfikuje glowny byt obiektu.
+- `TYPE_ENEMY` (0): Potwory agresywne.
+- `TYPE_NPC` (1): Przyjazne postacie, handlarze.
+- `TYPE_STONE` (2): Kamienie Metin (brak rotacji ciala, specjalne efekty rozpadu).
+- `TYPE_WARP` / `TYPE_DOOR` / `TYPE_BUILDING`: Elementy otoczenia mapy traktowane jako pseudo-aktorzy.
+- `TYPE_PC` (6): Gracz (Player Character).
+- `TYPE_HORSE` (8): Wierzchowiec, posiada wlasna logike animacji LOOP.
 
-### struct SState
-Reprezentuje biezacy stan wektora postaci w fizyce, przekazywany m.in do event handlerow.
-- `TPixelPosition kPPosSelf;` - Zdefiniowana (zwykle w EterLib) 3D wektorowa pozycja (X, Y, Z - Float x3).
-- `FLOAT fAdvRotSelf;` - Kat rotacji gracza, orientacja przestrzenna (4 bajty).
-**Wyrównanie:** 16 bajtów.
+### `struct SState`
+Wektor fizyczny biezacego stanu, przekazywany do EventHandlerow.
+- `TPixelPosition kPPosSelf;`: Struktura 3x Float (x, y, z) koordynatow na mapie.
+- `FLOAT fAdvRotSelf;`: Kat obrotu postaci w stopniach (float).
 
-### struct SReservingMotionNode (Zdefiniowane jako TReservingMotionNode)
-Opisuje nadchodzaca animacje (zakolejkowana).
-- `EMotionPushType iMotionType;` (4 bajty, enum).
-- `float fStartTime;` - Czas rozpoczecia w milisekundach (4 bajty).
-- `float fBlendTime;` - Czas blendingu / przenikania (4 bajty).
-- `float fDuration;` - Czas trwania animacji (4 bajty).
-- `float fSpeedRatio;` - Wspolczynnik predkosci dla odtwarzania animacji (4 bajty).
-- `DWORD dwMotionKey;` - Klucz (hash lub index) identyfikujacy dany plik .msa / animacje (4 bajty).
-**Wyrównanie:** 24 bajty.
+### `struct SReservingMotionNode (TReservingMotionNode)`
+Wezel animacji rezerwowej (nastepna animacja do odtworzenia po zakonczeniu biezacej).
+- `EMotionPushType iMotionType;`: Typ (Loop, Once).
+- `float fStartTime;`: Czas rozpoczecia blendingu w milisekundach.
+- `float fBlendTime;`: Czas na jaki uruchomiony jest algorytm mieszania klatek (interpolacja).
+- `float fDuration;`: Calkowity czas trwania animacji z pliku .msa.
+- `float fSpeedRatio;`: Wspolczynnik szybkosci ataku/ruchu wplywajacy na mnoznik czasu klatki.
+- `DWORD dwMotionKey;`: Hasz Vnum identyfikujacy nazwe akcji.
 
-### struct SCurrentMotionNode
-Opisuje biezaca animacje (w toku).
-- `EMotionPushType iMotionType;` (4 bajty).
-- `DWORD dwMotionKey;` (4 bajty).
-- `DWORD dwcurFrame;` - Aktualna klatka z logiki Granny (4 bajty).
-- `DWORD dwFrameCount;` - Calkowita liczba klatek (4 bajty).
-- `float fStartTime;` (4 bajty).
-- `float fEndTime;` (4 bajty).
-- `float fSpeedRatio;` (4 bajty).
-**Wyrównanie:** 28 bajtów.
+### `struct SCurrentMotionNode`
+Wezel aktualnie odtwarzanej akcji.
+- Posiada `dwcurFrame` (Biezaca klatka Granny) oraz `dwFrameCount` (calkowita ilosc klatek w animacji), ktore sa aktualizowane na podstawie szybkosci klatek gry `g_fGameFPS`.
 
-### struct SMotionEventInstance (TMotionEventInstance)
-Skorelowane z zdarzeniami osi czasu animacji (.msa eventy typu np. dzwiek dzwiekow, atak, trzesienie ziemi).
-- `int iType;` (4 bajty).
-- `int iMotionEventIndex;` (4 bajty).
-- `float fStartingTime;` (4 bajty).
-- `const CRaceMotionData::TMotionEventData* c_pMotionData;` - Wskaznik do niezmiennych danych animacji (4 bajty w x86).
-**Wyrównanie:** 16 bajtów na x86.
-
-### struct TAttachingEffect
-Struktura reprezentujaca zamocowany (z-attach-owany) efekt np. iskry na mieczu (w `CActorInstanceAttach.cpp`).
-- `DWORD dwEffectIndex;` - Identyfikator w menedzerze efektow (4 bajty).
-- `int iBoneIndex;` - Indeks kosci na siatce z modelu Granny (4 bajty).
-- `DWORD dwModelIndex;` - Model do ktorego dopina sie efekt (4 bajty).
-- `D3DXMATRIX matTranslation;` - 4x4 macierz transformacji DirectX (64 bajty).
-- `BOOL isAttaching;` - Czy efekt wciaz jest polaczony (4 bajty).
-- `int iLifeType;` (4 bajty).
-- `DWORD dwEndTime;` - Kiedy wylaczyc efekt (4 bajty).
-**Wyrównanie:** 88 bajtów.
+### `struct TAttachingEffect`
+Pojedynczy instancjonowany efekt wizualny (.mse) zamocowany na ciele postaci.
+- `DWORD dwEffectIndex;`: ID efektu zarejestrowane w CEffectManager.
+- `int iBoneIndex;`: Indeks kosci Granny (np. R_Hand, Head) na ktorym zespawnowano wezel.
+- `DWORD dwModelIndex;`: Identyfikator czesci ciala bazowego.
+- `D3DXMATRIX matTranslation;`: Lokalna macierz offsetu dla wycentrowania efektu (np. by swiecenie miecza nie bylo na rekojesci, a na ostrzu).
+- `BOOL isAttaching;`: Flaga stanu zycia.
 
 ## 4. Rejestr Klas i Metod (API Reference)
 
-### `CActorInstance` - Glowna klasa dziedziczaca po `IActorInstance`, `IFlyTargetableObject`
+### `void CActorInstance::INSTANCEBASE_Transform()`
+- **Logika:** Jest to glowny wezel aktualizacji fizycznej wykonywany co klatke (`Update()`). Jesli aktor jedzie na koniu (`m_pkHorse != NULL`), funkcja wywoluje transformacje na wierzchowcu, a nastepnie kradnie jego wspolrzedne (`m_x = m_pkHorse->...x`, `m_y = -m_pkHorse->...y`). Nastepnie odpala obsluge trzesienia ekranu `ShakeProcess()`, przelicza `UpdateBoundingSphere()` i aktualizuje statystyki materialu (alpha blend).
 
-#### Transformacja i Aktualizacja (Update & Render)
-- `void INSTANCEBASE_Deform()`
-  - **Logika:** Wywoluje znieksztalcenie siatki (Skeletal Animation) dla obslugi vertex-blendingu z uzyciem Granny, oraz `TraceProcess()` obliczajacy slady broni.
-- `void INSTANCEBASE_Transform()`
-  - **Logika:** Glowny rurociag fizyczny przed rysowaniem. Uaktualnia pozycje, jesli gracz jedzie na koniu (`m_pkHorse->INSTANCEBASE_Transform()`) to synchronizuje pozycje XYZ (`m_x = m_pkHorse->NEW_GetCurPixelPositionRef().x; m_y = -...`). Uruchamia `TransformProcess()`, `Transform()`, aktualizuje bounding sphere (kolejnosc wywolan wewnatrz). 
-  - **Wartosc:** Brak (void). Modyfikuje pozycje macierzy swiata.
+### `void CActorInstance::INSTANCEBASE_Deform()`
+- **Logika:** Aplikuje transformacje CPU (Software Skinning). Wywoluje metode `Deform()` odswiezajaca wezly Granny i `TraceProcess()` sprawdzajacy slad pozostawiany przez bron (np. efekt ciosu mieczem w powietrzu). Wynikiem jest zdeformowana siatka wierzcholkow gotowa dla Direct3D.
 
-#### Dolaczanie Modeli i Ekwipunku (Attaching)
-- `DWORD Vietnam_ConvertWeaponVnum(DWORD vnum)` (Funkcja globalna / helper z `ActorInstanceAttach.cpp`)
-  - **Logika:** Kowerter Vnumow broni. Uzywane glownie dla modyfikacji broni Wietnamskiego klienta - modyfikuje baze modulo (np. 10 -> 5000) ukrywajac pewne Vnumy lub re-mapujac na standardowe przed wyswietleniem. Zwraca nowy `vnum`.
-- `void AttachWeapon(DWORD dwItemIndex)`
-  - **Logika:** Laduje z `CItemManager` dane dla `dwItemIndex` i przypisuje przedmiot z atrybutem broni do odpowiedniej struktury rąk gracza. Nastepuje pobranie `dwModelIndex` (dla part 0 to np. prawa reka), sprawdzenie kosci Granny odpowiadajacej za trzymanie oręża (np. `Bip01 R Hand`), zmacierzowanie i podpiecie.
+### `void CActorInstance::MotionProcess(BOOL isPC)`
+- **Logika:** Sterownik maszyny stanow animacji. Uruchamia dzwieki oraz zdarzenia (.msa events) za pomoca `__MotionEventProcess`. Nastepnie interpoluje przejscia miedzy stara a nowa animacja (`ReservingMotionProcess`), przeliczajac proporcje klatek w oparciu o `fSpeedRatio` (Speed Hack protection and calculation). Wierzchowce sa omijane i kierowane do funkcji specjalnej `HORSE_MotionProcess`, wymuszajacej odtwarzanie petli bez blokowania jezdzca.
 
-#### System Animacji (Motion Process)
-- `void MotionProcess(BOOL isPC)`
-  - **Logika:** Obejmuje wywolanie glowne stosu obslugi animacji: `__MotionEventProcess(isPC)` (uruchamia dzwieki kroków i sprawdzenie kolizji dla kazdej klatki `dwcurFrame`), nastepnie wykonanie biezacej klatki `CurrentMotionProcess()` oraz uaktualnienie animacji w kolejce `ReservingMotionProcess()` z procesem płynnego przejścia (blending).
-- `void HORSE_MotionProcess(BOOL isPC)`
-  - **Logika:** Dedykowana metoda przetwarzania animacji wierzchowca. Posiada wlasny cykl zarzadzania pętlą animacji np. bieg bez przerwy (`MOTION_TYPE_LOOP`).
+### `DWORD Vietnam_ConvertWeaponVnum(DWORD vnum)` (Global Helper)
+- **Logika:** Wietnamska konwersja identyfikatorow przedmiotow. Hardkodowany switch ucinajacy pierwsza liczbe (zmieniajacy bazowe vnumy broni wedlug wzoru modulo 10). Modyfikuje wyswietlanie wizualne modelu broni nie naruszajac prawdziwych statystyk na serwerze (Client-Side hack).
+
+### `void CActorInstance::AttachWeapon(DWORD dwItemIndex, DWORD dwParentPartIndex, DWORD dwPartIndex)`
+- **Logika:** Funkcja wczytuje z `CItemManager` pliki `.gr2` i `.tga` dla podanego ID (Vnum) broni. Odnajduje kosc odpowiadajaca prawemu nadgarstkowi (`Bip01 R Hand`). Uzywa `m_pkCurRaceData->GetItemAttachPosition` aby przesunac i obrocic model broni wzgledem reki. Zapisuje to do wlasnej struktury attach-ow, konczac operacje zbudowaniem relacji pomiedzy szkieletem broni a ciala gracza.
+
+### `void CActorInstance::UpdatePointInstance()`
+- **Logika:** Sluzy optymalizacji kolizji Hitbox. Odczytuje uaktualniona globalna macierz macierzysta gracza (`matWorld`) i przemieszcza srodki (center-points) dynamicznych sfer (`CDynamicSphereInstanceVector`). Dzieki temu gra wie, czy uderzenie mieczem sieglo przeciwnika w danym cyklu odswiezania `ELTimer_GetMSec()`.
 
 ## 5. Punkty Styku (Cross-Subsystem Integration)
 
-- **DirectX (EterLib/Direct3D):** Klasa uzywa mnostwa macierzy matematycznych `D3DXMATRIX`, wektorow `D3DXVECTOR3` do okreslania pozycji w wirtualnym swiecie 3D. Obiekty maja wlasne zmienne materialu modyfikujace shadery (alpha blending, render state). Operuje na wierzcholkach deformowanych na CPU przed wrzutka z powrotem.
-- **Granny3D:** Wszystkie metody uzywajace `iBoneIndex` pobieraja macierze lokalne i uzywaja macierzy swiatowych do wyliczenia prawidlowego zaczepu elementow zbroi lub wlosow (`ActorInstanceAttach.cpp`).
-- **Python:** Odpowiedniki tych metod jako bridge znajduja sie w zrodlach np. modulu `Player` / `Chr`. Pozwalaja m.in ustawiac rodzaj rotacji, rzucac animacje, symulowac ruch czy inicjowac atak w warstwie C++.
-- **Siec (Server Packets):** Pakiety z serwera dotycza tylko logiki biznesowej gry. Baza C++ konwertuje stan np. `MOVE_TO` odbierajac docelowa lokacje z protokolu sieciowego, do przemieszczenia przestrzennego aktora uzywajac np `PushPath` lub blendu animacji krokow (wykonujac wywolania fizyczne).
+- **DirectX (EterLib/Direct3D):** Kod wymusza bezposrednie operacje na buforach poprzez `GetGraphicsDevice()->SetTransform`. Operuje na flagach renderowania `ERenderMode` by przelaczac sie miedzy `RENDER_MODE_BLEND` (Znikajace postacie/niewidzialnosc) a `RENDER_MODE_NORMAL`.
+- **Python:** Istnieje most C-API wyeksponowany w module `player`. Na przyklad `player.SetAttackKeyState()` triggeruje zmiane kolejki `SReservingMotionNode`, co narzuca animacje ataku i uruchamia testy promieniowe (Raycast) w kierunku wroga.
+- **Granny3D:** To caly fundament animacyjny. Konwersja na wewnetrzne struktury kosci Granny. Klatki kluczowe i zgiecia stawow pobierane sa z `GetBoneMatrix`, wymagane by np. wlosy poruszaly sie ze zmiana pozycji glowy postaci.
+- **Sieciowosc:** Logika postaci opiera sie na `PushPath`. Zamiast teleportowac postac, serwer wysyla pakiety trasy ruchu (wielokatne). CActorInstance zjada te punkty kontrolne (`m_kPPosSelf`) zmuszajac postac do fizycznego spaceru po podanych kosciach z predkoscia Movement Speed z serwera.
 
 ## 6. Pulapki, Antywzorce i Ograniczenia
 
-1. **Koszt Transformacji Skalarnych na CPU:** Operacja deformacji modeli (metoda `Deform`) na kosciach jest przeprowadzana softwarowo, a nie przy pomocy Hardware Skinning (shadery). W przypadku duzej ilosci NPC na ekranie (`EType::TYPE_ENEMY` itp.) generuje gigantyczny bottleneck procesora uderzajac z calej sily w klatkarz (fps drops).
-2. **Synchronizacja konia (`m_pkHorse`):** Skroty uzywane w `INSTANCEBASE_Transform` gdzie `m_y` jest natychmiast odwracane (znak minus) wprowadzaja w blad, gdy nastepuje rotacja (niespojnosc osi wewnetrznie). 
-3. **Blend Animation Bugs:** Kiedy postac wpada w zly stan `SReservingMotionNode`, niska precyzja `fBlendTime` moze sprawic przeskakiwanie postaci (tzw. poping) gubiac przejscie. Nierzadko wywolujac "slidy" - uzytkownik widzi model przesuwajacy sie w zlej animacji po ziemi.
-4. **Wycieki przy Efektach:** Tworzone instancje `TAttachingEffect` jesli nie sa precyzyjnie czyszczone po wyjsciu modelu (np zniszczony obiekt Object z dopietym smierdzacym dymkiem) zostawiaja uzywane textury / dzwieki / czastki aktywne w pamieci, powodujac po kilku godzinach gry brak pamieci i Crash (VRAM Overflow / D3DERR_DEVICELOST na zrzuconych zasobach).
+1. **Bottleneck Skalowania CPU (Software Skinning):** Operacja `INSTANCEBASE_Deform()` na silniku Granny 3D jest realizowana przez procesor. W miejscach zatloczonych (np. eventy, sklepy w miescie), powoduje to ze watek glowny (Single Core) dlawi sie calkowicie wykonujac przeliczenia wierzcholkow na macierzach, drastycznie upuszczajac FPSy. Klient nie wspiera Hardware Skinningu shaderami na GPU.
+2. **Hardcoding Koni:** Kod zawiera nieeleganckie obejscia w postaci `m_y = -m_pkHorse->NEW_GetCurPixelPositionRef().y`. Odwracanie znaku wspolrzednej osi Y przy transformacji na wierzchowcu jest nastepstwem bledow konwertera 3DSMAX -> GR2. Wymusza to uwazne modelowanie przyszlych zwierzat aby nie biegaly "tylem".
+3. **Ghosting / Sliding (Blend Bugs):** Niestabilny odczyt klatek w polaczeniu ze zmiennoprzecinkowym czasem interpolacji `fBlendTime` rodzi desynchronizacje. Powoduje to glitche: gracz moze sie przemieszczac, lecz animacja utknela - jego stopy slizgaja sie po terenie.
+4. **Pamiec TAttachingEffect:** Cykl zycia czasteczek przypietych do aktora czesto przezywa destrukcje samej postaci jesli `ClearAttachingEffect()` zawiedzie (np. podpieta poswiata gm'a). Tworzy to ukryte wycieki do momentu zawalenia VRAMu i zamkniecia klienta kodem `D3DERR_DEVICELOST`.
 
 ---
-*Dokumentacja zostala wygenerowana wg norm inzynierii wstecznej by stanowic Single Source of Truth dla systemow sztucznej inteligencji.*
+*Dokumentacja zostala wygenerowana wg norm inzynierii wstecznej by stanowic Single Source of Truth dla systemow sztucznej inteligencji (bez stosowania znakow diakrytycznych).*
