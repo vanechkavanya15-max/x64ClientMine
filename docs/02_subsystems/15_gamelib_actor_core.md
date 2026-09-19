@@ -153,4 +153,4 @@ Struktura reprezentujaca zamocowany (z-attach-owany) efekt np. iskry na mieczu (
 4. **Wycieki przy Efektach:** Tworzone instancje `TAttachingEffect` jesli nie sa precyzyjnie czyszczone po wyjsciu modelu (np zniszczony obiekt Object z dopietym smierdzacym dymkiem) zostawiaja uzywane textury / dzwieki / czastki aktywne w pamieci, powodujac po kilku godzinach gry brak pamieci i Crash (VRAM Overflow / D3DERR_DEVICELOST na zrzuconych zasobach).
 
 ---
-*Dokumentacja zostala wygenerowana wg norm inzynierii wstecznej by stanowic Single Source of Truth dla systemow sztucznej inteligencji.*
+*Dokumentacja zostala wygenerowana wg norm inzynierii wstecznej by stanowic Single Source of Truth dla systemow sztucznej inteligencji.*
