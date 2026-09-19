@@ -1,21 +1,35 @@
 import re
 import sys
 
-def extract_methods(file_path):
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-    except UnicodeDecodeError:
-        try:
-            with open(file_path, 'r', encoding='iso-8859-1') as f:
-                content = f.read()
-        except Exception:
-            return
-            
-    pattern = re.compile(r'^\s*(?:virtual\s+)?[\w\*<>\s_:]+\s+(\w+)\s*\([^)]*\)\s*(?:const)?\s*(?:{|;)', re.MULTILINE)
-    print(f"=== Methods in {file_path} ===")
-    for match in pattern.finditer(content):
-        print(match.group(0).strip())
+def extract_methods(filename):
+    with open(filename, 'r', encoding='ISO-8859-1') as f:
+        content = f.read()
 
-if __name__ == "__main__":
-    extract_methods(sys.argv[1])
+    # Look for PyMethodDef array
+    pattern = r"PyMethodDef\s+\w+\[\]\s*=\s*\{([\s\S]*?)\};"
+    match = re.search(pattern, content)
+    
+    if match:
+        methods_block = match.group(1)
+        # Extract individual method entries: { "MethodName", c_function_name, METH_VARARGS }
+        method_pattern = r'\{\s*"([^"]+)"\s*,\s*([^,]+)\s*,\s*([^}]+)\s*\}'
+        methods = re.findall(method_pattern, methods_block)
+        
+        for name, func, flags in methods:
+            func = func.strip()
+            if func == "NULL":
+                continue
+            
+            # Now find the function definition
+            func_pattern = r"PyObject\s*\*\s*" + func + r"\s*\([^)]*\)\s*\{([\s\S]*?)\n\}"
+            func_match = re.search(func_pattern, content)
+            
+            print(f"Method: {name} -> {func}")
+            if func_match:
+                print(func_match.group(0))
+            else:
+                print("Function definition not found.")
+            print("-" * 40)
+
+extract_methods("source/UserInterface/PythonPlayerModule.cpp")
+extract_methods("source/UserInterface/PythonSkill.cpp")

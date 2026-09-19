@@ -1,6 +1,10 @@
-1. **Explore `CNetworkStream`:** Analyze `source/EterLib/NetStream.h` and `source/EterLib/NetStream.cpp` to understand the base TCP socket behavior, non-blocking read/write, buffer management (SendBuffer/RecvBuffer), TEA cryptography and packet sequence mode.
-2. **Analyze Handshake Logic:** Deep dive into `source/UserInterface/PythonNetworkStreamPhaseHandShake.cpp` and `source/UserInterface/PythonNetworkStream.h/cpp` to document the sequence of events when `HEADER_GC_HANDSHAKE` is received, time synchronization, and how the `CPythonNetworkStream` manages phases.
-3. **Analyze Cross-Subsystem Integrations:** Check `PythonNetworkStreamModule.cpp` for Python API bindings (`net*` methods exposed to Python). Examine `source/UserInterface/Packet.h` for packet headers (`HEADER_GC_PHASE`, `HEADER_GC_HANDSHAKE`, `HEADER_GC_PING`, etc.).
-4. **Draft Documentation (Markdown):** Create `docs/03_network_protocol/01_network_stream_core_handshake.md`. Translate findings into Polish (pure ASCII). Ensure the structure strictly follows the instructions: Architectural Goal, Mermaid Diagram, Memory & Struct Layout, API Reference, Cross-Subsystem Integration, Pitfalls.
-5. **Verify and Refine Documentation:** Review the drafted Markdown for Markdown correctness, Mermaid syntax, and pure ASCII constraint.
-6. **Pre-commit and Submit:** Run `pre_commit_instructions` and commit the file to Git, completing the session.
+1. **Analiza Modulów:** Zbadanie struktury `CPythonPlayer` i `CPythonSkill` (architektura, zaleznosci, powiazania, cykl zycia, zarzadzanie pamiecia).
+2. **Budowanie Dokumentacji:** Stworzenie pliku `docs/04_python_bindings/02_player_and_skill_api.md` z podzialem na:
+    * **Cel Architektoniczny:** Funkcja `player` i `skill` w integracji UI <-> Engine.
+    * **Diagramy:** Mermaid (graph TD) obrazujacy powiazania `CPythonPlayer`, `CPythonSkill`, `CPythonCharacterManager`, `CPythonItem`, bindowanie w Pythonie i pakiety z serwerem.
+    * **Struktury pamieci:** Rejestr enumaratorów i struktur (np. `TSkillInstance`, `TPlayerStatus`, `SAutoPotionInfo`, `SSkillData`, `TAffectData` itp) wraz z polozeniem, przeznaczeniem i wyrównaniem.
+    * **API Reference:** Opis zaimplementowanych metod (od C++ do Pythona m.in. `SetItemData`, `GetStatus`, `UseSkill`, `SendClickItemPacket`, `AffectIndexToSkillIndex`) oraz metod z `skill_methods`.
+    * **Integracje:** Python bindings (np. `playerSetItemData`, `skillGetSkillName`), DirectX (GUI/Rendering z instancjami postaci) oraz pakiety sieciowe.
+    * **Problemy i antywzorce:** Ograniczenia `CPythonPlayer`, luki i bezpieczenstwo.
+3. **Pre commit:** Wykonanie narzuconych w AGENTS.md procedur testowych (upewnienie sie co do poprawnosci kodu, review, checki).
+4. **Zatwierdzenie:** Stworzenie commita przez `submit`.
