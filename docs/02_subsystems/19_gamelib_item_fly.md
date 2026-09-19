@@ -18,7 +18,7 @@ Podsystem ten, umiejscowiony w bibliotece `GameLib`, pelni dwie kluczowe i zupel
 graph TD
     A[Wykonanie LoadItemTable z UI Pythona] --> B[Zadanie CMappedFile przez CEterPackManager VFS]
     B --> C{Walidacja MIPX/MIPT}
-    C -->|Brak błędu| D[Czytanie kompresowanych blokow pamieci]
+    C -->|Brak bledu| D[Czytanie kompresowanych blokow pamieci]
     D --> E[Dekopresja CLZO::Instance z kluczami TEA]
     E --> F[Tworzenie instancji CItemData::New]
     F --> G[Zapis TItemTable do CItemData i dodanie do TItemMap]
@@ -86,7 +86,7 @@ sequenceDiagram
 1.  **`CFlyingData::TFlyingAttachData`**
     *   Nie poddana dyrektywom pakowania (wyrownanie domyslne dla kompilatora, 4/8 bajtow).
     *   `iType`, `iFlyType` (int, 4).
-    *   `strFilename` (std::string) - Ściezka do pliku efektu.
+    *   `strFilename` (std::string) - Sciezka do pliku efektu.
     *   `bHasTail` (bool, 1).
     *   `dwTailColor` (DWORD, 4), `fTailLength`, `fTailSize` (float, 4x2=8).
     *   `bRectShape` (bool, 1).
@@ -123,7 +123,7 @@ sequenceDiagram
         2.  *Akceleracja i Predkosc:* Zmienia predkosc `m_v3Velocity` bazujac na `m_v3Accel`, aplikujac grawitacje (os Z w metinie), nastepnie aktualizuje `m_v3Position`.
         3.  *Zasieg graniczny (Explode Out Of Range):* Zniszczenie po przeleceniu `m_fRemainRange`. Zmniejszane przez dystans deltaT.
         4.  *Kolizje Targetu (ExplodingAtTarget):* Kwadraty odleglosci wektorow. Gdy uderzy, przekazuje interfejs `IFlyTargetableObject->OnShootDamage()`. Gdy skill ma `m_iPierceCount` (przebijanie), odlicza od zmiennej, renderuje efekt na postaci, ale lot trwa dalej.
-        5.  *Culling Kolizji Pośrednich (CCullingManager):* Jesli ma wpis `hitonanothermonster`, bada promien przestrzenny na trajektorii. Jezeli srodowisko ma wlaczane kolizje podlogi (`hitonbackground`), weryfikuje Z pocisku z mapa wysokosci terenu (Z > fGroundHeight), detonujac efekt bez trafienia aktora.
+        5.  *Culling Kolizji Posrednich (CCullingManager):* Jesli ma wpis `hitonanothermonster`, bada promien przestrzenny na trajektorii. Jezeli srodowisko ma wlaczane kolizje podlogi (`hitonbackground`), weryfikuje Z pocisku z mapa wysokosci terenu (Z > fGroundHeight), detonujac efekt bez trafienia aktora.
 4.  **`CFlyTrace::Render()`**
     *   **Zwraca:** `void`
     *   **Logika biznesowa:** Generuje customowy bufor werteksow w oparciu o `TFlyVertex` by renderowac wstegi/wleczenia, ktore przebywa obiekt (`m_TimePositionDeque`). Czesciowo nadpisuje caly potok `STATEMANAGER` DirectX, w tym `D3DRS_CULLMODE`, `D3DRS_ALPHABLENDENABLE`, `D3DRS_ZFUNC` oraz manualnie przelicza widoki przez `Frustum.ViewVolumeTest`. Renderuje trojkaty uzywajac `DrawPrimitiveUP` po posortowaniu tablicy. Zalezny od CCamera (rzut na ekran gracza bazujac od orientacji ViewMatrix).
@@ -138,7 +138,7 @@ sequenceDiagram
 ## 6. Pulapki, Antywzorce i Ograniczenia
 
 1.  **D3D State Leak w CFlyTrace (Antywzorzec):** 
-    Wewnatrz `CFlyTrace::Render()` dochodzi do masowego nadpisania wlasciwosci `STATEMANAGER`. Uzywana jest funkcja `SaveRenderState` oraz manualne `RestoreRenderState`. Jesli z powodu niespodziewanego wyjatku program wyrzuci bład w polowie dzialania (np. gdzies w posrednim kodzie `DrawPrimitiveUP` po stracie obiektu), potok urzadzenia DirectX (Render states) moze pozostac w uszkodzonym stanie koruptujac rendering GUI lub modelow otoczenia postaci (czesty blad bialych modeli badz niepoprawnej przezroczystosci).
+    Wewnatrz `CFlyTrace::Render()` dochodzi do masowego nadpisania wlasciwosci `STATEMANAGER`. Uzywana jest funkcja `SaveRenderState` oraz manualne `RestoreRenderState`. Jesli z powodu niespodziewanego wyjatku program wyrzuci blad w polowie dzialania (np. gdzies w posrednim kodzie `DrawPrimitiveUP` po stracie obiektu), potok urzadzenia DirectX (Render states) moze pozostac w uszkodzonym stanie koruptujac rendering GUI lub modelow otoczenia postaci (czesty blad bialych modeli badz niepoprawnej przezroczystosci).
 2.  **Wyciek Pamieci przez zepsuty Item Proto:**
     W logice `CItemManager::LoadItemTable()` pamiec z tablicy `pbData` (`dwDataSize` dlugosci) po zaalokowaniu `new BYTE[]` jest zalezna od rzutowania LZO. W pewnych momentach uszkodzenie metadanych w naglowkach bazy wyjsciowej LZO moze sprawic, ze algorytm w ogole pominie `delete [] pbData`, co tworzy memory leak wielkosci kilku MB dla kazdego blednego wykonania petli bazodanowej.
 3.  **Wydajnosc CItemManager::GetItemDataPointer():**
@@ -146,4 +146,4 @@ sequenceDiagram
 4.  **Brak Thread-Safety w Singletonie:** 
     `CFlyingManager` wykonuje destrukcje (DeleteAllInstances), co w momencie przerywania pracy gry (zamykanie okna) na systemie MultiCore bez blokad semaforami badz `std::mutex`, na tle renderowanego watku D3D moze wygenerowac Exception `C0000005: Access Violation`. 
 5.  **Hardcoded Konfiguracja Osi (Gravity):**
-    `m_v3Velocity.z += m_pData->m_fGravity` jest napisane sztywno ze zmienną na wspolrzednej Z, co sprawia ze uklad fizyki metina i `CFlyManager` rygorystycznie uznaje 'Z' za wysokosc terenu (Z-Up coordinate system). Zle rzutowanie w MaxScript do formatow gr2 zepsulo by system strzal i pociskow.
+    `m_v3Velocity.z += m_pData->m_fGravity` jest napisane sztywno ze zmienna na wspolrzednej Z, co sprawia ze uklad fizyki metina i `CFlyManager` rygorystycznie uznaje 'Z' za wysokosc terenu (Z-Up coordinate system). Zle rzutowanie w MaxScript do formatow gr2 zepsulo by system strzal i pociskow.
