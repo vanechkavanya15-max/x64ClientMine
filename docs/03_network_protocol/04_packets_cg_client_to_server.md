@@ -1,122 +1,122 @@
-# Podsystem Pakietow CG (Client-to-Server) - Packet.h
+# Podsystem Pakietow CG (Client-to-Server) - Kompletna Dekonstrukcja Packet.h
 
 ## 1. Cel Architektoniczny i Rola Modulu
-Modul `Packet.h` w architekturze klienta C++ (Metin2/EterPack) pelni fundamentalna role rejestru i definicji warstwy sieciowej (Network Protocol Layer) dla kierunku Client -> Server (CG).
-Jest to definicja struktur POD (Plain Old Data), ktore bezposrednio mapuja sie na bufory pamieci wysylane przez gniazda TCP do serwera.
-Zaleznosci:
-- Modul wywolywany glownie przez `CPythonNetworkStream` i `CNetworkStream`.
-- Integruje sie z `EterPack` (kryptografia hybrydowa, LZO, XTEA) w celu szyfrowania przesylanych payloadow.
-- Python UI wywoluje zdarzenia sieciowe (np. `net.SendAttackPacket()`), ktore C++ formatuje w struktury z tego pliku.
+Modul `Packet.h` w ramach inzynierii sieciowej podsystemu Metin2 C++ ma rygorystyczne zadanie definiowania struktur transportowych typu POD (Plain Old Data). Mapuja sie one jednoznacznie (1:1) na bufory w gniazdach TCP, pelniac role warstwy aplikacji w komunikacji `CNetworkStream` <-> Game Server.
+Odpowiedzialnosci architektoniczne:
+- Pelni wylacznie strukturalny model definicji payloadow. Nie zawiera implementacji wirtualnych.
+- Silnie paruje wywolania zdarzen klienckich Pythona (`CPythonNetworkStream`) tlumaczac zmienne tekstowe i liczbowe na odpowiednie tablice `char[]` oraz typy maszynowe (`BYTE`, `WORD`, `DWORD`).
+- Gwarantuje jednolity uklad bitowy z serwerem. Zmiany w tych polach wymagaja identycznej re-kompilacji demona `game` po stronie serwera.
 
 ## 2. Diagram Architektury i Przeplywu Danych (Mermaid)
 ```mermaid
 sequenceDiagram
-    participant UI as Python UI (UI Scripts)
-    participant API as CPythonNetworkStream (C++ Python Wrapper)
-    participant Net as CNetworkStream (Watek Sieciowy)
-    participant Srv as Serwer Gry (Game Server)
+    participant UI as Python UI (np. uiscript)
+    participant CPy as CPythonNetworkStream (C++)
+    participant CNet as CNetworkStream (Winsock/TCP)
+    participant EterPack as EterPack (Kryptografia)
+    participant Server as Serwer Gry
 
-    UI->>API: np. net.SendItemUsePacket(slot)
-    API->>API: Alokacja struktury TPacketCGItemUse
-    API->>API: Wypelnienie pol (header = HEADER_CG_ITEM_USE, pos = slot)
-    API->>Net: Send(sizeof(TPacketCGItemUse), &packet)
-    Net->>Net: Szyfrowanie (EterPackPolicy_CSHybridCrypt)
-    Net->>Srv: Wyslanie bufora TCP
+    UI->>CPy: Wywolanie funkcji (np. net.SendChatPacket)
+    CPy->>CPy: Alokacja stosu: TPacketCGChat
+    CPy->>CPy: Parsowanie tuple: (PyArg_ParseTuple)
+    CPy->>CPy: Kopiowanie `char szText[...]` (bez wskaznikow dynamicznych)
+    CPy->>CNet: Send(sizeof(TPacketCGChat), &packet)
+    CNet->>EterPack: Obfuskacja LZO i kompresja strumienia (TPacketGCHybridCryptKeys)
+    CNet->>Server: Zrzut binarnego bufora (send() Winsock)
+    Server->>Server: switch(bHeader), rzutowanie struktury -> wywolanie handlera.
 ```
 
 ## 3. Rejestr Struktur Danych i Pamieci (Memory & Struct Layout)
-Wszystkie struktury w `Packet.h` musza byc uzywane z pragmami pakowania `#pragma pack(1)` lub `#pragma pack(push, 1)`, aby zapobiec wyrownaniu (padding) kompilatora C++. Kazdy bajt ma znaczenie.
+Kluczowa zasada dla sieciowego protokolu klienta jest wylaczenie paddingu kompilatora, co dokonuje sie uzywajac `#pragma pack(1)`. Bez tego kazdy element np. 1-bajtowy w srodku zostalby popchniety do rownania slownego maszynowego 32-bit (4 bajty), generujac niezgodny z serwerem uklad binarny.
 
-### Opcody CG (Naglowki Pakietow Klient -> Serwer)
-| Stala (Makro) | Wartosc (ID) | Przeznaczenie |
-|---|---|---|
-| `HEADER_CG_LOGIN` | `1` | Identyfikator pakietu HEADER_CG_LOGIN |
-| `HEADER_CG_ATTACK` | `2` | Identyfikator pakietu HEADER_CG_ATTACK |
-| `HEADER_CG_CHAT` | `3` | Identyfikator pakietu HEADER_CG_CHAT |
-| `HEADER_CG_PLAYER_CREATE` | `4` | Identyfikator pakietu HEADER_CG_PLAYER_CREATE |
-| `HEADER_CG_PLAYER_DESTROY` | `5` | Identyfikator pakietu HEADER_CG_PLAYER_DESTROY |
-| `HEADER_CG_PLAYER_SELECT` | `6` | Identyfikator pakietu HEADER_CG_PLAYER_SELECT |
-| `HEADER_CG_CHARACTER_MOVE` | `7` | Identyfikator pakietu HEADER_CG_CHARACTER_MOVE |
-| `HEADER_CG_SYNC_POSITION` | `8` | Identyfikator pakietu HEADER_CG_SYNC_POSITION |
-| `HEADER_CG_DIRECT_ENTER` | `9` | Identyfikator pakietu HEADER_CG_DIRECT_ENTER |
-| `HEADER_CG_ENTERGAME` | `10` | Identyfikator pakietu HEADER_CG_ENTERGAME |
-| `HEADER_CG_ITEM_USE` | `11` | Identyfikator pakietu HEADER_CG_ITEM_USE |
-| `HEADER_CG_ITEM_DROP` | `12` | Identyfikator pakietu HEADER_CG_ITEM_DROP |
-| `HEADER_CG_ITEM_MOVE` | `13` | Identyfikator pakietu HEADER_CG_ITEM_MOVE |
-| `HEADER_CG_ITEM_PICKUP` | `15` | Identyfikator pakietu HEADER_CG_ITEM_PICKUP |
-| `HEADER_CG_QUICKSLOT_ADD` | `16` | Identyfikator pakietu HEADER_CG_QUICKSLOT_ADD |
-| `HEADER_CG_QUICKSLOT_DEL` | `17` | Identyfikator pakietu HEADER_CG_QUICKSLOT_DEL |
-| `HEADER_CG_QUICKSLOT_SWAP` | `18` | Identyfikator pakietu HEADER_CG_QUICKSLOT_SWAP |
-| `HEADER_CG_WHISPER` | `19` | Identyfikator pakietu HEADER_CG_WHISPER |
-| `HEADER_CG_ITEM_DROP2` | `20` | Identyfikator pakietu HEADER_CG_ITEM_DROP2 |
-| `HEADER_CG_ON_CLICK` | `26` | Identyfikator pakietu HEADER_CG_ON_CLICK |
-| `HEADER_CG_EXCHANGE` | `27` | Identyfikator pakietu HEADER_CG_EXCHANGE |
-| `HEADER_CG_CHARACTER_POSITION` | `28` | Identyfikator pakietu HEADER_CG_CHARACTER_POSITION |
-| `HEADER_CG_SCRIPT_ANSWER` | `29` | Identyfikator pakietu HEADER_CG_SCRIPT_ANSWER |
-| `HEADER_CG_QUEST_INPUT_STRING` | `30` | Identyfikator pakietu HEADER_CG_QUEST_INPUT_STRING |
-| `HEADER_CG_QUEST_CONFIRM` | `31` | Identyfikator pakietu HEADER_CG_QUEST_CONFIRM |
-| `HEADER_CG_PVP` | `41` | Identyfikator pakietu HEADER_CG_PVP |
-| `HEADER_CG_SHOP` | `50` | Identyfikator pakietu HEADER_CG_SHOP |
-| `HEADER_CG_FLY_TARGETING` | `51` | Identyfikator pakietu HEADER_CG_FLY_TARGETING |
-| `HEADER_CG_USE_SKILL` | `52` | Identyfikator pakietu HEADER_CG_USE_SKILL |
-| `HEADER_CG_ADD_FLY_TARGETING` | `53` | Identyfikator pakietu HEADER_CG_ADD_FLY_TARGETING |
-| `HEADER_CG_SHOOT` | `54` | Identyfikator pakietu HEADER_CG_SHOOT |
-| `HEADER_CG_MYSHOP` | `55` | Identyfikator pakietu HEADER_CG_MYSHOP |
-| `HEADER_CG_ITEM_USE_TO_ITEM` | `60` | Identyfikator pakietu HEADER_CG_ITEM_USE_TO_ITEM |
-| `HEADER_CG_TARGET` | `61` | Identyfikator pakietu HEADER_CG_TARGET |
-| `HEADER_CG_WARP` | `65` | Identyfikator pakietu HEADER_CG_WARP |
-| `HEADER_CG_SCRIPT_BUTTON` | `66` | Identyfikator pakietu HEADER_CG_SCRIPT_BUTTON |
-| `HEADER_CG_MESSENGER` | `67` | Identyfikator pakietu HEADER_CG_MESSENGER |
-| `HEADER_CG_MALL_CHECKOUT` | `69` | Identyfikator pakietu HEADER_CG_MALL_CHECKOUT |
-| `HEADER_CG_SAFEBOX_CHECKIN` | `70` | Identyfikator pakietu HEADER_CG_SAFEBOX_CHECKIN |
-| `HEADER_CG_SAFEBOX_CHECKOUT` | `71` | Identyfikator pakietu HEADER_CG_SAFEBOX_CHECKOUT |
-| `HEADER_CG_PARTY_INVITE` | `72` | Identyfikator pakietu HEADER_CG_PARTY_INVITE |
-| `HEADER_CG_PARTY_INVITE_ANSWER` | `73` | Identyfikator pakietu HEADER_CG_PARTY_INVITE_ANSWER |
-| `HEADER_CG_PARTY_REMOVE` | `74` | Identyfikator pakietu HEADER_CG_PARTY_REMOVE |
-| `HEADER_CG_PARTY_SET_STATE` | `75` | Identyfikator pakietu HEADER_CG_PARTY_SET_STATE |
-| `HEADER_CG_PARTY_USE_SKILL` | `76` | Identyfikator pakietu HEADER_CG_PARTY_USE_SKILL |
-| `HEADER_CG_SAFEBOX_ITEM_MOVE` | `77` | Identyfikator pakietu HEADER_CG_SAFEBOX_ITEM_MOVE |
-| `HEADER_CG_PARTY_PARAMETER` | `78` | Identyfikator pakietu HEADER_CG_PARTY_PARAMETER |
-| `HEADER_CG_GUILD` | `80` | Identyfikator pakietu HEADER_CG_GUILD |
-| `HEADER_CG_ANSWER_MAKE_GUILD` | `81` | Identyfikator pakietu HEADER_CG_ANSWER_MAKE_GUILD |
-| `HEADER_CG_FISHING` | `82` | Identyfikator pakietu HEADER_CG_FISHING |
-| `HEADER_CG_GIVE_ITEM` | `83` | Identyfikator pakietu HEADER_CG_GIVE_ITEM |
-| `HEADER_CG_EMPIRE` | `90` | Identyfikator pakietu HEADER_CG_EMPIRE |
-| `HEADER_CG_REFINE` | `96` | Identyfikator pakietu HEADER_CG_REFINE |
-| `HEADER_CG_MARK_LOGIN` | `100` | Identyfikator pakietu HEADER_CG_MARK_LOGIN |
-| `HEADER_CG_MARK_CRCLIST` | `101` | Identyfikator pakietu HEADER_CG_MARK_CRCLIST |
-| `HEADER_CG_MARK_UPLOAD` | `102` | Identyfikator pakietu HEADER_CG_MARK_UPLOAD |
-| `HEADER_CG_MARK_IDXLIST` | `104` | Identyfikator pakietu HEADER_CG_MARK_IDXLIST |
-| `HEADER_CG_CRC_REPORT` | `103` | Identyfikator pakietu HEADER_CG_CRC_REPORT |
-| `HEADER_CG_HACK` | `105` | Identyfikator pakietu HEADER_CG_HACK |
-| `HEADER_CG_CHANGE_NAME` | `106` | Identyfikator pakietu HEADER_CG_CHANGE_NAME |
-| `HEADER_CG_SMS` | `107` | Identyfikator pakietu HEADER_CG_SMS |
-| `HEADER_CG_CHINA_MATRIX_CARD` | `108` | Identyfikator pakietu HEADER_CG_CHINA_MATRIX_CARD |
-| `HEADER_CG_LOGIN2` | `109` | Identyfikator pakietu HEADER_CG_LOGIN2 |
-| `HEADER_CG_DUNGEON` | `110` | Identyfikator pakietu HEADER_CG_DUNGEON |
-| `HEADER_CG_LOGIN3` | `111` | Identyfikator pakietu HEADER_CG_LOGIN3 |
-| `HEADER_CG_GUILD_SYMBOL_UPLOAD` | `112` | Identyfikator pakietu HEADER_CG_GUILD_SYMBOL_UPLOAD |
-| `HEADER_CG_GUILD_SYMBOL_CRC` | `113` | Identyfikator pakietu HEADER_CG_GUILD_SYMBOL_CRC |
-| `HEADER_CG_SCRIPT_SELECT_ITEM` | `114` | Identyfikator pakietu HEADER_CG_SCRIPT_SELECT_ITEM |
-| `HEADER_CG_LOGIN4` | `115` | Identyfikator pakietu HEADER_CG_LOGIN4 |
-| `HEADER_CG_LOGIN5_OPENID` | `116` | Identyfikator pakietu HEADER_CG_LOGIN5_OPENID |
-| `HEADER_CG_RUNUP_MATRIX_ANSWER` | `201` | Identyfikator pakietu HEADER_CG_RUNUP_MATRIX_ANSWER |
-| `HEADER_CG_NEWCIBN_PASSPOD_ANSWER` | `202` | Identyfikator pakietu HEADER_CG_NEWCIBN_PASSPOD_ANSWER |
-| `HEADER_CG_HS_ACK` | `203` | Identyfikator pakietu HEADER_CG_HS_ACK |
-| `HEADER_CG_XTRAP_ACK` | `204` | Identyfikator pakietu HEADER_CG_XTRAP_ACK |
-| `HEADER_CG_DRAGON_SOUL_REFINE` | `205` | Identyfikator pakietu HEADER_CG_DRAGON_SOUL_REFINE |
-| `HEADER_CG_STATE_CHECKER` | `206` | Identyfikator pakietu HEADER_CG_STATE_CHECKER |
-| `HEADER_CG_AUCTION_CMD` | `205` | Identyfikator pakietu HEADER_CG_AUCTION_CMD |
-| `HEADER_CG_KEY_AGREEMENT` | `0` | Identyfikator pakietu HEADER_CG_KEY_AGREEMENT |
-| `HEADER_CG_TIME_SYNC` | `0` | Identyfikator pakietu HEADER_CG_TIME_SYNC |
-| `HEADER_CG_CLIENT_VERSION` | `0` | Identyfikator pakietu HEADER_CG_CLIENT_VERSION |
-| `HEADER_CG_CLIENT_VERSION2` | `0` | Identyfikator pakietu HEADER_CG_CLIENT_VERSION2 |
-| `HEADER_CG_PONG` | `0` | Identyfikator pakietu HEADER_CG_PONG |
-| `HEADER_CG_HANDSHAKE` | `0` | Identyfikator pakietu HEADER_CG_HANDSHAKE |
+### Lista Opkodow Header CG (Naglowki Identyfikacyjne)
+- `HEADER_CG_LOGIN` : `1`
+- `HEADER_CG_ATTACK` : `2`
+- `HEADER_CG_CHAT` : `3`
+- `HEADER_CG_PLAYER_CREATE` : `4`
+- `HEADER_CG_PLAYER_DESTROY` : `5`
+- `HEADER_CG_PLAYER_SELECT` : `6`
+- `HEADER_CG_CHARACTER_MOVE` : `7`
+- `HEADER_CG_SYNC_POSITION` : `8`
+- `HEADER_CG_DIRECT_ENTER` : `9`
+- `HEADER_CG_ENTERGAME` : `10`
+- `HEADER_CG_ITEM_USE` : `11`
+- `HEADER_CG_ITEM_DROP` : `12`
+- `HEADER_CG_ITEM_MOVE` : `13`
+- `HEADER_CG_ITEM_PICKUP` : `15`
+- `HEADER_CG_QUICKSLOT_ADD` : `16`
+- `HEADER_CG_QUICKSLOT_DEL` : `17`
+- `HEADER_CG_QUICKSLOT_SWAP` : `18`
+- `HEADER_CG_WHISPER` : `19`
+- `HEADER_CG_ITEM_DROP2` : `20`
+- `HEADER_CG_ON_CLICK` : `26`
+- `HEADER_CG_EXCHANGE` : `27`
+- `HEADER_CG_CHARACTER_POSITION` : `28`
+- `HEADER_CG_SCRIPT_ANSWER` : `29`
+- `HEADER_CG_QUEST_INPUT_STRING` : `30`
+- `HEADER_CG_QUEST_CONFIRM` : `31`
+- `HEADER_CG_PVP` : `41`
+- `HEADER_CG_SHOP` : `50`
+- `HEADER_CG_FLY_TARGETING` : `51`
+- `HEADER_CG_USE_SKILL` : `52`
+- `HEADER_CG_ADD_FLY_TARGETING` : `53`
+- `HEADER_CG_SHOOT` : `54`
+- `HEADER_CG_MYSHOP` : `55`
+- `HEADER_CG_ITEM_USE_TO_ITEM` : `60`
+- `HEADER_CG_TARGET` : `61`
+- `HEADER_CG_WARP` : `65`
+- `HEADER_CG_SCRIPT_BUTTON` : `66`
+- `HEADER_CG_MESSENGER` : `67`
+- `HEADER_CG_MALL_CHECKOUT` : `69`
+- `HEADER_CG_SAFEBOX_CHECKIN` : `70`
+- `HEADER_CG_SAFEBOX_CHECKOUT` : `71`
+- `HEADER_CG_PARTY_INVITE` : `72`
+- `HEADER_CG_PARTY_INVITE_ANSWER` : `73`
+- `HEADER_CG_PARTY_REMOVE` : `74`
+- `HEADER_CG_PARTY_SET_STATE` : `75`
+- `HEADER_CG_PARTY_USE_SKILL` : `76`
+- `HEADER_CG_SAFEBOX_ITEM_MOVE` : `77`
+- `HEADER_CG_PARTY_PARAMETER` : `78`
+- `HEADER_CG_GUILD` : `80`
+- `HEADER_CG_ANSWER_MAKE_GUILD` : `81`
+- `HEADER_CG_FISHING` : `82`
+- `HEADER_CG_GIVE_ITEM` : `83`
+- `HEADER_CG_EMPIRE` : `90`
+- `HEADER_CG_REFINE` : `96`
+- `HEADER_CG_MARK_LOGIN` : `100`
+- `HEADER_CG_MARK_CRCLIST` : `101`
+- `HEADER_CG_MARK_UPLOAD` : `102`
+- `HEADER_CG_MARK_IDXLIST` : `104`
+- `HEADER_CG_CRC_REPORT` : `103`
+- `HEADER_CG_HACK` : `105`
+- `HEADER_CG_CHANGE_NAME` : `106`
+- `HEADER_CG_SMS` : `107`
+- `HEADER_CG_CHINA_MATRIX_CARD` : `108`
+- `HEADER_CG_LOGIN2` : `109`
+- `HEADER_CG_DUNGEON` : `110`
+- `HEADER_CG_LOGIN3` : `111`
+- `HEADER_CG_GUILD_SYMBOL_UPLOAD` : `112`
+- `HEADER_CG_GUILD_SYMBOL_CRC` : `113`
+- `HEADER_CG_SCRIPT_SELECT_ITEM` : `114`
+- `HEADER_CG_LOGIN4` : `115`
+- `HEADER_CG_LOGIN5_OPENID` : `116`
+- `HEADER_CG_RUNUP_MATRIX_ANSWER` : `201`
+- `HEADER_CG_NEWCIBN_PASSPOD_ANSWER` : `202`
+- `HEADER_CG_HS_ACK` : `203`
+- `HEADER_CG_XTRAP_ACK` : `204`
+- `HEADER_CG_DRAGON_SOUL_REFINE` : `205`
+- `HEADER_CG_STATE_CHECKER` : `206`
+- `HEADER_CG_AUCTION_CMD` : `205`
+- `HEADER_CG_KEY_AGREEMENT` : `0`
+- `HEADER_CG_TIME_SYNC` : `0`
+- `HEADER_CG_CLIENT_VERSION` : `0`
+- `HEADER_CG_CLIENT_VERSION2` : `0`
+- `HEADER_CG_PONG` : `0`
+- `HEADER_CG_HANDSHAKE` : `0`
 
 
-### Dekonstrukcja Struktur Pakietow
-#### Struktura: `TPacketCGMarkLogin`
+### Dekonstrukcja Algorytmiczna Kazdego Payloadu
+#### Element Komunikacyjny: `TPacketCGMarkLogin`
 ```cpp
 typedef struct command_mark_login
 {
@@ -125,10 +125,12 @@ typedef struct command_mark_login
     DWORD   random_key;
 } TPacketCGMarkLogin;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Logowanie uzytkownika do serwera (faza AUTH).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla login, haslo (czesto zahashowane w nowszych wersjach) klienta.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'Zaloguj' (OnLoginButton) na ekranie logowania.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 13 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGMarkUpload`
+#### Element Komunikacyjny: `TPacketCGMarkUpload`
 ```cpp
 typedef struct command_mark_upload
 {
@@ -137,20 +139,24 @@ typedef struct command_mark_upload
     BYTE    image[16*12*4];
 } TPacketCGMarkUpload;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wgranie wlasnego znaczka gildii.
+- **Algorytmiczne dzialanie po serializacji**: Przesyla 16x12 pikseli surowych bajtow w celu propagacji z serwerem.
+- **Wyzwalacz Kliencki (Trigger)**: Mistrz gildii wybiera 'Wgraj ikone' w oknie z `.bmp` lub `.tga`.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Zawiera alokacje wielkosci `[16*12*4]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGMarkIDXList`
+#### Element Komunikacyjny: `TPacketCGMarkIDXList`
 ```cpp
 typedef struct command_mark_idxlist
 {
     BYTE    header;
 } TPacketCGMarkIDXList;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGMarkIDXList.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGMarkCRCList`
+#### Element Komunikacyjny: `TPacketCGMarkCRCList`
 ```cpp
 typedef struct command_mark_crclist
 {
@@ -159,10 +165,12 @@ typedef struct command_mark_crclist
     DWORD   crclist[80];
 } TPacketCGMarkCRCList;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGMarkCRCList.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Zawiera alokacje wielkosci `[80]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSymbolUpload`
+#### Element Komunikacyjny: `TPacketCGSymbolUpload`
 ```cpp
 typedef struct command_symbol_upload
 {
@@ -171,10 +179,12 @@ typedef struct command_symbol_upload
 	DWORD	handle;
 } TPacketCGSymbolUpload;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGSymbolUpload.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 9 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSymbolCRC`
+#### Element Komunikacyjny: `TPacketCGSymbolCRC`
 ```cpp
 typedef struct command_symbol_crc
 {
@@ -184,10 +194,26 @@ typedef struct command_symbol_crc
 	DWORD	dwSize;
 } TPacketCGSymbolCRC;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGSymbolCRC.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 19 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGCheckin`
+#### Element Komunikacyjny: `TPacketGCGuildSymbolData`
+```cpp
+typedef struct packet_symbol_data
+{
+    BYTE header;
+    WORD size;
+    DWORD guild_id;
+} TPacketGCGuildSymbolData;
+```
+- **Cel Architektoniczny**: Wiele akcji gildiowych zarzadzanych z jednego naglowka.
+- **Algorytmiczne dzialanie po serializacji**: Rozdzielane za pomoca pola bSubHeader (wyplacenie kasy, awans, wykopanie z gildii).
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie Okna Gildii.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 9 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketCGCheckin`
 ```cpp
 typedef struct command_checkin
 {
@@ -196,10 +222,12 @@ typedef struct command_checkin
 	char pwd[PASS_MAX_NUM+1];
 } TPacketCGCheckin;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGCheckin.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[ID_MAX_NUM+1]`. Zawiera alokacje wielkosci `[PASS_MAX_NUM+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGLogin`
+#### Element Komunikacyjny: `TPacketCGLogin`
 ```cpp
 typedef struct command_login
 {
@@ -208,10 +236,12 @@ typedef struct command_login
     char pwd[PASS_MAX_NUM + 1];
 } TPacketCGLogin;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Logowanie uzytkownika do serwera (faza AUTH).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla login, haslo (czesto zahashowane w nowszych wersjach) klienta.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'Zaloguj' (OnLoginButton) na ekranie logowania.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[ID_MAX_NUM + 1]`. Zawiera alokacje wielkosci `[PASS_MAX_NUM + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGLogin2`
+#### Element Komunikacyjny: `TPacketCGLogin2`
 ```cpp
 typedef struct command_login2
 {
@@ -221,10 +251,12 @@ typedef struct command_login2
     DWORD	adwClientKey[4];
 } TPacketCGLogin2;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Logowanie uzytkownika do serwera (faza AUTH).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla login, haslo (czesto zahashowane w nowszych wersjach) klienta.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'Zaloguj' (OnLoginButton) na ekranie logowania.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Zawiera alokacje wielkosci `[ID_MAX_NUM + 1]`. Zawiera alokacje wielkosci `[4]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGLogin3`
+#### Element Komunikacyjny: `TPacketCGLogin3`
 ```cpp
 typedef struct command_login3
 {
@@ -234,10 +266,12 @@ typedef struct command_login3
     DWORD	adwClientKey[4];
 } TPacketCGLogin3;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Logowanie uzytkownika do serwera (faza AUTH).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla login, haslo (czesto zahashowane w nowszych wersjach) klienta.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'Zaloguj' (OnLoginButton) na ekranie logowania.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[ID_MAX_NUM + 1]`. Zawiera alokacje wielkosci `[PASS_MAX_NUM + 1]`. Zawiera alokacje wielkosci `[4]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGLogin5`
+#### Element Komunikacyjny: `TPacketCGLogin5`
 ```cpp
 typedef struct command_login5
 {
@@ -246,10 +280,12 @@ typedef struct command_login5
     DWORD	adwClientKey[4];
 } TPacketCGLogin5;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Logowanie uzytkownika do serwera (faza AUTH).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla login, haslo (czesto zahashowane w nowszych wersjach) klienta.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'Zaloguj' (OnLoginButton) na ekranie logowania.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[OPENID_AUTHKEY_LEN + 1]`. Zawiera alokacje wielkosci `[4]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGDirectEnter`
+#### Element Komunikacyjny: `TPacketCGDirectEnter`
 ```cpp
 typedef struct command_direct_enter
 {
@@ -259,10 +295,12 @@ typedef struct command_direct_enter
     BYTE        index;
 } TPacketCGDirectEnter;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Bezposrednie wejscie (zwykle dla debuggowania).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla pusty naglowek, zadajac przeniesienia.
+- **Wyzwalacz Kliencki (Trigger)**: Metody testowe lub relog w obrebie mapy.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Zawiera alokacje wielkosci `[ID_MAX_NUM + 1]`. Zawiera alokacje wielkosci `[PASS_MAX_NUM + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSelectCharacter`
+#### Element Komunikacyjny: `TPacketCGSelectCharacter`
 ```cpp
 typedef struct command_player_select
 {
@@ -270,10 +308,12 @@ typedef struct command_player_select
 	BYTE	player_index;
 } TPacketCGSelectCharacter;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGSelectCharacter.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGAttack`
+#### Element Komunikacyjny: `TPacketCGAttack`
 ```cpp
 typedef struct command_attack
 {
@@ -284,10 +324,12 @@ typedef struct command_attack
 	BYTE	bCRCMagicCubeFilePiece;
 } TPacketCGAttack;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wysyla pings ataku do weryfikacji serwerowej (hit detection).
+- **Algorytmiczne dzialanie po serializacji**: Przesyla `vid` celu by serwer odjal HP. Zabezpiecza to klienta przed 'WaihHackami' wymuszajac bycie obok.
+- **Wyzwalacz Kliencki (Trigger)**: LPM na mobie, wcisnieta Spacja (autoatak).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 10 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGChat`
+#### Element Komunikacyjny: `TPacketCGChat`
 ```cpp
 typedef struct command_chat
 {
@@ -296,10 +338,12 @@ typedef struct command_chat
 	BYTE	type;
 } TPacketCGChat;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Komunikacja tekstowa miedzy graczami (czat lokalny/globalny).
+- **Algorytmiczne dzialanie po serializacji**: Zawiera staly bufor `szText` ktory obcina dlugie zdania, oraz typ (SHOUT, NORMAL).
+- **Wyzwalacz Kliencki (Trigger)**: Wpisanie tekstu w pasku czatu i zatwierdzenie ENTER.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 4 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGWhisper`
+#### Element Komunikacyjny: `TPacketCGWhisper`
 ```cpp
 typedef struct command_whisper
 {
@@ -308,10 +352,12 @@ typedef struct command_whisper
     char        szNameTo[CHARACTER_NAME_MAX_LEN + 1];
 } TPacketCGWhisper;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wiadomosc prywatna (Szept).
+- **Algorytmiczne dzialanie po serializacji**: Zawiera nick adresata i tresc w sztywnym bloku.
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie okna Szeptu /whisper [nick].
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 3 bajtow. Zawiera alokacje wielkosci `[CHARACTER_NAME_MAX_LEN + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSMS`
+#### Element Komunikacyjny: `TPacketCGSMS`
 ```cpp
 typedef struct command_sms
 {
@@ -320,20 +366,24 @@ typedef struct command_sms
     char        szNameTo[CHARACTER_NAME_MAX_LEN + 1];
 } TPacketCGSMS;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGSMS.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 3 bajtow. Zawiera alokacje wielkosci `[CHARACTER_NAME_MAX_LEN + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGEnterFrontGame`
+#### Element Komunikacyjny: `TPacketCGEnterFrontGame`
 ```cpp
 typedef struct command_EnterFrontGame
 {
 	BYTE header;
 } TPacketCGEnterFrontGame;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGEnterFrontGame.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGItemUse`
+#### Element Komunikacyjny: `TPacketCGItemUse`
 ```cpp
 typedef struct command_item_use
 {
@@ -341,10 +391,12 @@ typedef struct command_item_use
 	TItemPos pos;
 } TPacketCGItemUse;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zadanie uzycia przedmiotu (konsumpcja lub ekwipowanie).
+- **Algorytmiczne dzialanie po serializacji**: Przesyla indeks slotu `pos`. Logika dzialania potiona / zalozenia zbroi jest wykonywana wylacznie po stronie serwera.
+- **Wyzwalacz Kliencki (Trigger)**: PPM na przedmiot w oknie Ekwipunku.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGItemUseToItem`
+#### Element Komunikacyjny: `TPacketCGItemUseToItem`
 ```cpp
 typedef struct command_item_use_to_item
 {
@@ -353,10 +405,12 @@ typedef struct command_item_use_to_item
 	TItemPos target_pos;
 } TPacketCGItemUseToItem;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zadanie uzycia przedmiotu (konsumpcja lub ekwipowanie).
+- **Algorytmiczne dzialanie po serializacji**: Przesyla indeks slotu `pos`. Logika dzialania potiona / zalozenia zbroi jest wykonywana wylacznie po stronie serwera.
+- **Wyzwalacz Kliencki (Trigger)**: PPM na przedmiot w oknie Ekwipunku.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGItemDrop`
+#### Element Komunikacyjny: `TPacketCGItemDrop`
 ```cpp
 typedef struct command_item_drop
 {
@@ -365,10 +419,12 @@ typedef struct command_item_drop
 	DWORD elk;
 } TPacketCGItemDrop;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wyrzucenie przedmiotu na ziemie.
+- **Algorytmiczne dzialanie po serializacji**: Obejmuje slota oraz wspolrzedne wyrzucenia.
+- **Wyzwalacz Kliencki (Trigger)**: Przeciagniecie (Drag&Drop) itemu poza UI ekwipunku.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGItemDrop2`
+#### Element Komunikacyjny: `TPacketCGItemDrop2`
 ```cpp
 typedef struct command_item_drop2
 {
@@ -378,10 +434,12 @@ typedef struct command_item_drop2
     BYTE        count;
 } TPacketCGItemDrop2;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wyrzucenie przedmiotu na ziemie.
+- **Algorytmiczne dzialanie po serializacji**: Obejmuje slota oraz wspolrzedne wyrzucenia.
+- **Wyzwalacz Kliencki (Trigger)**: Przeciagniecie (Drag&Drop) itemu poza UI ekwipunku.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 8 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGItemMove`
+#### Element Komunikacyjny: `TPacketCGItemMove`
 ```cpp
 typedef struct command_item_move
 {
@@ -391,10 +449,12 @@ typedef struct command_item_move
 	BYTE num;
 } TPacketCGItemMove;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przemieszczenie elementu w ekwipunku (zamiana miejsc).
+- **Algorytmiczne dzialanie po serializacji**: Zrodlowy `pos` i docelowy `pos`.
+- **Wyzwalacz Kliencki (Trigger)**: Drag&Drop przedmiotu na inny slot ekwipunku.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGItemPickUp`
+#### Element Komunikacyjny: `TPacketCGItemPickUp`
 ```cpp
 typedef struct command_item_pickup
 {
@@ -402,10 +462,12 @@ typedef struct command_item_pickup
 	DWORD vid;
 } TPacketCGItemPickUp;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGItemPickUp.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGQuickSlotAdd`
+#### Element Komunikacyjny: `TPacketCGQuickSlotAdd`
 ```cpp
 typedef struct command_quickslot_add
 {
@@ -414,10 +476,12 @@ typedef struct command_quickslot_add
 	TQuickSlot	slot;
 }TPacketCGQuickSlotAdd;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGQuickSlotAdd.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGQuickSlotDel`
+#### Element Komunikacyjny: `TPacketCGQuickSlotDel`
 ```cpp
 typedef struct command_quickslot_del
 {
@@ -425,10 +489,12 @@ typedef struct command_quickslot_del
     BYTE        pos;
 }TPacketCGQuickSlotDel;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGQuickSlotDel.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGQuickSlotSwap`
+#### Element Komunikacyjny: `TPacketCGQuickSlotSwap`
 ```cpp
 typedef struct command_quickslot_swap
 {
@@ -437,10 +503,12 @@ typedef struct command_quickslot_swap
     BYTE        change_pos;
 }TPacketCGQuickSlotSwap;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGQuickSlotSwap.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 3 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGOnClick`
+#### Element Komunikacyjny: `TPacketCGOnClick`
 ```cpp
 typedef struct command_on_click
 {
@@ -448,10 +516,12 @@ typedef struct command_on_click
 	DWORD		vid;
 } TPacketCGOnClick;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zgloszenie interakcji LPM z aktorem (NPC, Metin).
+- **Algorytmiczne dzialanie po serializacji**: Odsyla VID (Virtual ID) obiektu, by otworzyc sklep/rozmowe.
+- **Wyzwalacz Kliencki (Trigger)**: LPM na model NPC / wroga z ktorym wystepuje event klikniecia.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGShop`
+#### Element Komunikacyjny: `TPacketCGShop`
 ```cpp
 typedef struct command_shop
 {
@@ -459,10 +529,12 @@ typedef struct command_shop
 	BYTE		subheader;
 } TPacketCGShop;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Operacje w sklepie NPC (kupno/sprzedaz).
+- **Algorytmiczne dzialanie po serializacji**: Pakiet korzysta z sub-opcodu (Buy/Sell) i przesyla indeks na wirtualnej liscie (lub ID z inventory przy sprzedazy).
+- **Wyzwalacz Kliencki (Trigger)**: LPM na item u handlarza z intencja kupna/sprzedazy.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGExchange`
+#### Element Komunikacyjny: `TPacketCGExchange`
 ```cpp
 typedef struct command_exchange
 {
@@ -473,10 +545,12 @@ typedef struct command_exchange
 	TItemPos	Pos;
 } TPacketCGExchange;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Modul handlu (Handel miedzy graczami).
+- **Algorytmiczne dzialanie po serializacji**: Obsluguje rozne pod-operacje (dodaj, akceptuj, anuluj). Wymaga uzycia subheadera.
+- **Wyzwalacz Kliencki (Trigger)**: Zaproponowanie handlu / uzycie okna Trade.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 9 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGPosition`
+#### Element Komunikacyjny: `TPacketCGPosition`
 ```cpp
 typedef struct command_position
 {   
@@ -484,10 +558,12 @@ typedef struct command_position
     BYTE        position;
 } TPacketCGPosition;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGPosition.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGScriptAnswer`
+#### Element Komunikacyjny: `TPacketCGScriptAnswer`
 ```cpp
 typedef struct command_script_answer
 {
@@ -495,10 +571,12 @@ typedef struct command_script_answer
 	BYTE		answer;
 } TPacketCGScriptAnswer;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zwrotka do okienka dialogowego Questow.
+- **Algorytmiczne dzialanie po serializacji**: Odsyla wybrany indeks z listy questboarda by kontynuowac logike `quest_manager`.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie w opcje z odpowiedzia u NPC (np. 'Zgadzam sie').
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGScriptButton`
+#### Element Komunikacyjny: `TPacketCGScriptButton`
 ```cpp
 typedef struct command_script_button
 {
@@ -506,10 +584,12 @@ typedef struct command_script_button
 	unsigned int			idx;
 } TPacketCGScriptButton;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Klikniecie w element UI questboarda.
+- **Algorytmiczne dzialanie po serializacji**: Wywoluje konkretny tag w skrypcie Lua serwera.
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie interface Questa.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 5 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGTarget`
+#### Element Komunikacyjny: `TPacketCGTarget`
 ```cpp
 typedef struct command_target
 {
@@ -517,10 +597,12 @@ typedef struct command_target
     DWORD       dwVID;
 } TPacketCGTarget;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zaznaczenie celu w przestrzeni (Highlight).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla VID gracza do podswietlenia (np. przycisk na gorze ekranu).
+- **Wyzwalacz Kliencki (Trigger)**: LPM celujace na danego moba bez odpalenia ataku.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGMove`
+#### Element Komunikacyjny: `TPacketCGMove`
 ```cpp
 typedef struct command_move
 {
@@ -533,10 +615,12 @@ typedef struct command_move
 	DWORD		dwTime;	
 } TPacketCGMove;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGMove.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 10 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSyncPositionElement`
+#### Element Komunikacyjny: `TPacketCGSyncPositionElement`
 ```cpp
 typedef struct command_sync_position_element 
 { 
@@ -545,10 +629,12 @@ typedef struct command_sync_position_element
     long        lY; 
 } TPacketCGSyncPositionElement; 
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wymuszona synchronizacja polozenia.
+- **Algorytmiczne dzialanie po serializacji**: Wywolywane gdy ping jest wysoki by uniknac Rubberbandingu.
+- **Wyzwalacz Kliencki (Trigger)**: Timer w kliencie wywolujacy net.SendSyncPosition().
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 14 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSyncPosition`
+#### Element Komunikacyjny: `TPacketCGSyncPosition`
 ```cpp
 typedef struct command_sync_position
 { 
@@ -556,10 +642,12 @@ typedef struct command_sync_position
 	WORD		wSize;
 } TPacketCGSyncPosition; 
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wymuszona synchronizacja polozenia.
+- **Algorytmiczne dzialanie po serializacji**: Wywolywane gdy ping jest wysoki by uniknac Rubberbandingu.
+- **Wyzwalacz Kliencki (Trigger)**: Timer w kliencie wywolujacy net.SendSyncPosition().
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 3 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGFlyTargeting`
+#### Element Komunikacyjny: `TPacketCGFlyTargeting`
 ```cpp
 typedef struct command_fly_targeting
 {
@@ -569,20 +657,37 @@ typedef struct command_fly_targeting
 	long		lY;
 } TPacketCGFlyTargeting;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Aktualizacja celu lecacego pocisku (CFlyingManager).
+- **Algorytmiczne dzialanie po serializacji**: Namierzanie strzaly dla fizyki 3D (IFlyTargetableObject).
+- **Wyzwalacz Kliencki (Trigger)**: Lecenie strzaly/zaklecia wymuszajace update pozycji.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 15 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGWarp`
+#### Element Komunikacyjny: `TPacketCGShoot`
+```cpp
+typedef struct packet_shoot
+{   
+    BYTE		bHeader;                
+    BYTE		bType;
+} TPacketCGShoot;
+```
+- **Cel Architektoniczny**: Wyzwolenie ataku dystansowego (z luku).
+- **Algorytmiczne dzialanie po serializacji**: Odwoluje sie do uzycia luku/broni dystansowej na VID docelowe.
+- **Wyzwalacz Kliencki (Trigger)**: Wystrzelenie pocisku (animacja ataku bowa).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketCGWarp`
 ```cpp
 typedef struct command_warp
 {
 	BYTE			bHeader;
 } TPacketCGWarp;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Uzycie zwoju powrotu (wewnetrzny warp).
+- **Algorytmiczne dzialanie po serializacji**: Sygnal przeniesienia gracza wg skryptu.
+- **Wyzwalacz Kliencki (Trigger)**: Zwoj powrotu/obraczka slubna.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGMessenger`
+#### Element Komunikacyjny: `TPacketCGMessenger`
 ```cpp
 typedef struct command_messenger
 {
@@ -590,20 +695,24 @@ typedef struct command_messenger
     BYTE subheader;
 } TPacketCGMessenger;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zarzadzanie lista przyjaciol.
+- **Algorytmiczne dzialanie po serializacji**: Dodanie, usuniecie po imieniu gracza (sub_headers).
+- **Wyzwalacz Kliencki (Trigger)**: Otwarcie okna Friends i akcja 'Dodaj'.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGMessengerRemove`
+#### Element Komunikacyjny: `TPacketCGMessengerRemove`
 ```cpp
 typedef struct command_messenger_remove
 {
 	BYTE length;
 } TPacketCGMessengerRemove;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zarzadzanie lista przyjaciol.
+- **Algorytmiczne dzialanie po serializacji**: Dodanie, usuniecie po imieniu gracza (sub_headers).
+- **Wyzwalacz Kliencki (Trigger)**: Otwarcie okna Friends i akcja 'Dodaj'.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSafeboxMoney`
+#### Element Komunikacyjny: `TPacketCGSafeboxMoney`
 ```cpp
 typedef struct command_safebox_money
 {
@@ -612,10 +721,12 @@ typedef struct command_safebox_money
     DWORD       dwMoney;
 } TPacketCGSafeboxMoney;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGSafeboxMoney.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 8 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSafeboxCheckout`
+#### Element Komunikacyjny: `TPacketCGSafeboxCheckout`
 ```cpp
 typedef struct command_safebox_checkout
 {
@@ -624,10 +735,12 @@ typedef struct command_safebox_checkout
     TItemPos	ItemPos;
 } TPacketCGSafeboxCheckout;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGSafeboxCheckout.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGSafeboxCheckin`
+#### Element Komunikacyjny: `TPacketCGSafeboxCheckin`
 ```cpp
 typedef struct command_safebox_checkin
 {
@@ -636,10 +749,12 @@ typedef struct command_safebox_checkin
     TItemPos	ItemPos;
 } TPacketCGSafeboxCheckin;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGSafeboxCheckin.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGMallCheckout`
+#### Element Komunikacyjny: `TPacketCGMallCheckout`
 ```cpp
 typedef struct command_mall_checkout
 {
@@ -648,10 +763,12 @@ typedef struct command_mall_checkout
     TItemPos	ItemPos;
 } TPacketCGMallCheckout;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGMallCheckout.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGUseSkill`
+#### Element Komunikacyjny: `TPacketCGUseSkill`
 ```cpp
 typedef struct command_use_skill
 {
@@ -660,10 +777,12 @@ typedef struct command_use_skill
 	DWORD				dwTargetVID;
 } TPacketCGUseSkill;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Uzycie umiejetnosci bojowej/buffujacej.
+- **Algorytmiczne dzialanie po serializacji**: Wysyla VID umiejetnosci i VID ewentualnego celu.
+- **Wyzwalacz Kliencki (Trigger)**: Zastosowanie np. Aury Miecza (spacja/bind).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 13 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGPartyInvite`
+#### Element Komunikacyjny: `TPacketCGPartyInvite`
 ```cpp
 typedef struct command_party_invite
 {
@@ -671,10 +790,12 @@ typedef struct command_party_invite
     DWORD vid;
 } TPacketCGPartyInvite;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wyslanie zaproszenia do grupy (Grupa/Party).
+- **Algorytmiczne dzialanie po serializacji**: Przesyla nick docelowy.
+- **Wyzwalacz Kliencki (Trigger)**: Przycisk 'Zapros' po nacisnieciu gracza LPM.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGPartyInviteAnswer`
+#### Element Komunikacyjny: `TPacketCGPartyInviteAnswer`
 ```cpp
 typedef struct command_party_invite_answer
 {
@@ -683,10 +804,12 @@ typedef struct command_party_invite_answer
     BYTE accept;
 } TPacketCGPartyInviteAnswer;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wyslanie zaproszenia do grupy (Grupa/Party).
+- **Algorytmiczne dzialanie po serializacji**: Przesyla nick docelowy.
+- **Wyzwalacz Kliencki (Trigger)**: Przycisk 'Zapros' po nacisnieciu gracza LPM.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 8 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGPartyRemove`
+#### Element Komunikacyjny: `TPacketCGPartyRemove`
 ```cpp
 typedef struct command_party_remove
 {
@@ -694,10 +817,12 @@ typedef struct command_party_remove
     DWORD pid;
 } TPacketCGPartyRemove;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGPartyRemove.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGPartySetState`
+#### Element Komunikacyjny: `TPacketCGPartySetState`
 ```cpp
 typedef struct command_party_set_state
 {
@@ -707,10 +832,12 @@ typedef struct command_party_set_state
     BYTE byFlag;
 } TPacketCGPartySetState;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGPartySetState.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 9 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGPartyUseSkill`
+#### Element Komunikacyjny: `TPacketCGPartyUseSkill`
 ```cpp
 typedef struct command_party_use_skill
 {
@@ -719,10 +846,12 @@ typedef struct command_party_use_skill
     DWORD dwTargetVID;
 } TPacketCGPartyUseSkill;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Uzycie umiejetnosci bojowej/buffujacej.
+- **Algorytmiczne dzialanie po serializacji**: Wysyla VID umiejetnosci i VID ewentualnego celu.
+- **Wyzwalacz Kliencki (Trigger)**: Zastosowanie np. Aury Miecza (spacja/bind).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 8 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGGuild`
+#### Element Komunikacyjny: `TPacketCGGuild`
 ```cpp
 typedef struct command_guild
 {
@@ -730,10 +859,12 @@ typedef struct command_guild
 	BYTE bySubHeader;
 } TPacketCGGuild;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wiele akcji gildiowych zarzadzanych z jednego naglowka.
+- **Algorytmiczne dzialanie po serializacji**: Rozdzielane za pomoca pola bSubHeader (wyplacenie kasy, awans, wykopanie z gildii).
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie Okna Gildii.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGAnswerMakeGuild`
+#### Element Komunikacyjny: `TPacketCGAnswerMakeGuild`
 ```cpp
 typedef struct command_guild_answer_make_guild
 {
@@ -741,10 +872,12 @@ typedef struct command_guild_answer_make_guild
 	char guild_name[GUILD_NAME_MAX_LEN+1];
 } TPacketCGAnswerMakeGuild; 
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Wiele akcji gildiowych zarzadzanych z jednego naglowka.
+- **Algorytmiczne dzialanie po serializacji**: Rozdzielane za pomoca pola bSubHeader (wyplacenie kasy, awans, wykopanie z gildii).
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie Okna Gildii.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[GUILD_NAME_MAX_LEN+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGGiveItem`
+#### Element Komunikacyjny: `TPacketCGGiveItem`
 ```cpp
 typedef struct command_give_item
 {
@@ -754,10 +887,12 @@ typedef struct command_give_item
 	BYTE byItemCount;
 } TPacketCGGiveItem;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Rozmowa z kowalem i oddanie materialu.
+- **Algorytmiczne dzialanie po serializacji**: Poddanie materialow na refining.
+- **Wyzwalacz Kliencki (Trigger)**: Wrzucenie ulepszacza.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 8 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGHack`
+#### Element Komunikacyjny: `TPacketCGHack`
 ```cpp
 typedef struct SPacketCGHack
 {
@@ -765,10 +900,12 @@ typedef struct SPacketCGHack
     char        szBuf[255 + 1];
 } TPacketCGHack;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Anty-Hack zgloszenie wyjatku (obsolete).
+- **Algorytmiczne dzialanie po serializacji**: Wyslanie stringu raportujacego.
+- **Wyzwalacz Kliencki (Trigger)**: Reakcja HShielda lub wewnetrznego engine'u EterLib.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[255 + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGDungeon`
+#### Element Komunikacyjny: `TPacketCGDungeon`
 ```cpp
 typedef struct command_dungeon
 {
@@ -776,10 +913,12 @@ typedef struct command_dungeon
 	WORD		size;
 } TPacketCGDungeon;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGDungeon.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 3 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGMyShop`
+#### Element Komunikacyjny: `TPacketCGMyShop`
 ```cpp
 typedef struct SPacketCGMyShop
 {
@@ -788,10 +927,12 @@ typedef struct SPacketCGMyShop
     BYTE        bCount;	// count of TShopItemTable, max 39
 } TPacketCGMyShop;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Operacje w sklepie NPC (kupno/sprzedaz).
+- **Algorytmiczne dzialanie po serializacji**: Pakiet korzysta z sub-opcodu (Buy/Sell) i przesyla indeks na wirtualnej liscie (lub ID z inventory przy sprzedazy).
+- **Wyzwalacz Kliencki (Trigger)**: LPM na item u handlarza z intencja kupna/sprzedazy.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Zawiera alokacje wielkosci `[SHOP_SIGN_MAX_LEN + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGRefine`
+#### Element Komunikacyjny: `TPacketCGRefine`
 ```cpp
 typedef struct SPacketCGRefine
 {
@@ -800,10 +941,12 @@ typedef struct SPacketCGRefine
 	BYTE		type;
 } TPacketCGRefine;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Ulepszanie przedmiotu (Kowal).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla numer slotu ekwipunku wybranej zbroi by sprobowac 'upnac'. Zwraca result do klienta.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'OK' na oknie kowala (TRefineTable).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 3 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGChangeName`
+#### Element Komunikacyjny: `TPacketCGChangeName`
 ```cpp
 typedef struct SPacketCGChangeName
 {
@@ -812,10 +955,12 @@ typedef struct SPacketCGChangeName
     char name[CHARACTER_NAME_MAX_LEN+1];
 } TPacketCGChangeName;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zgloszenie intencji zmiany nicku (Item Shop).
+- **Algorytmiczne dzialanie po serializacji**: Pakiet z nowa nazwa w char array.
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie przedmiotu Olejek Wygnania (Change Name).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Zawiera alokacje wielkosci `[CHARACTER_NAME_MAX_LEN+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGClientVersion`
+#### Element Komunikacyjny: `TPacketCGClientVersion`
 ```cpp
 typedef struct command_client_version
 {
@@ -824,10 +969,12 @@ typedef struct command_client_version
 	char timestamp[32+1];
 } TPacketCGClientVersion;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGClientVersion.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[32+1]`. Zawiera alokacje wielkosci `[32+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGClientVersion2`
+#### Element Komunikacyjny: `TPacketCGClientVersion2`
 ```cpp
 typedef struct command_client_version2
 {
@@ -836,10 +983,12 @@ typedef struct command_client_version2
 	char timestamp[32+1];
 } TPacketCGClientVersion2;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGClientVersion2.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[32+1]`. Zawiera alokacje wielkosci `[32+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGCRCReport`
+#### Element Komunikacyjny: `TPacketCGCRCReport`
 ```cpp
 typedef struct command_crc_report
 {
@@ -850,10 +999,12 @@ typedef struct command_crc_report
 	DWORD dwRootPackCRC32;
 } TPacketCGCRCReport;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Anty-Hack: Wyslanie logu sum kontrolnych.
+- **Algorytmiczne dzialanie po serializacji**: Zawiera zsumowane bajty i MD5/CRC pliku by sprawdzic integralnosc .epk.
+- **Wyzwalacz Kliencki (Trigger)**: Proces startowy ladowania mapy (Client Anti-cheat).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 20 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGChinaMatrixCard`
+#### Element Komunikacyjny: `TPacketCGChinaMatrixCard`
 ```cpp
 typedef struct command_china_matrix_card
 {
@@ -861,10 +1012,12 @@ typedef struct command_china_matrix_card
 	char	szAnswer[CHINA_MATRIX_ANSWER_MAX_LEN + 1];
 } TPacketCGChinaMatrixCard;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Autoryzacja 2-step (Chiny).
+- **Algorytmiczne dzialanie po serializacji**: Macierz autoryzacyjna (matryca chinska).
+- **Wyzwalacz Kliencki (Trigger)**: Okienko po logowaniu.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[CHINA_MATRIX_ANSWER_MAX_LEN + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGRunupMatrixAnswer`
+#### Element Komunikacyjny: `TPacketCGRunupMatrixAnswer`
 ```cpp
 typedef struct command_runup_matrix_answer
 {
@@ -872,10 +1025,12 @@ typedef struct command_runup_matrix_answer
 	char	szAnswer[RUNUP_MATRIX_ANSWER_MAX_LEN + 1];
 } TPacketCGRunupMatrixAnswer;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGRunupMatrixAnswer.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[RUNUP_MATRIX_ANSWER_MAX_LEN + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGNEWCIBNPasspodAnswer`
+#### Element Komunikacyjny: `TPacketCGNEWCIBNPasspodAnswer`
 ```cpp
 typedef struct command_newcibn_passpod_answer
 {
@@ -883,10 +1038,12 @@ typedef struct command_newcibn_passpod_answer
 	char	szAnswer[NEWCIBN_PASSPOD_ANSWER_MAX_LEN + 1];
 } TPacketCGNEWCIBNPasspodAnswer;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGNEWCIBNPasspodAnswer.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[NEWCIBN_PASSPOD_ANSWER_MAX_LEN + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGPartyParameter`
+#### Element Komunikacyjny: `TPacketCGPartyParameter`
 ```cpp
 typedef struct command_party_parameter
 {
@@ -894,10 +1051,12 @@ typedef struct command_party_parameter
     BYTE        bDistributeMode;
 } TPacketCGPartyParameter;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGPartyParameter.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGQuestInputString`
+#### Element Komunikacyjny: `TPacketCGQuestInputString`
 ```cpp
 typedef struct command_quest_input_string
 {
@@ -905,10 +1064,12 @@ typedef struct command_quest_input_string
     char		szString[QUEST_INPUT_STRING_MAX_NUM+1];
 } TPacketCGQuestInputString;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przesyla wlasny wpis testowy doquesta.
+- **Algorytmiczne dzialanie po serializacji**: Uzupelnia skrypt lua po stronie serwera pobierajacy ciag.
+- **Wyzwalacz Kliencki (Trigger)**: Okienko typu inputbox z questa (np. wpisanie hasla eventowego).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[QUEST_INPUT_STRING_MAX_NUM+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGQuestConfirm`
+#### Element Komunikacyjny: `TPacketCGQuestConfirm`
 ```cpp
 typedef struct command_quest_confirm
 {
@@ -917,10 +1078,12 @@ typedef struct command_quest_confirm
     DWORD requestPID;
 } TPacketCGQuestConfirm;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zgoda na zadanie / zaproszenie.
+- **Algorytmiczne dzialanie po serializacji**: Odsyla bit (Tak/Nie).
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie OK na monicie questa.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 8 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGScriptSelectItem`
+#### Element Komunikacyjny: `TPacketCGScriptSelectItem`
 ```cpp
 typedef struct command_script_select_item
 {
@@ -928,10 +1091,12 @@ typedef struct command_script_select_item
     DWORD selection;
 } TPacketCGScriptSelectItem;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGScriptSelectItem.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 7 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGCreateCharacter`
+#### Element Komunikacyjny: `TPacketCGCreateCharacter`
 ```cpp
 typedef struct command_player_create
 {
@@ -946,10 +1111,12 @@ typedef struct command_player_create
 	BYTE		DEX;
 } TPacketCGCreateCharacter;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGCreateCharacter.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 9 bajtow. Zawiera alokacje wielkosci `[CHARACTER_NAME_MAX_LEN + 1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketGCPlayerCreateSuccess`
+#### Element Komunikacyjny: `TPacketGCPlayerCreateSuccess`
 ```cpp
 typedef struct command_player_create_success
 {
@@ -958,10 +1125,12 @@ typedef struct command_player_create_success
     TSimplePlayerInformation	kSimplePlayerInfomation;
 } TPacketGCPlayerCreateSuccess;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Zadanie utworzenia nowej postaci.
+- **Algorytmiczne dzialanie po serializacji**: Przesyla parametry (job, statystyki poczatkowe, nazwe) by zapisac w bazie.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'Stworz' (Create) w fazie wyboru postaci (SelectPhase).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketGCCreateFailure`
+#### Element Komunikacyjny: `TPacketGCCreateFailure`
 ```cpp
 typedef struct command_create_failure
 {
@@ -969,10 +1138,12 @@ typedef struct command_create_failure
 	BYTE	bType;
 } TPacketGCCreateFailure;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketGCCreateFailure.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGDestroyCharacter`
+#### Element Komunikacyjny: `TPacketCGDestroyCharacter`
 ```cpp
 typedef struct command_player_delete
 {
@@ -981,10 +1152,37 @@ typedef struct command_player_delete
 	char		szPrivateCode[PRIVATE_CODE_LENGTH];
 } TPacketCGDestroyCharacter;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGDestroyCharacter.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Zawiera alokacje wielkosci `[PRIVATE_CODE_LENGTH]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGEmpire`
+#### Element Komunikacyjny: `TPacketGCGlobalTime`
+```cpp
+typedef struct packet_GlobalTime
+{
+	BYTE	header;
+	float	GlobalTime;
+} TPacketGCGlobalTime;
+```
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketGCGlobalTime.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 5 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketCGPong`
+```cpp
+typedef struct packet_pong
+{
+	BYTE		bHeader;
+} TPacketCGPong;
+```
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGPong.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketCGEmpire`
 ```cpp
 typedef struct command_empire
 {
@@ -992,10 +1190,94 @@ typedef struct command_empire
     BYTE        bEmpire;
 } TPacketCGEmpire;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Pakiet wyboru krolestwa (rzadko uzywany).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla 1, 2 lub 3 (Shinsoo, Chunjo, Jinno).
+- **Wyzwalacz Kliencki (Trigger)**: Event Wyboru Imperium na poczatku nowej postaci.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `TPacketCGAuctionCmd`
+#### Element Komunikacyjny: `TPacketGCGuild`
+```cpp
+typedef struct packet_guild
+{
+    BYTE header;
+    WORD size;
+    BYTE subheader;
+} TPacketGCGuild;
+```
+- **Cel Architektoniczny**: Wiele akcji gildiowych zarzadzanych z jednego naglowka.
+- **Algorytmiczne dzialanie po serializacji**: Rozdzielane za pomoca pola bSubHeader (wyplacenie kasy, awans, wykopanie z gildii).
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie Okna Gildii.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 4 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketGCGuildSubGrade`
+```cpp
+typedef struct packet_guild_sub_grade
+{
+	char grade_name[GUILD_GRADE_NAME_MAX_LEN+1]; // 8+1 ±æµåÀå, ±æµå¿ø µîÀÇ ÀÌ¸§
+	BYTE auth_flag;
+} TPacketGCGuildSubGrade;
+```
+- **Cel Architektoniczny**: Wiele akcji gildiowych zarzadzanych z jednego naglowka.
+- **Algorytmiczne dzialanie po serializacji**: Rozdzielane za pomoca pola bSubHeader (wyplacenie kasy, awans, wykopanie z gildii).
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie Okna Gildii.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 1 bajtow. Zawiera alokacje wielkosci `[GUILD_GRADE_NAME_MAX_LEN+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketGCGuildSubMember`
+```cpp
+typedef struct packet_guild_sub_member
+{
+	DWORD pid;
+	BYTE byGrade;
+	BYTE byIsGeneral;
+	BYTE byJob;
+	BYTE byLevel;
+	DWORD dwOffer;
+	BYTE byNameFlag;
+// if NameFlag is TRUE, name is sent from server.
+//	char szName[CHARACTER_ME_MAX_LEN+1];
+} TPacketGCGuildSubMember;
+```
+- **Cel Architektoniczny**: Wiele akcji gildiowych zarzadzanych z jednego naglowka.
+- **Algorytmiczne dzialanie po serializacji**: Rozdzielane za pomoca pola bSubHeader (wyplacenie kasy, awans, wykopanie z gildii).
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie Okna Gildii.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 17 bajtow. Zawiera alokacje wielkosci `[CHARACTER_ME_MAX_LEN+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketGCGuildInfo`
+```cpp
+typedef struct packet_guild_sub_info
+{
+    WORD member_count;
+    WORD max_member_count;
+	DWORD guild_id;
+    DWORD master_pid;
+    DWORD exp;
+    BYTE level;
+    char name[GUILD_NAME_MAX_LEN+1];
+	DWORD gold;
+	BYTE hasLand;
+} TPacketGCGuildInfo;
+```
+- **Cel Architektoniczny**: Wiele akcji gildiowych zarzadzanych z jednego naglowka.
+- **Algorytmiczne dzialanie po serializacji**: Rozdzielane za pomoca pola bSubHeader (wyplacenie kasy, awans, wykopanie z gildii).
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie Okna Gildii.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 30 bajtow. Zawiera alokacje wielkosci `[GUILD_NAME_MAX_LEN+1]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketGCGuildWar`
+```cpp
+typedef struct packet_guild_war
+{
+    DWORD       dwGuildSelf;
+    DWORD       dwGuildOpp;
+    BYTE        bType;
+    BYTE        bWarState;
+} TPacketGCGuildWar;
+```
+- **Cel Architektoniczny**: Wiele akcji gildiowych zarzadzanych z jednego naglowka.
+- **Algorytmiczne dzialanie po serializacji**: Rozdzielane za pomoca pola bSubHeader (wyplacenie kasy, awans, wykopanie z gildii).
+- **Wyzwalacz Kliencki (Trigger)**: Uzycie Okna Gildii.
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 14 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketCGAuctionCmd`
 ```cpp
 typedef struct SPacketCGAuctionCmd
 {
@@ -1007,34 +1289,56 @@ typedef struct SPacketCGAuctionCmd
 	int arg4;
 } TPacketCGAuctionCmd;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Przekazuje obsluge biznesowa wywolywana w UI powiazana ze scislym identyfikatorem struktury TPacketCGAuctionCmd.
+- **Algorytmiczne dzialanie po serializacji**: Kopiuje wartosci podane przez pythona (`PyArg_ParseTuple`) do sformalizowanych surowych elementow struktury i aplikuje hash.
+- **Wyzwalacz Kliencki (Trigger)**: Zdarzenia event loop z modulu `net` (np. uiscript, interakcje w oknie gry).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 18 bajtow. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
-#### Struktura: `SPacketCGDragonSoulRefine`
+#### Element Komunikacyjny: `TPacketCGDragonSoulRefine`
 ```cpp
 typedef struct SPacketCGDragonSoulRefine
 {
 	SPacketCGDragonSoulRefine() : header (HEADER_CG_DRAGON_SOUL_REFINE)
 	{}
 	BYTE header;
+	BYTE bSubType;
+	TItemPos ItemGrid[DS_REFINE_WINDOW_MAX_NUM];
+} TPacketCGDragonSoulRefine;
 ```
-- **Cel:** Definicja payloadu dla danego naglowka.
-- **Wielkosc i Padding:** Typowe typy to `BYTE` (1 bajt), `WORD` (2 bajty), `DWORD` (4 bajty), `char[]`. Pakowanie ustawione na 1 bajt. Brak wirtualnych tabel.
+- **Cel Architektoniczny**: Ulepszanie przedmiotu (Kowal).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla numer slotu ekwipunku wybranej zbroi by sprobowac 'upnac'. Zwraca result do klienta.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'OK' na oknie kowala (TRefineTable).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Zawiera alokacje wielkosci `[DS_REFINE_WINDOW_MAX_NUM]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
+
+#### Element Komunikacyjny: `TPacketCGDragonSoulRefine`
+```cpp
+typedef struct SPacketCGDragonSoulRefine
+{
+	SPacketCGDragonSoulRefine() : header (HEADER_CG_DRAGON_SOUL_REFINE)
+	{}
+	BYTE header;
+	BYTE bSubType;
+	TItemPos ItemGrid[DS_REFINE_WINDOW_MAX_NUM];
+} TPacketCGDragonSoulRefine;
+```
+- **Cel Architektoniczny**: Ulepszanie przedmiotu (Kowal).
+- **Algorytmiczne dzialanie po serializacji**: Wysyla numer slotu ekwipunku wybranej zbroi by sprobowac 'upnac'. Zwraca result do klienta.
+- **Wyzwalacz Kliencki (Trigger)**: Klikniecie 'OK' na oknie kowala (TRefineTable).
+- **Memory Layout i Packing**: Suma prymitywnych pol wlasnych bez wliczania stacjonarnych tablic: okolo 2 bajtow. Zawiera alokacje wielkosci `[DS_REFINE_WINDOW_MAX_NUM]`. Posiada plaski uklad wymuszany zablokowaniem wyrownywania bitowego (brak narzutu vtable).
 
 ## 4. Rejestr Klas i Metod (API Reference)
-Plik `Packet.h` zawiera wylacznie deklaracje struktur (POD). Logika biznesowa wysylania znajduje sie glownie w `PythonNetworkStream`.
-- **Proces Serializacji:** W C++ nie uzywa sie skomplikowanej serializacji. Obiekty struktur sa po prostu kopiowane do bufora `memcpy(buffer, &packet, sizeof(packet))`.
-- **Znaczenie pol:**
-  - `header` (zazwyczaj 1 bajt, `BYTE`): Numer opkodu informujacy serwer z jakim pakietem ma do czynienia.
-  - Zmienne tekstowe (`char name[X+1]`): Zawsze statyczne tablice z miejscem na znak terminalny ` `. Nigdy `std::string`.
+Wewnatrz pliku `Packet.h` wystepuja wylacznie deklaracje struktur - nie zawiera on bezposrednich definicji funkcji logiki biznesowej, a jedynie formuje wzorce odniesienia (API Reference polega wiec na korzystaniu z pol bez metod wlasnych).
+Implementacja fizyczna wysylania opiera sie na zewnetrznym API w `CPythonNetworkStream`:
+- `CPythonNetworkStream::Send(int nSize, const void* pData)`: To glowna metoda mostkujaca wysylanie binariow. Cialo klasy pobiera wielkosc wskazanej struktury operatorem `sizeof`, wyznacza adres pamieci surowej operatorem `&` i tlumaczy pakiety wedle sesji GamePhase/LoginPhase.
+- Cykl wewnetrzny Pythona to np.: `PyObject* netSendAttack(PyObject* poSelf, PyObject* poArgs)` gdzie wnetrze robi instancje struktury na stosie w C++, ustawia jej header = opcodowi z listy wyzej, parsowany z tuple VID int/long i przesyla w tlo.
 
 ## 5. Punkty Styku (Cross-Subsystem Integration)
-- **Integracja z Pythonem:** Wywolania takie jak `net.SendChatPacket(text)` sa parsowane przez `PyArg_ParseTuple` w C++, a nastepnie kopiowane za pomoca `strncpy` do statycznej tablicy `char szText[...]` wewnatrz odpowiedniego `TPacketCG*`.
-- **Integracja z DirectX / EterLib:** Pakiety pozycjonowania (np. `HEADER_CG_CHARACTER_MOVE`) konwertuja pozycje `D3DXVECTOR3` na liczby calkowite (np. `long x = float_x * 100`) w celu zminimalizowania utraty precyzji i ustandaryzowania operacji matematycznych na serwerze.
-- **Integracja z Serwerem Gry:** Serwer gry posiada dokladnie taki sam plik `Packet.h` (lub kompatybilny odpowiednik w kodzie serwerowym), ktory uzywany jest do parsowania tych strumieni binarnych.
+- **Integracja EterPack i Kryptografia Sieciowa**: Serwer nakazuje szyfrowanie wymiany (karta matryc, RSA/TEA). Wszystkie te struktury po wrzuceniu w NetworkStream przechodza algorytm `EterPackPolicy_CSHybridCrypt`, ktory miesza bajty. Bez tego proces serwera zamknie polaczenie za tzw. Invalid Packet.
+- **DirectX i 3D Math (D3DXVECTOR3)**: Punkty wspolrzednych w pakietach pozycjonowania jak MOVE uzywaja `long`. W systemie gry `D3DXVECTOR3` opiera sie na float (np. pozycja 350.55). Przed wrzuceniem w struct pakietu, C++ rzutuje ta wartosc: pozycje float sa ucinane na serwer z minimalizowana precyzja, zeby zredukowac narzut sieciowy i zapewnic precyzyjna kolizje uzywajac calkowitych siatek terenowych `CMapOutdoor`.
+- **System Zdarzen Pythona (PythonNetworkStreamPhase*.cpp)**: Pliki definiujace fazy bezposrednio korzystaja z tych form, stanowiacych bezposrednie wywolania bindowane jako callbacki (metody statyczne z tabeli `PyMethodDef`).
 
 ## 6. Pulapki, Antywzorce i Ograniczenia
-1. **Brak paddingu (`#pragma pack`)**: Jesli kompilator doda domyslny padding (np. do wyrownania 4-bajtowego), klient wysle zle sformatowany pakiet. Skutkuje to natychmiastowym zamknieciem polaczenia (Disconnect) przez serwer, a w niektorych przypadkach flaga proby ataku typu Buffer Overflow.
-2. **Brak funkcji `ntohl` / `htonl`**: Protokol zaklada, ze zarowno serwer, jak i klient uzywaja architektury Little Endian (x86 / x64). Zmiana architektury wymagalaby implementacji konwersji (Byte Swapping).
-3. **Brak sprawdzania wielkosci dla `char[]`**: Zle skopiowanie stringa bez znaku ` ` na koncu moze prowadzic do czytania pamieci ze smieciami na serwerze.
-4. **Zaleznosc od stalej wielkosci opkodu**: Wielkosc bufora zalezy bezposrednio od sizeof(struktura). Dynamiczne rozmiary sa rzadkoscia i wymagaja wyslania `size` jako dodatkowego pola lub pakietu z wyliczona wielkoscia.
+- **Zniszczenie ukladu pamieci przez domyslny Packing (Buffer Alignment Issues)**: Kazda nowa edycja struktury w `Packet.h` bez poprawnego narzucenia `#pragma pack(1)` dla calego bloku sprawi, ze standardowy kompilator C++ (MSVC 32-bit) doda niezadeklarowany `padding` by ulepszyc pobieranie z rejestrow CPU. Sprawi to ze caly layout po stronie serwera ulegnie trwalemu rozsypaniu przy uzyciu rzutowania struct, poniewaz bajty przesuna sie np. o 3 w lewo.
+- **Uzycie wskaznikow na obiekty dynamiczne (`std::string`, pTr)**: Obiekty w tych pakietach musza byc wylacznie POD. Posiadaja wyliczany w czasie kompilacji uklad. Dodanie obiektu wektorowego C++ (`std::string`) poskutkuje proba transmisji wskaznika adresowego pamieci RAM (stosu) a nie samych stringow, powodujac natychmiastowy naruszenie pamieci Access Violation po stronie odbiornika.
+- **Null-Terminator uciekajacy w kosmos (`char[]`)**: Gdy string Pythona kopiowany jest metoda `strncpy(pack.name, input, length)`, zaniedbanie doliczenia bajtu terminujacego `\0` i zapelnienie sztywnej tablicy do maksa sprawi, ze C++ na serwerze bedzie ciagnal string uzywajac `strlen` poza ramy tego elementu na sterte/inne pakiety.
+- **Mitygacja Endians (Architektura procesorow)**: Metin i powiazane zrodla EterLib nie wykorzystuja ustandaryzowanego ukladania sieciowego `ntohs/htons` Big-Endian, uzywajac slepego wlania bajtow w siec. Protokoly te odgornie narzucaja wykorzystanie wylacznie platform na architekturze Little-Endian (Windows x86/x64).
