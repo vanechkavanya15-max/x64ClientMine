@@ -6,7 +6,7 @@ Podsystem odpowiedzialny za przetwarzanie pakietow sieciowych (odbieranie od ser
 Ten system pelni role mostu: synchronizuje lokalny stan swiata klienta z autorytatywnym stanem na serwerze i propaguje zmiany w swiecie gry do struktur danych oraz do interfejsu.
 
 ### Zaleznosci:
-- **Wykorzystuje moduły:** 
+- **Wykorzystuje moduly:** 
     - EterBase, m.in. operacje na plikach, abstrakcja streamu. 
     - `CPythonCharacterManager` (z GameLib) do rejestrowania i aktualizowania `CInstanceBase` oraz obslugi siatek kolizji (aktorzy, moby).
     - `CPythonItem` do zarzadzania instancjami przedmiotow podnoszonych z ziemi.
@@ -28,7 +28,7 @@ sequenceDiagram
     NS->>NS: __GlobalPositionToLocalPosition()
     NS->>CM: AppendActor() -> CInstanceBase utworzony/aktualizacja statusu
     CM-->>NS: 
-    NS->>UI: (Jesli main) Update() tła / UI 
+    NS->>UI: (Jesli main) Update() tla / UI 
 
     %% Ruch
     S->>NS: TPacketGCMove (Rotacja, Cel ruchu)
@@ -47,7 +47,7 @@ sequenceDiagram
 
 ## 3. Rejestr Struktur Danych i Pamieci (Memory & Struct Layout)
 
-Struktury definiuja format pakietow przychodzacych od serwera (z pliku `Packet.h`). Kazda struktura musi byc parsowana bajt po bajcie za pomoca `Recv`. Wyrównanie jest wazne ze wzgledu na zgodnosc w systemie sieciowym. (domyslne wyrownanie MSVC `#pragma pack(1)` dla plikow sieciowych, co nalezy zakladac).
+Struktury definiuja format pakietow przychodzacych od serwera (z pliku `Packet.h`). Kazda struktura musi byc parsowana bajt po bajcie za pomoca `Recv`. Wyrownanie jest wazne ze wzgledu na zgodnosc w systemie sieciowym. (domyslne wyrownanie MSVC `#pragma pack(1)` dla plikow sieciowych, co nalezy zakladac).
 
 * `TPacketGCCharacterAdd` - Tworzenie / dodanie aktora
   - `BYTE header;` (naglowek pakietu: HEADER_GC_CHARACTER_ADD = 1)
