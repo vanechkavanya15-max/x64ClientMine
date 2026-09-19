@@ -1,0 +1,498 @@
+Found CG Headers:
+('HEADER_CG_LOGIN', '1')
+('HEADER_CG_ATTACK', '2')
+('HEADER_CG_CHAT', '3')
+('HEADER_CG_PLAYER_CREATE', '4')
+('HEADER_CG_PLAYER_DESTROY', '5')
+('HEADER_CG_PLAYER_SELECT', '6')
+('HEADER_CG_CHARACTER_MOVE', '7')
+('HEADER_CG_SYNC_POSITION', '8')
+('HEADER_CG_DIRECT_ENTER', '9')
+('HEADER_CG_ENTERGAME', '10')
+('HEADER_CG_ITEM_USE', '11')
+('HEADER_CG_ITEM_DROP', '12')
+('HEADER_CG_ITEM_MOVE', '13')
+('HEADER_CG_ITEM_PICKUP', '15')
+('HEADER_CG_QUICKSLOT_ADD', '16')
+('HEADER_CG_QUICKSLOT_DEL', '17')
+('HEADER_CG_QUICKSLOT_SWAP', '18')
+('HEADER_CG_WHISPER', '19')
+('HEADER_CG_ITEM_DROP2', '20')
+('HEADER_CG_ON_CLICK', '26')
+('HEADER_CG_EXCHANGE', '27')
+('HEADER_CG_CHARACTER_POSITION', '28')
+('HEADER_CG_SCRIPT_ANSWER', '29')
+('HEADER_CG_QUEST_INPUT_STRING', '30')
+('HEADER_CG_QUEST_CONFIRM', '31')
+('HEADER_CG_PVP', '41')
+('HEADER_CG_SHOP', '50')
+('HEADER_CG_FLY_TARGETING', '51')
+('HEADER_CG_USE_SKILL', '52')
+('HEADER_CG_ADD_FLY_TARGETING', '53')
+('HEADER_CG_SHOOT', '54')
+('HEADER_CG_MYSHOP', '55')
+('HEADER_CG_ITEM_USE_TO_ITEM', '60')
+('HEADER_CG_TARGET', '61')
+('HEADER_CG_WARP', '65')
+('HEADER_CG_SCRIPT_BUTTON', '66')
+('HEADER_CG_MESSENGER', '67')
+('HEADER_CG_MALL_CHECKOUT', '69')
+('HEADER_CG_SAFEBOX_CHECKIN', '70')
+('HEADER_CG_SAFEBOX_CHECKOUT', '71')
+('HEADER_CG_PARTY_INVITE', '72')
+('HEADER_CG_PARTY_INVITE_ANSWER', '73')
+('HEADER_CG_PARTY_REMOVE', '74')
+('HEADER_CG_PARTY_SET_STATE', '75')
+('HEADER_CG_PARTY_USE_SKILL', '76')
+('HEADER_CG_SAFEBOX_ITEM_MOVE', '77')
+('HEADER_CG_PARTY_PARAMETER', '78')
+('HEADER_CG_GUILD', '80')
+('HEADER_CG_ANSWER_MAKE_GUILD', '81')
+('HEADER_CG_FISHING', '82')
+('HEADER_CG_GIVE_ITEM', '83')
+('HEADER_CG_EMPIRE', '90')
+('HEADER_CG_REFINE', '96')
+('HEADER_CG_MARK_LOGIN', '100')
+('HEADER_CG_MARK_CRCLIST', '101')
+('HEADER_CG_MARK_UPLOAD', '102')
+('HEADER_CG_MARK_IDXLIST', '104')
+('HEADER_CG_CRC_REPORT', '103')
+('HEADER_CG_HACK', '105')
+('HEADER_CG_CHANGE_NAME', '106')
+('HEADER_CG_SMS', '107')
+('HEADER_CG_CHINA_MATRIX_CARD', '108')
+('HEADER_CG_LOGIN2', '109')
+('HEADER_CG_DUNGEON', '110')
+('HEADER_CG_LOGIN3', '111')
+('HEADER_CG_GUILD_SYMBOL_UPLOAD', '112')
+('HEADER_CG_GUILD_SYMBOL_CRC', '113')
+('HEADER_CG_SCRIPT_SELECT_ITEM', '114')
+('HEADER_CG_LOGIN4', '115')
+('HEADER_CG_LOGIN5_OPENID', '116')
+('HEADER_CG_RUNUP_MATRIX_ANSWER', '201')
+('HEADER_CG_NEWCIBN_PASSPOD_ANSWER', '202')
+('HEADER_CG_HS_ACK', '203')
+('HEADER_CG_XTRAP_ACK', '204')
+('HEADER_CG_DRAGON_SOUL_REFINE', '205')
+('HEADER_CG_STATE_CHECKER', '206')
+('HEADER_CG_AUCTION_CMD', '205')
+('HEADER_CG_KEY_AGREEMENT', '0')
+('HEADER_CG_TIME_SYNC', '0')
+('HEADER_CG_CLIENT_VERSION', '0')
+('HEADER_CG_CLIENT_VERSION2', '0')
+('HEADER_CG_PONG', '0')
+('HEADER_CG_HANDSHAKE', '0')
+========================================
+Struct: TPacketCGMarkLogin (from command_mark_login)
+BYTE    header;
+    DWORD   handle;
+    DWORD   random_key;
+--------------------
+Struct: TPacketCGMarkUpload (from command_mark_upload)
+BYTE    header;
+    DWORD   gid;
+    BYTE    image[16*12*4];
+--------------------
+Struct: TPacketCGMarkIDXList (from command_mark_idxlist)
+BYTE    header;
+--------------------
+Struct: TPacketCGMarkCRCList (from command_mark_crclist)
+BYTE    header;
+    BYTE    imgIdx;
+    DWORD   crclist[80];
+--------------------
+Struct: TPacketCGSymbolUpload (from command_symbol_upload)
+BYTE	header;
+	WORD	size;
+	DWORD	handle;
+--------------------
+Struct: TPacketCGSymbolCRC (from command_symbol_crc)
+BYTE	header;
+	DWORD	dwGuildID;
+	DWORD	dwCRC;
+	DWORD	dwSize;
+--------------------
+Struct: TPacketGCGuildSymbolData (from packet_symbol_data)
+BYTE header;
+    WORD size;
+    DWORD guild_id;
+--------------------
+Struct: TPacketCGCheckin (from command_checkin)
+BYTE header;
+	char name[ID_MAX_NUM+1];
+	char pwd[PASS_MAX_NUM+1];
+--------------------
+Struct: TPacketCGLogin (from command_login)
+BYTE header;
+    char name[ID_MAX_NUM + 1];
+    char pwd[PASS_MAX_NUM + 1];
+--------------------
+Struct: TPacketCGLogin2 (from command_login2)
+BYTE	header;
+	char	name[ID_MAX_NUM + 1];
+	DWORD	login_key;
+    DWORD	adwClientKey[4];
+--------------------
+Struct: TPacketCGLogin3 (from command_login3)
+BYTE	header;
+    char	name[ID_MAX_NUM + 1];
+    char	pwd[PASS_MAX_NUM + 1];
+    DWORD	adwClientKey[4];
+--------------------
+Struct: TPacketCGLogin5 (from command_login5)
+BYTE	header;
+    char	authKey[OPENID_AUTHKEY_LEN + 1];
+    DWORD	adwClientKey[4];
+--------------------
+Struct: TPacketCGDirectEnter (from command_direct_enter)
+BYTE        bHeader;
+    char        login[ID_MAX_NUM + 1];
+    char        passwd[PASS_MAX_NUM + 1];
+    BYTE        index;
+--------------------
+Struct: TPacketCGSelectCharacter (from command_player_select)
+BYTE	header;
+	BYTE	player_index;
+--------------------
+Struct: TPacketCGAttack (from command_attack)
+BYTE	header;
+	BYTE	bType;			// °ø°Ý À¯Çü
+	DWORD	dwVictimVID;	// Àû VID
+	BYTE	bCRCMagicCubeProcPiece;
+	BYTE	bCRCMagicCubeFilePiece;
+--------------------
+Struct: TPacketCGChat (from command_chat)
+BYTE	header;
+	WORD	length;
+	BYTE	type;
+--------------------
+Struct: TPacketCGWhisper (from command_whisper)
+BYTE        bHeader;
+    WORD        wSize;
+    char        szNameTo[CHARACTER_NAME_MAX_LEN + 1];
+--------------------
+Struct: TPacketCGSMS (from command_sms)
+BYTE        bHeader;
+    WORD        wSize;
+    char        szNameTo[CHARACTER_NAME_MAX_LEN + 1];
+--------------------
+Struct: TPacketCGEnterFrontGame (from command_EnterFrontGame)
+BYTE header;
+--------------------
+Struct: TPacketCGItemUse (from command_item_use)
+BYTE header;
+	TItemPos pos;
+--------------------
+Struct: TPacketCGItemUseToItem (from command_item_use_to_item)
+BYTE header;
+	TItemPos source_pos;
+	TItemPos target_pos;
+--------------------
+Struct: TPacketCGItemDrop (from command_item_drop)
+BYTE  header;
+	TItemPos pos;
+	DWORD elk;
+--------------------
+Struct: TPacketCGItemDrop2 (from command_item_drop2)
+BYTE        header;
+    TItemPos pos;
+    DWORD       gold;
+    BYTE        count;
+--------------------
+Struct: TPacketCGItemMove (from command_item_move)
+BYTE header;
+	TItemPos pos;
+	TItemPos change_pos;
+	BYTE num;
+--------------------
+Struct: TPacketCGItemPickUp (from command_item_pickup)
+BYTE header;
+	DWORD vid;
+--------------------
+Struct: TPacketCGQuickSlotAdd (from command_quickslot_add)
+BYTE        header;
+    BYTE        pos;
+	TQuickSlot	slot;
+--------------------
+Struct: TPacketCGQuickSlotDel (from command_quickslot_del)
+BYTE        header;
+    BYTE        pos;
+--------------------
+Struct: TPacketCGQuickSlotSwap (from command_quickslot_swap)
+BYTE        header;
+    BYTE        pos;
+    BYTE        change_pos;
+--------------------
+Struct: TPacketCGOnClick (from command_on_click)
+BYTE		header;
+	DWORD		vid;
+--------------------
+Struct: TPacketCGShop (from command_shop)
+BYTE        header;
+	BYTE		subheader;
+--------------------
+Struct: TPacketCGExchange (from command_exchange)
+BYTE		header;
+	BYTE		subheader;
+	DWORD		arg1;
+	BYTE		arg2;
+	TItemPos	Pos;
+--------------------
+Struct: TPacketCGPosition (from command_position)
+BYTE        header;
+    BYTE        position;
+--------------------
+Struct: TPacketCGScriptAnswer (from command_script_answer)
+BYTE        header;
+	BYTE		answer;
+--------------------
+Struct: TPacketCGScriptButton (from command_script_button)
+BYTE        header;
+	unsigned int			idx;
+--------------------
+Struct: TPacketCGTarget (from command_target)
+BYTE        header;
+    DWORD       dwVID;
+--------------------
+Struct: TPacketCGMove (from command_move)
+BYTE		bHeader;
+	BYTE		bFunc;
+	BYTE		bArg;
+	BYTE		bRot;
+	LONG		lX;
+	LONG		lY;
+	DWORD		dwTime;
+--------------------
+Struct: TPacketCGSyncPositionElement (from command_sync_position_element)
+DWORD       dwVID; 
+    long        lX; 
+    long        lY;
+--------------------
+Struct: TPacketCGSyncPosition (from command_sync_position)
+BYTE        bHeader;
+	WORD		wSize;
+--------------------
+Struct: TPacketCGFlyTargeting (from command_fly_targeting)
+BYTE		bHeader;
+	DWORD		dwTargetVID;
+	long		lX;
+	long		lY;
+--------------------
+Struct: TPacketCGShoot (from packet_shoot)
+BYTE		bHeader;                
+    BYTE		bType;
+--------------------
+Struct: TPacketCGWarp (from command_warp)
+BYTE			bHeader;
+--------------------
+Struct: TPacketCGMessenger (from command_messenger)
+BYTE header;
+    BYTE subheader;
+--------------------
+Struct: TPacketCGMessengerRemove (from command_messenger_remove)
+BYTE length;
+--------------------
+Struct: TPacketCGSafeboxMoney (from command_safebox_money)
+BYTE        bHeader;
+    BYTE        bState;
+    DWORD       dwMoney;
+--------------------
+Struct: TPacketCGSafeboxCheckout (from command_safebox_checkout)
+BYTE        bHeader;
+    BYTE        bSafePos;
+    TItemPos	ItemPos;
+--------------------
+Struct: TPacketCGSafeboxCheckin (from command_safebox_checkin)
+BYTE        bHeader;
+    BYTE        bSafePos;
+    TItemPos	ItemPos;
+--------------------
+Struct: TPacketCGMallCheckout (from command_mall_checkout)
+BYTE        bHeader;
+    BYTE        bMallPos;
+    TItemPos	ItemPos;
+--------------------
+Struct: TPacketCGUseSkill (from command_use_skill)
+BYTE                bHeader;
+    DWORD               dwVnum;
+	DWORD				dwTargetVID;
+--------------------
+Struct: TPacketCGPartyInvite (from command_party_invite)
+BYTE header;
+    DWORD vid;
+--------------------
+Struct: TPacketCGPartyInviteAnswer (from command_party_invite_answer)
+BYTE header;
+    DWORD leader_pid;
+    BYTE accept;
+--------------------
+Struct: TPacketCGPartyRemove (from command_party_remove)
+BYTE header;
+    DWORD pid;
+--------------------
+Struct: TPacketCGPartySetState (from command_party_set_state)
+BYTE byHeader;
+    DWORD dwVID;
+	BYTE byState;
+    BYTE byFlag;
+--------------------
+Struct: TPacketCGPartyUseSkill (from command_party_use_skill)
+BYTE byHeader;
+	BYTE bySkillIndex;
+    DWORD dwTargetVID;
+--------------------
+Struct: TPacketCGGuild (from command_guild)
+BYTE byHeader;
+	BYTE bySubHeader;
+--------------------
+Struct: TPacketCGAnswerMakeGuild (from command_guild_answer_make_guild)
+BYTE header;
+	char guild_name[GUILD_NAME_MAX_LEN+1];
+--------------------
+Struct: TPacketCGGiveItem (from command_give_item)
+BYTE byHeader;
+	DWORD dwTargetVID;
+	TItemPos ItemPos;
+	BYTE byItemCount;
+--------------------
+Struct: TPacketCGHack (from SPacketCGHack)
+BYTE        bHeader;
+    char        szBuf[255 + 1];
+--------------------
+Struct: TPacketCGDungeon (from command_dungeon)
+BYTE		bHeader;
+	WORD		size;
+--------------------
+Struct: TPacketCGMyShop (from SPacketCGMyShop)
+BYTE        bHeader;
+    char        szSign[SHOP_SIGN_MAX_LEN + 1];
+    BYTE        bCount;	// count of TShopItemTable, max 39
+--------------------
+Struct: TPacketCGRefine (from SPacketCGRefine)
+BYTE		header;
+	BYTE		pos;
+	BYTE		type;
+--------------------
+Struct: TPacketCGChangeName (from SPacketCGChangeName)
+BYTE header;
+    BYTE index;
+    char name[CHARACTER_NAME_MAX_LEN+1];
+--------------------
+Struct: TPacketCGClientVersion (from command_client_version)
+BYTE header;
+	char filename[32+1];
+	char timestamp[32+1];
+--------------------
+Struct: TPacketCGClientVersion2 (from command_client_version2)
+BYTE header;
+	char filename[32+1];
+	char timestamp[32+1];
+--------------------
+Struct: TPacketCGCRCReport (from command_crc_report)
+BYTE header;
+	BYTE byPackMode;
+	DWORD dwBinaryCRC32;
+	DWORD dwProcessCRC32;
+	DWORD dwRootPackCRC32;
+--------------------
+Struct: TPacketCGChinaMatrixCard (from command_china_matrix_card)
+BYTE	bHeader;
+	char	szAnswer[CHINA_MATRIX_ANSWER_MAX_LEN + 1];
+--------------------
+Struct: TPacketCGRunupMatrixAnswer (from command_runup_matrix_answer)
+BYTE	bHeader;
+	char	szAnswer[RUNUP_MATRIX_ANSWER_MAX_LEN + 1];
+--------------------
+Struct: TPacketCGNEWCIBNPasspodAnswer (from command_newcibn_passpod_answer)
+BYTE	bHeader;
+	char	szAnswer[NEWCIBN_PASSPOD_ANSWER_MAX_LEN + 1];
+--------------------
+Struct: TPacketCGPartyParameter (from command_party_parameter)
+BYTE        bHeader;
+    BYTE        bDistributeMode;
+--------------------
+Struct: TPacketCGQuestInputString (from command_quest_input_string)
+BYTE        bHeader;
+    char		szString[QUEST_INPUT_STRING_MAX_NUM+1];
+--------------------
+Struct: TPacketCGQuestConfirm (from command_quest_confirm)
+BYTE header;
+    BYTE answer;
+    DWORD requestPID;
+--------------------
+Struct: TPacketCGScriptSelectItem (from command_script_select_item)
+BYTE header;
+    DWORD selection;
+--------------------
+Struct: TPacketCGCreateCharacter (from command_player_create)
+BYTE        header;
+	BYTE        index;
+	char        name[CHARACTER_NAME_MAX_LEN + 1];
+	WORD        job;
+	BYTE		shape;
+	BYTE		CON;
+	BYTE		INT;
+	BYTE		STR;
+	BYTE		DEX;
+--------------------
+Struct: TPacketCGDestroyCharacter (from command_player_delete)
+BYTE        header;
+	BYTE        index;
+	char		szPrivateCode[PRIVATE_CODE_LENGTH];
+--------------------
+Struct: TPacketGCGlobalTime (from packet_GlobalTime)
+BYTE	header;
+	float	GlobalTime;
+--------------------
+Struct: TPacketCGPong (from packet_pong)
+BYTE		bHeader;
+--------------------
+Struct: TPacketCGEmpire (from command_empire)
+BYTE        bHeader;
+    BYTE        bEmpire;
+--------------------
+Struct: TPacketGCGuild (from packet_guild)
+BYTE header;
+    WORD size;
+    BYTE subheader;
+--------------------
+Struct: TPacketGCGuildSubGrade (from packet_guild_sub_grade)
+char grade_name[GUILD_GRADE_NAME_MAX_LEN+1]; // 8+1 ±æµåÀå, ±æµå¿ø µîÀÇ ÀÌ¸§
+	BYTE auth_flag;
+--------------------
+Struct: TPacketGCGuildSubMember (from packet_guild_sub_member)
+DWORD pid;
+	BYTE byGrade;
+	BYTE byIsGeneral;
+	BYTE byJob;
+	BYTE byLevel;
+	DWORD dwOffer;
+	BYTE byNameFlag;
+// if NameFlag is TRUE, name is sent from server.
+//	char szName[CHARACTER_ME_MAX_LEN+1];
+--------------------
+Struct: TPacketGCGuildInfo (from packet_guild_sub_info)
+WORD member_count;
+    WORD max_member_count;
+	DWORD guild_id;
+    DWORD master_pid;
+    DWORD exp;
+    BYTE level;
+    char name[GUILD_NAME_MAX_LEN+1];
+	DWORD gold;
+	BYTE hasLand;
+--------------------
+Struct: TPacketGCGuildWar (from packet_guild_war)
+DWORD       dwGuildSelf;
+    DWORD       dwGuildOpp;
+    BYTE        bType;
+    BYTE        bWarState;
+--------------------
+Struct: TPacketCGAuctionCmd (from SPacketCGAuctionCmd)
+BYTE bHeader;
+	BYTE cmd;
+	int arg1;
+	int arg2;
+	int arg3;
+	int arg4;
+--------------------
