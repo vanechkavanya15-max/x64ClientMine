@@ -108,10 +108,15 @@ Opakowuje funkcjonalnosc animacji Granny (`granny_animation`).
 3. **Menedzer Zasobow (ResourceManager)**:
    Tworzenie objektow polega na pule zarzadcow pamieci bazujacych na `CRef` w pliku klasie `CGraphicThing`. Dzieki `std::string GetModelLocalPath()` menedzer laduje prawidlowo tekstury z relatywnych polozen do struktury modelu.
 
+4. **Brak powiazania z Pythonem**:
+   Modul `EterGrnLib` stanowi rdzen graficzny i nie posiada bezposredniego wiazania przez `PyMethodDef`, `PyArg_ParseTuple`, ani `Py_BuildValue`. Integracja z warstwa skryptowa jest delegowana do wyzszych modulow (np. `PythonPlayer`, `PythonCharacterManager`).
+5. **Brak powiazania z Siecia**:
+   Modul operuje wylacznie po stronie klienta. Nie posiada zadnych bezposrednich powiazan z protokolem (Packet.h) ani nie wysyla wlasnych pakietow TCP. Dane o ruchu docieraja tutaj jako zagregowane wywolania po przetworzeniu komunikacji po stronie serwera.
+
 ## 6. Pulapki, Antywzorce i Ograniczenia
 
 - **CPU Skinning / Bottleneck Wierzcholkow**: Kod uzywa `GrannyDeformVertices` (CPU skinning), co blokuje glowy watek gry w duzych natlokach modeli na mapie, zamiast liczyc transformacje na vertex shaderach (GPU). Nalezy miec na uwadze narzuty `Lock`/`Unlock` dla deformowalnych buforow na klatke.
-- **Wycieki z Pointerami Granny**: Funkcje `GrannyFreeMeshBinding` i `GrannyFreeMeshDeformer` uzyte recznie moga stwarzac zagrozenie wycieku (Memory Leak) w `CGrannyMesh` gdyby konstruktor przerwano w polowie błędem, ze wzgledu na brak uzycia inteligentnych wskaznikow (Smart Pointers).
+- **Wycieki z Pointerami Granny**: Funkcje `GrannyFreeMeshBinding` i `GrannyFreeMeshDeformer` uzyte recznie moga stwarzac zagrozenie wycieku (Memory Leak) w `CGrannyMesh` gdyby konstruktor przerwano w polowie bledem, ze wzgledu na brak uzycia inteligentnych wskaznikow (Smart Pointers).
 - **Zarzadzanie D3DERR_DEVICELOST**: W przypdaku minimalizacji okna znikaja VRAM bufory. Modul zalezy od recznego wywolania `CreateDeviceObjects()` / `DestroyDeviceObjects()` przez zewnetrzny cykl obiektu (z Menedzera zasobow). Jesli kolejnosc zawiedzie - klient zrzuci AV (Access Violation).
 - **Hardkodowane Limity**: Animacje FPS ograniczone od `ANIFPS_MIN = 30` do `ANIFPS_MAX = 120` oraz staly pool macierzy moze powodowac bledy desynchronizacji jesli czasy systemowe zalamia delty (delta time z `fSecondsElapsed`).
 - **Problemy z TwoSide Mesh**: Funkcje porownujace "2x" jako prefix nazwy siatki (`!strncmp(m_pgrnMesh->Name, "2x", 2)`) w `CGrannyMesh::CreateFromGrannyMeshPointer` do oznaczania siatki jako dwustronnej to antywzorzec ukrytej magii "Magic Strings" i pociaga bledy wydajnosciowe przy zlym nazewnictwie modeli u Artystow 3D.
