@@ -1,16 +1,6 @@
-1. **Understand Architectural Goal & Module Role**:
-   - `chat`, `messenger`, `guild`, `safebox` manage game communications, social features, guild, and player vault.
-   - Tied closely to Python UI using Python method bindings.
-   
-2. **Draft the Markdown Document (`docs/04_python_bindings/05_chat_messenger_guild_api.md`)**:
-   - Use plain ASCII characters for the Polish text.
-   - Include Architecture and Data Flow (Mermaid diagrams).
-   - Document Memory Layout & Structs (`CPythonChat::SChatLine`, `CWhisper::SChatLine`, `CPythonGuild::TGuildInfo`, `CPythonSafeBox` items).
-   - Document Classes & Methods (`CPythonChat`, `CPythonMessenger`, `CPythonGuild`, `CPythonSafeBox`) detailing parameters, return values, and inner algorithms.
-   - Document Cross-Subsystem Integration (Python UI calls, DirectX for rendering chat texts via `CGraphicTextInstance`, pool memory management `CDynamicPool`).
-   - Note limitations, pitfalls (e.g. `CHAT_LINE_MAX_NUM` limit in deque, `CGraphicTextInstance` deletion needs).
-
-3. **Verify and Commit**:
-   - Read the generated file to ensure it meets requirements.
-   - Call `pre_commit_instructions` tool to run checks.
-   - Execute git commit as requested.
+1. **Explore `CNetworkStream`:** Analyze `source/EterLib/NetStream.h` and `source/EterLib/NetStream.cpp` to understand the base TCP socket behavior, non-blocking read/write, buffer management (SendBuffer/RecvBuffer), TEA cryptography and packet sequence mode.
+2. **Analyze Handshake Logic:** Deep dive into `source/UserInterface/PythonNetworkStreamPhaseHandShake.cpp` and `source/UserInterface/PythonNetworkStream.h/cpp` to document the sequence of events when `HEADER_GC_HANDSHAKE` is received, time synchronization, and how the `CPythonNetworkStream` manages phases.
+3. **Analyze Cross-Subsystem Integrations:** Check `PythonNetworkStreamModule.cpp` for Python API bindings (`net*` methods exposed to Python). Examine `source/UserInterface/Packet.h` for packet headers (`HEADER_GC_PHASE`, `HEADER_GC_HANDSHAKE`, `HEADER_GC_PING`, etc.).
+4. **Draft Documentation (Markdown):** Create `docs/03_network_protocol/01_network_stream_core_handshake.md`. Translate findings into Polish (pure ASCII). Ensure the structure strictly follows the instructions: Architectural Goal, Mermaid Diagram, Memory & Struct Layout, API Reference, Cross-Subsystem Integration, Pitfalls.
+5. **Verify and Refine Documentation:** Review the drafted Markdown for Markdown correctness, Mermaid syntax, and pure ASCII constraint.
+6. **Pre-commit and Submit:** Run `pre_commit_instructions` and commit the file to Git, completing the session.
