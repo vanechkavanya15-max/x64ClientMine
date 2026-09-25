@@ -3,3 +3,4 @@ pub mod use_skill;
 pub mod login;
 pub mod item_use;
 pub mod handshake;
+pub mod character_select;
