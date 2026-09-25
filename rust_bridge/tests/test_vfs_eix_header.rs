@@ -1,4 +1,4 @@
-use m2_client_bridge::vfs::eix_header::{EixHeader, m2_eix_header_parse};
+use m2_client_bridge::vfs::eix_header::{EPKD_MAGIC, TEixHeader, VfsError, m2_vfs_parse_eix_header};
 
 #[test]
 fn test_eix_header_parse_valid() {
@@ -9,12 +9,16 @@ fn test_eix_header_parse_valid() {
         0x0A, 0x00, 0x00, 0x00, // file_count
     ];
 
-    let header_opt = EixHeader::parse(&buffer);
-    assert!(header_opt.is_some());
+    let header_opt = TEixHeader::from_bytes(&buffer);
+    assert!(header_opt.is_ok());
     let header = header_opt.unwrap();
-    assert_eq!(header.magic, EixHeader::MAGIC_EPKD);
-    assert_eq!(header.version, 2);
-    assert_eq!(header.file_count, 10);
+    let magic = header.magic;
+    assert_eq!(magic, EPKD_MAGIC);
+    let version = header.version;
+    assert_eq!(version, 2);
+    let file_count = header.file_count;
+    assert_eq!(file_count, 10);
+    assert!(header.is_valid());
 }
 
 #[test]
@@ -25,8 +29,8 @@ fn test_eix_header_parse_invalid_magic() {
         0x0A, 0x00, 0x00, 0x00,
     ];
 
-    let header_opt = EixHeader::parse(&buffer);
-    assert!(header_opt.is_none());
+    let header_opt = TEixHeader::from_bytes(&buffer);
+    assert_eq!(header_opt, Err(VfsError::InvalidMagic));
 }
 
 #[test]
@@ -37,8 +41,8 @@ fn test_eix_header_parse_short_buffer() {
         // brakuje 4 bajtow
     ];
 
-    let header_opt = EixHeader::parse(&buffer);
-    assert!(header_opt.is_none());
+    let header_opt = TEixHeader::from_bytes(&buffer);
+    assert_eq!(header_opt, Err(VfsError::BufferTooShort));
 }
 
 #[test]
@@ -49,18 +53,12 @@ fn test_ffi_eix_header_parse() {
         0x0A, 0x00, 0x00, 0x00, // file_count
     ];
 
-    let mut header = EixHeader {
-        magic: 0,
-        version: 0,
-        file_count: 0,
-    };
+    let mut count = 0;
 
-    let result = m2_eix_header_parse(buffer.as_ptr(), buffer.len(), &mut header);
+    let result = unsafe { m2_vfs_parse_eix_header(buffer.as_ptr(), buffer.len() as u32, &mut count) };
     
-    assert_eq!(result, 1);
-    assert_eq!(header.magic, EixHeader::MAGIC_EPKD);
-    assert_eq!(header.version, 2);
-    assert_eq!(header.file_count, 10);
+    assert_eq!(result, true);
+    assert_eq!(count, 10);
 }
 
 #[test]
@@ -70,14 +68,11 @@ fn test_ffi_eix_header_parse_invalid_ptr() {
         0x02, 0x00, 0x00, 0x00,
         0x0A, 0x00, 0x00, 0x00,
     ];
-    let mut header = EixHeader {
-        magic: 0,
-        version: 0,
-        file_count: 0,
-    };
+    
+    let mut count = 0;
 
     // test null pointers
-    assert_eq!(m2_eix_header_parse(std::ptr::null(), buffer.len(), &mut header), 0);
-    assert_eq!(m2_eix_header_parse(buffer.as_ptr(), buffer.len(), std::ptr::null_mut()), 0);
-    assert_eq!(m2_eix_header_parse(buffer.as_ptr(), 10, &mut header), 0); // Zbyt krotki bufor
+    assert_eq!(unsafe { m2_vfs_parse_eix_header(std::ptr::null(), buffer.len() as u32, &mut count) }, false);
+    assert_eq!(unsafe { m2_vfs_parse_eix_header(buffer.as_ptr(), buffer.len() as u32, std::ptr::null_mut()) }, false);
+    assert_eq!(unsafe { m2_vfs_parse_eix_header(buffer.as_ptr(), 10, &mut count) }, false); // Zbyt krotki bufor
 }
