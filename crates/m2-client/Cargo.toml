@@ -1,0 +1,18 @@
+[package]
+name = "m2-client"
+version = "0.1.0"
+edition = "2021"
+description = "Metin2 64-bit Native Client Executable in Pure Rust"
+
+[[bin]]
+name = "metin2_client_x64"
+path = "src/main.rs"
+
+[dependencies]
+m2-client-audio = { path = "../m2-client-audio" }
+m2-client-image = { path = "../m2-client-image" }
+m2-client-granny = { path = "../m2-client-granny" }
+m2-client-terrain = { path = "../m2-client-terrain" }
+m2-client-pyapi = { path = "../m2-client-pyapi" }
+m2-client-render = { path = "../m2-client-render" }
+m2-client-bridge = { path = "../../rust_bridge" }

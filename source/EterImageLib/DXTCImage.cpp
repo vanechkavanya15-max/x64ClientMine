@@ -679,14 +679,14 @@ void CDXTCImage::DecompressDXT1(int miplevel, DWORD * pdwDest)
 	for (y = 0; y < yblocks; ++y)
 	{
 		// 8 bytes per block
-		pBlock = (DXTColBlock *) ((DWORD) pPos + y * xblocks * 8);
+		pBlock = (DXTColBlock *) ((uintptr_t) pPos + y * xblocks * 8);
 		
 		for (x = 0; x < xblocks; ++x, ++pBlock)
 		{
 			// inline func:
 			GetColorBlockColors(pBlock, &col_0, &col_1, &col_2, &col_3, wrd);
 
-			pImPos = (DWORD *) ((DWORD) pBase + x*16 + (y*4) * nWidth * 4);
+			pImPos = (DWORD *) ((uintptr_t) pBase + x*16 + (y*4) * nWidth * 4);
 			DecodeColorBlock(pImPos, pBlock, nWidth, (DWORD *)&col_0, (DWORD *)&col_1, (DWORD *)&col_2, (DWORD *)&col_3);
 			// Set to RGB test pattern
 			//	pImPos = (DWORD*) ((DWORD) pBase + i * 4 + j * m_nWidth * 4);
@@ -1463,7 +1463,7 @@ void CDXTCImage::Time_Decomp5_01(int ntimes, TimingInfo * info)
 				
 				GetColorBlockColors_m1(pBlock, &col_0, &col_1, &col_2, &col_3, wrd);
 				
-				pImPos = (DWORD*)((DWORD)pBase + i*16 + (j*4) * m_nWidth * 4);
+				pImPos = (DWORD*)((uintptr_t)pBase + i*16 + (j*4) * m_nWidth * 4);
 				DecodeColorBlock(pImPos, pBlock, m_nWidth, (DWORD*)&col_0, (DWORD*)&col_1,
 					(DWORD*)&col_2, (DWORD*)&col_3);
 				DecodeAlpha3BitLinear(pImPos, pAlphaBlock, m_nWidth, alphazero);
@@ -1518,7 +1518,7 @@ void CDXTCImage::Time_Decomp5_02(int ntimes, TimingInfo * info)
 				
 				GetColorBlockColors_m2(pBlock, &col_0, &col_1, &col_2, &col_3, wrd);
 				
-				pImPos = (DWORD*)((DWORD)pBase + i*16 + (j*4) * m_nWidth * 4);
+				pImPos = (DWORD*)((uintptr_t)pBase + i*16 + (j*4) * m_nWidth * 4);
 				DecodeColorBlock(pImPos, pBlock, m_nWidth, (DWORD*)&col_0, (DWORD*)&col_1,
 					(DWORD*)&col_2, (DWORD*)&col_3);
 				DecodeAlpha3BitLinear(pImPos, pAlphaBlock, m_nWidth, alphazero);
@@ -1573,7 +1573,7 @@ void CDXTCImage::Time_Decomp5_03(int ntimes, TimingInfo * info)
 				
 				GetColorBlockColors_m3(pBlock, &col_0, &col_1, &col_2, &col_3, wrd);
 				
-				pImPos = (DWORD*)((DWORD)pBase + i*16 + (j*4) * m_nWidth * 4);
+				pImPos = (DWORD*)((uintptr_t)pBase + i*16 + (j*4) * m_nWidth * 4);
 				DecodeColorBlock(pImPos, pBlock, m_nWidth, (DWORD*)&col_0, (DWORD*)&col_1,
 					(DWORD*)&col_2, (DWORD*)&col_3);
 				DecodeAlpha3BitLinear(pImPos, pAlphaBlock, m_nWidth, alphazero);
@@ -1628,7 +1628,7 @@ void CDXTCImage::Time_Decomp5_04(int ntimes, TimingInfo * info)
 				
 				GetColorBlockColors_m4(pBlock, &col_0, &col_1, &col_2, &col_3, wrd);
 				
-				pImPos = (DWORD*)((DWORD)pBase + i*16 + (j*4) * m_nWidth * 4);
+				pImPos = (DWORD*)((uintptr_t)pBase + i*16 + (j*4) * m_nWidth * 4);
 				DecodeColorBlock(pImPos, pBlock, m_nWidth, (DWORD*)&col_0, (DWORD*)&col_1,
 					(DWORD*)&col_2, (DWORD*)&col_3);
 				DecodeAlpha3BitLinear(pImPos, pAlphaBlock, m_nWidth, alphazero);

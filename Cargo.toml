@@ -7,5 +7,6 @@ members = [
     "crates/m2-client-terrain",
     "crates/m2-client-pyapi",
     "crates/m2-client-render",
+    "crates/m2-client",
 ]
 resolver = "2"

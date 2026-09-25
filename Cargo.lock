@@ -30,6 +30,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1574f8e322bb9d442095896ff66d126e521f5a85ef7d7343a269bb7d6eeb3f0b"
 
 [[package]]
+name = "m2-client"
+version = "0.1.0"
+dependencies = [
+ "m2-client-audio",
+ "m2-client-bridge",
+ "m2-client-granny",
+ "m2-client-image",
+ "m2-client-pyapi",
+ "m2-client-render",
+ "m2-client-terrain",
+]
+
+[[package]]
 name = "m2-client-audio"
 version = "0.1.0"
 
