@@ -18,3 +18,4 @@ pub mod quest;
 pub mod belt_inventory;
 pub mod guild;
 pub mod special_storage;
+pub mod points_registry;
