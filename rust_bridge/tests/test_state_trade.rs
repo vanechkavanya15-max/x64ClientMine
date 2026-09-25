@@ -1,138 +1,105 @@
-use m2_client_bridge::state::trade::{TradeState, TradeItem, TRADE_MAX_NUM};
+use m2_client_bridge::state::trade::{
+    m2_trade_is_locked, m2_trade_manager_free, m2_trade_manager_new, TradeManager,
+    GLOBAL_TRADE_MANAGER,
+};
+use m2_client_bridge::state::inventory_item::InventoryItem;
 
 #[test]
-fn test_trade_initialization() {
-    let state = TradeState::new();
-    assert_eq!(state.is_open, false);
-    assert_eq!(state.partner_vid, 0);
-    assert_eq!(state.own_gold, 0);
-    assert_eq!(state.partner_gold, 0);
-    assert_eq!(state.is_own_locked, false);
-    assert_eq!(state.is_partner_locked, false);
+fn test_trade_cycle() {
+    let mut manager = TradeManager::new();
 
-    for item in state.own_items.iter() {
-        assert_eq!(*item, None);
+    // Sprawdzenie stanu poczatkowego
+    assert_eq!(manager.is_active, false);
+    assert_eq!(manager.my_gold, 0);
+
+    // Otwarcie handlu
+    manager.start_trade();
+    assert_eq!(manager.is_active, true);
+    assert_eq!(manager.my_locked, false);
+
+    // Dodanie itemu
+    let item = InventoryItem::new(1001, 5001, 1);
+    assert_eq!(manager.add_my_item(0, item.clone()), Ok(()));
+    assert_eq!(manager.my_items[0], Some(item));
+
+    // Wpisanie yang
+    assert_eq!(manager.set_my_gold(100_000), Ok(()));
+    assert_eq!(manager.my_gold, 100_000);
+
+    // Akceptacja
+    assert_eq!(manager.lock_trade(), Ok(()));
+    assert_eq!(manager.my_locked, true);
+
+    // Proba modyfikacji zablokowanego handlu
+    assert_eq!(
+        manager.set_my_gold(200_000),
+        Err("Handel jest zablokowany, nie mozna zmienic zlota.")
+    );
+
+    let item2 = InventoryItem::new(1002, 5002, 1);
+    assert_eq!(
+        manager.add_my_item(1, item2),
+        Err("Handel jest zablokowany, nie mozna dodac przedmiotu.")
+    );
+
+    // Zakonczenie (anulowanie)
+    manager.cancel_trade();
+    assert_eq!(manager.is_active, false);
+    assert_eq!(manager.my_locked, false);
+    assert_eq!(manager.my_gold, 0);
+    assert_eq!(manager.my_items[0], None);
+}
+
+#[test]
+fn test_partner_trade() {
+    let mut manager = TradeManager::new();
+    manager.start_trade();
+
+    let item = InventoryItem::new(2001, 6001, 1);
+    assert_eq!(manager.add_partner_item(5, item.clone()), Ok(()));
+    assert_eq!(manager.partner_items[5], Some(item));
+
+    assert_eq!(manager.set_partner_gold(50_000), Ok(()));
+    assert_eq!(manager.partner_gold, 50_000);
+
+    assert_eq!(manager.lock_partner_trade(), Ok(()));
+    assert_eq!(manager.partner_locked, true);
+
+    assert_eq!(
+        manager.set_partner_gold(100_000),
+        Err("Handel partnera jest zablokowany, nie mozna zmienic zlota.")
+    );
+}
+
+#[test]
+fn test_trade_ffi_cycle() {
+    unsafe {
+        // Przed inicjalizacja powinno byc false
+        assert_eq!(m2_trade_is_locked(), false);
+
+        // Tworzymy menedzera
+        let ptr = m2_trade_manager_new();
+        assert!(!ptr.is_null());
+        
+        let global_ptr = std::ptr::addr_of!(GLOBAL_TRADE_MANAGER).read();
+        assert_eq!(global_ptr, ptr);
+
+        // Po inicjalizacji dalej false (niezablokowane)
+        assert_eq!(m2_trade_is_locked(), false);
+
+        // Aktywujemy handel i blokujemy bezposrednio przez strukture
+        (*ptr).start_trade();
+        let _ = (*ptr).lock_trade();
+
+        // Teraz FFI powinno zwrocic true
+        assert_eq!(m2_trade_is_locked(), true);
+
+        // Zwalniamy
+        m2_trade_manager_free(ptr);
+        
+        // Zabezpieczenie przed panika z NULL zostalo obsluzone
+        let global_ptr_after = std::ptr::addr_of!(GLOBAL_TRADE_MANAGER).read();
+        assert_eq!(global_ptr_after, std::ptr::null_mut());
+        assert_eq!(m2_trade_is_locked(), false);
     }
-    for item in state.partner_items.iter() {
-        assert_eq!(*item, None);
-    }
-}
-
-#[test]
-fn test_trade_open_close() {
-    let mut state = TradeState::new();
-    
-    // Otwarcie z nieprawidlowym VID
-    assert_eq!(state.open(0), Err("Nieprawidlowe VID partnera."));
-    
-    // Otwarcie z poprawnym VID
-    assert_eq!(state.open(12345), Ok(()));
-    assert_eq!(state.is_open, true);
-    assert_eq!(state.partner_vid, 12345);
-
-    // Otwarcie juz otwartego handlu
-    assert_eq!(state.open(54321), Err("Handel jest juz otwarty."));
-
-    // Zamkniecie handlu
-    state.close();
-    assert_eq!(state.is_open, false);
-    assert_eq!(state.partner_vid, 0);
-}
-
-#[test]
-fn test_manage_own_items() {
-    let mut state = TradeState::new();
-    state.open(111).unwrap();
-
-    // Dodanie poprawnego przedmiotu
-    assert_eq!(state.set_own_item(0, 5001, 10), Ok(()));
-    assert_eq!(state.own_items[0], Some(TradeItem { vnum: 5001, count: 10 }));
-
-    // Dodanie przedmiotu na zlym slocie
-    assert_eq!(state.set_own_item(TRADE_MAX_NUM, 5002, 1), Err("Indeks slotu poza zakresem."));
-
-    // Usuniecie przedmiotu
-    assert_eq!(state.remove_own_item(0), Ok(()));
-    assert_eq!(state.own_items[0], None);
-
-    // Zamkniecie handlu usuwa przedmioty
-    state.set_own_item(1, 5003, 5).unwrap();
-    state.close();
-    assert_eq!(state.own_items[1], None);
-}
-
-#[test]
-fn test_manage_partner_items() {
-    let mut state = TradeState::new();
-    state.open(222).unwrap();
-
-    // Dodanie poprawnego przedmiotu partnera
-    assert_eq!(state.set_partner_item(5, 6001, 20), Ok(()));
-    assert_eq!(state.partner_items[5], Some(TradeItem { vnum: 6001, count: 20 }));
-
-    // Dodanie przedmiotu partnera na zlym slocie
-    assert_eq!(state.set_partner_item(TRADE_MAX_NUM, 6002, 1), Err("Indeks slotu poza zakresem."));
-
-    // Usuniecie przedmiotu partnera
-    assert_eq!(state.remove_partner_item(5), Ok(()));
-    assert_eq!(state.partner_items[5], None);
-}
-
-#[test]
-fn test_manage_gold() {
-    let mut state = TradeState::new();
-    state.open(333).unwrap();
-
-    assert_eq!(state.set_own_gold(100000), Ok(()));
-    assert_eq!(state.own_gold, 100000);
-
-    assert_eq!(state.set_partner_gold(50000), Ok(()));
-    assert_eq!(state.partner_gold, 50000);
-}
-
-#[test]
-fn test_locking() {
-    let mut state = TradeState::new();
-    state.open(444).unwrap();
-
-    assert_eq!(state.lock_own(), Ok(()));
-    assert_eq!(state.is_own_locked, true);
-
-    // Zmiana zlota lub przedmiotu po blokadzie wlasnej powinna sie nie udac
-    assert_eq!(state.set_own_gold(10), Err("Wlasna czesc handlu jest zablokowana."));
-    assert_eq!(state.set_own_item(0, 100, 1), Err("Wlasna czesc handlu jest zablokowana."));
-    assert_eq!(state.remove_own_item(0), Err("Wlasna czesc handlu jest zablokowana."));
-
-    assert_eq!(state.unlock_own(), Ok(()));
-    assert_eq!(state.is_own_locked, false);
-    
-    assert_eq!(state.set_own_gold(10), Ok(()));
-
-    // To samo dla partnera
-    assert_eq!(state.lock_partner(), Ok(()));
-    assert_eq!(state.is_partner_locked, true);
-
-    assert_eq!(state.set_partner_gold(20), Err("Czesc partnera jest zablokowana."));
-    assert_eq!(state.set_partner_item(0, 100, 1), Err("Czesc partnera jest zablokowana."));
-    assert_eq!(state.remove_partner_item(0), Err("Czesc partnera jest zablokowana."));
-
-    assert_eq!(state.unlock_partner(), Ok(()));
-    assert_eq!(state.is_partner_locked, false);
-}
-
-#[test]
-fn test_not_open_errors() {
-    let mut state = TradeState::new();
-
-    // Proba wykonania akcji na nieotwartym handlu
-    assert_eq!(state.set_own_item(0, 100, 1), Err("Handel nie jest otwarty."));
-    assert_eq!(state.remove_own_item(0), Err("Handel nie jest otwarty."));
-    assert_eq!(state.set_partner_item(0, 100, 1), Err("Handel nie jest otwarty."));
-    assert_eq!(state.remove_partner_item(0), Err("Handel nie jest otwarty."));
-    assert_eq!(state.set_own_gold(10), Err("Handel nie jest otwarty."));
-    assert_eq!(state.set_partner_gold(10), Err("Handel nie jest otwarty."));
-    assert_eq!(state.lock_own(), Err("Handel nie jest otwarty."));
-    assert_eq!(state.unlock_own(), Err("Handel nie jest otwarty."));
-    assert_eq!(state.lock_partner(), Err("Handel nie jest otwarty."));
-    assert_eq!(state.unlock_partner(), Err("Handel nie jest otwarty."));
-}
+}

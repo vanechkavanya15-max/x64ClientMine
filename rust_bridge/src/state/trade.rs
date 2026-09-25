@@ -1,204 +1,191 @@
-/// Maksymalna liczba przedmiotow w oknie handlu
-pub const TRADE_MAX_NUM: usize = 12;
+use std::panic::catch_unwind;
+use crate::state::inventory_item::InventoryItem;
 
-/// Struktura reprezentujaca przedmiot w oknie handlu
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct TradeItem {
-    pub vnum: u32,
-    pub count: u32,
+/// Stala dla menedzera handlu
+pub const TRADE_MANAGER: u8 = 0;
+
+/// Globalna instancja TradeManagera dla C FFI (poniewaz sygnatura FFI nie przyjmuje wskaznika)
+pub static mut GLOBAL_TRADE_MANAGER: *mut TradeManager = std::ptr::null_mut();
+
+/// Struktura TradeManager (32-bit Little Endian, zgodna z Win32 MSVC - co do zasady layoutu)
+#[derive(Debug, Clone, PartialEq)]
+#[repr(C)]
+pub struct TradeManager {
+    pub is_active: bool,
+    pub my_gold: i64,
+    pub partner_gold: i64,
+    pub my_locked: bool,
+    pub partner_locked: bool,
+    pub my_items: [Option<InventoryItem>; 12],
+    pub partner_items: [Option<InventoryItem>; 12],
 }
 
-/// Struktura przechowujaca stan handlu z innym graczem
-#[derive(Debug, Clone)]
-pub struct TradeState {
-    /// Czy okno handlu jest otwarte
-    pub is_open: bool,
-    /// ID partnera w handlu (0 oznacza brak partnera)
-    pub partner_vid: u32,
-    /// Sloty z wlasnymi przedmiotami
-    pub own_items: [Option<TradeItem>; TRADE_MAX_NUM],
-    /// Sloty z przedmiotami partnera
-    pub partner_items: [Option<TradeItem>; TRADE_MAX_NUM],
-    /// Wlasne zloto w oknie handlu
-    pub own_gold: u64,
-    /// Zloto partnera w oknie handlu
-    pub partner_gold: u64,
-    /// Czy wlasna czesc jest zablokowana (zaakceptowana)
-    pub is_own_locked: bool,
-    /// Czy czesc partnera jest zablokowana (zaakceptowana)
-    pub is_partner_locked: bool,
-}
-
-impl Default for TradeState {
+impl Default for TradeManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl TradeState {
+impl TradeManager {
     /// Tworzy nowy, pusty stan handlu
     pub fn new() -> Self {
         Self {
-            is_open: false,
-            partner_vid: 0,
-            own_items: Default::default(),
-            partner_items: Default::default(),
-            own_gold: 0,
+            is_active: false,
+            my_gold: 0,
             partner_gold: 0,
-            is_own_locked: false,
-            is_partner_locked: false,
+            my_locked: false,
+            partner_locked: false,
+            my_items: [
+                None, None, None, None, None, None, None, None, None, None, None, None,
+            ],
+            partner_items: [
+                None, None, None, None, None, None, None, None, None, None, None, None,
+            ],
         }
     }
 
-    /// Otwiera okno handlu z podanym partnerem
-    pub fn open(&mut self, partner_vid: u32) -> Result<(), &'static str> {
-        if partner_vid == 0 {
-            return Err("Nieprawidlowe VID partnera.");
-        }
-        if self.is_open {
-            return Err("Handel jest juz otwarty.");
-        }
-        
-        self.clear();
-        self.is_open = true;
-        self.partner_vid = partner_vid;
-        Ok(())
-    }
-
-    /// Zamyka okno handlu i czysci stan
-    pub fn close(&mut self) {
-        self.clear();
-    }
-
-    /// Czysci wewnetrzny stan handlu
-    fn clear(&mut self) {
-        self.is_open = false;
-        self.partner_vid = 0;
-        self.own_items = Default::default();
-        self.partner_items = Default::default();
-        self.own_gold = 0;
+    /// Rozpoczyna handel
+    pub fn start_trade(&mut self) {
+        self.is_active = true;
+        self.my_gold = 0;
         self.partner_gold = 0;
-        self.is_own_locked = false;
-        self.is_partner_locked = false;
+        self.my_locked = false;
+        self.partner_locked = false;
+        self.my_items = [
+            None, None, None, None, None, None, None, None, None, None, None, None,
+        ];
+        self.partner_items = [
+            None, None, None, None, None, None, None, None, None, None, None, None,
+        ];
     }
 
-    /// Dodaje wlasny przedmiot do handlu
-    pub fn set_own_item(&mut self, slot: usize, vnum: u32, count: u32) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
+    /// Akceptuje/blokuje swoja czesc handlu
+    pub fn lock_trade(&mut self) -> Result<(), &'static str> {
+        if !self.is_active {
+            return Err("Handel nie jest aktywny.");
         }
-        if self.is_own_locked {
-            return Err("Wlasna czesc handlu jest zablokowana.");
-        }
-        if slot >= TRADE_MAX_NUM {
-            return Err("Indeks slotu poza zakresem.");
-        }
-        self.own_items[slot] = Some(TradeItem { vnum, count });
+        self.my_locked = true;
         Ok(())
     }
 
-    /// Usuwa wlasny przedmiot z handlu
-    pub fn remove_own_item(&mut self, slot: usize) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
+    /// Akceptuje/blokuje czesc handlu partnera
+    pub fn lock_partner_trade(&mut self) -> Result<(), &'static str> {
+        if !self.is_active {
+            return Err("Handel nie jest aktywny.");
         }
-        if self.is_own_locked {
-            return Err("Wlasna czesc handlu jest zablokowana.");
-        }
-        if slot >= TRADE_MAX_NUM {
-            return Err("Indeks slotu poza zakresem.");
-        }
-        self.own_items[slot] = None;
+        self.partner_locked = true;
         Ok(())
     }
 
-    /// Dodaje przedmiot partnera do handlu
-    pub fn set_partner_item(&mut self, slot: usize, vnum: u32, count: u32) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
+    /// Ustawia wlasne zloto (yang)
+    pub fn set_my_gold(&mut self, gold: i64) -> Result<(), &'static str> {
+        if !self.is_active {
+            return Err("Handel nie jest aktywny.");
         }
-        if self.is_partner_locked {
-            return Err("Czesc partnera jest zablokowana.");
+        if self.my_locked {
+            return Err("Handel jest zablokowany, nie mozna zmienic zlota.");
         }
-        if slot >= TRADE_MAX_NUM {
-            return Err("Indeks slotu poza zakresem.");
-        }
-        self.partner_items[slot] = Some(TradeItem { vnum, count });
+        self.my_gold = gold;
         Ok(())
     }
 
-    /// Usuwa przedmiot partnera z handlu
-    pub fn remove_partner_item(&mut self, slot: usize) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
+    /// Ustawia zloto (yang) partnera
+    pub fn set_partner_gold(&mut self, gold: i64) -> Result<(), &'static str> {
+        if !self.is_active {
+            return Err("Handel nie jest aktywny.");
         }
-        if self.is_partner_locked {
-            return Err("Czesc partnera jest zablokowana.");
-        }
-        if slot >= TRADE_MAX_NUM {
-            return Err("Indeks slotu poza zakresem.");
-        }
-        self.partner_items[slot] = None;
-        Ok(())
-    }
-
-    /// Ustawia ilosc wlasnego zlota w handlu
-    pub fn set_own_gold(&mut self, gold: u64) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
-        }
-        if self.is_own_locked {
-            return Err("Wlasna czesc handlu jest zablokowana.");
-        }
-        self.own_gold = gold;
-        Ok(())
-    }
-
-    /// Ustawia ilosc zlota partnera w handlu
-    pub fn set_partner_gold(&mut self, gold: u64) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
-        }
-        if self.is_partner_locked {
-            return Err("Czesc partnera jest zablokowana.");
+        if self.partner_locked {
+            return Err("Handel partnera jest zablokowany, nie mozna zmienic zlota.");
         }
         self.partner_gold = gold;
         Ok(())
     }
 
-    /// Blokuje wlasna czesc handlu (akceptacja)
-    pub fn lock_own(&mut self) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
+    /// Anuluje / zamyka handel
+    pub fn cancel_trade(&mut self) {
+        self.is_active = false;
+        self.my_gold = 0;
+        self.partner_gold = 0;
+        self.my_locked = false;
+        self.partner_locked = false;
+        self.my_items = [
+            None, None, None, None, None, None, None, None, None, None, None, None,
+        ];
+        self.partner_items = [
+            None, None, None, None, None, None, None, None, None, None, None, None,
+        ];
+    }
+
+    /// Dodaje swoj przedmiot do handlu
+    pub fn add_my_item(&mut self, slot: usize, item: InventoryItem) -> Result<(), &'static str> {
+        if !self.is_active {
+            return Err("Handel nie jest aktywny.");
         }
-        self.is_own_locked = true;
+        if self.my_locked {
+            return Err("Handel jest zablokowany, nie mozna dodac przedmiotu.");
+        }
+        if slot >= 12 {
+            return Err("Nieprawidlowy slot.");
+        }
+        self.my_items[slot] = Some(item);
         Ok(())
     }
 
-    /// Odblokowuje wlasna czesc handlu (np. po anulowaniu akceptacji)
-    pub fn unlock_own(&mut self) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
+    /// Dodaje przedmiot partnera do handlu
+    pub fn add_partner_item(&mut self, slot: usize, item: InventoryItem) -> Result<(), &'static str> {
+        if !self.is_active {
+            return Err("Handel nie jest aktywny.");
         }
-        self.is_own_locked = false;
+        if self.partner_locked {
+            return Err("Handel partnera jest zablokowany, nie mozna dodac przedmiotu.");
+        }
+        if slot >= 12 {
+            return Err("Nieprawidlowy slot.");
+        }
+        self.partner_items[slot] = Some(item);
         Ok(())
     }
+}
 
-    /// Blokuje czesc partnera w handlu
-    pub fn lock_partner(&mut self) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
-        }
-        self.is_partner_locked = true;
-        Ok(())
-    }
+// ==========================================
+// C-FFI
+// ==========================================
 
-    /// Odblokowuje czesc partnera
-    pub fn unlock_partner(&mut self) -> Result<(), &'static str> {
-        if !self.is_open {
-            return Err("Handel nie jest otwarty.");
+/// Inicjalizuje globalnego menedzera handlu (zwraca rowniez wskaznik, by kod C mogl zwalniac/uzywac w innych API).
+#[no_mangle]
+pub unsafe extern "C" fn m2_trade_manager_new() -> *mut TradeManager {
+    let result = catch_unwind(|| unsafe {
+        let manager = Box::new(TradeManager::new());
+        let ptr = Box::into_raw(manager);
+        GLOBAL_TRADE_MANAGER = ptr;
+        ptr
+    });
+    result.unwrap_or(std::ptr::null_mut())
+}
+
+/// Zwalnia globalnego/przekazanego menedzera handlu.
+#[no_mangle]
+pub unsafe extern "C" fn m2_trade_manager_free(ptr: *mut TradeManager) {
+    let _ = catch_unwind(|| unsafe {
+        if !ptr.is_null() {
+            let _ = Box::from_raw(ptr);
+            if ptr == GLOBAL_TRADE_MANAGER {
+                GLOBAL_TRADE_MANAGER = std::ptr::null_mut();
+            }
         }
-        self.is_partner_locked = false;
-        Ok(())
-    }
+    });
+}
+
+/// Sprawdza czy wlasna czesc handlu (w domyslnym globalnym kontekscie) jest zablokowana.
+/// Wymagana w zadaniu sygnatura: `pub unsafe extern "C" fn m2_trade_is_locked() -> bool`
+#[no_mangle]
+pub unsafe extern "C" fn m2_trade_is_locked() -> bool {
+    let result = catch_unwind(|| unsafe {
+        if GLOBAL_TRADE_MANAGER.is_null() {
+            return false;
+        }
+        let manager = &*GLOBAL_TRADE_MANAGER;
+        manager.my_locked
+    });
+    result.unwrap_or(false)
 }
