@@ -1,68 +1,42 @@
 #include "StdAfx.h"
 #include "Timer.h"
-
-static LARGE_INTEGER gs_liTickCountPerSec;
-static DWORD gs_dwBaseTime=0;
-static DWORD gs_dwServerTime=0;
-static DWORD gs_dwClientTime=0;
-static DWORD gs_dwFrameTime=0;
+#include "m2_client_bridge.h"
 
 #pragma comment(lib, "winmm.lib")
 
 BOOL ELTimer_Init()
 {	
-	/*
-	gs_liTickCountPerSec.QuadPart=0;
-
-	if (!QueryPerformanceFrequency(&gs_liTickCountPerSec))
-		return 0;
-
-	LARGE_INTEGER liTickCount;
-	QueryPerformanceCounter(&liTickCount);
-	gs_dwBaseTime= (liTickCount.QuadPart*1000  / gs_liTickCountPerSec.QuadPart);	
-	*/
-	gs_dwBaseTime = timeGetTime();
-	return 1;
+	return m2_timer_init();
 }
 
 DWORD ELTimer_GetMSec()
 {
-	//assert(gs_dwBaseTime!=0 && "ELTimer_Init 를 먼저 실행하세요");
-	//LARGE_INTEGER liTickCount;
-	//QueryPerformanceCounter(&liTickCount);
-	return timeGetTime() - gs_dwBaseTime; //(liTickCount.QuadPart*1000  / gs_liTickCountPerSec.QuadPart)-gs_dwBaseTime;		
+	return m2_timer_get_msec();
 }
 
 VOID	ELTimer_SetServerMSec(DWORD dwServerTime)
 {
-	NANOBEGIN
-	if (0 != dwServerTime) // nanomite를 위한 더미 if
-	{
-		gs_dwServerTime = dwServerTime;
-		gs_dwClientTime = CTimer::instance().GetCurrentMillisecond();
-	}
-	NANOEND
+	m2_timer_set_server_msec(dwServerTime);
 }
 
 DWORD	ELTimer_GetServerMSec()
 {
-	return CTimer::instance().GetCurrentMillisecond() - gs_dwClientTime + gs_dwServerTime;
-	//return ELTimer_GetMSec() - gs_dwClientTime + gs_dwServerTime;
+	return m2_timer_get_server_msec();
 }
 
 DWORD	ELTimer_GetFrameMSec()
 {
-	return gs_dwFrameTime;
+	return m2_timer_get_frame_msec();
 }
 
 DWORD	ELTimer_GetServerFrameMSec()
 {
-	return ELTimer_GetFrameMSec() - gs_dwClientTime + gs_dwServerTime;
+	return m2_timer_get_server_msec();
 }
 
 VOID	ELTimer_SetFrameMSec()
 {
-	gs_dwFrameTime = ELTimer_GetMSec();
+	m2_timer_set_frame_msec();
 }
 
 CTimer::CTimer()
@@ -70,7 +44,7 @@ CTimer::CTimer()
 	ELTimer_Init();
 
 	NANOBEGIN
-	if (this) // nanomite를 위한 더미 if
+	if (this)
 	{
 		m_dwCurrentTime = 0;
 		m_bUseRealTime = true;

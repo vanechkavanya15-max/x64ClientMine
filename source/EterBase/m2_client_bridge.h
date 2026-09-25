@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#pragma comment(lib, "m2_client_bridge.lib")
+
 #ifdef __cplusplus
 extern "C" {
 #endif
