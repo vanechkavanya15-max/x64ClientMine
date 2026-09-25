@@ -1,8 +1,8 @@
-use m2_client_bridge::net::cg::attack::TPacketCgAttack;
+use m2_client_bridge::net::cg::attack::TPacketCGAttack;
 
 #[test]
 fn test_cg_attack_serialization() {
-    let packet = TPacketCgAttack::new(
+    let packet = TPacketCGAttack::new(
         1,              // b_type
         0x12345678,     // dw_victim_vid
         0xAB,           // b_crc_magic_cube_proc_piece
@@ -26,4 +26,39 @@ fn test_cg_attack_serialization() {
 
     assert_eq!(bytes[6], 0xAB); // b_crc_magic_cube_proc_piece
     assert_eq!(bytes[7], 0xCD); // b_crc_magic_cube_file_piece
+}
+
+#[test]
+fn test_m2_net_build_cg_attack_success() {
+    let mut buf = [0u8; 8];
+    let result = unsafe {
+        m2_client_bridge::net::cg::attack::m2_net_build_cg_attack(
+            0x12345678,
+            1,
+            buf.as_mut_ptr(),
+        )
+    };
+    
+    assert!(result);
+    assert_eq!(buf[0], 2);    // header
+    assert_eq!(buf[1], 1);    // b_type
+    assert_eq!(buf[2], 0x78); // dw_victim_vid le
+    assert_eq!(buf[3], 0x56);
+    assert_eq!(buf[4], 0x34);
+    assert_eq!(buf[5], 0x12);
+    assert_eq!(buf[6], 0);    // crc proc
+    assert_eq!(buf[7], 0);    // crc file
+}
+
+#[test]
+fn test_m2_net_build_cg_attack_null_ptr() {
+    let result = unsafe {
+        m2_client_bridge::net::cg::attack::m2_net_build_cg_attack(
+            0x12345678,
+            1,
+            std::ptr::null_mut(),
+        )
+    };
+    
+    assert!(!result);
 }

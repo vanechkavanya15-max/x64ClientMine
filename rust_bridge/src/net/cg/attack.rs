@@ -1,7 +1,8 @@
 // Struktura reprezentujaca pakiet ataku wysylany do serwera (Client to Game).
 // Zawiera podstawowe informacje o ataku, w tym VID ofiary oraz czesci CRC do walidacji.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TPacketCgAttack {
+#[repr(C, packed)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TPacketCGAttack {
     pub header: u8,
     pub b_type: u8,
     pub dw_victim_vid: u32,
@@ -9,7 +10,7 @@ pub struct TPacketCgAttack {
     pub b_crc_magic_cube_file_piece: u8,
 }
 
-impl TPacketCgAttack {
+impl TPacketCGAttack {
     // Naglowek dla pakietu ataku w komunikacji CG.
     pub const HEADER: u8 = 2;
 
@@ -40,4 +41,29 @@ impl TPacketCgAttack {
         buf.push(self.b_crc_magic_cube_file_piece);
         buf
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_net_build_cg_attack(
+    victim_vid: u32,
+    attack_type: u8,
+    out_buf: *mut u8,
+) -> bool {
+    crate::ffi_guard::safe_ffi_call(false, || {
+        if out_buf.is_null() {
+            return false;
+        }
+
+        let packet = TPacketCGAttack::new(
+            attack_type,
+            victim_vid,
+            0,
+            0,
+        );
+
+        let bytes = packet.to_bytes();
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), out_buf, bytes.len());
+
+        true
+    })
 }
