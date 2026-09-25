@@ -117,3 +117,78 @@ fn test_zero_max_hp_mp_avoid_division_by_zero() {
     assert_eq!(manager.should_use_mp(vid, 0, 0), false);
     assert_eq!(manager.should_use_mp(vid, 10, 0), false);
 }
+
+use m2_client_bridge::state::bot_autopot::{AutoPotEngine, POTION_COOLDOWN_MS};
+
+#[test]
+fn test_autopot_engine_hp_threshold_logic() {
+    let mut engine = AutoPotEngine::new();
+    engine.is_enabled = true;
+    engine.hp_threshold_pct = 70;
+
+    // HP=71% -> false
+    assert_eq!(engine.should_pot_hp(71, 1000), false);
+    
+    // HP=70% -> true
+    assert_eq!(engine.should_pot_hp(70, 1000), true);
+
+    // HP=50% -> true (Wyzwalanie pota przy HP=50% gdy prog to 70%)
+    assert_eq!(engine.should_pot_hp(50, 1000), true);
+}
+
+#[test]
+fn test_autopot_engine_cooldown_logic() {
+    let mut engine = AutoPotEngine::new();
+    engine.is_enabled = true;
+    engine.hp_threshold_pct = 70;
+
+    // Poczatkowe uzycie ok
+    let current_time = 1000;
+    assert_eq!(engine.should_pot_hp(50, current_time), true);
+    engine.register_pot_used(current_time);
+
+    // Zaraz po uzyciu, czas ten sam - zablokowane
+    assert_eq!(engine.should_pot_hp(50, current_time), false);
+
+    // Czas tuz przed uplywem cooldownu - zablokowane
+    assert_eq!(engine.should_pot_hp(50, current_time + POTION_COOLDOWN_MS - 1), false);
+
+    // Czas po uplywie cooldownu - mozna znow uzyc
+    assert_eq!(engine.should_pot_hp(50, current_time + POTION_COOLDOWN_MS), true);
+    
+    // Przewinienie czasu (wrap-around u32)
+    let wrap_around_time = u32::MAX - 500;
+    engine.register_pot_used(wrap_around_time);
+    
+    // Przeszlo 500ms
+    assert_eq!(engine.should_pot_hp(50, u32::MAX), false);
+    
+    // Przeszlo 500ms do max, potem 500ms od 0 -> 1000ms
+    assert_eq!(engine.should_pot_hp(50, 500), true); // 500 ms + 500 ms = 1000 ms -> >= cooldown
+}
+
+#[test]
+fn test_ffi_functions() {
+    // Sprawdzenie alokacji i dealokacji nie powinnna crashowac
+    unsafe {
+        let ptr = m2_client_bridge::state::bot_autopot::m2_autopot_create();
+        assert!(!ptr.is_null());
+        m2_client_bridge::state::bot_autopot::m2_autopot_free(ptr);
+        
+        // Zwalnianie null_mut nie crashuje
+        m2_client_bridge::state::bot_autopot::m2_autopot_free(std::ptr::null_mut());
+    }
+
+    // Sprawdzenie globalnego ffi check
+    unsafe {
+        m2_client_bridge::state::bot_autopot::m2_autopot_set_config(70, 70, true);
+        
+        // Powinno uzyc bo HP=50 < 70
+        let result1 = m2_client_bridge::state::bot_autopot::m2_autopot_check(50);
+        assert_eq!(result1, true);
+        
+        // Zaraz po powinno byc zablokowane przez cooldown (zakladajac ze czas systemowy nie skoczyl o > 1000ms w trakcie wywolania)
+        let result2 = m2_client_bridge::state::bot_autopot::m2_autopot_check(50);
+        assert_eq!(result2, false);
+    }
+}
