@@ -1,2 +1,2 @@
 #!/bin/bash
-cargo test --manifest-path rust_bridge/Cargo.toml -- --test-threads=1
+cargo test -p m2-client --test test_instance_effect
