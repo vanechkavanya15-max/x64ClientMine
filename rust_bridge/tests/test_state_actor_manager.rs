@@ -1,13 +1,12 @@
-use m2_client_bridge::state::actor_manager::ActorManager;
+use m2_client_bridge::state::actor_manager::{ActorManager, Actor};
 
 #[test]
-fn test_add_and_get_actor() {
+fn test_insert_and_get() {
     let mut manager = ActorManager::new();
     
-    // Dodajemy aktora
-    manager.add_or_update_actor(1001, 50.0, 60.0);
+    manager.insert(Actor { vid: 1001, x: 50.0, y: 60.0 });
     
-    let actor = manager.get_actor(1001);
+    let actor = manager.get(1001);
     assert!(actor.is_some());
     let actor = actor.unwrap();
     assert_eq!(actor.vid, 1001);
@@ -16,73 +15,46 @@ fn test_add_and_get_actor() {
 }
 
 #[test]
-fn test_update_actor() {
+fn test_remove() {
     let mut manager = ActorManager::new();
     
-    // Dodajemy aktora
-    manager.add_or_update_actor(1001, 50.0, 60.0);
+    manager.insert(Actor { vid: 1001, x: 50.0, y: 60.0 });
+    assert!(manager.get(1001).is_some());
     
-    // Aktualizujemy aktora
-    manager.add_or_update_actor(1001, 70.0, 80.0);
-    
-    let actor = manager.get_actor(1001).unwrap();
-    assert_eq!(actor.x, 70.0);
-    assert_eq!(actor.y, 80.0);
+    manager.remove(1001);
+    assert!(manager.get(1001).is_none());
 }
 
 #[test]
-fn test_remove_actor() {
+fn test_find_nearest_enemy_50_actors() {
     let mut manager = ActorManager::new();
     
-    manager.add_or_update_actor(1001, 50.0, 60.0);
+    // Dodajemy 50 aktorow
+    for i in 1..=50 {
+        manager.insert(Actor {
+            vid: i,
+            x: (i * 10) as f32,
+            y: (i * 10) as f32,
+        });
+    }
     
-    // Usuwamy istniejacego aktora
-    let removed = manager.remove_actor(1001);
-    assert!(removed);
+    // Sprawdzamy najblizszego aktora od (55, 55) - powinien to byc aktor o vid=5 lub vid=6,
+    // (50, 50) dla vid=5, dystans to 5^2+5^2 = 50.
+    // (60, 60) dla vid=6, dystans to 5^2+5^2 = 50.
+    // W zaleznosci od iteracji moze byc 5 lub 6.
+    // Aby test byl deterministyczny poszukamy od punktu blizej 50: (51, 51)
+    let nearest = manager.find_nearest_enemy(51, 51);
+    assert!(nearest.is_some());
+    assert_eq!(nearest.unwrap(), 5);
     
-    let actor = manager.get_actor(1001);
-    assert!(actor.is_none());
-    
-    // Usuwamy nieistniejacego aktora
-    let removed_again = manager.remove_actor(1001);
-    assert!(!removed_again);
+    // Test dla oddalonego punktu
+    let nearest_far = manager.find_nearest_enemy(1000, 1000);
+    assert!(nearest_far.is_some());
+    assert_eq!(nearest_far.unwrap(), 50); // aktor 50 jest na pozycji (500, 500), najblizej 1000
 }
 
 #[test]
-fn test_get_nonexistent_actor() {
+fn test_get_nonexistent() {
     let manager = ActorManager::new();
-    
-    let actor = manager.get_actor(9999);
-    assert!(actor.is_none());
-}
-
-#[test]
-fn test_find_actors_in_radius() {
-    let mut manager = ActorManager::new();
-    
-    manager.add_or_update_actor(1, 0.0, 0.0);
-    manager.add_or_update_actor(2, 10.0, 0.0);
-    manager.add_or_update_actor(3, 0.0, 10.0);
-    manager.add_or_update_actor(4, 10.0, 10.0);
-    manager.add_or_update_actor(5, 100.0, 100.0);
-    
-    // Sprawdzamy promien 15 od (0, 0). Powinno znalezc 1, 2, 3, 4,
-    // poniewaz pierwiastek(10^2 + 10^2) to ok. 14.14, wiec <= 15
-    let mut in_radius = manager.find_actors_in_radius(0.0, 0.0, 15.0);
-    in_radius.sort_by(|a, b| a.vid.cmp(&b.vid));
-    
-    assert_eq!(in_radius.len(), 4);
-    assert_eq!(in_radius[0].vid, 1);
-    assert_eq!(in_radius[1].vid, 2);
-    assert_eq!(in_radius[2].vid, 3);
-    assert_eq!(in_radius[3].vid, 4);
-    
-    // Sprawdzamy promien 5 od (0, 0). Powinno znalezc tylko 1
-    let in_radius_small = manager.find_actors_in_radius(0.0, 0.0, 5.0);
-    assert_eq!(in_radius_small.len(), 1);
-    assert_eq!(in_radius_small[0].vid, 1);
-    
-    // Sprawdzamy promien 200 od (0, 0). Powinno znalezc wszystko (5 elementow)
-    let in_radius_large = manager.find_actors_in_radius(0.0, 0.0, 200.0);
-    assert_eq!(in_radius_large.len(), 5);
+    assert!(manager.get(999).is_none());
 }
