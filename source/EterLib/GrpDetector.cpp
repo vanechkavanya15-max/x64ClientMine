@@ -456,6 +456,15 @@ BOOL D3D_CDeviceInfo::Find(UINT uScrWidth, UINT uScrHeight, UINT uScrDepthBits, 
 			}
 		}		
 	}
+
+	// Fallback dla nowoczesnych kart graficznych i trybu okienkowego (Windowed):
+	// Jesli dokladna rozdzielczosc nie jest na liscie trybow pelnoekranowych, uzyj pierwszego dostepnego trybu 32-bit
+	if (m_uD3DModeInfoNum > 0)
+	{
+		*piD3DModeInfo = 0;
+		return TRUE;
+	}
+
 	return FALSE;
 }
 

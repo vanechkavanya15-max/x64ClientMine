@@ -308,8 +308,11 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 	if (!ms_kD3DDetector.Build(*ms_lpd3d, EL3D_ConfirmDevice))
 		return CREATE_ENUM;
 
-	if (!ms_kD3DDetector.Find(800, 600, 32, TRUE, &ms_iD3DModeInfo, &ms_iD3DDevInfo, &ms_iD3DAdapterInfo))
-		return CREATE_DETECT;
+	if (!ms_kD3DDetector.Find(iHres, iVres, 32, TRUE, &ms_iD3DModeInfo, &ms_iD3DDevInfo, &ms_iD3DAdapterInfo))
+	{
+		if (!ms_kD3DDetector.Find(800, 600, 32, TRUE, &ms_iD3DModeInfo, &ms_iD3DDevInfo, &ms_iD3DAdapterInfo))
+			return CREATE_DETECT;
+	}
 
 	std::string stDevList;
 	ms_kD3DDetector.GetString(&stDevList);
