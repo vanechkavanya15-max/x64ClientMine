@@ -1,30 +1,36 @@
-use m2_client_bridge::net::gc::damage::GcDamageInfoPacket;
+use m2_client_bridge::net::gc::damage::{TPacketGCDamage, m2_net_parse_damage, m2_net_free_damage};
 
 #[test]
 fn test_gc_damage_info_valid() {
     // Konstruujemy bufor z prawidlowymi danymi.
-    // header (1 bajt): 135
-    // victim_vid (4 bajty): 1000 (0x03E8) w little-endian: 0xE8, 0x03, 0x00, 0x00
-    // flags (1 bajt): 1
-    // damage (4 bajty): 5000 (0x1388) w little-endian: 0x88, 0x13, 0x00, 0x00
-    let buf: [u8; 10] = [135, 0xE8, 0x03, 0x00, 0x00, 1, 0x88, 0x13, 0x00, 0x00];
+    // header (1 bajt): 143
+    // dw_victim_vid (4 bajty): 1000 (0x03E8) w little-endian: 0xE8, 0x03, 0x00, 0x00
+    // b_flag (1 bajt): 1
+    // l_damage (4 bajty): 5000 (0x1388) w little-endian: 0x88, 0x13, 0x00, 0x00
+    let buf: [u8; 10] = [143, 0xE8, 0x03, 0x00, 0x00, 1, 0x88, 0x13, 0x00, 0x00];
 
-    let result = GcDamageInfoPacket::from_bytes(&buf);
+    let result = TPacketGCDamage::from_bytes(&buf);
     assert!(result.is_ok());
 
     let packet = result.unwrap();
-    assert_eq!(packet.header, 135);
-    assert_eq!(packet.victim_vid, 1000);
-    assert_eq!(packet.flags, 1);
-    assert_eq!(packet.damage, 5000);
+    assert_eq!(packet.header, 143);
+    
+    // Z uwagi na `#[repr(C, packed)]` kopiujemy pola by uniknac bledu niewyrownania
+    let vid = packet.dw_victim_vid;
+    assert_eq!(vid, 1000);
+    
+    assert_eq!(packet.b_flag, 1);
+    
+    let damage = packet.l_damage;
+    assert_eq!(damage, 5000);
 }
 
 #[test]
 fn test_gc_damage_info_too_short() {
     // Bufor krotszy niz 10 bajtow (np. 9 bajtow).
-    let buf: [u8; 9] = [135, 0xE8, 0x03, 0x00, 0x00, 1, 0x88, 0x13, 0x00];
+    let buf: [u8; 9] = [143, 0xE8, 0x03, 0x00, 0x00, 1, 0x88, 0x13, 0x00];
 
-    let result = GcDamageInfoPacket::from_bytes(&buf);
+    let result = TPacketGCDamage::from_bytes(&buf);
     assert!(result.is_err());
     
     // Upewniamy sie ze blad mowi o zbyt krotkim buforze.
@@ -36,18 +42,64 @@ fn test_gc_damage_info_too_short() {
 fn test_gc_damage_info_longer_buf() {
     // Bufor z prawidlowymi danymi oraz dodatkowymi smieciami na koncu.
     let buf: [u8; 12] = [
-        135, 0xE8, 0x03, 0x00, 0x00, // header + victim_vid
-        1,                         // flags
-        0x88, 0x13, 0x00, 0x00,    // damage
+        143, 0xE8, 0x03, 0x00, 0x00, // header + dw_victim_vid
+        1,                         // b_flag
+        0x88, 0x13, 0x00, 0x00,    // l_damage
         0xFF, 0xFF,                // dodatkowe smieci
     ];
 
-    let result = GcDamageInfoPacket::from_bytes(&buf);
+    let result = TPacketGCDamage::from_bytes(&buf);
     assert!(result.is_ok());
 
     let packet = result.unwrap();
-    assert_eq!(packet.header, 135);
-    assert_eq!(packet.victim_vid, 1000);
-    assert_eq!(packet.flags, 1);
-    assert_eq!(packet.damage, 5000);
+    assert_eq!(packet.header, 143);
+    
+    let vid = packet.dw_victim_vid;
+    assert_eq!(vid, 1000);
+    
+    assert_eq!(packet.b_flag, 1);
+    
+    let damage = packet.l_damage;
+    assert_eq!(damage, 5000);
+}
+
+#[test]
+fn test_gc_damage_info_critical_penetrate() {
+    // Testowanie flag krytycznego i przeszywajacego trafienia
+    // Przykladowe wartosci (np. 2 dla CRITICAL, 3 dla PENETRATE) - tu weryfikujemy czy b_flag poprawnie czyta wartosc
+    let buf_crit: [u8; 10] = [143, 0xE8, 0x03, 0x00, 0x00, 2, 0x88, 0x13, 0x00, 0x00];
+    let packet_crit = TPacketGCDamage::from_bytes(&buf_crit).unwrap();
+    assert_eq!(packet_crit.b_flag, 2);
+
+    let buf_pen: [u8; 10] = [143, 0xE8, 0x03, 0x00, 0x00, 3, 0x88, 0x13, 0x00, 0x00];
+    let packet_pen = TPacketGCDamage::from_bytes(&buf_pen).unwrap();
+    assert_eq!(packet_pen.b_flag, 3);
+}
+
+#[test]
+fn test_gc_damage_ffi() {
+    let buf: [u8; 10] = [143, 0xE8, 0x03, 0x00, 0x00, 1, 0x88, 0x13, 0x00, 0x00];
+    let mut out_packet: *mut TPacketGCDamage = std::ptr::null_mut();
+
+    let success = unsafe {
+        m2_net_parse_damage(buf.as_ptr(), buf.len(), &mut out_packet)
+    };
+
+    assert!(success);
+    assert!(!out_packet.is_null());
+
+    let packet = unsafe { &*out_packet };
+    assert_eq!(packet.header, 143);
+    
+    let vid = packet.dw_victim_vid;
+    assert_eq!(vid, 1000);
+    
+    assert_eq!(packet.b_flag, 1);
+    
+    let damage = packet.l_damage;
+    assert_eq!(damage, 5000);
+
+    unsafe {
+        m2_net_free_damage(out_packet);
+    }
 }
