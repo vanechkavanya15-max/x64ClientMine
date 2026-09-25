@@ -1,104 +1,58 @@
-use m2_client_bridge::state::skills::{Skill, SkillsManager};
+use m2_client_bridge::state::skills::{SkillsContainer, m2_skills_container_new, m2_skills_container_free, m2_skills_container_set_skill, m2_skills_container_can_use, m2_skills_container_trigger_cooldown};
 
 #[test]
-fn test_add_and_get_skill() {
-    let mut manager = SkillsManager::new();
-    let vid = 1001;
-
-    let skill = Skill {
-        vnum: 1,
-        level: 20,
-        cooldown_ms: 1500,
-        mana_cost: 50,
-    };
-
-    manager.set_skill(vid, skill);
-
-    let retrieved = manager.get_skill(vid, 1).expect("Skill powinien istniec w menedzerze");
-    assert_eq!(retrieved.vnum, 1);
-    assert_eq!(retrieved.level, 20);
-    assert_eq!(retrieved.cooldown_ms, 1500);
-    assert_eq!(retrieved.mana_cost, 50);
-}
-
-#[test]
-fn test_get_nonexistent_skill() {
-    let manager = SkillsManager::new();
-    let result = manager.get_skill(9999, 1);
-    assert!(result.is_none(), "Zwracanie nieistniejacego skilla powinno dawac None");
-}
-
-#[test]
-fn test_update_skill() {
-    let mut manager = SkillsManager::new();
-    let vid = 2002;
-
-    let mut skill = Skill {
-        vnum: 5,
-        level: 1,
-        cooldown_ms: 2000,
-        mana_cost: 30,
-    };
-
-    manager.set_skill(vid, skill);
-
-    // Zmiana wlasciwosci skilla (np. po awansie poziomu)
-    skill.level = 2;
-    skill.cooldown_ms = 1900;
-    manager.set_skill(vid, skill);
-
-    let retrieved = manager.get_skill(vid, 5).unwrap();
-    assert_eq!(retrieved.level, 2);
-    assert_eq!(retrieved.cooldown_ms, 1900);
-}
-
-#[test]
-fn test_remove_skill() {
-    let mut manager = SkillsManager::new();
-    let vid = 3003;
-
-    let skill = Skill {
-        vnum: 10,
-        level: 1,
-        cooldown_ms: 0,
-        mana_cost: 10,
-    };
-
-    manager.set_skill(vid, skill);
-    assert!(manager.get_skill(vid, 10).is_some());
-
-    manager.remove_skill(vid, 10);
-    assert!(manager.get_skill(vid, 10).is_none(), "Skill powinien zostac usuniety");
-}
-
-#[test]
-fn test_remove_character() {
-    let mut manager = SkillsManager::new();
-    let vid = 4004;
-
-    manager.set_skill(vid, Skill { vnum: 1, level: 1, cooldown_ms: 0, mana_cost: 0 });
-    manager.set_skill(vid, Skill { vnum: 2, level: 1, cooldown_ms: 0, mana_cost: 0 });
-
-    assert!(manager.get_skill(vid, 1).is_some());
-    assert!(manager.get_skill(vid, 2).is_some());
-
-    // Usuniecie postaci ze swiata (np. smierc, wylogowanie, znikniecie z pola widzenia)
-    manager.remove_character(vid);
-
-    assert!(manager.get_skill(vid, 1).is_none());
-    assert!(manager.get_skill(vid, 2).is_none());
-}
-
-#[test]
-fn test_add_character_explicitly() {
-    let mut manager = SkillsManager::new();
-    let vid = 5005;
-
-    manager.add_character(vid);
+fn test_skills_container_set_skill() {
+    let mut container = SkillsContainer::new();
+    let vnum = 1;
     
-    // Sprawdzenie ze postac zostala dodana, ale nie ma zadnych skilli
-    let result = manager.get_skill(vid, 1);
-    assert!(result.is_none());
+    // Skill nie istnieje na poczatku, nie mozna go uzyc
+    assert!(!container.can_use(vnum, 0));
+
+    // Ustaw skill (poziom 1)
+    container.set_skill(vnum, 1);
     
-    // Mozna swobodnie dodac umiejetnosc bez wczesniejszego wywolania add_character, co bylo sprawdzone w poprzednich testach
+    // Skill mozna uzyc (cooldown to 0)
+    assert!(container.can_use(vnum, 0));
+
+    // Ustaw na 0 poziom
+    container.set_skill(vnum, 0);
+    assert!(!container.can_use(vnum, 0));
+}
+
+#[test]
+fn test_skills_container_cooldown() {
+    let mut container = SkillsContainer::new();
+    let vnum = 2;
+    container.set_skill(vnum, 1);
+    
+    // Wywolanie cooldown (1000ms), przy czasie 1000, next_use_time = 2000
+    container.trigger_cooldown(vnum, 1000, 1000);
+
+    // Przed uplywem czasu (1500)
+    assert!(!container.can_use(vnum, 1500));
+    // Dokladnie o czasie uplywu (2000)
+    assert!(container.can_use(vnum, 2000));
+    // Po uplywie czasu (2500)
+    assert!(container.can_use(vnum, 2500));
+}
+
+#[test]
+fn test_skills_ffi() {
+    unsafe {
+        let ptr = m2_skills_container_new();
+        assert!(!ptr.is_null());
+
+        let vnum = 3;
+        m2_skills_container_set_skill(ptr, vnum, 1);
+
+        assert!(m2_skills_container_can_use(ptr, vnum, 1000));
+
+        m2_skills_container_trigger_cooldown(ptr, vnum, 5000, 1000);
+
+        // Przed cooldownem (1000 + 5000 = 6000)
+        assert!(!m2_skills_container_can_use(ptr, vnum, 3000));
+        assert!(m2_skills_container_can_use(ptr, vnum, 6000));
+
+        m2_skills_container_free(ptr);
+    }
 }
