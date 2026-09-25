@@ -1,25 +1,61 @@
 #[derive(Debug, PartialEq)]
-pub struct GcCharStatusPacket {
-    pub vid: u32,
-    pub hp: u32,
-    pub max_hp: u32,
+pub enum PacketError {
+    BufferTooShort,
+    InvalidHeader,
 }
 
-impl GcCharStatusPacket {
-    // Parser z bufora bajtow
-    pub fn from_bytes(buf: &[u8]) -> Result<Self, String> {
-        if buf.len() < 12 {
-            return Err("Bufor jest za krotki".to_string());
+pub const HEADER_GC_PLAYER_POINT_CHANGE: u8 = 17;
+
+#[repr(C, packed)]
+#[derive(Debug)]
+pub struct TPacketGCPointChange {
+    pub header: u8,
+    pub b_type: u8,
+    pub value: i64,
+    pub amount: i64,
+}
+
+impl TPacketGCPointChange {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, PacketError> {
+        let size = std::mem::size_of::<Self>();
+        if data.len() < size {
+            return Err(PacketError::BufferTooShort);
         }
 
-        let vid = u32::from_le_bytes(buf[0..4].try_into().unwrap());
-        let hp = u32::from_le_bytes(buf[4..8].try_into().unwrap());
-        let max_hp = u32::from_le_bytes(buf[8..12].try_into().unwrap());
+        if data[0] != HEADER_GC_PLAYER_POINT_CHANGE {
+            return Err(PacketError::InvalidHeader);
+        }
 
-        Ok(GcCharStatusPacket {
-            vid,
-            hp,
-            max_hp,
-        })
+        let mut buf = [0u8; std::mem::size_of::<Self>()];
+        buf.copy_from_slice(&data[..size]);
+        
+        let packet: Self = unsafe { std::ptr::read_unaligned(buf.as_ptr() as *const Self) };
+        Ok(packet)
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_net_parse_point_change(
+    data: *const u8,
+    len: u32,
+    out_type: *mut u8,
+    out_val: *mut i64,
+) -> bool {
+    if data.is_null() || out_type.is_null() || out_val.is_null() {
+        return false;
+    }
+
+    let result = std::panic::catch_unwind(|| {
+        let slice = std::slice::from_raw_parts(data, len as usize);
+        match TPacketGCPointChange::from_bytes(slice) {
+            Ok(packet) => {
+                *out_type = packet.b_type;
+                *out_val = std::ptr::read_unaligned(std::ptr::addr_of!(packet.value));
+                true
+            }
+            Err(_) => false,
+        }
+    });
+
+    result.unwrap_or(false)
 }
