@@ -1,92 +1,80 @@
-use m2_client_bridge::state::phase::{Phase, StateManager, StateError};
+use m2_client_bridge::state::phase::{ClientPhase, PhaseManager, m2_phase_get, m2_phase_manager_free, GLOBAL_PHASE_MANAGER};
 
 #[test]
-fn test_state_manager_initial_phase() {
-    let manager = StateManager::new();
-    assert_eq!(manager.get_phase(), Phase::Offline);
+fn test_phase_manager_initial_phase() {
+    let manager = PhaseManager::new();
+    assert_eq!(manager.get_phase(), ClientPhase::Off);
+    assert!(!manager.is_in_game());
 }
 
 #[test]
-fn test_state_manager_phase_transitions() {
-    let mut manager = StateManager::new();
+fn test_phase_manager_phase_transitions() {
+    let mut manager = PhaseManager::new();
     
-    manager.set_phase(Phase::Handshake);
-    assert_eq!(manager.get_phase(), Phase::Handshake);
+    assert_eq!(manager.set_phase(ClientPhase::HandShake), Ok(()));
+    assert_eq!(manager.get_phase(), ClientPhase::HandShake);
     
-    manager.set_phase(Phase::Login);
-    assert_eq!(manager.get_phase(), Phase::Login);
+    assert_eq!(manager.set_phase(ClientPhase::Login), Ok(()));
+    assert_eq!(manager.get_phase(), ClientPhase::Login);
     
-    manager.set_phase(Phase::Select);
-    assert_eq!(manager.get_phase(), Phase::Select);
+    assert_eq!(manager.set_phase(ClientPhase::Select), Ok(()));
+    assert_eq!(manager.get_phase(), ClientPhase::Select);
+
+    assert_eq!(manager.set_phase(ClientPhase::Loading), Ok(()));
+    assert_eq!(manager.get_phase(), ClientPhase::Loading);
     
-    manager.set_phase(Phase::Game);
-    assert_eq!(manager.get_phase(), Phase::Game);
+    assert_eq!(manager.set_phase(ClientPhase::Game), Ok(()));
+    assert_eq!(manager.get_phase(), ClientPhase::Game);
+    assert!(manager.is_in_game());
     
-    manager.set_phase(Phase::Offline);
-    assert_eq!(manager.get_phase(), Phase::Offline);
+    assert_eq!(manager.set_phase(ClientPhase::Off), Ok(()));
+    assert_eq!(manager.get_phase(), ClientPhase::Off);
+    assert!(!manager.is_in_game());
 }
 
 #[test]
-fn test_state_manager_add_and_remove_vid() {
-    let mut manager = StateManager::new();
+fn test_phase_manager_game_to_login_blocked() {
+    let mut manager = PhaseManager::new();
     
-    assert_eq!(manager.add_vid(1), Ok(()));
-    assert!(manager.has_vid(1));
+    assert_eq!(manager.set_phase(ClientPhase::Game), Ok(()));
+    assert_eq!(manager.get_phase(), ClientPhase::Game);
     
-    assert_eq!(manager.add_vid(2), Ok(()));
-    assert!(manager.has_vid(2));
+    let result = manager.set_phase(ClientPhase::Login);
+    assert!(result.is_err());
+    assert_eq!(manager.get_phase(), ClientPhase::Game);
     
-    assert_eq!(manager.remove_vid(1), Ok(()));
-    assert!(!manager.has_vid(1));
-    assert!(manager.has_vid(2));
+    assert_eq!(manager.set_phase(ClientPhase::Off), Ok(()));
+    assert_eq!(manager.set_phase(ClientPhase::Login), Ok(()));
 }
 
 #[test]
-fn test_state_manager_invalid_vid() {
-    let mut manager = StateManager::new();
+fn test_ffi_global_phase_get() {
+    {
+        let mut manager = GLOBAL_PHASE_MANAGER.lock().unwrap();
+        let _ = manager.set_phase(ClientPhase::Off);
+    }
     
-    // Dodawanie VID 0 powinno zwrocic blad.
-    assert_eq!(manager.add_vid(0), Err(StateError::InvalidVid(0)));
-    assert!(!manager.has_vid(0));
+    let phase = unsafe { m2_phase_get() };
+    assert_eq!(phase, ClientPhase::Off as u8);
     
-    // Usuwanie VID 0 powinno zwrocic blad.
-    assert_eq!(manager.remove_vid(0), Err(StateError::InvalidVid(0)));
+    {
+        let mut manager = GLOBAL_PHASE_MANAGER.lock().unwrap();
+        let _ = manager.set_phase(ClientPhase::Game);
+    }
     
-    // Usuwanie nieistniejacego VID.
-    assert_eq!(manager.remove_vid(999), Err(StateError::InvalidVid(999)));
+    let phase = unsafe { m2_phase_get() };
+    assert_eq!(phase, ClientPhase::Game as u8);
 }
 
 #[test]
-fn test_state_manager_out_of_bounds_vid() {
-    let mut manager = StateManager::new();
+fn test_ffi_free() {
+    let ptr = Box::into_raw(Box::new(PhaseManager::new()));
     
-    assert_eq!(manager.add_vid(100), Ok(()));
-    assert_eq!(manager.add_vid(200), Ok(()));
+    unsafe {
+        m2_phase_manager_free(ptr);
+    }
     
-    assert_eq!(manager.get_vid_at(0), Ok(100));
-    assert_eq!(manager.get_vid_at(1), Ok(200));
-    
-    // Pobranie elementu spoza zakresu.
-    assert_eq!(manager.get_vid_at(2), Err(StateError::IndexOutOfBounds(2)));
-}
-
-#[test]
-fn test_state_manager_clear_vids() {
-    let mut manager = StateManager::new();
-    
-    let _ = manager.add_vid(1);
-    let _ = manager.add_vid(2);
-    let _ = manager.add_vid(3);
-    
-    assert!(manager.has_vid(1));
-    assert!(manager.has_vid(2));
-    assert!(manager.has_vid(3));
-    
-    manager.clear_vids();
-    
-    assert!(!manager.has_vid(1));
-    assert!(!manager.has_vid(2));
-    assert!(!manager.has_vid(3));
-    
-    assert_eq!(manager.get_vid_at(0), Err(StateError::IndexOutOfBounds(0)));
+    unsafe {
+        m2_phase_manager_free(std::ptr::null_mut());
+    }
 }

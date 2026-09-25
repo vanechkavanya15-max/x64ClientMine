@@ -1,86 +1,65 @@
-// Reprezentuje fazy stanu polaczenia i gry.
+use crate::ffi_guard::safe_ffi_call;
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Phase {
-    Offline,
-    Handshake,
-    Login,
-    Select,
-    Game,
+pub enum ClientPhase {
+    Off = 0,
+    HandShake = 1,
+    Login = 2,
+    Select = 3,
+    Loading = 4,
+    Game = 5,
 }
 
-// Bledy zwiazane z zarzadzaniem stanem gry.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StateError {
-    InvalidVid(u32),
-    IndexOutOfBounds(usize),
+pub struct PhaseManager {
+    current_phase: ClientPhase,
 }
 
-// Struktura reprezentujaca menedzer stanu gry.
-#[derive(Debug, Clone)]
-pub struct StateManager {
-    current_phase: Phase,
-    vids: Vec<u32>,
-}
-
-impl StateManager {
-    // Tworzy nowy menedzer stanu poczatkowo w fazie Offline.
+impl PhaseManager {
     pub fn new() -> Self {
         Self {
-            current_phase: Phase::Offline,
-            vids: Vec::new(),
+            current_phase: ClientPhase::Off,
         }
     }
 
-    // Pobiera aktualna faze gry.
-    pub fn get_phase(&self) -> Phase {
-        self.current_phase
-    }
-
-    // Zmienia aktualna faze gry.
-    pub fn set_phase(&mut self, phase: Phase) {
+    pub fn set_phase(&mut self, phase: ClientPhase) -> Result<(), &'static str> {
+        // Blokada przejscia bezposrednio z Game do Login
+        if self.current_phase == ClientPhase::Game && phase == ClientPhase::Login {
+            return Err("Nie mozna przejsc z fazy Game do Login bez uprzedniego rozlaczenia");
+        }
+        
         self.current_phase = phase;
-    }
-
-    // Dodaje VID do menedzera stanu.
-    pub fn add_vid(&mut self, vid: u32) -> Result<(), StateError> {
-        if vid == 0 {
-            return Err(StateError::InvalidVid(vid));
-        }
-        if !self.vids.contains(&vid) {
-            self.vids.push(vid);
-        }
         Ok(())
     }
 
-    // Usuwa VID z menedzera stanu.
-    pub fn remove_vid(&mut self, vid: u32) -> Result<(), StateError> {
-        if vid == 0 {
-            return Err(StateError::InvalidVid(vid));
-        }
-        if let Some(pos) = self.vids.iter().position(|&v| v == vid) {
-            self.vids.remove(pos);
-            Ok(())
-        } else {
-            Err(StateError::InvalidVid(vid))
-        }
+    pub fn get_phase(&self) -> ClientPhase {
+        self.current_phase
     }
 
-    // Pobiera VID na podanym indeksie, zabezpieczone przed przekroczeniem zakresu.
-    pub fn get_vid_at(&self, index: usize) -> Result<u32, StateError> {
-        if index < self.vids.len() {
-            Ok(self.vids[index])
-        } else {
-            Err(StateError::IndexOutOfBounds(index))
+    pub fn is_in_game(&self) -> bool {
+        self.current_phase == ClientPhase::Game
+    }
+}
+
+pub static GLOBAL_PHASE_MANAGER: Lazy<Mutex<PhaseManager>> = Lazy::new(|| {
+    Mutex::new(PhaseManager::new())
+});
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_phase_get() -> u8 {
+    safe_ffi_call(ClientPhase::Off as u8, || {
+        let manager = GLOBAL_PHASE_MANAGER.lock().unwrap();
+        manager.get_phase() as u8
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_phase_manager_free(ptr: *mut PhaseManager) {
+    safe_ffi_call((), || {
+        if !ptr.is_null() {
+            let _ = Box::from_raw(ptr);
         }
-    }
-
-    // Sprawdza czy dany VID znajduje sie w menedzerze stanu.
-    pub fn has_vid(&self, vid: u32) -> bool {
-        self.vids.contains(&vid)
-    }
-
-    // Czysci wszystkie VIDs.
-    pub fn clear_vids(&mut self) {
-        self.vids.clear();
-    }
+    });
 }
