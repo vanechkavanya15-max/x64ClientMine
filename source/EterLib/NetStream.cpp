@@ -9,16 +9,16 @@
 //#define _PACKETDUMP
 
 #ifndef _IMPROVED_PACKET_ENCRYPTION_
-void CNetworkStream::SetSecurityMode(bool isSecurityMode, const char* c_szTeaKey)
+void CNetworkStream::SetSecurityMode(bool /*isSecurityMode*/, const char* c_szTeaKey)
 {
-	m_isSecurityMode = isSecurityMode;
+	m_isSecurityMode = false;
 	memcpy(m_szEncryptKey, c_szTeaKey, TEA_KEY_LENGTH);
 	memcpy(m_szDecryptKey, c_szTeaKey, TEA_KEY_LENGTH);
 }
 
-void CNetworkStream::SetSecurityMode(bool isSecurityMode, const char* c_szTeaEncryptKey, const char* c_szTeaDecryptKey)
+void CNetworkStream::SetSecurityMode(bool /*isSecurityMode*/, const char* c_szTeaEncryptKey, const char* c_szTeaDecryptKey)
 {
-	m_isSecurityMode = isSecurityMode;
+	m_isSecurityMode = false;
 	memcpy(m_szEncryptKey, c_szTeaEncryptKey, TEA_KEY_LENGTH);
 	memcpy(m_szDecryptKey, c_szTeaDecryptKey, TEA_KEY_LENGTH);
 }

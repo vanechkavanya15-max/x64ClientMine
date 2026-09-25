@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -202,19 +202,6 @@
     <ClInclude Include="..\..\source\UserInterface\InsultChecker.h" />
     <ClInclude Include="..\..\source\UserInterface\Locale.h" />
     <ClInclude Include="..\..\source\UserInterface\Locale_inc.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_BR.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_CA.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_dev.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_EU.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_EU2.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_GB.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_HK.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_JP.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_KO.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_KO_DEV.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_NEWCIBN.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_SG.h" />
-    <ClInclude Include="..\..\source\UserInterface\Locale_inc_VI.h" />
     <ClInclude Include="..\..\source\UserInterface\MarkImage.h" />
     <ClInclude Include="..\..\source\UserInterface\MarkManager.h" />
     <ClInclude Include="..\..\source\UserInterface\MovieMan.h" />
