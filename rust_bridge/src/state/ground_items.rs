@@ -1,22 +1,23 @@
 use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
+use crate::ffi_guard::safe_ffi_call;
 
 /// Reprezentuje przedmiot lezacy na ziemi w zasiegu gracza.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GroundItem {
     pub vid: u32,
     pub vnum: u32,
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub owner: u32,
+    pub x: i32,
+    pub y: i32,
+    pub z: i32,
 }
 
 /// Zarzadca przedmiotow lezacych na ziemi, oparty na VID.
-pub struct GroundItemManager {
+pub struct GroundItemsCache {
     items: HashMap<u32, GroundItem>,
 }
 
-impl GroundItemManager {
+impl GroundItemsCache {
     /// Tworzy nowego zarzadce przedmiotow na ziemi.
     pub fn new() -> Self {
         Self {
@@ -24,17 +25,15 @@ impl GroundItemManager {
         }
     }
 
+    /// Globalna instancja menedzera z zabezpieczeniem watkowym
+    pub fn instance() -> &'static RwLock<GroundItemsCache> {
+        static INSTANCE: OnceLock<RwLock<GroundItemsCache>> = OnceLock::new();
+        INSTANCE.get_or_init(|| RwLock::new(GroundItemsCache::new()))
+    }
+
     /// Dodaje nowy przedmiot do menedzera. Jesli przedmiot o danym VID juz istnieje, zostanie zaktualizowany.
-    pub fn add_item(&mut self, vid: u32, vnum: u32, x: f32, y: f32, z: f32, owner: u32) {
-        let item = GroundItem {
-            vid,
-            vnum,
-            x,
-            y,
-            z,
-            owner,
-        };
-        self.items.insert(vid, item);
+    pub fn add_item(&mut self, item: GroundItem) {
+        self.items.insert(item.vid, item);
     }
 
     /// Usuwa przedmiot o podanym VID. Zwraca true jesli przedmiot istnial i zostal usuniety, false w przeciwnym razie.
@@ -52,24 +51,43 @@ impl GroundItemManager {
         self.items.values().collect()
     }
 
-    /// Aktualizuje wlasciciela przedmiotu o podanym VID. Zwraca true jesli przedmiot istnial, false jesli nie.
-    pub fn update_item_owner(&mut self, vid: u32, new_owner: u32) -> bool {
-        if let Some(item) = self.items.get_mut(&vid) {
-            item.owner = new_owner;
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Cysci wszystkie przedmioty z pamieci menedzera.
+    /// Czysci wszystkie przedmioty z pamieci menedzera.
     pub fn clear_items(&mut self) {
         self.items.clear();
     }
+
+    /// Znajduje VID najblizszego przedmiotu do punktu (px, py).
+    pub fn find_nearest(&self, px: i32, py: i32) -> Option<u32> {
+        let mut nearest_vid = None;
+        let mut min_dist_sq = i64::MAX;
+
+        for item in self.items.values() {
+            let dx = (item.x as i64) - (px as i64);
+            let dy = (item.y as i64) - (py as i64);
+            let dist_sq = dx * dx + dy * dy;
+
+            if dist_sq < min_dist_sq {
+                min_dist_sq = dist_sq;
+                nearest_vid = Some(item.vid);
+            }
+        }
+
+        nearest_vid
+    }
 }
 
-impl Default for GroundItemManager {
+impl Default for GroundItemsCache {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Faza A: Zwraca VID najblizszego przedmiotu lezacego na ziemi dla podanej pozycji (px, py).
+/// Zwraca 0, jesli brak przedmiotu.
+#[no_mangle]
+pub extern "C" fn m2_ground_find_nearest(px: i32, py: i32) -> u32 {
+    safe_ffi_call(0, || {
+        let cache = GroundItemsCache::instance().read().unwrap();
+        cache.find_nearest(px, py).unwrap_or(0)
+    })
 }
