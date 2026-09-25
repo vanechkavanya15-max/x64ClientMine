@@ -16,3 +16,4 @@ pub mod dragon_soul;
 pub mod quickslot;
 pub mod quest;
 pub mod belt_inventory;
+pub mod guild;
