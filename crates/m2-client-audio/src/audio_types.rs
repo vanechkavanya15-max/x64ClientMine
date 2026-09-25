@@ -3,7 +3,7 @@
 //! Struktury SoundCategory (UI, EFFECT, BGM, VOICE), AudioParams (volume, pan, pitch)
 
 /// Kategorie dzwiekow w silniku audio
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SoundCategory {
     /// Dzwieki interfejsu uzytkownika
     UI,

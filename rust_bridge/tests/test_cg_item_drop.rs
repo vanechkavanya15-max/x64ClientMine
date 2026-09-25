@@ -1,4 +1,4 @@
-use m2_client_bridge::net::cg::item_drop::{TItemPos, TPacketCGItemDrop};
+use m2_client_bridge::net::cg::item_drop::TPacketCGItemDrop;
 
 #[test]
 fn test_serialize_cg_item_drop() {

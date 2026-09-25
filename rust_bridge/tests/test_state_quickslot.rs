@@ -1,5 +1,4 @@
 use m2_client_bridge::state::quickslot::*;
-use std::ptr;
 
 #[test]
 fn test_quickslot_manager_new() {
