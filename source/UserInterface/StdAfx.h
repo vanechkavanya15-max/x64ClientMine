@@ -27,8 +27,6 @@
 #define __D3DRM_H__
 #endif
 
-#include <dshow.h>
-#include <qedit.h>
 
 #include "Locale.h"
 

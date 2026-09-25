@@ -199,7 +199,6 @@
     <ClInclude Include="..\..\source\UserInterface\Locale_inc.h" />
     <ClInclude Include="..\..\source\UserInterface\MarkImage.h" />
     <ClInclude Include="..\..\source\UserInterface\MarkManager.h" />
-    <ClInclude Include="..\..\source\UserInterface\MovieMan.h" />
     <ClInclude Include="..\..\source\UserInterface\NetworkActorManager.h" />
     <ClInclude Include="..\..\source\UserInterface\Packet.h" />
     <ClInclude Include="..\..\source\UserInterface\ProcessCRC.h" />
@@ -249,14 +248,12 @@
     <ClCompile Include="..\..\source\UserInterface\Locale.cpp" />
     <ClCompile Include="..\..\source\UserInterface\MarkImage.cpp" />
     <ClCompile Include="..\..\source\UserInterface\MarkManager.cpp" />
-    <ClCompile Include="..\..\source\UserInterface\MovieMan.cpp" />
     <ClCompile Include="..\..\source\UserInterface\NetworkActorManager.cpp" />
     <ClCompile Include="..\..\source\UserInterface\ProcessCRC.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplication.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplicationCamera.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplicationCursor.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplicationEvent.cpp" />
-    <ClCompile Include="..\..\source\UserInterface\PythonApplicationLogo.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplicationModule.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplicationProcedure.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplicationWebPage.cpp" />

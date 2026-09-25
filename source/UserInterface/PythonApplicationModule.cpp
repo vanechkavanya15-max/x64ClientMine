@@ -1168,8 +1168,7 @@ PyObject* appLogoOpen(PyObject* poSelf, PyObject* poArgs)
 	if (!PyTuple_GetString(poArgs, 0, &szName))
 		return Py_BuildException();
 
-	int nIsSuccess = 1; //CPythonApplication::Instance().OnLogoOpen(szName);
-	CMovieMan::Instance().PlayLogo(szName);
+	int nIsSuccess = 1;
 
 	return Py_BuildValue("i", nIsSuccess);
 }
