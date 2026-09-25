@@ -1,38 +1,65 @@
+use crate::ffi_guard::safe_ffi_call;
+use std::mem::size_of;
+
 #[derive(Debug, PartialEq)]
-pub struct AuthSuccessPacket {
-    pub header: u8,
-    pub login_key: u32,
-    pub encryption_keys: [u32; 4],
+pub enum PacketError {
+    TooShort,
+    InvalidHeader,
 }
 
-impl AuthSuccessPacket {
-    // 1 bajt (header) + 4 bajty (login_key) + 16 bajtow (encryption_keys, 4 * u32) = 21 bajtow
-    pub const PACKET_SIZE: usize = 21;
+#[repr(C, packed)]
+#[derive(Debug)]
+pub struct TPacketGCAuthSuccess {
+    pub header: u8,
+    pub dw_login_key: u32,
+    pub b_result: u8,
+}
 
-    pub fn from_bytes(buf: &[u8]) -> Result<Self, String> {
-        if buf.len() < Self::PACKET_SIZE {
-            return Err(format!(
-                "Bufor jest za krotki: oczekiwano minimum {} bajtow, otrzymano {}",
-                Self::PACKET_SIZE,
-                buf.len()
-            ));
+impl TPacketGCAuthSuccess {
+    pub const HEADER_GC_AUTH_SUCCESS: u8 = 150;
+    pub const PACKET_SIZE: usize = size_of::<Self>(); // 1 + 4 + 1 = 6 bajtow
+
+    pub fn from_bytes(data: &[u8]) -> Result<Self, PacketError> {
+        if data.len() < Self::PACKET_SIZE {
+            return Err(PacketError::TooShort);
         }
 
-        let header = buf[0];
-        let login_key = u32::from_le_bytes([buf[1], buf[2], buf[3], buf[4]]);
-        
-        let mut encryption_keys = [0u32; 4];
-        for i in 0..4 {
-            let start = 5 + i * 4;
-            encryption_keys[i] = u32::from_le_bytes([
-                buf[start], buf[start + 1], buf[start + 2], buf[start + 3]
-            ]);
+        let header = data[0];
+        if header != Self::HEADER_GC_AUTH_SUCCESS {
+            return Err(PacketError::InvalidHeader);
         }
+
+        let dw_login_key = u32::from_le_bytes([data[1], data[2], data[3], data[4]]);
+        let b_result = data[5];
 
         Ok(Self {
             header,
-            login_key,
-            encryption_keys,
+            dw_login_key,
+            b_result,
         })
     }
+}
+
+/// Eksport do C++ FFI: Parsuje pakiet i zapisuje w `out_key` otrzymany klucz logowania, jesli b_result to sukces.
+/// Zwraca true jesli parsowanie zakonczylo sie sukcesem.
+#[no_mangle]
+pub unsafe extern "C" fn m2_net_parse_auth_success(
+    data: *const u8,
+    len: u32,
+    out_key: *mut u32,
+) -> bool {
+    safe_ffi_call(false, || {
+        if data.is_null() || out_key.is_null() {
+            return false;
+        }
+
+        let slice = std::slice::from_raw_parts(data, len as usize);
+        match TPacketGCAuthSuccess::from_bytes(slice) {
+            Ok(packet) => {
+                *out_key = packet.dw_login_key;
+                true
+            }
+            Err(_) => false,
+        }
+    })
 }
