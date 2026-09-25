@@ -4,6 +4,7 @@ pub mod crc32;
 pub mod random;
 pub mod tea;
 pub mod utils;
+pub mod net;
 
 use ffi_guard::safe_ffi_call;
 use std::slice;
