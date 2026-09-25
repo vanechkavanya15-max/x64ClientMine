@@ -11,3 +11,4 @@ pub mod target;
 pub mod party;
 pub mod trade;
 pub mod safebox;
+pub mod bot_autopot;
