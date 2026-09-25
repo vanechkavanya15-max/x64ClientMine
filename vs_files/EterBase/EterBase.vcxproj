@@ -122,7 +122,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\EterBase\cipher.cpp" />
-    <ClCompile Include="..\..\source\EterBase\CPostIt.cpp" />
     <ClCompile Include="..\..\source\EterBase\CRC32.cpp" />
     <ClCompile Include="..\..\source\EterBase\Debug.cpp" />
     <ClCompile Include="..\..\source\EterBase\error.cpp" />
@@ -149,7 +148,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\EterBase\cipher.h" />
-    <ClInclude Include="..\..\source\EterBase\CPostIt.h" />
     <ClInclude Include="..\..\source\EterBase\CRC32.h" />
     <ClInclude Include="..\..\source\EterBase\Debug.h" />
     <ClInclude Include="..\..\source\EterBase\error.h" />

@@ -10,7 +10,6 @@
 
 #include "../eterPack/EterPackManager.h"
 #include "../eterLib/Util.h"
-#include "../eterBase/CPostIt.h"
 
 
 
@@ -609,22 +608,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	}
 #endif
 
-#if defined(NEEDED_COMMAND_CLIPBOARD)
-	{
-		CHAR szSecKey[256];
-		CPostIt cPostIt( "VOLUME1" );
-
-		if( cPostIt.Get( "SEC_KEY", szSecKey, sizeof(szSecKey) ) == FALSE ) {
-			MessageBox(NULL, ApplicationStringTable_GetStringz(IDS_ERR_MUST_LAUNCH_FROM_PATCHER, "ERR_MUST_LAUNCH_FROM_PATCHER"), ApplicationStringTable_GetStringz(IDS_APP_NAME, "APP_NAME"), MB_ICONSTOP);
-			goto Clean;
-		}
-		if( strstr(szSecKey, NEEDED_COMMAND_CLIPBOARD) == 0 ) {
-			MessageBox(NULL, ApplicationStringTable_GetStringz(IDS_ERR_MUST_LAUNCH_FROM_PATCHER, "ERR_MUST_LAUNCH_FROM_PATCHER"), ApplicationStringTable_GetStringz(IDS_APP_NAME, "APP_NAME"), MB_ICONSTOP);
-			goto Clean;
-		}
-		cPostIt.Empty();
-	}
-#endif
 
 	if (!CheckPythonLibraryFilenames())
 	{
