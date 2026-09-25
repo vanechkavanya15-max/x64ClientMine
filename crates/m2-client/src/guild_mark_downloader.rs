@@ -414,7 +414,7 @@ impl GuildMarkDownloader {
             std::ptr::read_unaligned(self.recv_buffer.as_ptr() as *const PacketGCMarkBlock)
         };
         
-        let mut required_data_size = std::mem::size_of::<PacketGCMarkBlock>();
+        let required_data_size = std::mem::size_of::<PacketGCMarkBlock>();
         
         // Peek ahead to calculate if we have all blocks
         let mut pos = required_data_size;

@@ -484,7 +484,7 @@ impl InputMouse {
 }
 
 impl InputMouse {
-    pub fn on_click_actor(&mut self, ctx: &mut dyn InputMouseContext, dw_picked_actor_id: u32, is_auto: bool) {
+    pub fn on_click_actor(&mut self, ctx: &mut dyn InputMouseContext, dw_picked_actor_id: u32, _is_auto: bool) {
         if self.m_e_reserved_mode == ReservedMode::UseSkill {
             if ctx.get_target_vid() == dw_picked_actor_id {
                 return;
