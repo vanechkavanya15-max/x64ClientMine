@@ -1,5 +1,80 @@
 use std::sync::RwLock;
 use once_cell::sync::Lazy;
+use crate::ffi_guard::safe_ffi_call;
+
+// Struktura przechowujaca stan celu dla UI (np. pasek HP)
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(C)]
+pub struct TargetState {
+    pub target_vid: Option<u32>,
+    pub hp_percent: u8,
+}
+
+impl TargetState {
+    pub fn new() -> Self {
+        Self {
+            target_vid: None,
+            hp_percent: 0,
+        }
+    }
+
+    pub fn set_target(&mut self, vid: u32) {
+        if vid == 0 {
+            return;
+        }
+        self.target_vid = Some(vid);
+        // Reseting hp percentage to 0 when a new target is selected could make sense,
+        // but typically the client receives the HP in another packet.
+        self.hp_percent = 0;
+    }
+
+    pub fn clear_target(&mut self) {
+        self.target_vid = None;
+        self.hp_percent = 0;
+    }
+
+    pub fn update_hp(&mut self, pct: u8) {
+        // Zapewniamy wartosc 0-100
+        self.hp_percent = if pct > 100 { 100 } else { pct };
+    }
+
+    pub fn has_target(&self) -> bool {
+        self.target_vid.is_some()
+    }
+}
+
+// Globalny stan celu dla FFI
+pub static TARGET_STATE: Lazy<RwLock<TargetState>> = Lazy::new(|| RwLock::new(TargetState::new()));
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_target_get_vid() -> u32 {
+    safe_ffi_call(0, || {
+        if let Ok(state) = TARGET_STATE.read() {
+            state.target_vid.unwrap_or(0)
+        } else {
+            0
+        }
+    })
+}
+
+// Menedzer alokacji/dealokacji TargetState w Rust
+#[no_mangle]
+pub unsafe extern "C" fn m2_target_state_alloc() -> *mut TargetState {
+    safe_ffi_call(std::ptr::null_mut(), || {
+        let state = Box::new(TargetState::new());
+        Box::into_raw(state)
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_target_state_free(ptr: *mut TargetState) {
+    safe_ffi_call((), || {
+        if !ptr.is_null() {
+            let _ = Box::from_raw(ptr);
+        }
+    })
+}
+
 
 // Struktura przechowujaca informacje o celu
 #[derive(Debug, Clone, Copy, PartialEq)]

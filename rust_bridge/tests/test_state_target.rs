@@ -71,3 +71,86 @@ fn test_target_distance() {
     // Pierwiastek kwadratowy z (3^2 + 4^2 + 0^2) = sqrt(9 + 16) = sqrt(25) = 5
     assert_eq!(dist_complex, Some(5.0));
 }
+
+use m2_client_bridge::state::target::{TargetState, TARGET_STATE, m2_target_get_vid, m2_target_state_alloc, m2_target_state_free};
+
+#[test]
+fn test_target_state_set_and_clear() {
+    let mut state = TargetState::new();
+    
+    assert!(!state.has_target());
+    assert_eq!(state.target_vid, None);
+    
+    state.set_target(12345);
+    assert!(state.has_target());
+    assert_eq!(state.target_vid, Some(12345));
+    
+    state.clear_target();
+    assert!(!state.has_target());
+    assert_eq!(state.target_vid, None);
+}
+
+#[test]
+fn test_target_state_invalid_vid_handling() {
+    let mut state = TargetState::new();
+    
+    state.set_target(0);
+    assert!(!state.has_target());
+    assert_eq!(state.target_vid, None);
+}
+
+#[test]
+fn test_target_state_update_hp() {
+    let mut state = TargetState::new();
+    
+    state.update_hp(50);
+    assert_eq!(state.hp_percent, 50);
+    
+    state.update_hp(100);
+    assert_eq!(state.hp_percent, 100);
+    
+    state.update_hp(150); // Powinno byc przyciete do 100
+    assert_eq!(state.hp_percent, 100);
+}
+
+#[test]
+fn test_target_state_ffi() {
+    // Reset stanu globalnego przed testem
+    if let Ok(mut state) = TARGET_STATE.write() {
+        state.clear_target();
+    }
+    
+    unsafe {
+        assert_eq!(m2_target_get_vid(), 0);
+    }
+    
+    if let Ok(mut state) = TARGET_STATE.write() {
+        state.set_target(98765);
+    }
+    
+    unsafe {
+        assert_eq!(m2_target_get_vid(), 98765);
+    }
+    
+    // Reset stanu po tescie
+    if let Ok(mut state) = TARGET_STATE.write() {
+        state.clear_target();
+    }
+}
+
+#[test]
+fn test_target_state_alloc_free() {
+    unsafe {
+        let ptr = m2_target_state_alloc();
+        assert!(!ptr.is_null());
+        
+        // Zmiana i testowanie w obiekcie
+        (*ptr).set_target(111);
+        assert_eq!((*ptr).target_vid, Some(111));
+        
+        m2_target_state_free(ptr);
+        
+        // Freeing null pointer should not panic
+        m2_target_state_free(std::ptr::null_mut());
+    }
+}
