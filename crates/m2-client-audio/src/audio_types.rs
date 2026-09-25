@@ -2,19 +2,50 @@
 //! Typy podstawowe audio: SoundCategory, glosnosc, panorama stereo
 //! Struktury SoundCategory (UI, EFFECT, BGM, VOICE), AudioParams (volume, pan, pitch)
 
-/// Glowna struktura implementacyjna
-#[derive(Debug, Clone, Default)]
-pub struct AudioTypes {
-    pub initialized: bool,
+/// Kategorie dzwiekow w silniku audio
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SoundCategory {
+    /// Dzwieki interfejsu uzytkownika
+    UI,
+    /// Efekty dzwiekowe srodowiska i postaci
+    EFFECT,
+    /// Muzyka w tle
+    BGM,
+    /// Kwestie dialogowe i glosy postaci
+    VOICE,
 }
 
-impl AudioTypes {
-    pub fn new() -> Self {
-        Self { initialized: true }
+impl Default for SoundCategory {
+    fn default() -> Self {
+        SoundCategory::EFFECT
     }
+}
 
-    pub fn is_ready(&self) -> bool {
-        self.initialized
+/// Parametry odtwarzania dzwieku
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AudioParams {
+    /// Glosnosc dzwieku (zazwyczaj 0.0 - 1.0)
+    pub volume: f32,
+    /// Panorama stereo (zazwyczaj -1.0 lewo, 1.0 prawo)
+    pub pan: f32,
+    /// Wysokosc dzwieku (zazwyczaj 1.0 to domyslna wysokosc)
+    pub pitch: f32,
+}
+
+impl Default for AudioParams {
+    fn default() -> Self {
+        Self {
+            volume: 1.0,
+            pan: 0.0,
+            pitch: 1.0,
+        }
+    }
+}
+
+impl AudioParams {
+    /// Tworzy nowe parametry z domyslnymi wartosciami
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -23,8 +54,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_skeleton_audio_types() {
-        let obj = AudioTypes::new();
-        assert!(obj.is_ready());
+    fn test_sound_category_default() {
+        assert_eq!(SoundCategory::default(), SoundCategory::EFFECT);
+    }
+
+    #[test]
+    fn test_audio_params_default() {
+        let params = AudioParams::default();
+        assert_eq!(params.volume, 1.0);
+        assert_eq!(params.pan, 0.0);
+        assert_eq!(params.pitch, 1.0);
     }
 }
