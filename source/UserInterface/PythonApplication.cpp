@@ -10,12 +10,7 @@
 #include "PythonApplication.h"
 #include "PythonCharacterManager.h"
 
-#include "ProcessScanner.h"
 
-#include "HackShield.h"
-#include "NProtectGameGuard.h"
-#include "WiseLogicXTrap.h"
-#include "CheckLatestFiles.h"
 
 extern void GrannyCreateSharedDeformBuffer();
 extern void GrannyDestroySharedDeformBuffer();
@@ -398,17 +393,6 @@ void CPythonApplication::SkipRenderBuffering(DWORD dwSleepMSec)
 
 bool CPythonApplication::Process()
 {
-#if defined(CHECK_LATEST_DATA_FILES)
-	if (CheckLatestFiles_PollEvent())
-		return false;
-#endif
-#ifdef USE_AHNLAB_HACKSHIELD
-	if (HackShield_PollEvent())
-		return false;
-#endif
-#ifdef XTRAP_CLIENT_ENABLE
-	XTrap_PollEvent();
-#endif
 	ELTimer_SetFrameMSec();
 
 	// 	m_Profiler.Clear();
@@ -460,10 +444,6 @@ bool CPythonApplication::Process()
 
 	m_kGuildMarkUploader.Process();
 
-#ifdef USE_NPROTECT_GAMEGUARD
-	if (GameGuard_IsError())
-		return false;
-#endif
 
 	m_kGuildMarkDownloader.Process();
 	m_kAccountConnector.Process();
@@ -1113,14 +1093,6 @@ bool CPythonApplication::Create(PyObject * poSelf, const char * c_szName, int wi
 		return false;
 	}
 
-#ifdef USE_NPROTECT_GAMEGUARD
-	if (!GameGuard_Run(CMSWindow::GetWindowHandle()))
-		return false;
-#endif
-#ifdef XTRAP_CLIENT_ENABLE
-	if (!XTrap_CheckInit())
-		return false;
-#endif
 
 	if (m_pySystem.IsUseDefaultIME())
 	{

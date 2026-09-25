@@ -1,6 +1,5 @@
 #include "StdAfx.h"
 #include "PythonApplication.h"
-#include "ProcessScanner.h"
 #include "PythonExceptionSender.h"
 #include "resource.h"
 #include "Version.h"
@@ -14,11 +13,7 @@
 #include "../CWebBrowser/CWebBrowser.h"
 #include "../eterBase/CPostIt.h"
 
-#include "CheckLatestFiles.h"
 
-#include "Hackshield.h"
-#include "NProtectGameGuard.h"
-#include "WiseLogicXTrap.h"
 
 extern "C" {  
 extern int _fltused;  
@@ -340,10 +335,6 @@ bool RunMainScript(CPythonLauncher& pyLauncher, const char* lpCmdLine)
 
 		if (stVec.size() != 0 && "--pause-before-create-window" == stVec[0])
 		{
-#ifdef XTRAP_CLIENT_ENABLE
-			if (!XTrap_CheckInit())
-				return false;
-#endif
 			system("pause");
 		}
 		if (!pyLauncher.RunFile("system.py"))
@@ -425,8 +416,7 @@ bool Main(HINSTANCE hInstance, LPSTR lpCmdLine)
 			ret=RunMainScript(pyLauncher, lpCmdLine);	//게임 실행중엔 함수가 끝나지 않는다.
 		}
 
-		//ProcessScanner_ReleaseQuitEvent();
-		
+			
 		//게임 종료시.
 		app->Clear();
 
@@ -513,8 +503,6 @@ bool __IsOpenIDTestOption(LPSTR lpCmdLine) //클라이언트에서 로그인이 가능하다.
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	if (strstr(lpCmdLine, "--hackshield") != 0)
-		return 0;
 
 #ifdef _DEBUG
 	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_CRT_DF | _CRTDBG_LEAK_CHECK_DF );
@@ -526,25 +514,9 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	LocaleService_LoadConfig("locale.cfg");
 	SetDefaultCodePage(LocaleService_GetCodePage());	
 
-#ifdef XTRAP_CLIENT_ENABLE
-	if (!XTrap_Init())
-		return 0;
-#endif
 
-#ifdef USE_AHNLAB_HACKSHIELD
-	if (!HackShield_Init())
-		return 0;
-#endif
 
-#ifdef USE_NPROTECT_GAMEGUARD
-	if (!GameGuard_Init())
-		return 0;
-#endif
 
-#if defined(CHECK_LATEST_DATA_FILES)
-	if (!CheckLatestFiles())
-		return 0;
-#endif
 
 	bool bQuit = false;
 	bool bAuthKeyChecked = false;	//OpenID 버전에서 인증키가 들어왔는지 알기 위한 인자.
@@ -669,9 +641,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	Main(hInstance, lpCmdLine);
 
-#ifdef USE_NPROTECT_GAMEGUARD
-	GameGuard_NoticeMessage();
-#endif
 
 	WebBrowser_Cleanup();
 
@@ -681,9 +650,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		MessageBox(NULL, gs_szErrorString, ApplicationStringTable_GetStringz(IDS_APP_NAME, "APP_NAME"), MB_ICONSTOP);
 
 Clean:
-#ifdef USE_AHNLAB_HACKSHIELD
-	HackShield_Shutdown();
-#endif
 	SAFE_FREE_GLOBAL(szArgv);
 
 	return 0;

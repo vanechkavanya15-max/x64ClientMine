@@ -189,15 +189,10 @@
     <ClInclude Include="..\..\source\UserInterface\AbstractSingleton.h" />
     <ClInclude Include="..\..\source\UserInterface\AccountConnector.h" />
     <ClInclude Include="..\..\source\UserInterface\AffectFlagContainer.h" />
-    <ClInclude Include="..\..\source\UserInterface\CheckLatestFiles.h" />
     <ClInclude Include="..\..\source\UserInterface\Discord.h" />
     <ClInclude Include="..\..\source\UserInterface\GameType.h" />
     <ClInclude Include="..\..\source\UserInterface\GuildMarkDownloader.h" />
     <ClInclude Include="..\..\source\UserInterface\GuildMarkUploader.h" />
-    <ClInclude Include="..\..\source\UserInterface\Hackshield.h" />
-    <ClInclude Include="..\..\source\UserInterface\HackshieldLicense.h" />
-    <ClInclude Include="..\..\source\UserInterface\HackshieldLicense_metin2.h" />
-    <ClInclude Include="..\..\source\UserInterface\HackshieldLicense_metin2client.h" />
     <ClInclude Include="..\..\source\UserInterface\InstanceBase.h" />
     <ClInclude Include="..\..\source\UserInterface\InsultChecker.h" />
     <ClInclude Include="..\..\source\UserInterface\Locale.h" />
@@ -206,10 +201,8 @@
     <ClInclude Include="..\..\source\UserInterface\MarkManager.h" />
     <ClInclude Include="..\..\source\UserInterface\MovieMan.h" />
     <ClInclude Include="..\..\source\UserInterface\NetworkActorManager.h" />
-    <ClInclude Include="..\..\source\UserInterface\NProtectGameGuard.h" />
     <ClInclude Include="..\..\source\UserInterface\Packet.h" />
     <ClInclude Include="..\..\source\UserInterface\ProcessCRC.h" />
-    <ClInclude Include="..\..\source\UserInterface\ProcessScanner.h" />
     <ClInclude Include="..\..\source\UserInterface\PythonApplication.h" />
     <ClInclude Include="..\..\source\UserInterface\PythonBackground.h" />
     <ClInclude Include="..\..\source\UserInterface\PythonCharacterManager.h" />
@@ -237,17 +230,14 @@
     <ClInclude Include="..\..\source\UserInterface\ServerStateChecker.h" />
     <ClInclude Include="..\..\source\UserInterface\StdAfx.h" />
     <ClInclude Include="..\..\source\UserInterface\Test.h" />
-    <ClInclude Include="..\..\source\UserInterface\WiseLogicXTrap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\UserInterface\AccountConnector.cpp" />
     <ClCompile Include="..\..\source\UserInterface\AffectFlagContainer.cpp" />
     <ClCompile Include="..\..\source\UserInterface\CameraProcedure.cpp" />
-    <ClCompile Include="..\..\source\UserInterface\CheckLatestFiles.cpp" />
     <ClCompile Include="..\..\source\UserInterface\GameType.cpp" />
     <ClCompile Include="..\..\source\UserInterface\GuildMarkDownloader.cpp" />
     <ClCompile Include="..\..\source\UserInterface\GuildMarkUploader.cpp" />
-    <ClCompile Include="..\..\source\UserInterface\HackShield.cpp" />
     <ClCompile Include="..\..\source\UserInterface\InstanceBase.cpp" />
     <ClCompile Include="..\..\source\UserInterface\InstanceBaseBattle.cpp" />
     <ClCompile Include="..\..\source\UserInterface\InstanceBaseEffect.cpp" />
@@ -261,9 +251,7 @@
     <ClCompile Include="..\..\source\UserInterface\MarkManager.cpp" />
     <ClCompile Include="..\..\source\UserInterface\MovieMan.cpp" />
     <ClCompile Include="..\..\source\UserInterface\NetworkActorManager.cpp" />
-    <ClCompile Include="..\..\source\UserInterface\NProtectGameGuard.cpp" />
     <ClCompile Include="..\..\source\UserInterface\ProcessCRC.cpp" />
-    <ClCompile Include="..\..\source\UserInterface\ProcessScanner.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplication.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplicationCamera.cpp" />
     <ClCompile Include="..\..\source\UserInterface\PythonApplicationCursor.cpp" />
@@ -337,7 +325,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\source\UserInterface\UserInterface.cpp" />
-    <ClCompile Include="..\..\source\UserInterface\WiseLogicXTrap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\source\UserInterface\Cursors\cursor.cur" />

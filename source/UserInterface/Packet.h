@@ -1,22 +1,17 @@
 #pragma once
 
-#ifdef USE_AHNLAB_HACKSHIELD
-#include "Hackshield.h"
-#include METIN2HS_INCLUDE_ANTICPXSVR
-#else
-#pragma pack(push) //기존 alignment 저장
+#pragma pack(push)
 #pragma pack(8)
 
 #define ANTICPX_TRANS_BUFFER_MAX			400
 
 typedef struct _AHNHS_TRANS_BUFFER
 {
-	unsigned char byBuffer[ANTICPX_TRANS_BUFFER_MAX/* 송수신 패킷의 최대 크기 */];
+	unsigned char byBuffer[ANTICPX_TRANS_BUFFER_MAX];
 	unsigned short nLength;
 } AHNHS_TRANS_BUFFER, *PAHNHS_TRANS_BUFFER;
 
-#pragma pack(pop) // 기존 alignment 복구.
-#endif /* !USE_AHNLAB_HACKSHIELD */
+#pragma pack(pop)
 
 #include "../gamelib/RaceData.h"
 
