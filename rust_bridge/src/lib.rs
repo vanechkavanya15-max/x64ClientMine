@@ -174,3 +174,4 @@ pub extern "C" fn m2_tea_decrypt(dest: *mut u8, src: *const u8, key: *const u32,
         tea::tea_decrypt(dest_slice, src_slice, key_arr)
     })
 }
+pub mod vfs;
