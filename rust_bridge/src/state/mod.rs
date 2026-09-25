@@ -19,3 +19,4 @@ pub mod belt_inventory;
 pub mod guild;
 pub mod special_storage;
 pub mod points_registry;
+pub mod chat_filter;
