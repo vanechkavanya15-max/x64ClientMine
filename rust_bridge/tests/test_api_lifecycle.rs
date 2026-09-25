@@ -1,23 +1,28 @@
-use m2_client_bridge::api::lifecycle::{m2_engine_init, m2_engine_shutdown};
-use std::ptr;
+use m2_client_bridge::api::lifecycle::{is_initialized, m2_engine_init, m2_engine_shutdown};
 
 #[test]
 fn test_m2_engine_init_and_shutdown() {
-    // Inicjalizacja, powinna zwrocic poprawny wskaznik
-    let ctx_ptr = m2_engine_init();
-    assert!(!ctx_ptr.is_null());
+    // Upewnij sie, ze na poczatku nie jest zainicjalizowane (choc inne testy mogly zmienic stan)
+    // Zresetuj stan przed testem.
+    m2_engine_shutdown();
 
-    // Sprawdzenie danych pod wskaznikiem, aby sie upewnic ze to nie smieci
-    unsafe {
-        assert_eq!((*ctx_ptr).is_initialized, true);
-    }
+    assert_eq!(is_initialized(), false);
 
-    // Zamkniecie, zwalnia pamiec
-    m2_engine_shutdown(ctx_ptr);
-}
+    // Inicjalizacja
+    let init_success = m2_engine_init();
+    assert_eq!(init_success, true);
+    assert_eq!(is_initialized(), true);
 
-#[test]
-fn test_m2_engine_shutdown_null() {
-    // Proba zamkniecia z null pointerem nie powinna wywolac bledu/paniki
-    m2_engine_shutdown(ptr::null_mut());
+    // Podwojna inicjalizacja (powinna zwrocic false)
+    let double_init = m2_engine_init();
+    assert_eq!(double_init, false);
+    assert_eq!(is_initialized(), true);
+
+    // Zamkniecie
+    m2_engine_shutdown();
+    assert_eq!(is_initialized(), false);
+
+    // Zamkniecie kiedy juz zamkniete
+    m2_engine_shutdown();
+    assert_eq!(is_initialized(), false);
 }

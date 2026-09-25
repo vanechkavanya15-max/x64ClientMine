@@ -1,36 +1,30 @@
 use crate::ffi_guard::safe_ffi_call;
-use std::ptr;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-/// Kontekst silnika reprezentujacy przydzielona pamiec
-pub struct M2EngineContext {
-    pub is_initialized: bool,
-}
+pub const ENGINE_LIFECYCLE: u32 = 0;
 
-impl M2EngineContext {
-    pub fn new() -> Self {
-        Self {
-            is_initialized: true,
-        }
-    }
-}
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
-/// Inicjalizuje silnik, przydzielajac pamiec na kontekst i zwraca wskaznik
+/// Inicjalizuje silnik
 #[no_mangle]
-pub extern "C" fn m2_engine_init() -> *mut M2EngineContext {
-    safe_ffi_call(ptr::null_mut(), || {
-        let ctx = Box::new(M2EngineContext::new());
-        Box::into_raw(ctx)
+pub extern "C" fn m2_engine_init() -> bool {
+    safe_ffi_call(false, || {
+        INITIALIZED.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok()
     })
 }
 
-/// Zamyka silnik, zwalniajac przydzielona pamiec
+/// Zamyka silnik
 #[no_mangle]
-pub extern "C" fn m2_engine_shutdown(ctx: *mut M2EngineContext) {
+pub extern "C" fn m2_engine_shutdown() {
     safe_ffi_call((), || {
-        if !ctx.is_null() {
-            unsafe {
-                let _ = Box::from_raw(ctx);
-            }
-        }
+        INITIALIZED.store(false, Ordering::SeqCst);
     });
+}
+
+/// Zwraca status inicjalizacji
+#[no_mangle]
+pub extern "C" fn is_initialized() -> bool {
+    safe_ffi_call(false, || {
+        INITIALIZED.load(Ordering::SeqCst)
+    })
 }
