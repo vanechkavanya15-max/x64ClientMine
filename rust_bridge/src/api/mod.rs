@@ -11,3 +11,4 @@ pub mod config_helper;
 pub mod net_send_pickup;
 pub mod actor_distance;
 pub mod lifecycle;
+pub mod net_send_use_skill;

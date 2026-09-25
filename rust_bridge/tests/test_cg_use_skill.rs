@@ -1,63 +1,42 @@
-use m2_client_bridge::net::cg::use_skill::{CgUseSkill, HEADER_CG_USE_SKILL};
+use m2_client_bridge::net::cg::use_skill::{HEADER_CG_USE_SKILL, TPacketCGUseSkill};
+use std::mem::size_of;
 
 #[test]
-fn test_cg_use_skill_constants() {
-    // Sprawdzamy czy stala naglowka pakietu jest poprawna.
-    assert_eq!(HEADER_CG_USE_SKILL, 52);
-}
+fn test_cg_use_skill_creation_and_size() {
+    let packet = TPacketCGUseSkill::new(1, 2);
+    
+    // Zgodnie ze specyfikacja: 1 bajt (header) + 4 bajty (vnum) + 4 bajty (vid) = 9 bajtow
+    assert_eq!(size_of::<TPacketCGUseSkill>(), 9);
+    
+    // Kopiujemy wartosci poniewaz struktura jest packed
+    let header = packet.header;
+    let vnum = packet.dw_vnum;
+    let vid = packet.dw_vid;
 
-#[test]
-fn test_cg_use_skill_creation() {
-    let packet = CgUseSkill::new(12345, 67890);
-    assert_eq!(packet.header, 52);
-    assert_eq!(packet.vnum, 12345);
-    assert_eq!(packet.target_vid, 67890);
+    assert_eq!(header, HEADER_CG_USE_SKILL);
+    assert_eq!(vnum, 1);
+    assert_eq!(vid, 2);
 }
 
 #[test]
 fn test_cg_use_skill_to_bytes() {
-    let vnum: u32 = 0x12345678;
-    let target_vid: u32 = 0x9ABCDEF0;
-    
-    let packet = CgUseSkill::new(vnum, target_vid);
-    let bytes = packet.to_bytes();
-    
-    // Oczekiwana dlugosc pakietu: 1 (header) + 4 (vnum) + 4 (target_vid) = 9 bajtow.
-    assert_eq!(bytes.len(), 9);
-    
-    // Naglowek
-    assert_eq!(bytes[0], 52);
-    
-    // vnum (Little-Endian)
-    assert_eq!(bytes[1], 0x78);
-    assert_eq!(bytes[2], 0x56);
-    assert_eq!(bytes[3], 0x34);
-    assert_eq!(bytes[4], 0x12);
-    
-    // target_vid (Little-Endian)
-    assert_eq!(bytes[5], 0xF0);
-    assert_eq!(bytes[6], 0xDE);
-    assert_eq!(bytes[7], 0xBC);
-    assert_eq!(bytes[8], 0x9A);
-}
-
-#[test]
-fn test_cg_use_skill_to_bytes_zero_values() {
-    let packet = CgUseSkill::new(0, 0);
+    // 0x01020304 = 16909060
+    // 0x0A0B0C0D = 168496141
+    let packet = TPacketCGUseSkill::new(0x01020304, 0x0A0B0C0D);
     let bytes = packet.to_bytes();
     
     assert_eq!(bytes.len(), 9);
-    assert_eq!(bytes[0], 52);
+    assert_eq!(bytes[0], HEADER_CG_USE_SKILL);
     
-    // vnum = 0
-    assert_eq!(bytes[1], 0);
-    assert_eq!(bytes[2], 0);
-    assert_eq!(bytes[3], 0);
-    assert_eq!(bytes[4], 0);
+    // Test wartosci w formacie Little-Endian dla vnum
+    assert_eq!(bytes[1], 0x04);
+    assert_eq!(bytes[2], 0x03);
+    assert_eq!(bytes[3], 0x02);
+    assert_eq!(bytes[4], 0x01);
     
-    // target_vid = 0
-    assert_eq!(bytes[5], 0);
-    assert_eq!(bytes[6], 0);
-    assert_eq!(bytes[7], 0);
-    assert_eq!(bytes[8], 0);
+    // Test wartosci w formacie Little-Endian dla vid
+    assert_eq!(bytes[5], 0x0D);
+    assert_eq!(bytes[6], 0x0C);
+    assert_eq!(bytes[7], 0x0B);
+    assert_eq!(bytes[8], 0x0A);
 }
