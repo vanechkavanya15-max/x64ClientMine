@@ -4,3 +4,4 @@ pub mod actor_manager;
 pub mod inventory_item;
 pub mod inventory;
 pub mod equipment;
+pub mod player_stats;
