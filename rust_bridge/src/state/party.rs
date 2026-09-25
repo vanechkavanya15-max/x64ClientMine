@@ -1,8 +1,12 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use std::sync::RwLock;
+use once_cell::sync::Lazy;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartyMember {
     pub vid: u32,
+    pub name: String,
     pub hp_percent: u8,
-    pub distance: u32,
+    pub is_leader: bool,
 }
 
 #[derive(Debug, Default)]
@@ -17,15 +21,11 @@ impl PartyManager {
     }
 
     // Dodaje czlonka do grupy, jesli jeszcze nie istnieje
-    pub fn add_member(&mut self, vid: u32) -> bool {
-        if self.get_member_by_vid(vid).is_some() {
+    pub fn add_member(&mut self, m: PartyMember) -> bool {
+        if self.get_member_by_vid(m.vid).is_some() {
             return false;
         }
-        self.members.push(PartyMember {
-            vid,
-            hp_percent: 0,
-            distance: 0,
-        });
+        self.members.push(m);
         true
     }
 
@@ -40,19 +40,9 @@ impl PartyManager {
     }
 
     // Zmienia procent punktow zdrowia czlonka grupy
-    pub fn set_hp(&mut self, vid: u32, hp_percent: u8) -> bool {
+    pub fn update_member_hp(&mut self, vid: u32, hp_percent: u8) -> bool {
         if let Some(member) = self.members.iter_mut().find(|m| m.vid == vid) {
             member.hp_percent = hp_percent;
-            true
-        } else {
-            false
-        }
-    }
-
-    // Zmienia odleglosc czlonka grupy
-    pub fn set_distance(&mut self, vid: u32, distance: u32) -> bool {
-        if let Some(member) = self.members.iter_mut().find(|m| m.vid == vid) {
-            member.distance = distance;
             true
         } else {
             false
@@ -73,4 +63,33 @@ impl PartyManager {
     pub fn clear(&mut self) {
         self.members.clear();
     }
+}
+
+// Globalna instancja menedzera grupy
+pub static PARTY_MANAGER: Lazy<RwLock<PartyManager>> = Lazy::new(|| RwLock::new(PartyManager::new()));
+
+use crate::ffi_guard::safe_ffi_call;
+use std::os::raw::c_char;
+use std::ffi::CString;
+
+// FFI dla pobrania ilosci czlonkow grupy
+#[no_mangle]
+pub unsafe extern "C" fn m2_party_get_count() -> u32 {
+    safe_ffi_call(0, || {
+        if let Ok(manager) = PARTY_MANAGER.read() {
+            manager.members.len() as u32
+        } else {
+            0
+        }
+    })
+}
+
+// FFI do zwalniania pamieci ciagow znakow (string)
+#[no_mangle]
+pub unsafe extern "C" fn m2_party_free_string(ptr: *mut c_char) {
+    safe_ffi_call((), || {
+        if !ptr.is_null() {
+            let _ = unsafe { CString::from_raw(ptr) };
+        }
+    })
 }
