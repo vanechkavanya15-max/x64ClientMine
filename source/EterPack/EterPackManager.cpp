@@ -54,7 +54,7 @@ void CEterPackManager::SetRelativePathMode()
 }
 
 
-// StringPath std::string ¹öÀü
+// StringPath std::string ë²„ì „
 int CEterPackManager::ConvertFileName(const char * c_szFileName, std::string & rstrFileName)
 {
 	rstrFileName = c_szFileName;
@@ -158,15 +158,6 @@ struct TimeChecker
 
 bool CEterPackManager::Get(CMappedFile & rMappedFile, const char * c_szFileName, LPCVOID * pData)
 {
-	// Proba zaladowania przez Rust Bridge VFS (A2)
-	size_t rustSize = 0;
-	uint8_t* pRustBuf = m2_vfs_load_file(c_szFileName, &rustSize);
-	if (pRustBuf && rustSize > 0)
-	{
-		rMappedFile.Link((DWORD)rustSize, pRustBuf);
-		*pData = rMappedFile.Get();
-		return true;
-	}
 	//TimeChecker timeChecker(c_szFileName);
 	//Logf(1, "Load %s\n", c_szFileName);
 
@@ -241,7 +232,7 @@ bool CEterPackManager::GetFromPack(CMappedFile & rMappedFile, const char * c_szF
 	return false;
 }
 
-const time_t g_tCachingInterval = 10; // 10ÃÊ
+const time_t g_tCachingInterval = 10; // 10ì´ˆ
 void CEterPackManager::ArrangeMemoryMappedPack()
 {
 	//time_t curTime = time(NULL);
@@ -265,8 +256,8 @@ bool CEterPackManager::GetFromFile(CMappedFile & rMappedFile, const char * c_szF
 #ifndef _DEBUG
 	//const char *pcExt = strchr(c_szFileName, '.');
 	//if (pcExt && 
-	//	_strnicmp(pcExt, ".py", 3) == 0 && // python ½ºÅ©¸³Æ® Áß
-	//	stricmp(c_szFileName, "logininfo.py") != 0 && // ·Î±×ÀÎ Á¤º¸ ÆÄÀÏÀÌ ¾Æ´Ï°í
+	//	_strnicmp(pcExt, ".py", 3) == 0 && // python ìŠ¤í¬ë¦½íŠ¸ ì¤‘
+	//	stricmp(c_szFileName, "logininfo.py") != 0 && // ë¡œê·¸ì¸ ì •ë³´ íŒŒì¼ì´ ì•„ë‹ˆê³ 
 	//	strnicmp(c_szFileName, "locale", 6) != 0
 	//	)
 	//{
@@ -304,15 +295,12 @@ bool CEterPackManager::isExistInPack(const char * c_szFileName)
 				return pkFileItem->pkPack->IsExist(strFileName.c_str());
 	}
 
-	// NOTE : ¸ÅÄ¡ µÇ´Â ÆÑÀÌ ¾ø´Ù¸é false - [levites]
+	// NOTE : ë§¤ì¹˜ ë˜ëŠ” íŒ©ì´ ì—†ë‹¤ë©´ false - [levites]
 	return false;
 }
 
 bool CEterPackManager::isExist(const char * c_szFileName)
 {
-	// Proba sprawdzenia istnienia w Rust Bridge VFS (A2)
-	if (m2_vfs_exists(c_szFileName))
-		return true;
 	if (m_iSearchMode == SEARCH_PACK_FIRST)
 	{
 		if (isExistInPack(c_szFileName))
@@ -372,7 +360,7 @@ bool CEterPackManager::RegisterPackWhenPackMaking(const char * c_szName, const c
 bool CEterPackManager::RegisterPack(const char * c_szName, const char * c_szDirectory, const BYTE* c_pbIV)
 {
 	// Rejestracja w Rust Bridge VFS (A2)
-	m2_vfs_pack_manager_register_pack(c_szName, c_szDirectory);
+	m2_vfs_pack_manager_register_pack(c_szName, 0);
 	CEterPack * pEterPack = NULL;
 	{
 		TEterPackMap::iterator itor = m_PackMap.find(c_szName);
@@ -467,7 +455,7 @@ void CEterPackManager::RetrieveHybridCryptPackKeys(const BYTE *pStream)
 	{
 		int iRecvedCryptKeySize = 0;
 		memcpy( &iRecvedCryptKeySize, pStream + iMemOffset, sizeof(iRecvedCryptKeySize) );
-		iRecvedCryptKeySize -= sizeof(dwPackageNameHash); // ¼­¹ö¿¡¼­ ¹ŞÀº key stream¿¡´Â filename hash°¡ Æ÷ÇÔµÇ¾î ÀÖÀ¸¹Ç·Î, hash »çÀÌÁî ¸¸Å­ ¹èÁÜ.
+		iRecvedCryptKeySize -= sizeof(dwPackageNameHash); // ì„œë²„ì—ì„œ ë°›ì€ key streamì—ëŠ” filename hashê°€ í¬í•¨ë˜ì–´ ìˆìœ¼ë¯€ë¡œ, hash ì‚¬ì´ì¦ˆ ë§Œí¼ ë°°ì¤Œ.
 		iMemOffset += sizeof(iRecvedCryptKeySize); 
 
 		memcpy( &dwPackageNameHash, pStream + iMemOffset, sizeof(dwPackageNameHash) );

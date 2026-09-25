@@ -38,8 +38,6 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Blad kompilacji rozwiazania C++ w MSBuild!"
 }
 
-# Czyszczenie posrednich plikow .obj w vs_files
-Get-ChildItem -Path "$clientSourceDir\vs_files" -Recurse | Where-Object { $_.Extension -in @('.obj', '.tlog', '.lastbuildstate', '.idb') } | ForEach-Object { Remove-Item -Force $_.FullName }
 
 Write-Host "=== 4. WDRAZANIE DO SRODOWISKA TESTOWEGO ($testClientDir) ===" -ForegroundColor Cyan
 if (-not (Test-Path "$testClientDir\Metin2Distribute_original_backup.exe")) {
