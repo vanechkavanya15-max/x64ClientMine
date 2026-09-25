@@ -7,3 +7,4 @@ pub mod equipment;
 pub mod player_stats;
 pub mod skills;
 pub mod ground_items;
+pub mod target;
