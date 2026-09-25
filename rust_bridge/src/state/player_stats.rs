@@ -201,3 +201,19 @@ pub unsafe extern "C" fn m2_player_get_hp() -> i32 {
         0
     })
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_player_get_max_hp() -> i32 {
+    safe_ffi_call(0, || {
+        // Dummy - domyslnie 0, aktualizowane przez GC_POINTS z serwera
+        0
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_player_is_alive() -> bool {
+    safe_ffi_call(false, || {
+        // Dummy - domyslnie false; w pelnej implementacji sprawdzalby hp > 0
+        false
+    })
+}

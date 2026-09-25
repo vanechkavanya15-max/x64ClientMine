@@ -117,3 +117,50 @@ pub unsafe extern "C" fn m2_free_string(ptr: *mut c_char) {
         }
     });
 }
+
+/// Zgodne z naglowkiem C: m2_string_strip_colors(in_str, out_buf, out_len) -> bool
+#[no_mangle]
+pub unsafe extern "C" fn m2_string_strip_colors(src: *const c_char, dst: *mut c_char, max_len: usize) -> bool {
+    safe_ffi_call(false, || {
+        if src.is_null() || dst.is_null() || max_len == 0 {
+            return false;
+        }
+        let c_str = CStr::from_ptr(src);
+        let s = c_str.to_string_lossy();
+        let stripped = StringSanitizer::strip_colors(&s);
+        let c_stripped = match CString::new(stripped) {
+            Ok(cs) => cs,
+            Err(_) => return false,
+        };
+        let bytes = c_stripped.as_bytes_with_nul();
+        if bytes.len() > max_len {
+            return false;
+        }
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), dst as *mut u8, bytes.len());
+        true
+    })
+}
+
+/// Zgodne z naglowkiem C: m2_string_normalize(in_str, out_buf, out_len) -> bool
+#[no_mangle]
+pub unsafe extern "C" fn m2_string_normalize(src: *const c_char, dst: *mut c_char, max_len: usize) -> bool {
+    safe_ffi_call(false, || {
+        if src.is_null() || dst.is_null() || max_len == 0 {
+            return false;
+        }
+        let c_str = CStr::from_ptr(src);
+        let s = c_str.to_string_lossy();
+        // Normalizacja: usun zbedne biale znaki, zamien na lowercase
+        let normalized: String = s.trim().to_lowercase();
+        let c_normalized = match CString::new(normalized) {
+            Ok(cs) => cs,
+            Err(_) => return false,
+        };
+        let bytes = c_normalized.as_bytes_with_nul();
+        if bytes.len() > max_len {
+            return false;
+        }
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), dst as *mut u8, bytes.len());
+        true
+    })
+}
