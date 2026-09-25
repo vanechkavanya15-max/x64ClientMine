@@ -13,3 +13,4 @@ pub mod trade;
 pub mod safebox;
 pub mod bot_autopot;
 pub mod dragon_soul;
+pub mod quickslot;
