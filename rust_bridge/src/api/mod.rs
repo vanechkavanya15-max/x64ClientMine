@@ -10,3 +10,4 @@ pub mod net_send_chat;
 pub mod string_sanitize;
 pub mod config_helper;
 pub mod net_send_pickup;
+pub mod actor_distance;
