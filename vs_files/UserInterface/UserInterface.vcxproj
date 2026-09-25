@@ -348,14 +348,6 @@
     <ResourceCompile Include="..\..\source\UserInterface\UserInterface.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CWebBrowser\CWebBrowser.vcxproj">
-      <Project>{2e953487-e73a-4c43-a9b6-174ab7b9a7e2}</Project>
-      <Private>false</Private>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-      <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
-      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
-    </ProjectReference>
     <ProjectReference Include="..\Discord\Discord.vcxproj">
       <Project>{034f4297-9df7-47e8-83c3-89df19a09e4a}</Project>
     </ProjectReference>

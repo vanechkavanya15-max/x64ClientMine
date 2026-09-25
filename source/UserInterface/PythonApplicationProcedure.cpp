@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "PythonApplication.h"
 #include "../eterlib/Camera.h"
-#include "../CWebBrowser/CWebBrowser.h"
 
 #include <winuser.h>
 
@@ -180,14 +179,7 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 			return 0;
 
 		case 0x20a:
-			if (WebBrowser_IsVisible())
-			{
-				// 웹브라우저 상태일때는 휠 작동 안되도록 처리
-			}
-			else
-			{
-				OnMouseWheel(short(HIWORD(wParam)));
-			}
+			OnMouseWheel(short(HIWORD(wParam)));
 			break;
 
 		case WM_SIZE:

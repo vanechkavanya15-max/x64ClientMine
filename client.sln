@@ -1,10 +1,8 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31423.177
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CWebBrowser", "vs_files\CWebBrowser\CWebBrowser.vcxproj", "{2E953487-E73A-4C43-A9B6-174AB7B9A7E2}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EffectLib", "vs_files\EffectLib\EffectLib.vcxproj", "{7F1EC9EC-35DA-4332-A339-B68E3C95976F}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EterBase", "vs_files\EterBase\EterBase.vcxproj", "{D8C71073-CDC3-4AB1-A84A-5829F28BFF56}"
@@ -44,12 +42,6 @@ Global
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{2E953487-E73A-4C43-A9B6-174AB7B9A7E2}.Debug|Win32.ActiveCfg = Debug|Win32
-		{2E953487-E73A-4C43-A9B6-174AB7B9A7E2}.Debug|Win32.Build.0 = Debug|Win32
-		{2E953487-E73A-4C43-A9B6-174AB7B9A7E2}.Distribute|Win32.ActiveCfg = Distribute|Win32
-		{2E953487-E73A-4C43-A9B6-174AB7B9A7E2}.Distribute|Win32.Build.0 = Distribute|Win32
-		{2E953487-E73A-4C43-A9B6-174AB7B9A7E2}.Release|Win32.ActiveCfg = Release|Win32
-		{2E953487-E73A-4C43-A9B6-174AB7B9A7E2}.Release|Win32.Build.0 = Release|Win32
 		{7F1EC9EC-35DA-4332-A339-B68E3C95976F}.Debug|Win32.ActiveCfg = Debug|Win32
 		{7F1EC9EC-35DA-4332-A339-B68E3C95976F}.Debug|Win32.Build.0 = Debug|Win32
 		{7F1EC9EC-35DA-4332-A339-B68E3C95976F}.Distribute|Win32.ActiveCfg = Distribute|Win32
