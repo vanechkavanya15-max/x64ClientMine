@@ -1,169 +1,119 @@
 //! Modul do czyszczenia i normalizacji tekstu (API FFI)
 
 use crate::ffi_guard::safe_ffi_call;
-use std::slice;
+use std::os::raw::c_char;
+use std::ffi::{CStr, CString};
 
-/// Funkcja pomocnicza do zapisu stringa do bufora C
-fn write_to_c_buffer(dest: *mut u8, dest_len: usize, data: &[u8]) -> usize {
-    if dest.is_null() || dest_len == 0 {
-        return 0;
-    }
-    
-    let copy_len = std::cmp::min(data.len(), dest_len - 1);
-    unsafe {
-        std::ptr::copy_nonoverlapping(data.as_ptr(), dest, copy_len);
-        *dest.add(copy_len) = 0; // null terminator
-    }
-    copy_len
-}
+pub const FFI_STRING_SANITIZE: u8 = 0;
 
-/// Usuwa z tekstu niedrukowalne znaki sterujace (z wyjatkiem spacji/tabulacji i znakow nowej linii).
-/// Zwraca ilosc zapisanych bajtow (bez znaku null).
-#[no_mangle]
-pub extern "C" fn m2_string_sanitize(
-    src: *const u8,
-    src_len: usize,
-    dest: *mut u8,
-    dest_len: usize,
-) -> usize {
-    safe_ffi_call(0, || {
-        if src.is_null() || dest.is_null() || src_len == 0 || dest_len == 0 {
-            return 0;
-        }
+pub struct StringSanitizer;
 
-        let src_slice = unsafe { slice::from_raw_parts(src, src_len) };
-        let mut result = Vec::with_capacity(src_len);
-
-        for &b in src_slice {
-            // Zostawiamy widoczne ASCII (32-126) oraz tabulacje (9), nowa linia (10, 13)
-            // Zostawiamy tez znaki ASCII > 127
-            if (b >= 32 && b != 127) || b == 9 || b == 10 || b == 13 {
-                result.push(b);
-            }
-        }
-
-        write_to_c_buffer(dest, dest_len, &result)
-    })
-}
-
-/// Usuwa z tekstu tagi kolorow i linkow charakterystyczne dla Metin2.
-/// Zwraca ilosc zapisanych bajtow.
-#[no_mangle]
-pub extern "C" fn m2_string_strip_colors(
-    src: *const u8,
-    src_len: usize,
-    dest: *mut u8,
-    dest_len: usize,
-) -> usize {
-    safe_ffi_call(0, || {
-        if src.is_null() || dest.is_null() || src_len == 0 || dest_len == 0 {
-            return 0;
-        }
-
-        let src_slice = unsafe { slice::from_raw_parts(src, src_len) };
-        let mut result = Vec::with_capacity(src_len);
-        
-        let mut i = 0;
+impl StringSanitizer {
+    pub fn strip_colors(s: &str) -> String {
+        let mut result = String::with_capacity(s.len());
+        let mut chars = s.chars().peekable();
         let mut in_hyperlink = false;
 
-        while i < src_len {
-            let b = src_slice[i];
-            
-            if b == b'|' {
-                if i + 1 < src_len {
-                    let next = src_slice[i + 1];
-                    match next {
-                        b'c' => {
-                            if i + 9 < src_len {
-                                i += 10;
-                            } else {
-                                result.push(b'|');
-                                i += 1;
-                            }
-                            continue;
-                        }
-                        b'r' => {
-                            i += 2;
-                            continue;
-                        }
-                        b'H' => {
-                            in_hyperlink = true;
-                            i += 2;
-                            continue;
-                        }
-                        b'h' => {
-                            in_hyperlink = false;
-                            i += 2;
-                            continue;
-                        }
-                        b'|' => {
-                            if !in_hyperlink {
-                                result.push(b'|');
-                            }
-                            i += 2;
-                            continue;
-                        }
-                        _ => {
-                            if !in_hyperlink {
-                                result.push(b'|');
-                            }
-                            i += 1;
-                            continue;
+        while let Some(c) = chars.next() {
+            if c == '|' {
+                match chars.peek() {
+                    Some(&'c') | Some(&'C') => {
+                        chars.next();
+                        for _ in 0..8 {
+                            chars.next();
                         }
                     }
-                } else {
-                    if !in_hyperlink {
-                        result.push(b'|');
+                    Some(&'r') | Some(&'R') => {
+                        chars.next();
                     }
-                    i += 1;
+                    Some(&'H') => {
+                        in_hyperlink = true;
+                        chars.next();
+                    }
+                    Some(&'h') => {
+                        in_hyperlink = false;
+                        chars.next();
+                    }
+                    Some(&'|') => {
+                        if !in_hyperlink {
+                            result.push('|');
+                        }
+                        chars.next();
+                    }
+                    _ => {
+                        if !in_hyperlink {
+                            result.push('|');
+                        }
+                    }
                 }
-            } else {
-                if !in_hyperlink {
-                    result.push(b);
-                }
-                i += 1;
+            } else if !in_hyperlink {
+                result.push(c);
             }
         }
+        result
+    }
 
-        write_to_c_buffer(dest, dest_len, &result)
+    pub fn sanitize_chat(s: &str) -> String {
+        s.chars()
+            .filter(|&c| {
+                let b = c as u32;
+                (b >= 32 && b != 127) || b == 9 || b == 10 || b == 13
+            })
+            .collect()
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_string_sanitize(src: *const c_char, dst: *mut c_char, max_len: u32) -> bool {
+    safe_ffi_call(false, || {
+        if src.is_null() || dst.is_null() || max_len == 0 {
+            return false;
+        }
+
+        let c_str = CStr::from_ptr(src);
+        let s = c_str.to_string_lossy();
+        
+        let sanitized = StringSanitizer::sanitize_chat(&s);
+        
+        let c_sanitized = match CString::new(sanitized) {
+            Ok(cs) => cs,
+            Err(_) => return false,
+        };
+
+        let bytes = c_sanitized.as_bytes_with_nul();
+        if bytes.len() > max_len as usize {
+            return false;
+        }
+
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), dst as *mut u8, bytes.len());
+        true
     })
 }
 
-/// Normalizuje znaki ASCII.
-/// Zwraca ilosc zapisanych bajtow.
 #[no_mangle]
-pub extern "C" fn m2_string_normalize(
-    src: *const u8,
-    src_len: usize,
-    dest: *mut u8,
-    dest_len: usize,
-) -> usize {
-    safe_ffi_call(0, || {
-        if src.is_null() || dest.is_null() || src_len == 0 || dest_len == 0 {
-            return 0;
+pub unsafe extern "C" fn m2_strip_color_codes(src: *const c_char) -> *mut c_char {
+    safe_ffi_call(std::ptr::null_mut(), || {
+        if src.is_null() {
+            return std::ptr::null_mut();
         }
 
-        let src_slice = unsafe { slice::from_raw_parts(src, src_len) };
-        let mut result = Vec::with_capacity(src_len);
-
-        for &b in src_slice {
-            // Zamiana znakow extended ASCII na ich odpowiedniki bazowe (uproszczona)
-            // Uzywamy czesto spotykanych znakow w ISO-8859-2 / Windows-1250 / CP-1252 
-            let norm = match b {
-                0xA1 | 0xB9 | 0xE1 | 0xE2 | 0xE3 | 0xE4 | 0xE5 | 0xC1 | 0xC2 | 0xC3 | 0xC4 | 0xC5 => b'a',
-                0xA5 | 0xC0 => b'A',
-                0xE6 | 0xE7 | 0xC6 | 0xC7 => b'c',
-                0xCA | 0xEA | 0xE8 | 0xE9 | 0xEB | 0xC8 | 0xC9 | 0xCB => b'e',
-                0xA3 | 0xB3 => b'l',
-                0xD1 | 0xF1 => b'n',
-                0xD3 | 0xF3 | 0xF2 | 0xF4 | 0xF5 | 0xF6 | 0xD2 | 0xD4 | 0xD5 | 0xD6 => b'o',
-                0x8C | 0x9C | 0xA6 | 0xB6 => b's',
-                0x8F | 0x9F | 0xAC | 0xBC | 0xAF | 0xBF => b'z',
-                _ => b,
-            };
-            result.push(norm);
+        let c_str = CStr::from_ptr(src);
+        let s = c_str.to_string_lossy();
+        
+        let stripped = StringSanitizer::strip_colors(&s);
+        
+        match CString::new(stripped) {
+            Ok(cs) => cs.into_raw(),
+            Err(_) => std::ptr::null_mut(),
         }
-
-        write_to_c_buffer(dest, dest_len, &result)
     })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_free_string(ptr: *mut c_char) {
+    safe_ffi_call((), || {
+        if !ptr.is_null() {
+            let _ = CString::from_raw(ptr);
+        }
+    });
 }

@@ -1,113 +1,89 @@
 use m2_client_bridge::api::string_sanitize::{
-    m2_string_sanitize, m2_string_strip_colors, m2_string_normalize,
+    m2_string_sanitize, m2_strip_color_codes, m2_free_string, StringSanitizer,
 };
+use std::ffi::{CStr, CString};
 
-// Funkcja pomocnicza do testowania
-fn call_sanitize(input: &[u8]) -> Vec<u8> {
-    let mut dest = vec![0u8; input.len() + 1];
-    let written = m2_string_sanitize(
-        input.as_ptr(),
-        input.len(),
-        dest.as_mut_ptr(),
-        dest.len(),
-    );
-    dest.truncate(written);
-    dest
-}
+#[test]
+fn test_string_sanitizer_strip_colors() {
+    let input = "|cffff0000Tekst|r";
+    assert_eq!(StringSanitizer::strip_colors(input), "Tekst");
 
-fn call_strip_colors(input: &[u8]) -> Vec<u8> {
-    let mut dest = vec![0u8; input.len() + 1];
-    let written = m2_string_strip_colors(
-        input.as_ptr(),
-        input.len(),
-        dest.as_mut_ptr(),
-        dest.len(),
-    );
-    dest.truncate(written);
-    dest
-}
+    let input_link = "To jest |cFFFF0000test|r z |Hitem:123|hlinkiem|h.";
+    assert_eq!(StringSanitizer::strip_colors(input_link), "To jest test z linkiem.");
 
-fn call_normalize(input: &[u8]) -> Vec<u8> {
-    let mut dest = vec![0u8; input.len() + 1];
-    let written = m2_string_normalize(
-        input.as_ptr(),
-        input.len(),
-        dest.as_mut_ptr(),
-        dest.len(),
-    );
-    dest.truncate(written);
-    dest
+    let input_escaped = "Wiadomosc || ukryta.";
+    assert_eq!(StringSanitizer::strip_colors(input_escaped), "Wiadomosc | ukryta.");
 }
 
 #[test]
-fn test_sanitize_basic() {
-    let input = b"Hello\x07 World\n";
-    let result = call_sanitize(input);
-    assert_eq!(result, b"Hello World\n");
+fn test_string_sanitizer_sanitize_chat() {
+    let input = "Hello\x07 World\n";
+    assert_eq!(StringSanitizer::sanitize_chat(input), "Hello World\n");
 }
 
 #[test]
-fn test_sanitize_null() {
+fn test_ffi_m2_string_sanitize() {
+    let input = CString::new("Hello\x07 World\n").unwrap();
+    let mut dest = vec![0u8; 100];
+    
+    let result = unsafe {
+        m2_string_sanitize(
+            input.as_ptr(),
+            dest.as_mut_ptr() as *mut std::os::raw::c_char,
+            dest.len() as u32,
+        )
+    };
+    
+    assert!(result);
+    
+    let c_str = unsafe { CStr::from_ptr(dest.as_ptr() as *const std::os::raw::c_char) };
+    assert_eq!(c_str.to_str().unwrap(), "Hello World\n");
+}
+
+#[test]
+fn test_ffi_m2_string_sanitize_null() {
     let mut dest = vec![0u8; 10];
-    let written = m2_string_sanitize(
-        std::ptr::null(),
-        5,
-        dest.as_mut_ptr(),
-        dest.len(),
-    );
-    assert_eq!(written, 0);
+    let result = unsafe {
+        m2_string_sanitize(
+            std::ptr::null(),
+            dest.as_mut_ptr() as *mut std::os::raw::c_char,
+            dest.len() as u32,
+        )
+    };
+    assert!(!result);
 
-    let written = m2_string_sanitize(
-        b"test".as_ptr(),
-        4,
-        std::ptr::null_mut(),
-        dest.len(),
-    );
-    assert_eq!(written, 0);
+    let input = CString::new("test").unwrap();
+    let result = unsafe {
+        m2_string_sanitize(
+            input.as_ptr(),
+            std::ptr::null_mut(),
+            10,
+        )
+    };
+    assert!(!result);
 }
 
 #[test]
-fn test_strip_colors() {
-    let input = b"To jest |cFFFF0000test|r z |Hitem:123|hlinkiem|h.";
-    let result = call_strip_colors(input);
-    assert_eq!(result, b"To jest test z linkiem.");
+fn test_ffi_m2_strip_color_codes() {
+    let input = CString::new("|cffff0000Tekst|r").unwrap();
+    
+    let result_ptr = unsafe { m2_strip_color_codes(input.as_ptr()) };
+    assert!(!result_ptr.is_null());
+    
+    let c_str = unsafe { CStr::from_ptr(result_ptr) };
+    assert_eq!(c_str.to_str().unwrap(), "Tekst");
+    
+    unsafe { m2_free_string(result_ptr) };
 }
 
 #[test]
-fn test_strip_colors_escaped() {
-    let input = b"Wiadomosc || ukryta.";
-    let result = call_strip_colors(input);
-    assert_eq!(result, b"Wiadomosc | ukryta.");
+fn test_ffi_m2_strip_color_codes_null() {
+    let result_ptr = unsafe { m2_strip_color_codes(std::ptr::null()) };
+    assert!(result_ptr.is_null());
 }
 
 #[test]
-fn test_strip_colors_null() {
-    let mut dest = vec![0u8; 10];
-    let written = m2_string_strip_colors(
-        std::ptr::null(),
-        5,
-        dest.as_mut_ptr(),
-        dest.len(),
-    );
-    assert_eq!(written, 0);
-}
-
-#[test]
-fn test_normalize_basic() {
-    // a ogonek to 0xB9 w CP1250 / ISO-8859-2
-    let input = vec![0xB9, b'b', b'c'];
-    let result = call_normalize(&input);
-    assert_eq!(result, b"abc");
-}
-
-#[test]
-fn test_normalize_null() {
-    let mut dest = vec![0u8; 10];
-    let written = m2_string_normalize(
-        std::ptr::null(),
-        5,
-        dest.as_mut_ptr(),
-        dest.len(),
-    );
-    assert_eq!(written, 0);
+fn test_ffi_m2_free_string_null() {
+    // Should not panic or crash
+    unsafe { m2_free_string(std::ptr::null_mut()) };
 }
