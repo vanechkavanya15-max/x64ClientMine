@@ -5,3 +5,4 @@ pub mod directory_lister;
 pub mod epk_reader;
 pub mod cache;
 pub mod ffi_bridge;
+pub mod hybrid_crypt;
