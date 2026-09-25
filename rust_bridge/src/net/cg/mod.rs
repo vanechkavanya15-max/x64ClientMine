@@ -9,3 +9,4 @@ pub mod character_create;
 pub mod sync_position;
 pub mod item_drop;
 pub mod move_packet;
+pub mod chat;
