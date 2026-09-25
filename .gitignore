@@ -53,3 +53,10 @@ Cryptopp_lib_debug.lib
 *.bak
 *~
 *.tmp
+
+# Rust & Python build cache
+target/
+.pytest_cache/
+__pycache__/
+*.pyc
+
