@@ -67,7 +67,7 @@ impl TPacketCGItemDrop {
 /// slot - indeks komorki w ekwipunku
 /// count - ilosc sztuk lub zlota
 #[no_mangle]
-pub unsafe extern "C" fn m2_net_send_item_drop(window_type: u8, slot: u16, count: u32) -> bool {
+pub unsafe extern "C" fn m2_net_send_item_drop(_window_type: u8, _slot: u16, _count: u32) -> bool {
     safe_ffi_call(false, || {
         // Implementacja zablokowana do kolejnej fazy integracji z C++.
         // Zwracamy true, zeby potwierdzic symulowane wyslanie pakietu.

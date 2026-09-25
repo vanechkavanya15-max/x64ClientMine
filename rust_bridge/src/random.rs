@@ -13,19 +13,25 @@ pub fn srandom(seed: u32) {
     RAND_SEED.store(s, Ordering::SeqCst);
 }
 
+/// Czysty krok generatora Park & Miller LCG
+pub fn park_miller_next(seed: u32) -> u32 {
+    let current = seed as i32;
+    let x = if current <= 0 { 1 } else { current };
+    let hi = x / 127773;
+    let lo = x % 127773;
+    let mut t = 16807 * lo - 2836 * hi;
+    if t <= 0 {
+        t += 0x7FFFFFFF;
+    }
+    t as u32
+}
+
 /// Generuje 31-bitowa liczbe pseudolosowa [0, 2^31 - 1]
 pub fn random() -> u32 {
     loop {
-        let current = RAND_SEED.load(Ordering::Relaxed) as i32;
-        let x = if current <= 0 { 1 } else { current };
-        let hi = x / 127773;
-        let lo = x % 127773;
-        let mut t = 16807 * lo - 2836 * hi;
-        if t <= 0 {
-            t += 0x7FFFFFFF;
-        }
-        let next = t as u32;
-        if RAND_SEED.compare_exchange_weak(current as u32, next, Ordering::SeqCst, Ordering::Relaxed).is_ok() {
+        let current = RAND_SEED.load(Ordering::Relaxed);
+        let next = park_miller_next(current);
+        if RAND_SEED.compare_exchange_weak(current, next, Ordering::SeqCst, Ordering::Relaxed).is_ok() {
             return next;
         }
     }
@@ -53,10 +59,10 @@ mod tests {
 
     #[test]
     fn test_park_miller_known_values() {
-        srandom(1);
-        let r1 = random();
         // Dla seed=1, pierwsza wartosc w Park-Miller to 16807
-        assert_eq!(r1, 16807);
+        assert_eq!(park_miller_next(1), 16807);
+        // Druga wartosc dla seed=16807
+        assert_eq!(park_miller_next(16807), 282475249);
     }
 
     #[test]

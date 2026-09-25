@@ -60,6 +60,24 @@ bool     m2_net_send_chat(uint8_t chat_type, const char* msg_ptr);
 bool     m2_net_send_move(float x, float y, float rot, uint8_t move_type);
 bool     m2_net_send_pickup(uint32_t vid);
 bool     m2_net_send_use_item(uint8_t window, uint16_t slot);
+bool     m2_net_send_item_move(uint8_t src_win, uint16_t src_cell, uint8_t dst_win, uint16_t dst_cell, uint8_t count);
+bool     m2_net_send_whisper(const char* target, const char* msg);
+bool     m2_net_send_shoot(uint8_t b_type);
+bool     m2_net_send_use_skill(uint32_t skill_vnum, uint32_t target_vid);
+
+// ============================================================================
+// Network Callbacks & Observation Pump (A3.2)
+// ============================================================================
+typedef struct M2NetCallbacks {
+    void (*on_char_spawn)(uint32_t vid, int32_t x, int32_t y, uint16_t race);
+    void (*on_char_move)(uint32_t vid, int32_t x, int32_t y, uint8_t rot);
+    void (*on_chat)(uint8_t chat_type, uint32_t sender_vid, const char* msg);
+    void (*on_item_set)(uint8_t window, uint16_t cell, uint32_t vnum, uint8_t count);
+    void (*on_damage)(uint32_t victim_vid, int32_t damage, uint8_t flag);
+} M2NetCallbacks;
+
+bool     m2_net_set_callbacks(const M2NetCallbacks* callbacks);
+void     m2_net_observe_recv(const uint8_t* data, size_t len);
 
 // ============================================================================
 // Game Logic, Player & Actor State (A4)
@@ -68,8 +86,13 @@ bool     m2_player_get_position(float* out_x, float* out_y, float* out_rot);
 int64_t  m2_player_get_status(uint32_t status_type);
 uint32_t m2_player_get_item_vnum(uint8_t window, uint16_t slot);
 uint32_t m2_player_get_item_count(uint8_t window, uint16_t slot);
+int32_t  m2_player_get_hp(void);
+int32_t  m2_player_get_max_hp(void);
+bool     m2_player_is_alive(void);
 uint32_t m2_find_nearest_actor(uint32_t actor_type, float max_distance);
 float    m2_actor_get_distance(const void* vid);
+bool     m2_mount_is_mounted(void);
+uint32_t m2_mount_get_vnum(void);
 
 // ============================================================================
 // String Utilities & Sanitization
@@ -79,10 +102,10 @@ bool     m2_string_strip_colors(const char* in_str, char* out_buf, size_t out_le
 bool     m2_string_normalize(const char* in_str, char* out_buf, size_t out_len);
 
 // ============================================================================
-// Engine Lifecycle
+// Engine Lifecycle (A1)
 // ============================================================================
-void*    m2_engine_init(void);
-void     m2_engine_shutdown(void* ctx);
+bool     m2_engine_init(void);
+void     m2_engine_shutdown(void);
 
 #ifdef __cplusplus
 }

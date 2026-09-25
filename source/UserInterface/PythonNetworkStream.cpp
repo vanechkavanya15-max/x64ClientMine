@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "../eterLib/NetPacketHeaderMap.h"
+#include "../EterBase/m2_client_bridge.h"
 
 #include "PythonNetworkStream.h"
 #include "Packet.h"
@@ -10,6 +11,13 @@
 #include "MarkManager.h"
 
 #include "ProcessCRC.h"
+
+// Rust Bridge Network Callbacks (A3.2)
+static void OnRustNetCharSpawn(uint32_t vid, int32_t x, int32_t y, uint16_t race) {}
+static void OnRustNetCharMove(uint32_t vid, int32_t x, int32_t y, uint8_t rot) {}
+static void OnRustNetChat(uint8_t chat_type, uint32_t sender_vid, const char* msg) {}
+static void OnRustNetItemSet(uint8_t window, uint16_t cell, uint32_t vnum, uint8_t count) {}
+static void OnRustNetDamage(uint32_t victim_vid, int32_t damage, uint8_t flag) {}
 
 // MARK_BUG_FIX
 static DWORD gs_nextDownloadMarkTime = 0;
@@ -668,6 +676,12 @@ bool CPythonNetworkStream::RecvDefaultPacket(int header)
 
 bool CPythonNetworkStream::OnProcess()
 {
+	int recvBufSize = GetRecvBufferSize();
+	if (recvBufSize > 0)
+	{
+		m2_net_observe_recv((const uint8_t*)GetRecvBuffer(), (size_t)recvBufSize);
+	}
+
 	if (m_isStartGame)
 	{
 		m_isStartGame = FALSE;
@@ -862,6 +876,15 @@ void CPythonNetworkStream::SendEmoticon(UINT eEmoticon)
 
 CPythonNetworkStream::CPythonNetworkStream()
 {
+	static M2NetCallbacks s_m2NetCallbacks = {
+		OnRustNetCharSpawn,
+		OnRustNetCharMove,
+		OnRustNetChat,
+		OnRustNetItemSet,
+		OnRustNetDamage
+	};
+	m2_net_set_callbacks(&s_m2NetCallbacks);
+
 	m_rokNetActorMgr=new CNetworkActorManager;
 
 	memset(m_akSimplePlayerInfo, 0, sizeof(m_akSimplePlayerInfo));

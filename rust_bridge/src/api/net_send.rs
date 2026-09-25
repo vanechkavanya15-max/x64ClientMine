@@ -1,5 +1,3 @@
-use crate::ffi_guard::safe_ffi_call;
-use std::ffi::CStr;
 use std::os::raw::c_char;
 
 #[no_mangle]

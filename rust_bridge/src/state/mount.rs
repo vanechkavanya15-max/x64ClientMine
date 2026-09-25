@@ -48,6 +48,11 @@ pub extern "C" fn m2_mount_get_vnum() -> u32 {
 }
 
 #[no_mangle]
+pub extern "C" fn m2_mount_get_stamina() -> u16 {
+    safe_ffi_call(0, || MOUNT_STAMINA.load(Ordering::Relaxed))
+}
+
+#[no_mangle]
 pub extern "C" fn m2_mount_set(vnum: u32, mounted: bool) {
     safe_ffi_call((), || {
         MOUNT_VNUM.store(vnum, Ordering::Relaxed);

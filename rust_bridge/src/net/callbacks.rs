@@ -42,3 +42,13 @@ pub unsafe extern "C" fn m2_net_set_callbacks(cbs: *const M2NetCallbacks) -> boo
         true
     })).unwrap_or(false)
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_net_observe_recv(data: *const u8, len: usize) {
+    catch_unwind(AssertUnwindSafe(|| {
+        if !data.is_null() && len > 0 {
+            let _slice = std::slice::from_raw_parts(data, len);
+        }
+    })).unwrap_or(());
+}
+

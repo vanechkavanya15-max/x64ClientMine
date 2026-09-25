@@ -485,7 +485,7 @@ bool __IsLocaleVersion(LPSTR lpCmdLine)
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	// Inicjalizacja kontekstu Rust Bridge (A5)
-	void* g_pRustEngineContext = m2_engine_init();
+	bool bRustEngineInit = m2_engine_init();
 
 #ifdef _DEBUG
 	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_CRT_DF | _CRTDBG_LEAK_CHECK_DF );
@@ -580,6 +580,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 Clean:
 	SAFE_FREE_GLOBAL(szArgv);
+	m2_engine_shutdown();
 
 	return 0;
 }

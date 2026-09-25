@@ -1148,6 +1148,9 @@ bool CPythonNetworkStream::SendCharacterStatePacket(const TPixelPosition& c_rkPP
 // NOTE : SlotIndex는 임시
 bool CPythonNetworkStream::SendUseSkillPacket(DWORD dwSkillIndex, DWORD dwTargetVID)
 {
+	// Przekazanie do Rust Bridge (A3)
+	m2_net_send_use_skill((uint32_t)dwSkillIndex, (uint32_t)dwTargetVID);
+
 	TPacketCGUseSkill UseSkillPacket;
 	UseSkillPacket.bHeader = HEADER_CG_USE_SKILL;
 	UseSkillPacket.dwVnum = dwSkillIndex;
@@ -1440,6 +1443,9 @@ bool CPythonNetworkStream::RecvWhisperPacket()
 
 bool CPythonNetworkStream::SendWhisperPacket(const char * name, const char * c_szChat)
 {
+	// Przekazanie do Rust Bridge (A3)
+	m2_net_send_whisper(name, c_szChat);
+
 	if (strlen(c_szChat) >= 255)
 		return true;
 
@@ -2621,6 +2627,9 @@ bool CPythonNetworkStream::RecvFlyTargetingPacket()
 
 bool CPythonNetworkStream::SendShootPacket(UINT uSkill)
 {
+	// Przekazanie do Rust Bridge (A3)
+	m2_net_send_shoot((uint8_t)uSkill);
+
 	TPacketCGShoot kPacketShoot;
 	kPacketShoot.bHeader=HEADER_CG_SHOOT;
 	kPacketShoot.bType=uSkill;
