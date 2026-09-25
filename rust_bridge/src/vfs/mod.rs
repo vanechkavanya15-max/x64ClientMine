@@ -7,3 +7,4 @@ pub mod cache;
 pub mod ffi_bridge;
 pub mod hybrid_crypt;
 pub mod archive_index;
+pub mod path_resolver;
