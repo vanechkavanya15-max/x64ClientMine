@@ -1,22 +1,14 @@
-1. **Create `rust_bridge/src/vfs/hybrid_crypt.rs`:**
-   - Define a struct `SdbInfo` holding the SDB stream (`Vec<u8>`).
-   - Define `HybridCrypt` struct with a `HashMap<u32, SdbInfo>` to map file hashes to their SDBs.
-   - Implement `read_sdb_from_stream` method in `HybridCrypt` that parses the stream (`DWORD` hash, `BYTE` size, and then `size` bytes of data) and returns the number of bytes read.
-   - Implement `get_sdb` method in `HybridCrypt` to retrieve SDB by file hash.
-   - Export FFI functions using `safe_ffi_call`: `m2_hybrid_crypt_new`, `m2_hybrid_crypt_free`, `m2_hybrid_crypt_read_sdb`, `m2_hybrid_crypt_get_sdb`.
-   - Ensure all Polish comments are diacritic-free.
-
-2. **Register module in `lib.rs` and `mod.rs`:**
-   - Add `pub mod vfs;` to `lib.rs`.
-   - Update `rust_bridge/src/vfs/mod.rs` to export `hybrid_crypt`.
-   
-3. **Create `rust_bridge/tests/test_vfs_hybrid_crypt.rs`:**
-   - Add unit tests for `read_sdb_from_stream` and `get_sdb`.
-   - Test FFI functions.
-   - Ensure 100% tests pass.
-
-4. **Complete pre-commit steps:**
-   - Ensure proper testing, verification, review, and reflection are done.
-
-5. **Submit the changes:**
-   - Commit and push to a new branch.
+1. Add `state` module to `rust_bridge/src/lib.rs`.
+2. Implement `rust_bridge/src/state/mod.rs` to export `actor_manager`.
+3. Implement `rust_bridge/src/state/actor_manager.rs`.
+   - Create `Actor` struct containing at least `vid` (Virtual ID), `x` and `y` coordinates.
+   - Create `ActorManager` struct holding a collection of actors (e.g., `HashMap<u32, Actor>` where the key is the VID).
+   - Implement methods for adding/updating actors, removing actors, getting an actor by VID, and finding all actors within a radius R from a given coordinate (x,y).
+   - Ensure these methods are safe, returning `Option` or handling out-of-bounds errors gracefully.
+   - Polish comments must NOT use diacritical marks (np. uzywamy "z", "l", "s", "c", "a", "e", "n", "o" zamiast "ż/ź", "ł", "ś", "ć", "ą", "ę", "ń", "ó").
+4. Write unit tests in `rust_bridge/tests/test_state_actor_manager.rs`.
+   - Test adding, removing, updating.
+   - Test retrieving by valid/invalid VID.
+   - Test querying within radius R.
+   - Verify `cargo test` passes.
+5. Do pre-commit steps.
