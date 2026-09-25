@@ -8,3 +8,4 @@ description = "Nowoczesny potok renderowania 64-bit wgpu/DirectX z shaderami WGS
 crate-type = ["lib", "staticlib", "cdylib"]
 
 [dependencies]
+glam = "0.33.10"
