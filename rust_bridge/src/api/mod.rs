@@ -5,3 +5,4 @@ pub mod player_item;
 pub mod nearest_target;
 pub mod net_send_move;
 pub mod net_send_attack;
+pub mod player_pos;
