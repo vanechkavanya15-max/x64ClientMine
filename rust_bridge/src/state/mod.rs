@@ -9,3 +9,4 @@ pub mod skills;
 pub mod ground_items;
 pub mod target;
 pub mod party;
+pub mod trade;
