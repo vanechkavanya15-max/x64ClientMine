@@ -1,0 +1,10 @@
+[package]
+name = "m2-client-pyapi"
+version = "0.1.0"
+edition = "2021"
+description = "Modul 64-bit Python Engine API dla istniejacych skryptow UI Metin2/Alune"
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]

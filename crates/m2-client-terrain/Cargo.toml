@@ -1,0 +1,10 @@
+[package]
+name = "m2-client-terrain"
+version = "0.1.0"
+edition = "2021"
+description = "Modul terenu, map wysokosci i atrybutow kolizji 64-bit"
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]

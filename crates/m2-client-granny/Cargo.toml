@@ -1,0 +1,10 @@
+[package]
+name = "m2-client-granny"
+version = "0.1.0"
+edition = "2021"
+description = "Modul szkieletu, siatek i animacji Granny 3D 64-bit"
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
