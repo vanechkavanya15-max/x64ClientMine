@@ -1,3 +1,5 @@
+pub mod api;
+
 pub mod ffi_guard;
 pub mod timer;
 pub mod crc32;
