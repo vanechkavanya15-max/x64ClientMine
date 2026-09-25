@@ -34,10 +34,6 @@ extern "C" { FILE __iob_func[3] = { *stdin,*stdout,*stderr }; }
 #pragma comment( lib, "dinput8.lib" )
 #pragma comment( lib, "dxguid.lib" )
 #pragma comment( lib, "ws2_32.lib" )
-#pragma comment( lib, "strmiids.lib" )
-#pragma comment( lib, "ddraw.lib" )
-#pragma comment( lib, "dmoguids.lib" )
-//#pragma comment( lib, "wsock32.lib" )
 #include <stdlib.h>
 #include <cryptopp/cryptoppLibLink.h>
 bool __IS_TEST_SERVER_MODE__=false;
