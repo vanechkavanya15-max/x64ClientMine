@@ -9,3 +9,4 @@ pub mod warp;
 pub mod item_set;
 pub mod item_del;
 pub mod ground_item;
+pub mod ground_item_del;
