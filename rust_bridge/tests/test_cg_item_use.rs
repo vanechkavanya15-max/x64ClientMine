@@ -1,15 +1,9 @@
-use m2_client_bridge::net::cg::item_use::{PacketCgItemUse, ItemPos};
+use m2_client_bridge::net::cg::item_use::{TPacketCGItemUse, m2_net_send_item_use};
 
 #[test]
 fn test_cg_item_use_serialization() {
     // Przypadek 1: Zwykle wywolanie
-    let packet = PacketCgItemUse {
-        header: PacketCgItemUse::HEADER,
-        pos: ItemPos {
-            window_type: 1, // EQUIPMENT = 1
-            cell: 12, // jakis przykladowy slot
-        },
-    };
+    let packet = TPacketCGItemUse::new(1, 12);
     
     let bytes = packet.to_bytes();
     
@@ -21,13 +15,7 @@ fn test_cg_item_use_serialization() {
     assert_eq!(bytes[3], 0, "Gorny bajt cell ma wynosic 0");
     
     // Przypadek 2: Skrajne wartosci
-    let packet_edge = PacketCgItemUse {
-        header: PacketCgItemUse::HEADER,
-        pos: ItemPos {
-            window_type: 255, // max u8
-            cell: 0xFFFF, // WORD_MAX
-        },
-    };
+    let packet_edge = TPacketCGItemUse::new(255, 0xFFFF);
     
     let bytes_edge = packet_edge.to_bytes();
     assert_eq!(bytes_edge.len(), 4);
@@ -36,4 +24,12 @@ fn test_cg_item_use_serialization() {
     // cell = 0xFFFF w little-endian to 0xFF 0xFF
     assert_eq!(bytes_edge[2], 255);
     assert_eq!(bytes_edge[3], 255);
+}
+
+#[test]
+fn test_ffi_m2_net_send_item_use() {
+    unsafe {
+        let result = m2_net_send_item_use(1, 12);
+        assert!(result, "Funkcja FFI powinna zwrocic true");
+    }
 }
