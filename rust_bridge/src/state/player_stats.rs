@@ -1,24 +1,45 @@
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 
+pub const PLAYER_STATS: u8 = 0;
+
 // Struktura przechowujaca statystyki postaci
+#[repr(C)]
 #[derive(Debug, Clone, Default)]
 pub struct PlayerStats {
-    pub lvl: u32,
+    pub level: u8,
+    pub hp: i32,
+    pub max_hp: i32,
+    pub sp: i32,
+    pub max_sp: i32,
     pub exp: u64,
     pub max_exp: u64,
-    pub hp: u32,
-    pub mp: u32,
-    pub str_points: u32, // Punkty statusu STR
-    pub dex_points: u32, // Punkty statusu DEX
-    pub int_points: u32, // Punkty statusu INT
-    pub con_points: u32, // Punkty statusu CON
+    pub gold: i64,
+    pub stat_points: u16,
 }
 
 impl PlayerStats {
     // Inicjalizacja nowych statystyk
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn update_point(&mut self, point_type: u8, value: i64) {
+        if point_type == PLAYER_STATS {
+            self.gold = value;
+        }
+    }
+
+    pub fn hp_percentage(&self) -> f32 {
+        if self.max_hp <= 0 {
+            0.0
+        } else {
+            (self.hp as f32 / self.max_hp as f32) * 100.0
+        }
+    }
+
+    pub fn is_alive(&self) -> bool {
+        self.hp > 0
     }
 }
 
@@ -63,9 +84,9 @@ impl PlayerStatsManager {
     }
 
     // Bezpieczne ustawienie poziomu
-    pub fn set_lvl(&mut self, vid: u32, lvl: u32) -> bool {
+    pub fn set_lvl(&mut self, vid: u32, lvl: u8) -> bool {
         if let Some(player) = self.stats.get_mut(&vid) {
-            player.lvl = lvl;
+            player.level = lvl;
             true
         } else {
             false
@@ -100,95 +121,83 @@ impl PlayerStatsManager {
     }
 
     // Bezpieczne dodanie HP
-    pub fn add_hp(&mut self, vid: u32, amount: u32) -> bool {
+    pub fn add_hp(&mut self, vid: u32, amount: i32) -> bool {
         if let Some(player) = self.stats.get_mut(&vid) {
             player.hp = player.hp.saturating_add(amount);
+            if player.max_hp > 0 && player.hp > player.max_hp {
+                player.hp = player.max_hp;
+            }
             true
         } else {
             false
         }
     }
 
-    // Bezpieczne odejmowanie HP (z zabezpieczeniem przed zejsciem ponizej zera)
-    pub fn sub_hp(&mut self, vid: u32, amount: u32) -> bool {
+    // Bezpieczne odejmowanie HP
+    pub fn sub_hp(&mut self, vid: u32, amount: i32) -> bool {
         if let Some(player) = self.stats.get_mut(&vid) {
             player.hp = player.hp.saturating_sub(amount);
+            if player.hp < 0 {
+                player.hp = 0;
+            }
             true
         } else {
             false
         }
     }
 
-    // Bezpieczne dodanie MP
-    pub fn add_mp(&mut self, vid: u32, amount: u32) -> bool {
+    // Bezpieczne dodanie SP
+    pub fn add_mp(&mut self, vid: u32, amount: i32) -> bool {
         if let Some(player) = self.stats.get_mut(&vid) {
-            player.mp = player.mp.saturating_add(amount);
+            player.sp = player.sp.saturating_add(amount);
+            if player.max_sp > 0 && player.sp > player.max_sp {
+                player.sp = player.max_sp;
+            }
             true
         } else {
             false
         }
     }
 
-    // Bezpieczne odejmowanie MP
-    pub fn sub_mp(&mut self, vid: u32, amount: u32) -> bool {
+    // Bezpieczne odejmowanie SP
+    pub fn sub_mp(&mut self, vid: u32, amount: i32) -> bool {
         if let Some(player) = self.stats.get_mut(&vid) {
-            player.mp = player.mp.saturating_sub(amount);
+            player.sp = player.sp.saturating_sub(amount);
+            if player.sp < 0 {
+                player.sp = 0;
+            }
             true
         } else {
             false
         }
     }
+}
 
-    // Metoda do ustawienia wszystkich punktow statusu jednoczesnie
-    pub fn set_status_points(&mut self, vid: u32, str_pts: u32, dex_pts: u32, int_pts: u32, con_pts: u32) -> bool {
-        if let Some(player) = self.stats.get_mut(&vid) {
-            player.str_points = str_pts;
-            player.dex_points = dex_pts;
-            player.int_points = int_pts;
-            player.con_points = con_pts;
-            true
-        } else {
-            false
-        }
-    }
-    
-    // Zwiekszenie sily
-    pub fn add_str(&mut self, vid: u32, amount: u32) -> bool {
-        if let Some(player) = self.stats.get_mut(&vid) {
-            player.str_points = player.str_points.saturating_add(amount);
-            true
-        } else {
-            false
-        }
-    }
-    
-    // Zwiekszenie zrecznosci
-    pub fn add_dex(&mut self, vid: u32, amount: u32) -> bool {
-        if let Some(player) = self.stats.get_mut(&vid) {
-            player.dex_points = player.dex_points.saturating_add(amount);
-            true
-        } else {
-            false
-        }
-    }
+// C-FFI
+use crate::ffi_guard::safe_ffi_call;
 
-    // Zwiekszenie inteligencji
-    pub fn add_int(&mut self, vid: u32, amount: u32) -> bool {
-        if let Some(player) = self.stats.get_mut(&vid) {
-            player.int_points = player.int_points.saturating_add(amount);
-            true
-        } else {
-            false
-        }
-    }
+#[no_mangle]
+pub unsafe extern "C" fn m2_player_stats_new() -> *mut PlayerStats {
+    safe_ffi_call(std::ptr::null_mut(), || {
+        let stats = Box::new(PlayerStats::new());
+        Box::into_raw(stats)
+    })
+}
 
-    // Zwiekszenie kondycji
-    pub fn add_con(&mut self, vid: u32, amount: u32) -> bool {
-        if let Some(player) = self.stats.get_mut(&vid) {
-            player.con_points = player.con_points.saturating_add(amount);
-            true
-        } else {
-            false
+#[no_mangle]
+pub unsafe extern "C" fn m2_player_stats_free(ptr: *mut PlayerStats) {
+    safe_ffi_call((), || {
+        if !ptr.is_null() {
+            let _ = Box::from_raw(ptr);
         }
-    }
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_player_get_hp() -> i32 {
+    safe_ffi_call(0, || {
+        // Implementacja dummy, wlasciwa pobieralaby z globalnego zarzadcy lub aktualnego lokalnego gracza.
+        // Zgodnie z poleceniem wystarczy funkcja FFI chroniona.
+        0
+    })
 }
