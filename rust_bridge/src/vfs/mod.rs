@@ -1,2 +1,3 @@
 pub mod eix_header;
 pub mod eix_entry;
+pub mod crc_verifier;
