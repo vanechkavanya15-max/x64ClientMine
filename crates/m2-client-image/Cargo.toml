@@ -2,7 +2,6 @@
 name = "m2-client-image"
 version = "0.1.0"
 edition = "2021"
-description = "Modul dekodera tekstur 64-bit zastepujacy DevIL.lib"
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
