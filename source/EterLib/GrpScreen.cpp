@@ -53,7 +53,7 @@ void CScreen::RenderBox3d(float sx, float sy, float sz, float ex, float ey, floa
 		{ ex, ey, ez, ms_diffuseColor, 0.0f, 0.0f },	// 3
 
 		{ sx, ey, ez, ms_diffuseColor, 0.0f, 0.0f },	// 2
-		{ ex+1.0f, ey, ez, ms_diffuseColor, 0.0f, 0.0f }	// 3, (x°¡ 1Áõ°¡µÈ 3)
+		{ ex+1.0f, ey, ez, ms_diffuseColor, 0.0f, 0.0f }	// 3, (xê°€ 1ì¦ê°€ëœ 3)
 	};
 
 	// 2004.11.18.myevan.DrawIndexPrimitiveUP -> DynamicVertexBuffer
@@ -510,11 +510,11 @@ void CScreen::SetCursorPosition(int x, int y, int hres, int vres)
     ms_vtPickRayOrig.y = matViewInverse._42;
     ms_vtPickRayOrig.z = matViewInverse._43;
 	
-//	// 2003. 9. 9 µ¿Çö Ãß°¡
-//	// ÁöÇü pickingÀ» À§ÇÑ »¹Áş... ¤Ñ¤Ñ; À§¿¡ °Í°ú ÅëÇÕ ÇÊ¿ä...
+//	// 2003. 9. 9 ë™í˜„ ì¶”ê°€
+//	// ì§€í˜• pickingì„ ìœ„í•œ ë»˜ì§“... ã…¡ã…¡; ìœ„ì— ê²ƒê³¼ í†µí•© í•„ìš”...
 	ms_Ray.SetStartPoint(ms_vtPickRayOrig);
 	ms_Ray.SetDirection(-ms_vtPickRayDir, 51200.0f);
-//	// 2003. 9. 9 µ¿Çö Ãß°¡
+//	// 2003. 9. 9 ë™í˜„ ì¶”ê°€
 }
 
 bool CScreen::GetCursorPosition(float* px, float* py, float* pz)
@@ -707,31 +707,13 @@ void CScreen::End()
 	STATEMANAGER.EndScene();
 }
 
-extern bool g_isBrowserMode;
-extern RECT g_rcBrowser;
-
 void CScreen::Show(HWND hWnd)
 {
 	assert(ms_lpd3dDevice != NULL);
 
-	if (g_isBrowserMode)
-	{
-		RECT rcTop={ static_cast<long>(0), static_cast<long>(0), static_cast<long>(ms_d3dPresentParameter.BackBufferWidth), static_cast<long>(g_rcBrowser.top)};
-		RECT rcBottom={0, g_rcBrowser.bottom, static_cast<long>(ms_d3dPresentParameter.BackBufferWidth), static_cast<long>(ms_d3dPresentParameter.BackBufferHeight)};
-		RECT rcLeft={0, g_rcBrowser.top, g_rcBrowser.left, g_rcBrowser.bottom};	
-		RECT rcRight={g_rcBrowser.right, g_rcBrowser.top, static_cast<long>(ms_d3dPresentParameter.BackBufferWidth), g_rcBrowser.bottom};		
-		
-		ms_lpd3dDevice->Present(&rcTop, &rcTop, hWnd, NULL);
-		ms_lpd3dDevice->Present(&rcBottom, &rcBottom, hWnd, NULL);
-		ms_lpd3dDevice->Present(&rcLeft, &rcLeft, hWnd, NULL);	
-		ms_lpd3dDevice->Present(&rcRight, &rcRight, hWnd, NULL);
-	}
-	else
-	{
-		HRESULT hr=ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
-		if (D3DERR_DEVICELOST == hr)
-			RestoreDevice();
-	}	
+	HRESULT hr=ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
+	if (D3DERR_DEVICELOST == hr)
+		RestoreDevice();
 }
 
 void CScreen::Show(RECT * pSrcRect)

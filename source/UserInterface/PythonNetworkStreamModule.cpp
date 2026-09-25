@@ -420,34 +420,19 @@ PyObject* netSendLoginPacket(PyObject* poSelf, PyObject* poArgs)
 
 PyObject* netSendChinaMatrixCardPacket(PyObject* poSelf, PyObject* poArgs)
 {
-	char* szMatrixCardString;
-	if (!PyTuple_GetString(poArgs, 0, &szMatrixCardString))
-		return Py_BuildException();
-
-	CAccountConnector & rkAccountConnector = CAccountConnector::Instance();
-	rkAccountConnector.SendChinaMatrixCardPacket(szMatrixCardString);
+	// Dead: ChinaMatrix auth - stub only
 	return Py_BuildNone();
 }
 
 PyObject* netSendRunupMatrixCardPacket(PyObject* poSelf, PyObject* poArgs)
 {
-	char* szMatrixCardString;
-	if (!PyTuple_GetString(poArgs, 0, &szMatrixCardString))
-		return Py_BuildException();
-
-	CAccountConnector & rkAccountConnector = CAccountConnector::Instance();
-	rkAccountConnector.SendRunupMatrixCardPacket(szMatrixCardString);
+	// Dead: RunupMatrix auth - stub only
 	return Py_BuildNone();
 }
 
 PyObject* netSendNEWCIBNPasspodAnswerPacket(PyObject* poSelf, PyObject* poArgs)
 {
-	char* szMatrixCardString;
-	if (!PyTuple_GetString(poArgs, 0, &szMatrixCardString))
-		return Py_BuildException();
-
-	CAccountConnector & rkAccountConnector = CAccountConnector::Instance();
-	rkAccountConnector.SendNEWCIBNPasspodAnswerPacket(szMatrixCardString);
+	// Dead: NEWCIBN Passpod auth - stub only
 	return Py_BuildNone();
 }
 
@@ -538,16 +523,7 @@ PyObject* netSendWhisperPacket(PyObject* poSelf, PyObject* poArgs)
 
 PyObject* netSendMobileMessagePacket(PyObject* poSelf, PyObject* poArgs)
 {
-	char* szName;
-	char* szLine;
-	if (!PyTuple_GetString(poArgs, 0, &szName))
-		return Py_BuildException();
-
-	if (!PyTuple_GetString(poArgs, 1, &szLine))
-		return Py_BuildException();
-
-	CPythonNetworkStream& rkNetStream=CPythonNetworkStream::Instance();
-	rkNetStream.SendMobileMessagePacket(szName, szLine);
+	// SMS (Korean mobile carrier) - dead on private server, stub only
 	return Py_BuildNone();
 }
 
@@ -1566,7 +1542,7 @@ PyObject* netSendRequestRefineInfoPacket(PyObject* poSelf, PyObject* poArgs)
 
 //	CPythonNetworkStream& rns=CPythonNetworkStream::Instance();
 //	rns.SendRequestRefineInfoPacket(iSlotIndex);
-	assert(!"netSendRequestRefineInfoPacket - ¥ı¿ÃªÛ ªÁøÎ«œ¡ˆ æ ¥¬ «‘ºˆ ¿‘¥œ¥Ÿ");
+	assert(!"netSendRequestRefineInfoPacket - ÎçîÏù¥ÏÉÅ ÏÇ¨Ïö©ÌïòÏßÄ ÏïäÎäî Ìï®Ïàò ÏûÖÎãàÎã§");
 
 	return Py_BuildNone();
 }

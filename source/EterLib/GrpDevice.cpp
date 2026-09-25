@@ -9,10 +9,6 @@ bool GRAPHICS_CAPS_HALF_SIZE_IMAGE = false;
 bool GRAPHICS_CAPS_CAN_NOT_TEXTURE_ADDRESS_BORDER = false;
 bool GRAPHICS_CAPS_SOFTWARE_TILING = false;
 
-D3DPRESENT_PARAMETERS g_kD3DPP;
-bool g_isBrowserMode=false;
-RECT g_rcBrowser;
-
 CGraphicDevice::CGraphicDevice()
 : m_uBackBufferCount(0)
 {
@@ -55,58 +51,6 @@ void CGraphicDevice::__WarningMessage(HWND hWnd, UINT uiMsg)
 	MessageBox(hWnd, m_kMap_strWarningMessage[uiMsg].c_str(), "Warning", MB_OK|MB_TOPMOST);
 }
 
-void CGraphicDevice::MoveWebBrowserRect(const RECT& c_rcWebPage)
-{
-	g_rcBrowser=c_rcWebPage;
-}
-
-void CGraphicDevice::EnableWebBrowserMode(const RECT& c_rcWebPage)
-{
-	if (!ms_lpd3dDevice)
-		return;
-
-	D3DPRESENT_PARAMETERS& rkD3DPP=ms_d3dPresentParameter;
-	
-	g_isBrowserMode=true;
-
-	if (D3DSWAPEFFECT_COPY==rkD3DPP.SwapEffect)
-		return;
-
-	g_kD3DPP=rkD3DPP;
-	g_rcBrowser=c_rcWebPage;
-	
-	//rkD3DPP.Windowed=TRUE;
-	rkD3DPP.SwapEffect=D3DSWAPEFFECT_COPY;
-	rkD3DPP.BackBufferCount = 1;
-	rkD3DPP.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-	
-	IDirect3DDevice8& rkD3DDev=*ms_lpd3dDevice;
-	HRESULT hr=rkD3DDev.Reset(&rkD3DPP);
-	if (FAILED(hr))
-		return;
-	
-	STATEMANAGER.SetDefaultState();	
-}
-
-void CGraphicDevice::DisableWebBrowserMode()
-{
-	if (!ms_lpd3dDevice)
-		return;
-
-	D3DPRESENT_PARAMETERS& rkD3DPP=ms_d3dPresentParameter;
-	
-	g_isBrowserMode=false;
-
-	rkD3DPP=g_kD3DPP;
-
-	IDirect3DDevice8& rkD3DDev=*ms_lpd3dDevice;
-	HRESULT hr=rkD3DDev.Reset(&rkD3DPP);
-	if (FAILED(hr))
-		return;
-	
-	STATEMANAGER.SetDefaultState();	
-}
-		
 bool CGraphicDevice::ResizeBackBuffer(UINT uWidth, UINT uHeight)
 {
 	if (!ms_lpd3dDevice)
@@ -261,7 +205,7 @@ static DWORD   s_MaxTextureWidth, s_MaxTextureHeight;
 
 BOOL EL3D_ConfirmDevice(D3DCAPS8& rkD3DCaps, UINT uBehavior, D3DFORMAT /*eD3DFmt*/)
 {
-	// PUREDEVICE´Â GetTransform / GetViewport µîÀÌ µÇÁö ¾Ê´Â´Ù.
+	// PUREDEVICEëŠ” GetTransform / GetViewport ë“±ì´ ë˜ì§€ ì•ŠëŠ”ë‹¤.
 	if (uBehavior & D3DCREATE_PUREDEVICE) 
         return FALSE;
 	
@@ -447,7 +391,7 @@ RETRY:
 				ms_iD3DAdapterInfo,
 				D3DDEVTYPE_HAL,
 				hWnd,
-				// 2004. 1. 9 myevan ¹öÅØ½º ÇÁ·Î¼¼½Ì ¹æ½Ä ÀÚµ¿ ¼±ÅÃ Ãß°¡
+				// 2004. 1. 9 myevan ë²„í…ìŠ¤ í”„ë¡œì„¸ì‹± ë°©ì‹ ìë™ ì„ íƒ ì¶”ê°€
 				pkD3DModeInfo->m_dwD3DBehavior,
 				&ms_d3dPresentParameter,
 				&ms_lpd3dDevice)))
@@ -471,7 +415,7 @@ RETRY:
 		if (ErrorCorrection)
 			return CREATE_DEVICE;
 	
-		// 2004. 1. 9 myevan Å«ÀÇ¹Ì ¾ø´Â ÄÚµåÀÎµí.. ¿¡·¯³ª¸é Ç¥½ÃÇÏ°í Á¾·áÇÏÀÚ
+		// 2004. 1. 9 myevan í°ì˜ë¯¸ ì—†ëŠ” ì½”ë“œì¸ë“¯.. ì—ëŸ¬ë‚˜ë©´ í‘œì‹œí•˜ê³  ì¢…ë£Œí•˜ì
 		iReflashRate = 0;
 		++ErrorCorrection;
 		iRet = CREATE_REFRESHRATE;

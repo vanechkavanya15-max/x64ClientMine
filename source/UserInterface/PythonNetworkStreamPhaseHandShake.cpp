@@ -215,7 +215,7 @@ bool CPythonNetworkStream::RecvKeyAgreementPacket()
 	size_t agreedLength = Prepare(packetToSend.data, &dataLength);
 	if (agreedLength == 0)
 	{
-		// √ ±‚»≠ Ω«∆–
+		// Ï¥àÍ∏∞Ìôî Ïã§Ìå®
 		Disconnect();
 		return false;
 	}
@@ -223,7 +223,7 @@ bool CPythonNetworkStream::RecvKeyAgreementPacket()
 
 	if (Activate(packet.wAgreedLength, packet.data, packet.wDataLength))
 	{
-		// Key agreement º∫∞¯, ¿¿¥‰ ¿¸º€
+		// Key agreement ÏÑ±Í≥µ, ÏùëÎãµ Ï†ÑÏÜ°
 		packetToSend.bHeader = HEADER_CG_KEY_AGREEMENT;
 		packetToSend.wAgreedLength = (WORD)agreedLength;
 		packetToSend.wDataLength = (WORD)dataLength;
@@ -237,7 +237,7 @@ bool CPythonNetworkStream::RecvKeyAgreementPacket()
 	}
 	else
 	{
-		// ≈∞ «˘ªÛ Ω«∆–
+		// ÌÇ§ ÌòëÏÉÅ Ïã§Ìå®
 		Disconnect();
 		return false;
 	}
@@ -260,53 +260,4 @@ bool CPythonNetworkStream::RecvKeyAgreementCompletedPacket()
 }
 #endif // _IMPROVED_PACKET_ENCRYPTION_
 
-bool CPythonNetworkStream::RecvHSCheckRequest()
-{
-	TPacketHSCheck packet;
 
-	if (!Recv(sizeof(packet), &packet))
-	{
-		TraceError("HShield: Recv failed");
-
-		return false;
-	}
-
-#if defined(USE_AHNLAB_HACKSHIELD) || defined(LOCALE_SERVICE_GLOBAL)
-	TPacketHSCheck pack_ret;
-	memset(&pack_ret, 0, sizeof(pack_ret));
-	pack_ret.bHeader = HEADER_CG_HS_ACK;
-
-#if defined(USE_AHNLAB_HACKSHIELD)
-	unsigned long ret = _AhnHS_MakeResponse( packet.Req.byBuffer, packet.Req.nLength, &pack_ret.Req );
-
-	if (ERROR_SUCCESS != ret)
-	{
-		TraceError("HShield: _AhnHS_MakeResponse return error(%u)", ret);
-
-		return false;
-	}
-#endif
-
-	if (!Send(sizeof(pack_ret), &pack_ret))
-	{
-		TraceError("HShield: Send failed");
-
-		return false;
-	}
-
-	return true;
-#else
-	return false;
-#endif
-}
-
-bool CPythonNetworkStream::RecvXTrapVerifyRequest()
-{
-	TPacketXTrapCSVerify packet;
-	if (!Recv(sizeof(packet), &packet))
-	{
-		TraceError("XTrap: Recv failed");
-		return false;
-	}
-	return true;
-}
