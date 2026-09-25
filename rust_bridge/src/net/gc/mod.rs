@@ -4,3 +4,4 @@ pub mod chat;
 pub mod char_del;
 pub mod char_move;
 pub mod damage;
+pub mod char_status;
