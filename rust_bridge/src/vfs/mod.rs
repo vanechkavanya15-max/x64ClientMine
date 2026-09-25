@@ -9,3 +9,4 @@ pub mod hybrid_crypt;
 pub mod archive_index;
 pub mod path_resolver;
 pub mod pack_manager;
+pub mod mapped_buffer;
