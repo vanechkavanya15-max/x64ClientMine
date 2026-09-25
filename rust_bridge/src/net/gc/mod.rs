@@ -6,3 +6,4 @@ pub mod char_move;
 pub mod damage;
 pub mod char_status;
 pub mod warp;
+pub mod item_set;
