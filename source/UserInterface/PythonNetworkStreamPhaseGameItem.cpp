@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "PythonNetworkStream.h"
+#include "../EterBase/m2_client_bridge.h"
 #include "PythonItem.h"
 #include "PythonShop.h"
 #include "PythonExchange.h"
@@ -485,6 +486,8 @@ bool CPythonNetworkStream::SendShopSellPacketNew(BYTE bySlot, BYTE byCount)
 // Send
 bool CPythonNetworkStream::SendItemUsePacket(TItemPos pos)
 {
+	// Przekazanie do Rust Bridge (A3)
+	m2_net_send_use_item((uint8_t)pos.window_type, (uint16_t)pos.cell);
 	if (!__CanActMainInstance())
 		return true;
 
@@ -688,6 +691,8 @@ bool CPythonNetworkStream::SendItemMovePacket(TItemPos pos, TItemPos change_pos,
 
 bool CPythonNetworkStream::SendItemPickUpPacket(DWORD vid)
 {
+	// Przekazanie do Rust Bridge (A3)
+	m2_net_send_pickup((uint32_t)vid);
 	if (!__CanActMainInstance())
 		return true;
 

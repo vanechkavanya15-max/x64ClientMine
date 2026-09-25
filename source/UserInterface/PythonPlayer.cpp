@@ -1,4 +1,5 @@
 #include "StdAfx.h"
+#include "../EterBase/m2_client_bridge.h"
 #include "PythonPlayerEventHandler.h"
 #include "PythonApplication.h"
 #include "PythonItem.h"
@@ -467,6 +468,10 @@ void CPythonPlayer::SetStatus(DWORD dwType, long lValue)
 
 int CPythonPlayer::GetStatus(DWORD dwType)
 {
+	// Przekazanie do Rust Bridge (A4)
+	int64_t rustStatus = m2_player_get_status((uint32_t)dwType);
+	if (rustStatus != 0)
+		return (int)rustStatus;
 	if (dwType >= POINT_MAX_NUM)
 	{
 		assert(!" CPythonPlayer::GetStatus - Strange Status Type!");
@@ -607,6 +612,10 @@ DWORD CPythonPlayer::GetItemFlags(TItemPos Cell)
 
 DWORD CPythonPlayer::GetItemCount(TItemPos Cell)
 {
+	// Przekazanie do Rust Bridge (A4)
+	uint32_t rustCount = m2_player_get_item_count((uint8_t)Cell.window_type, (uint16_t)Cell.cell);
+	if (rustCount > 0)
+		return rustCount;
 	if (!Cell.IsValidCell())
 		return 0;
 	const TItemData * pItem = GetItemData(Cell);

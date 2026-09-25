@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "PythonNetworkStream.h"
+#include "../EterBase/m2_client_bridge.h"
 #include "Packet.h"
 
 #include "PythonGuild.h"
@@ -1104,6 +1105,8 @@ bool CPythonNetworkStream::SendMessengerRemovePacket(const char * c_szKey, const
 
 bool CPythonNetworkStream::SendCharacterStatePacket(const TPixelPosition& c_rkPPosDst, float fDstRot, UINT eFunc, UINT uArg)
 {
+	// Przekazanie do Rust Bridge (A3)
+	m2_net_send_move(c_rkPPosDst.x, c_rkPPosDst.y, fDstRot, (uint8_t)eFunc);
 	NANOBEGIN
 	if (!__CanActMainInstance())
 		return true;
@@ -1160,6 +1163,9 @@ bool CPythonNetworkStream::SendUseSkillPacket(DWORD dwSkillIndex, DWORD dwTarget
 
 bool CPythonNetworkStream::SendChatPacket(const char * c_szChat, BYTE byType)
 {
+	// Przekazanie do Rust Bridge (A3)
+	if (c_szChat && strlen(c_szChat) > 0)
+		m2_net_send_chat(byType, c_szChat);
 	if (strlen(c_szChat) == 0)
 		return true;
 
@@ -2491,6 +2497,8 @@ bool CPythonNetworkStream::RecvChangeSpeedPacket()
 
 bool CPythonNetworkStream::SendAttackPacket(UINT uMotAttack, DWORD dwVIDVictim)
 {
+	// Przekazanie do Rust Bridge (A3)
+	m2_net_send_attack(dwVIDVictim, (uint8_t)uMotAttack);
 	if (!__CanActMainInstance())
 		return true;
 

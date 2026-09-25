@@ -22,6 +22,7 @@
 #include "../EffectLib/StdAfx.h"
 #include "../PRTerrainLib/StdAfx.h"
 #include "../SpeedTreeLib/StdAfx.h"
+#include "../EterBase/m2_client_bridge.h"
 
 #ifndef __D3DRM_H__
 #define __D3DRM_H__

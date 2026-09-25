@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "PythonApplication.h"
+#include "../EterBase/m2_client_bridge.h"
 #include "PythonExceptionSender.h"
 #include "resource.h"
 #include "Version.h"
@@ -483,6 +484,8 @@ bool __IsLocaleVersion(LPSTR lpCmdLine)
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	// Inicjalizacja kontekstu Rust Bridge (A5)
+	void* g_pRustEngineContext = m2_engine_init();
 
 #ifdef _DEBUG
 	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_CRT_DF | _CRTDBG_LEAK_CHECK_DF );

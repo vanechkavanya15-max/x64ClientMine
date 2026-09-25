@@ -8,6 +8,7 @@
 
 #include "../eterBase/Debug.h"
 #include "../eterBase/CRC32.h"
+#include "../EterBase/m2_client_bridge.h"
 
 #define PATH_ABSOLUTE_YMIRWORK1	"d:/ymir work/"
 #define PATH_ABSOLUTE_YMIRWORK2	"d:\\ymir work\\"
@@ -157,6 +158,15 @@ struct TimeChecker
 
 bool CEterPackManager::Get(CMappedFile & rMappedFile, const char * c_szFileName, LPCVOID * pData)
 {
+	// Proba zaladowania przez Rust Bridge VFS (A2)
+	size_t rustSize = 0;
+	uint8_t* pRustBuf = m2_vfs_load_file(c_szFileName, &rustSize);
+	if (pRustBuf && rustSize > 0)
+	{
+		rMappedFile.Link((DWORD)rustSize, pRustBuf);
+		*pData = rMappedFile.Get();
+		return true;
+	}
 	//TimeChecker timeChecker(c_szFileName);
 	//Logf(1, "Load %s\n", c_szFileName);
 
@@ -300,6 +310,9 @@ bool CEterPackManager::isExistInPack(const char * c_szFileName)
 
 bool CEterPackManager::isExist(const char * c_szFileName)
 {
+	// Proba sprawdzenia istnienia w Rust Bridge VFS (A2)
+	if (m2_vfs_exists(c_szFileName))
+		return true;
 	if (m_iSearchMode == SEARCH_PACK_FIRST)
 	{
 		if (isExistInPack(c_szFileName))
@@ -358,6 +371,8 @@ bool CEterPackManager::RegisterPackWhenPackMaking(const char * c_szName, const c
 
 bool CEterPackManager::RegisterPack(const char * c_szName, const char * c_szDirectory, const BYTE* c_pbIV)
 {
+	// Rejestracja w Rust Bridge VFS (A2)
+	m2_vfs_pack_manager_register_pack(c_szName, c_szDirectory);
 	CEterPack * pEterPack = NULL;
 	{
 		TEterPackMap::iterator itor = m_PackMap.find(c_szName);
