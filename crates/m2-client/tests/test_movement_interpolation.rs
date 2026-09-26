@@ -113,3 +113,17 @@ fn test_receive_network_packet_initial_state() {
     assert_eq!(interpolator.target_network_pos, (10.0, 20.0));
     assert_eq!(interpolator.target_network_time_ms, 100);
 }
+
+#[test]
+fn test_interpolation_3d_and_network_gap() {
+    let mut interpolator = MovementInterpolator::new();
+    interpolator.receive_network_packet_3d((100.0, 200.0, 50.0), 1000, 0);
+
+    let pos_3d_half = interpolator.get_interpolated_position_3d(500);
+    assert_eq!(pos_3d_half, (50.0, 100.0, 25.0));
+
+    // Test C++ network gap moving average: (100 * 70 + 200 * 30) / 100 = (7000 + 6000) / 100 = 130
+    interpolator.update_network_gap(200);
+    assert_eq!(interpolator.average_network_gap_ms, 130);
+}
+

@@ -2,12 +2,15 @@
 
 use std::collections::HashMap;
 
-pub const HEADER_GC_SAFEBOX_MONEY_CHANGE: u16 = 84;
-pub const HEADER_GC_SAFEBOX_SET: u16 = 85;
-pub const HEADER_GC_SAFEBOX_DEL: u16 = 86;
-pub const HEADER_GC_SAFEBOX_WRONG_PASSWORD: u16 = 87;
-pub const HEADER_GC_SAFEBOX_SIZE: u16 = 88;
-pub const HEADER_GC_MALL_OPEN: u16 = 122; // Let's not hardcode mall open since it's an assumption if I don't know it, but let's check it. Actually the instruction didn't give me the opcode for HEADER_GC_MALL_OPEN, but I only need to parse its structure, not route it if not needed. Wait, let me just assume the opcode isn't strictly needed for parsing the struct itself.
+// Naglowki pakietow z Packet.h (zakres 0x0800-0x08FF - Shop/Safebox/Mall)
+pub const HEADER_GC_SAFEBOX_SET: u16 = 0x0830;
+pub const HEADER_GC_SAFEBOX_DEL: u16 = 0x0831;
+pub const HEADER_GC_SAFEBOX_WRONG_PASSWORD: u16 = 0x0832;
+pub const HEADER_GC_SAFEBOX_SIZE: u16 = 0x0833;
+pub const HEADER_GC_SAFEBOX_MONEY_CHANGE: u16 = 0x0834;
+pub const HEADER_GC_MALL_OPEN: u16 = 0x0841;
+pub const HEADER_GC_MALL_SET: u16 = 0x0842;
+pub const HEADER_GC_MALL_DEL: u16 = 0x0843;
 
 pub const ITEM_SOCKET_SLOT_MAX_NUM: usize = 3;
 pub const ITEM_ATTRIBUTE_SLOT_MAX_NUM: usize = 7;
@@ -237,6 +240,28 @@ impl SafeboxManager {
         let packet = TPacketGCMallOpen::from_bytes(data)?;
         let bSize = { packet.bSize };
         self.mall_size = bSize;
+        Ok(true)
+    }
+
+    pub fn recv_mall_set_packet(&mut self, data: &[u8]) -> Result<bool, PacketError> {
+        let packet = TPacketGCItemSet::from_bytes(data)?;
+        let item_data = TItemData {
+            vnum: packet.vnum,
+            count: packet.count,
+            flags: packet.flags,
+            anti_flags: packet.anti_flags,
+            alSockets: packet.alSockets,
+            aAttr: packet.aAttr,
+        };
+        let cell = packet.pos.cell;
+        self.mall_items.insert(cell, item_data);
+        Ok(true)
+    }
+
+    pub fn recv_mall_del_packet(&mut self, data: &[u8]) -> Result<bool, PacketError> {
+        let packet = TPacketGCItemDel::from_bytes(data)?;
+        let cell = packet.pos.cell;
+        self.mall_items.remove(&cell);
         Ok(true)
     }
 }

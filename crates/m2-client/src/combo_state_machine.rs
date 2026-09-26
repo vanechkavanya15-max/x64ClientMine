@@ -87,6 +87,12 @@ impl ComboStateMachine {
             return false;
         }
 
+        // Postac piesza po osiagnieciu max combo nie moze wyprowadzic kolejnego ataku
+        // dopoki combo nie wygasnie lub animacja nie powroci do stanu oczekiwania
+        if !self.is_mounting_horse && self.cur_combo_index >= self.max_combo_count {
+            return false;
+        }
+
         if self.cur_combo_index == 0 {
             self.run_next_combo();
             return true;
@@ -117,22 +123,27 @@ impl ComboStateMachine {
     }
 
     fn run_next_combo(&mut self) {
-        self.cur_combo_index += 1;
+        if self.is_mounting_horse && self.cur_combo_index >= self.max_combo_count {
+            self.cur_combo_index = 1;
+        } else {
+            self.cur_combo_index += 1;
+        }
+        
         self.elapsed_time = 0.0;
         self.state = ComboState::Attacking;
         self.is_pre_input = false;
 
-        if self.cur_combo_index > self.max_combo_count {
+        if self.cur_combo_index >= self.max_combo_count {
             self.on_end_combo();
         }
     }
 
     pub fn on_end_combo(&mut self) {
         if self.is_mounting_horse {
-            self.cur_combo_index = 1;
+            // Na koniu combo po osiagnieciu limitu zapetla sie do 1
+            // (w C++: if (__IsMountingHorse()) m_dwcurComboIndex = 1;)
         } else {
-            // Keep the index at max_combo_count, it will be cleared when motion transitions to Wait
-            // (or if it times out).
+            // Na pieszo index zostaje na max_combo_count az do zakonczenia animacji
         }
     }
 

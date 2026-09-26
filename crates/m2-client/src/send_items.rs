@@ -11,12 +11,15 @@ pub enum ItemPacketError {
     InvalidEntityId,
 }
 
+/// Sprawdza czy typ okna jest prawidlowym oknem przechowujacym przedmioty (GameType.h EWindows)
+pub fn is_valid_item_window(window: u8) -> bool {
+    // 1: INVENTORY, 2: EQUIPMENT, 3: SAFEBOX, 4: MALL, 5: DRAGON_SOUL, 7: BELT
+    matches!(window, 1 | 2 | 3 | 4 | 5 | 7)
+}
+
 /// Formatowanie i walidacja pakietu uzycia przedmiotu.
 pub fn format_item_use_packet(pos: TItemPos) -> Result<Vec<u8>, ItemPacketError> {
-    // Sprawdzenie poprawnosci struktury (window_type). 
-    // W zaleznosci od implementacji, zwykle: INVENTORY = 1, EQUIPMENT = 2, SAFEBOX = 3, MALL = 4.
-    // Ograniczamy do prawidlowych podstawowych typow okien dla uzycia przedmiotu (1 lub 2).
-    if pos.window_type == 0 || pos.window_type > 4 {
+    if !is_valid_item_window(pos.window_type) {
         return Err(ItemPacketError::InvalidWindowType);
     }
 
@@ -30,11 +33,10 @@ pub fn format_item_move_packet(
     change_pos: TItemPos,
     count: u8,
 ) -> Result<Vec<u8>, ItemPacketError> {
-    // Sprawdzenie poprawnosci struktury
-    if pos.window_type == 0 || pos.window_type > 4 {
+    if !is_valid_item_window(pos.window_type) {
         return Err(ItemPacketError::InvalidWindowType);
     }
-    if change_pos.window_type == 0 || change_pos.window_type > 4 {
+    if !is_valid_item_window(change_pos.window_type) {
         return Err(ItemPacketError::InvalidTargetWindowType);
     }
     if count == 0 {

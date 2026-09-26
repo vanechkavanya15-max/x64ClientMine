@@ -34,20 +34,23 @@ fn test_can_put_item_1x3_and_collision() {
 fn test_page_boundaries() {
     let grid = InventoryGrid::new();
     
-    // Strona 0, ostatni wiersz (index wiersza 17). 
-    // Przedmiot 1x1 na poczatku ostatniego wiersza (slot 85, bo 17 * 5 = 85).
-    assert!(grid.can_put_item(85, ItemSize::Size1x1 as u8));
+    // Strona 0, ostatni wiersz (index wiersza 8, slot 40, bo 8 * 5 = 40).
+    // Przedmiot 1x1 na poczatku ostatniego wiersza miesci sie na stronie 0.
+    assert!(grid.can_put_item(40, ItemSize::Size1x1 as u8));
     
-    // Proba wstawienia przedmiotu 1x2 w ostatnim wierszu (slot 85)
-    // Powinno sie nie udac, poniewaz wychodzi poza pierwsza strone.
-    assert!(!grid.can_put_item(85, ItemSize::Size1x2 as u8));
+    // Proba wstawienia przedmiotu 1x2 w ostatnim wierszu (slot 40).
+    // Powinno sie NIE udac, poniewaz wychodzi poza strone 0 (8 + 2 = 10 > 9).
+    assert!(!grid.can_put_item(40, ItemSize::Size1x2 as u8));
     
-    // Proba wstawienia przedmiotu 1x3 na slot przedostatni wiersz (wiersz 16, slot 80)
-    // Zajmuje 80, 85, 90. 90 to nowa strona, wiec blad.
-    assert!(!grid.can_put_item(80, ItemSize::Size1x3 as u8));
+    // Proba wstawienia przedmiotu 1x3 na przedostatni wiersz strony 0 (wiersz 7, slot 35).
+    // 7 + 3 = 10 > 9, czyli zajeloby 35, 40 i 45 (slot 0 na stronie 1) - zabronione!
+    assert!(!grid.can_put_item(35, ItemSize::Size1x3 as u8));
     
-    // Ale 1x2 na slocie 80 (wiersz 16) wejdzie (zajmie 80 i 85).
-    assert!(grid.can_put_item(80, ItemSize::Size1x2 as u8));
+    // Ale 1x2 na slocie 35 (wiersz 7) wejdzie legalnie (zajmie 35 i 40 w obrebie strony 0).
+    assert!(grid.can_put_item(35, ItemSize::Size1x2 as u8));
+
+    // Test dla poczatku strony 1 (slot 45)
+    assert!(grid.can_put_item(45, ItemSize::Size1x3 as u8)); // zajmie 45, 50, 55 na stronie 1
 }
 
 #[test]

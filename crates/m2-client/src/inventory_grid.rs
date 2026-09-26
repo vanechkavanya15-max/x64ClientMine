@@ -18,9 +18,10 @@ impl Default for InventoryGrid {
 
 impl InventoryGrid {
     pub const TOTAL_SLOTS: u16 = 180;
-    pub const PAGE_SLOTS: u16 = 90;
+    pub const PAGE_SLOTS: u16 = 45; // 5 kolumn * 9 wierszy = 45 slotow na strone (4 strony = 180)
     pub const COLUMNS: u16 = 5;
-    pub const ROWS_PER_PAGE: u16 = 18; // 9 wierszy * 2 pietra = 18 wierszy na strone
+    pub const ROWS_PER_PAGE: u16 = 9; // W oknie ekwipunku strona ma dokladnie 9 wierszy
+    pub const PAGE_COUNT: u16 = 4;
 
     pub fn new() -> Self {
         Self {
@@ -40,14 +41,14 @@ impl InventoryGrid {
 
         let size_u16 = size as u16;
 
-        // Okreslamy strone (0 lub 1)
+        // Okreslamy strone (0..3)
         let _page = slot / Self::PAGE_SLOTS;
-        // Pozycja slotu wewnatrz aktualnej strony
+        // Pozycja slotu wewnatrz aktualnej strony (0..44)
         let slot_in_page = slot % Self::PAGE_SLOTS;
-        // Wiersz wewnatrz aktualnej strony
+        // Wiersz wewnatrz aktualnej strony (0..8)
         let row = slot_in_page / Self::COLUMNS;
 
-        // Przedmiot nie moze wychodzic poza dolna krawedz aktualnej strony
+        // Przedmiot nie moze wychodzic poza dolna krawedz aktualnej strony (max 9 wierszy)
         if row + size_u16 > Self::ROWS_PER_PAGE {
             return false;
         }

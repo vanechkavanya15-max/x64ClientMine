@@ -102,3 +102,31 @@ fn test_equip_invalid_flag() {
 
     assert_eq!(manager.equip_item(SLOT_ARMOR, item.clone()), Some(item));
 }
+
+#[test]
+fn test_equip_extended_slots() {
+    use equipment_slots::{
+        SLOT_ARROW, SLOT_BELT, SLOT_COSTUME_BODY, SLOT_COSTUME_HAIR, SLOT_UNIQUE1,
+        WEARABLE_ARROW, WEARABLE_BELT, WEARABLE_COSTUME_BODY, WEARABLE_COSTUME_HAIR, WEARABLE_UNIQUE,
+    };
+
+    let mut manager = EquipmentManager::new();
+
+    let arrow = ItemData { vnum: 5000, wearable_flag: WEARABLE_ARROW };
+    let belt = ItemData { vnum: 18000, wearable_flag: WEARABLE_BELT };
+    let unique = ItemData { vnum: 71001, wearable_flag: WEARABLE_UNIQUE };
+    let costume = ItemData { vnum: 41001, wearable_flag: WEARABLE_COSTUME_BODY };
+    let hair = ItemData { vnum: 45001, wearable_flag: WEARABLE_COSTUME_HAIR };
+
+    assert_eq!(manager.equip_item(SLOT_ARROW, arrow.clone()), None);
+    assert_eq!(manager.equip_item(SLOT_BELT, belt.clone()), None);
+    assert_eq!(manager.equip_item(SLOT_UNIQUE1, unique.clone()), None);
+    assert_eq!(manager.equip_item(SLOT_COSTUME_BODY, costume.clone()), None);
+    assert_eq!(manager.equip_item(SLOT_COSTUME_HAIR, hair.clone()), None);
+
+    assert_eq!(manager.get_item(SLOT_ARROW), Some(&arrow));
+    assert_eq!(manager.get_item(SLOT_BELT), Some(&belt));
+    assert_eq!(manager.get_item(SLOT_UNIQUE1), Some(&unique));
+    assert_eq!(manager.get_item(SLOT_COSTUME_BODY), Some(&costume));
+    assert_eq!(manager.get_item(SLOT_COSTUME_HAIR), Some(&hair));
+}

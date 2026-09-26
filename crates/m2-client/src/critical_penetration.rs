@@ -25,25 +25,23 @@ pub fn calculate_damage(
     let is_critical = rand_pct_critical < critical_chance;
     let is_penetrating = rand_pct_penetrate < penetrate_chance;
 
-    let mut final_damage = base_damage;
+    // W silniku Metin2 C++ (char_battle.cpp CalcMeleeDamage):
+    // 1. Obrazenia bazowe: dam = base_damage - victim_defense
+    let mut dam = base_damage - victim_defense;
 
-    // Normal base damage calculation without critical or penetration
-    if !is_penetrating {
-        final_damage -= victim_defense;
-    } else {
-        // Penetrating hits add the target's defense to the base damage
-        final_damage += victim_defense;
-    }
-
+    // 2. Jesli krytyk: podwojenie czystych obrazen
     if is_critical {
-        // Critical hits double the resulting damage
-        final_damage *= 2;
+        dam *= 2;
     }
 
-    // Damage cannot be less than 1
-    if final_damage < 1 {
-        final_damage = 1;
+    // 3. Jesli przeszywka: anulowanie odjetej obrony (ignorowanie pancerza)
+    // dam += victim_defense
+    if is_penetrating {
+        dam += victim_defense;
     }
+
+    // Minimalne obrazenia w grze to 1
+    let final_damage = if dam < 1 { 1 } else { dam };
 
     DamageCalculationResult {
         final_damage,

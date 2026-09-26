@@ -45,7 +45,7 @@ fn test_penetrating_hit() {
     );
     assert!(!result.is_critical);
     assert!(result.is_penetrating);
-    assert_eq!(result.final_damage, 120); // 100 + 20 = 120
+    assert_eq!(result.final_damage, 100); // (100 - 20) + 20 = 100 (pelne ignorowanie obrony)
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn test_critical_and_penetrating_hit() {
     );
     assert!(result.is_critical);
     assert!(result.is_penetrating);
-    assert_eq!(result.final_damage, 240); // (100 + 20) * 2 = 240
+    assert_eq!(result.final_damage, 180); // (100 - 20) * 2 + 20 = 180
 }
 
 #[test]
@@ -105,7 +105,7 @@ fn test_penetrating_with_high_defense() {
     );
     assert!(!result.is_critical);
     assert!(result.is_penetrating);
-    assert_eq!(result.final_damage, 120); // 20 + 100 = 120
+    assert_eq!(result.final_damage, 20); // (20 - 100) + 100 = 20 (przeszywka omija 100 pancerza)
 }
 
 #[test]

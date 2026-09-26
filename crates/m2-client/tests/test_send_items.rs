@@ -26,13 +26,20 @@ fn test_send_item_use_packet_success() {
 
 #[test]
 fn test_send_item_use_packet_invalid_window() {
-    let pos = TItemPos::new(0, 42);
+    let pos = TItemPos::new(0, 42); // RESERVED_WINDOW = 0
     let result = format_item_use_packet(pos);
     assert_eq!(result, Err(ItemPacketError::InvalidWindowType));
 
-    let pos2 = TItemPos::new(5, 42);
+    let pos2 = TItemPos::new(99, 42); // Nieistniejace okno
     let result2 = format_item_use_packet(pos2);
     assert_eq!(result2, Err(ItemPacketError::InvalidWindowType));
+
+    // Dragon Soul (5) i Belt (7) musza byc prawidlowe
+    let pos_ds = TItemPos::new(5, 10);
+    assert!(format_item_use_packet(pos_ds).is_ok());
+
+    let pos_belt = TItemPos::new(7, 2);
+    assert!(format_item_use_packet(pos_belt).is_ok());
 }
 
 #[test]

@@ -65,7 +65,7 @@ fn test_basic_combo_sequence() {
     assert!(triggered);
     assert_eq!(sm.cur_combo_index, 4);
 
-    // Attempt hit 5, should trigger on_end_combo which keeps index at 4 or resets (based on implementation)
+    // Attempt hit 5, should be rejected for foot player (max combo reached)
     sm.set_time_data(Some(ComboTimeData {
         combo_window_start: 0.2,
         next_combo_time: 0.4,
@@ -76,9 +76,8 @@ fn test_basic_combo_sequence() {
 
     sm.update(0.45);
     let triggered = sm.input_attack();
-    assert!(triggered);
-    // on_end_combo called: without horse, it stays at 5, but let's just make sure it triggered
-    assert_eq!(sm.cur_combo_index, 5);
+    assert!(!triggered, "Cios 5 na pieszo powinien zostac odrzucony");
+    assert_eq!(sm.cur_combo_index, 4);
 }
 
 #[test]

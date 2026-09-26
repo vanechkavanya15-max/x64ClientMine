@@ -31,18 +31,17 @@ impl SkillCooldownTracker {
         true
     }
 
-    /// Rozpoczyna odliczanie czasu do ponownego uzycia umiejetnosci.
-    /// Wzor na rzeczywisty czas: actual_cooldown_ms = (base_cooldown_ms * 100) / (100 + cast_speed).
-    /// Poniewaz sygnatura metody wymuszona przez specyfikacje to start_skill_cooldown(skill_id, cur_time_ms, cast_speed),
-    /// uzyto domyslnego bazowego czasu cooldown dla potrzeb testow/kalkulacji w brakujacym miejscu,
-    /// a docelowo wartosc ta bylaby brana z danych konfiguracyjnych.
-    pub fn start_skill_cooldown(&mut self, skill_id: u32, cur_time_ms: u32, cast_speed: u32) {
-        // Z braku parametru base_cooldown_ms w scislej sygnaturze, przyjmujemy domyslne 10000ms.
-        // W rzeczywistosci powinno to byc brane ze struktury pSkillData.
-        let base_cooldown_ms: u32 = 10000;
-        
-        let actual_cooldown_ms = (base_cooldown_ms * 100) / (100 + cast_speed);
+    /// Rozpoczyna odliczanie czasu ze sprecyzowanym bazowym czasem cooldownu (z pSkillData)
+    /// i bonusem szybkosci zaklecia (cast_speed: 0 = brak bonusu, 20 = +20% szybkosci zaklecia).
+    /// Zgodnie z C++ PythonPlayerSkill.cpp: iSpd = 10000 / (100 + bonus_spd).
+    pub fn start_skill_cooldown_with_base(&mut self, skill_id: u32, base_cooldown_ms: u32, cur_time_ms: u32, cast_speed_bonus: u32) {
+        let actual_cooldown_ms = (base_cooldown_ms as u64 * 100 / (100 + cast_speed_bonus as u64)) as u32;
         let end_time_ms = cur_time_ms.wrapping_add(actual_cooldown_ms);
         self.cooldowns.insert(skill_id, end_time_ms);
+    }
+
+    /// Rozpoczyna odliczanie czasu do ponownego uzycia umiejetnosci z domyslnym bazowym czasem 10000ms.
+    pub fn start_skill_cooldown(&mut self, skill_id: u32, cur_time_ms: u32, cast_speed_bonus: u32) {
+        self.start_skill_cooldown_with_base(skill_id, 10000, cur_time_ms, cast_speed_bonus);
     }
 }

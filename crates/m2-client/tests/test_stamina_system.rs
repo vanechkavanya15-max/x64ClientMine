@@ -64,3 +64,26 @@ fn test_stamina_regeneration_does_not_exceed_max() {
     assert_eq!(stamina.current_stamina, stamina.max_stamina);
     assert_eq!(stamina.get_point_stamina(), stamina.max_stamina as u32);
 }
+
+#[test]
+fn test_start_and_stop_stamina_consume_c_api() {
+    let mut stamina = StaminaSystem::new();
+    
+    // Server sends StartStaminaConsume(100, 800)
+    stamina.start_stamina_consume(100.0, 800.0);
+    assert!(stamina.is_consuming_stamina);
+    assert_eq!(stamina.current_stamina, 800.0);
+    assert_eq!(stamina.consume_per_sec, 100.0);
+
+    // Update for 1.5 seconds
+    stamina.update(1.5);
+    // 800 - 150 = 650
+    assert_eq!(stamina.current_stamina, 650.0);
+
+    // Server sends StopStamina(650)
+    stamina.stop_stamina(650.0);
+    assert!(!stamina.is_consuming_stamina);
+    assert_eq!(stamina.consume_per_sec, 0.0);
+    assert_eq!(stamina.current_stamina, 650.0);
+}
+
