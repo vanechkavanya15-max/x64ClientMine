@@ -1,0 +1,76 @@
+use m2_client::movement_ffi::{m2_move_to, m2_get_height_at, m2_is_walkable, m2_stop_movement, get_movement_state};
+use std::sync::Mutex;
+
+static TEST_MUTEX: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+
+fn get_mutex() -> &'static Mutex<()> {
+    TEST_MUTEX.get_or_init(|| Mutex::new(()))
+}
+
+#[test]
+fn test_move_to() {
+    let _guard = get_mutex().lock().unwrap();
+    let target_x = 1000.0;
+    let target_y = 1000.0;
+
+    let result = m2_move_to(target_x, target_y);
+    assert!(result, "Ruch do dozowolonego punktu powinien zwrocic true");
+
+    let (x, y, is_moving) = get_movement_state();
+    assert_eq!(x, target_x, "Oczekiwano zaktualizowania target_x");
+    assert_eq!(y, target_y, "Oczekiwano zaktualizowania target_y");
+    assert!(is_moving, "Oczekiwano, ze stan ruchu bedzie true");
+}
+
+#[test]
+fn test_move_to_unwalkable() {
+    let _guard = get_mutex().lock().unwrap();
+    let target_x = -100.0;
+    let target_y = -100.0;
+
+    let result = m2_move_to(target_x, target_y);
+    assert!(!result, "Ruch do punktu poza mapa powinien zwrocic false");
+}
+
+#[test]
+fn test_get_height_at() {
+    let _guard = get_mutex().lock().unwrap();
+    let height1 = m2_get_height_at(0.0, 0.0);
+    assert_eq!(height1, 100.0, "Wysokosc w punkcie 0,0 powinna byc 100.0 na podstawie funkcji sin/cos");
+
+    let height2 = m2_get_height_at(100.0, 100.0);
+    assert!(height2.is_finite(), "Wysokosc powinna byc liczba skonczona");
+}
+
+#[test]
+fn test_is_walkable_bounds() {
+    let _guard = get_mutex().lock().unwrap();
+    assert!(!m2_is_walkable(-1.0, 5000.0), "Punkt x < 0 powinien byc niemozliwy do wejscia");
+    assert!(!m2_is_walkable(25601.0, 5000.0), "Punkt x > map_size powinien byc niemozliwy do wejscia");
+    assert!(!m2_is_walkable(5000.0, -1.0), "Punkt y < 0 powinien byc niemozliwy do wejscia");
+    assert!(!m2_is_walkable(5000.0, 25601.0), "Punkt y > map_size powinien byc niemozliwy do wejscia");
+    assert!(m2_is_walkable(1000.0, 1000.0), "Zwykly punkt na mapie powinien byc mozliwy do wejscia");
+}
+
+#[test]
+fn test_is_walkable_center_obstacle() {
+    let _guard = get_mutex().lock().unwrap();
+    let center_x = 25600.0 / 2.0;
+    let center_y = 25600.0 / 2.0;
+    
+    assert!(!m2_is_walkable(center_x, center_y), "Punkt w centrum mapy (przeszkoda) powinien byc niemozliwy do wejscia");
+    assert!(m2_is_walkable(center_x + 600.0, center_y), "Punkt oddalony od centrum bardziej niz promien przeszkody powinien byc ok");
+}
+
+#[test]
+fn test_stop_movement() {
+    let _guard = get_mutex().lock().unwrap();
+    m2_move_to(2000.0, 2000.0);
+    let (_, _, is_moving_before) = get_movement_state();
+    assert!(is_moving_before, "Powinno poruszac sie przed zatrzymaniem");
+
+    m2_stop_movement();
+
+    let (_, _, is_moving_after) = get_movement_state();
+    assert!(!is_moving_after, "Nie powinno poruszac sie po zatrzymaniu");
+}
