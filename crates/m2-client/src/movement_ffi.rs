@@ -49,7 +49,14 @@ pub extern "C" fn m2_is_walkable(x: f32, y: f32) -> bool {
         if !x.is_finite() || !y.is_finite() {
             return false;
         }
-        if x < 0.0 || y < 0.0 {
+        if x < 0.0 || y < 0.0 || x > 25600.0 || y > 25600.0 {
+            return false;
+        }
+        let center_x = 25600.0 / 2.0;
+        let center_y = 25600.0 / 2.0;
+        let dx = x - center_x;
+        let dy = y - center_y;
+        if dx * dx + dy * dy <= 500.0 * 500.0 {
             return false;
         }
         true
