@@ -12,3 +12,10 @@ crate-type = ["cdylib", "rlib", "staticlib"]
 [dependencies]
 m2_client_bridge = { package = "m2-client-bridge", path = "../../rust_bridge" }
 glam = "0.29"
+once_cell = "1.20"
+lazy_static = "1.5"
+
+[dev-dependencies]
+serial_test = "3.2"
+
+
