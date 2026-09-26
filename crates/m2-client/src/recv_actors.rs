@@ -1,180 +1,127 @@
-use std::collections::HashMap;
-use m2_client_bridge::net::gc::char_add::{TPacketGCCharacterAdd, TPacketGCCharacterAdd2, TPacketGCCharacterAdditionalInfo};
-use m2_client_bridge::net::gc::char_del::TPacketGCCharacterDelete;
-use m2_client_bridge::net::gc::char_add::CHR_EQUIPPART_NUM;
+use m2_client_bridge::state::game_state::{GLOBAL_GAME_STATE, Actor, POINT_HP, POINT_MAX_HP};
+use std::mem::size_of;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct NetworkActorData {
-    pub vid: u32,
-    pub name: String,
+pub const CHR_EQUIPPART_NUM: usize = 4;
+pub const CHARACTER_NAME_MAX_LEN: usize = 64;
+
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(non_snake_case)]
+pub struct TPacketGCCharacterAdd {
+    pub header: u16,
+    pub length: u16,
+    pub dwVID: u32,
+    pub angle: f32,
     pub x: i32,
     pub y: i32,
     pub z: i32,
-    pub rotation: f32,
-    pub race: u16,
-    pub b_type: u8,
-    pub moving_speed: u8,
-    pub attack_speed: u8,
-    pub state_flag: u8,
-    pub affect_flag: [u32; 2],
-    pub parts: [u16; CHR_EQUIPPART_NUM],
-    pub empire: u8,
-    pub guild_id: u32,
-    pub level: u32,
-    pub alignment: i16,
-    pub pk_mode: u8,
-    pub mount_vnum: u32,
+    pub bType: u8,
+    pub wRaceNum: u16,
+    pub bMovingSpeed: u8,
+    pub bAttackSpeed: u8,
+    pub bStateFlag: u8,
+    pub dwAffectFlag: [u32; 2],
 }
 
-impl Default for NetworkActorData {
-    fn default() -> Self {
-        Self {
-            vid: 0,
-            name: String::new(),
-            x: 0,
-            y: 0,
-            z: 0,
-            rotation: 0.0,
-            race: 0,
-            b_type: 0,
-            moving_speed: 0,
-            attack_speed: 0,
-            state_flag: 0,
-            affect_flag: [0; 2],
-            parts: [0; CHR_EQUIPPART_NUM],
-            empire: 0,
-            guild_id: 0,
-            level: 0,
-            alignment: 0,
-            pk_mode: 0,
-            mount_vnum: 0,
-        }
-    }
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(non_snake_case)]
+pub struct TPacketGCPointChange {
+    pub header: u16,
+    pub length: u16,
+    pub dwVID: u32,
+    pub Type: u8,
+    pub amount: i32,
+    pub value: i32,
 }
 
-pub struct CharacterManager {
-    actors: HashMap<u32, NetworkActorData>,
+pub const POINT_MAX_NUM: usize = 255;
+
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(non_snake_case)]
+pub struct TPacketGCPoints {
+    pub header: u16,
+    pub length: u16,
+    pub points: [i32; POINT_MAX_NUM],
 }
 
-impl CharacterManager {
-    pub fn new() -> Self {
-        Self {
-            actors: HashMap::new(),
+pub fn parse_character_add(data: &[u8]) -> Result<u32, &'static str> {
+    if data.len() < size_of::<TPacketGCCharacterAdd>() {
+        return Err("Buffer too short");
+    }
+
+    let header = u16::from_le_bytes(data[0..2].try_into().unwrap());
+    let length = u16::from_le_bytes(data[2..4].try_into().unwrap());
+    let dwVID = u32::from_le_bytes(data[4..8].try_into().unwrap());
+    let angle = f32::from_le_bytes(data[8..12].try_into().unwrap());
+    let x = i32::from_le_bytes(data[12..16].try_into().unwrap());
+    let y = i32::from_le_bytes(data[16..20].try_into().unwrap());
+    let z = i32::from_le_bytes(data[20..24].try_into().unwrap());
+    let bType = data[24];
+    let wRaceNum = u16::from_le_bytes(data[25..27].try_into().unwrap());
+    
+    // Create new Actor
+    let actor = Actor {
+        vid: dwVID,
+        x: x as f32,
+        y: y as f32,
+        z: z as f32,
+        rot: angle,
+        race: wRaceNum,
+        b_type: bType,
+        hp: 0,
+        max_hp: 0,
+        name: String::new(),
+    };
+
+    if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
+        state.add_or_update_actor(actor);
+    }
+
+    Ok(dwVID)
+}
+
+pub fn parse_point_change(data: &[u8]) -> Result<(u8, i32), &'static str> {
+    if data.len() < size_of::<TPacketGCPointChange>() {
+        return Err("Buffer too short");
+    }
+
+    let dwVID = u32::from_le_bytes(data[4..8].try_into().unwrap());
+    let Type = data[8];
+    let amount = i32::from_le_bytes(data[9..13].try_into().unwrap());
+    let value = i32::from_le_bytes(data[13..17].try_into().unwrap());
+
+    if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
+        let player_vid = state.get_player_vid();
+        if player_vid == 0 || dwVID == player_vid {
+            state.set_point(Type, value as i64);
+        } else if let Some(actor) = state.actors.get_mut(&dwVID) {
+            if Type == POINT_HP {
+                actor.hp = value;
+            } else if Type == POINT_MAX_HP {
+                actor.max_hp = value;
+            }
         }
     }
 
-    pub fn get_actor(&self, vid: u32) -> Option<&NetworkActorData> {
-        self.actors.get(&vid)
+    Ok((Type, value))
+}
+
+#[no_mangle]
+pub extern "C" fn m2_client_parse_char_add(buf: *const u8, len: usize) -> bool {
+    if buf.is_null() || len == 0 {
+        return false;
     }
+    let slice = unsafe { std::slice::from_raw_parts(buf, len) };
+    parse_character_add(slice).is_ok()
+}
 
-    pub fn handle_character_add(&mut self, packet: &TPacketGCCharacterAdd) {
-        let vid = unsafe { std::ptr::addr_of!(packet.dwVID).read_unaligned() };
-        let x = unsafe { std::ptr::addr_of!(packet.x).read_unaligned() };
-        let y = unsafe { std::ptr::addr_of!(packet.y).read_unaligned() };
-        let z = unsafe { std::ptr::addr_of!(packet.z).read_unaligned() };
-        let rotation = unsafe { std::ptr::addr_of!(packet.angle).read_unaligned() };
-        let race = unsafe { std::ptr::addr_of!(packet.wRaceNum).read_unaligned() };
-        let b_type = unsafe { std::ptr::addr_of!(packet.bType).read_unaligned() };
-        let moving_speed = unsafe { std::ptr::addr_of!(packet.bMovingSpeed).read_unaligned() };
-        let attack_speed = unsafe { std::ptr::addr_of!(packet.bAttackSpeed).read_unaligned() };
-        let state_flag = unsafe { std::ptr::addr_of!(packet.bStateFlag).read_unaligned() };
-        let affect_flag = unsafe { std::ptr::addr_of!(packet.dwAffectFlag).read_unaligned() };
-
-        let actor = NetworkActorData {
-            vid,
-            x,
-            y,
-            z,
-            rotation,
-            race,
-            b_type,
-            moving_speed,
-            attack_speed,
-            state_flag,
-            affect_flag,
-            ..Default::default()
-        };
-
-        self.actors.insert(vid, actor);
+#[no_mangle]
+pub extern "C" fn m2_client_parse_point_change(buf: *const u8, len: usize) -> bool {
+    if buf.is_null() || len == 0 {
+        return false;
     }
-
-    pub fn handle_character_add2(&mut self, packet: &TPacketGCCharacterAdd2) {
-        let vid = unsafe { std::ptr::addr_of!(packet.dwVID).read_unaligned() };
-        let x = unsafe { std::ptr::addr_of!(packet.x).read_unaligned() };
-        let y = unsafe { std::ptr::addr_of!(packet.y).read_unaligned() };
-        let z = unsafe { std::ptr::addr_of!(packet.z).read_unaligned() };
-        let rotation = unsafe { std::ptr::addr_of!(packet.angle).read_unaligned() };
-        let race = unsafe { std::ptr::addr_of!(packet.wRaceNum).read_unaligned() };
-        let b_type = unsafe { std::ptr::addr_of!(packet.bType).read_unaligned() };
-        let moving_speed = unsafe { std::ptr::addr_of!(packet.bMovingSpeed).read_unaligned() };
-        let attack_speed = unsafe { std::ptr::addr_of!(packet.bAttackSpeed).read_unaligned() };
-        let state_flag = unsafe { std::ptr::addr_of!(packet.bStateFlag).read_unaligned() };
-        let affect_flag = unsafe { std::ptr::addr_of!(packet.dwAffectFlag).read_unaligned() };
-        let parts = unsafe { std::ptr::addr_of!(packet.awPart).read_unaligned() };
-        let empire = unsafe { std::ptr::addr_of!(packet.bEmpire).read_unaligned() };
-        let guild_id = unsafe { std::ptr::addr_of!(packet.dwGuild).read_unaligned() };
-        let alignment = unsafe { std::ptr::addr_of!(packet.sAlignment).read_unaligned() };
-        let pk_mode = unsafe { std::ptr::addr_of!(packet.bPKMode).read_unaligned() };
-        let mount_vnum = unsafe { std::ptr::addr_of!(packet.dwMountVnum).read_unaligned() };
-
-        let name_bytes = unsafe { std::ptr::addr_of!(packet.name).read_unaligned() };
-        let name_len = name_bytes.iter().position(|&c| c == 0).unwrap_or(name_bytes.len());
-        let name = String::from_utf8_lossy(&name_bytes[..name_len]).into_owned();
-
-        let actor = NetworkActorData {
-            vid,
-            name,
-            x,
-            y,
-            z,
-            rotation,
-            race,
-            b_type,
-            moving_speed,
-            attack_speed,
-            state_flag,
-            affect_flag,
-            parts,
-            empire,
-            guild_id,
-            alignment,
-            pk_mode,
-            mount_vnum,
-            ..Default::default()
-        };
-
-        self.actors.insert(vid, actor);
-    }
-
-    pub fn handle_character_del(&mut self, packet: &TPacketGCCharacterDelete) {
-        let vid = unsafe { std::ptr::addr_of!(packet.dwVID).read_unaligned() };
-        self.actors.remove(&vid);
-    }
-
-    pub fn handle_character_additional_info(&mut self, packet: &TPacketGCCharacterAdditionalInfo) {
-        let vid = unsafe { std::ptr::addr_of!(packet.dwVID).read_unaligned() };
-        
-        if let Some(actor) = self.actors.get_mut(&vid) {
-            let parts = unsafe { std::ptr::addr_of!(packet.awPart).read_unaligned() };
-            let empire = unsafe { std::ptr::addr_of!(packet.bEmpire).read_unaligned() };
-            let guild_id = unsafe { std::ptr::addr_of!(packet.dwGuildID).read_unaligned() };
-            let level = unsafe { std::ptr::addr_of!(packet.dwLevel).read_unaligned() };
-            let alignment = unsafe { std::ptr::addr_of!(packet.sAlignment).read_unaligned() };
-            let pk_mode = unsafe { std::ptr::addr_of!(packet.bPKMode).read_unaligned() };
-            let mount_vnum = unsafe { std::ptr::addr_of!(packet.dwMountVnum).read_unaligned() };
-
-            let name_bytes = unsafe { std::ptr::addr_of!(packet.name).read_unaligned() };
-            let name_len = name_bytes.iter().position(|&c| c == 0).unwrap_or(name_bytes.len());
-            let name = String::from_utf8_lossy(&name_bytes[..name_len]).into_owned();
-
-            actor.name = name;
-            actor.parts = parts;
-            actor.empire = empire;
-            actor.guild_id = guild_id;
-            actor.level = level;
-            actor.alignment = alignment;
-            actor.pk_mode = pk_mode;
-            actor.mount_vnum = mount_vnum;
-        }
-    }
+    let slice = unsafe { std::slice::from_raw_parts(buf, len) };
+    parse_point_change(slice).is_ok()
 }
