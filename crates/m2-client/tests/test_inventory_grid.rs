@@ -1,4 +1,7 @@
-use m2_client::inventory_grid::{InventoryGrid, ItemSize};
+#[path = "../src/inventory_grid.rs"]
+mod inventory_grid;
+
+use inventory_grid::{InventoryGrid, ItemSize, ItemData};
 
 #[test]
 fn test_can_put_item_1x1() {
@@ -100,4 +103,80 @@ fn test_out_of_bounds() {
     // Invalid sizes
     assert!(!grid.can_put_item(0, 0));
     assert!(!grid.can_put_item(0, 4));
+}
+
+#[test]
+fn test_four_pages() {
+    let mut grid = InventoryGrid::new();
+    
+    // 4 pages, each 45 slots. Let's test the start of each page.
+    let item1 = ItemData { vnum: 10, count: 1, flags: 0, anti_flags: 0 };
+    let item2 = ItemData { vnum: 20, count: 1, flags: 0, anti_flags: 0 };
+    let item3 = ItemData { vnum: 30, count: 1, flags: 0, anti_flags: 0 };
+    let item4 = ItemData { vnum: 40, count: 1, flags: 0, anti_flags: 0 };
+    
+    assert!(grid.set_item(0, item1)); // Page 1
+    assert!(grid.set_item(45, item2)); // Page 2
+    assert!(grid.set_item(90, item3)); // Page 3
+    assert!(grid.set_item(135, item4)); // Page 4
+    
+    assert_eq!(grid.get_item(0).unwrap().vnum, 10);
+    assert_eq!(grid.get_item(45).unwrap().vnum, 20);
+    assert_eq!(grid.get_item(90).unwrap().vnum, 30);
+    assert_eq!(grid.get_item(135).unwrap().vnum, 40);
+    
+    // 179 is the last slot (page 4, slot 44)
+    assert!(grid.set_item(179, item1));
+    assert_eq!(grid.get_item(179).unwrap().vnum, 10);
+    
+    // 180 is out of bounds
+    assert!(!grid.set_item(180, item1));
+}
+
+#[test]
+fn test_swap_items() {
+    let mut grid = InventoryGrid::new();
+    let item1 = ItemData { vnum: 100, count: 5, flags: 0, anti_flags: 0 };
+    let item2 = ItemData { vnum: 200, count: 10, flags: 0, anti_flags: 0 };
+    
+    grid.set_item(5, item1);
+    grid.set_item(10, item2);
+    
+    assert!(grid.swap_items(5, 10));
+    
+    assert_eq!(grid.get_item(5).unwrap().vnum, 200);
+    assert_eq!(grid.get_item(10).unwrap().vnum, 100);
+    
+    // Swap with empty
+    assert!(grid.swap_items(5, 15));
+    assert!(grid.get_item(5).is_none());
+    assert_eq!(grid.get_item(15).unwrap().vnum, 200);
+}
+
+#[test]
+fn test_split_stack() {
+    let mut grid = InventoryGrid::new();
+    let item = ItemData { vnum: 500, count: 20, flags: 0, anti_flags: 0 };
+    
+    grid.set_item(0, item);
+    
+    // Valid split
+    assert!(grid.split_stack(0, 1, 5));
+    assert_eq!(grid.get_item(0).unwrap().count, 15);
+    assert_eq!(grid.get_item(1).unwrap().count, 5);
+    assert_eq!(grid.get_item(1).unwrap().vnum, 500);
+    
+    // Try to split more than available
+    assert!(!grid.split_stack(0, 2, 20));
+    
+    // Try to split exactly available (should fail, standard behavior is swap/move for full count)
+    assert!(!grid.split_stack(0, 2, 15));
+    
+    // Try to split 0
+    assert!(!grid.split_stack(0, 2, 0));
+    
+    // Try to split to an occupied slot
+    let item2 = ItemData { vnum: 600, count: 1, flags: 0, anti_flags: 0 };
+    grid.set_item(2, item2);
+    assert!(!grid.split_stack(0, 2, 5));
 }
