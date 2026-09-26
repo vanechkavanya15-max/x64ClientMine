@@ -72,3 +72,53 @@ pub fn can_equip_by_player(
 
     true
 }
+
+pub const ANTI_FEMALE: u32 = 1 << 0;
+pub const ANTI_MALE: u32 = 1 << 1;
+pub const ANTI_MUSA: u32 = 1 << 2;
+pub const ANTI_ASSASSIN: u32 = 1 << 3;
+pub const ANTI_SURA: u32 = 1 << 4;
+pub const ANTI_MUDANG: u32 = 1 << 5;
+
+pub fn can_equip(anti_flags: u32, job: u8, sex: u8, player_level: u32, req_level: u32) -> bool {
+    if player_level < req_level {
+        return false;
+    }
+    
+    if sex == 0 && (anti_flags & ANTI_MALE) != 0 {
+        return false;
+    }
+    
+    if sex == 1 && (anti_flags & ANTI_FEMALE) != 0 {
+        return false;
+    }
+    
+    if job == 0 && (anti_flags & ANTI_MUSA) != 0 {
+        return false;
+    }
+    
+    if job == 1 && (anti_flags & ANTI_ASSASSIN) != 0 {
+        return false;
+    }
+    
+    if job == 2 && (anti_flags & ANTI_SURA) != 0 {
+        return false;
+    }
+    
+    if job == 3 && (anti_flags & ANTI_MUDANG) != 0 {
+        return false;
+    }
+    
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn m2_item_can_equip(
+    anti_flags: u32,
+    job: u8,
+    sex: u8,
+    player_level: u32,
+    req_level: u32,
+) -> bool {
+    can_equip(anti_flags, job, sex, player_level, req_level)
+}

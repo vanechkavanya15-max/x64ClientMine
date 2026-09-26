@@ -84,3 +84,11 @@ fn test_level_zero_edge_cases() {
     assert!(can_equip_by_player(&item, PlayerClass::Warrior, PlayerSex::Male, 0));
     assert!(can_equip_by_player(&item, PlayerClass::Warrior, PlayerSex::Male, 1));
 }
+
+#[test]
+fn test_level_requirement() {
+    use m2_client::item_anti_flags::can_equip;
+    assert!(!can_equip(0, 0, 0, 49, 50));
+    assert!(can_equip(0, 0, 0, 50, 50));
+    assert!(can_equip(0, 0, 0, 51, 50));
+}
