@@ -45,3 +45,25 @@ impl SkillCooldownTracker {
         self.start_skill_cooldown_with_base(skill_id, 10000, cur_time_ms, cast_speed_bonus);
     }
 }
+
+static SKILL_COOLDOWN_TRACKER: std::sync::OnceLock<std::sync::Mutex<SkillCooldownTracker>> = std::sync::OnceLock::new();
+
+fn get_tracker() -> std::sync::MutexGuard<'static, SkillCooldownTracker> {
+    SKILL_COOLDOWN_TRACKER
+        .get_or_init(|| std::sync::Mutex::new(SkillCooldownTracker::new()))
+        .lock()
+        .unwrap()
+}
+
+#[no_mangle]
+pub extern "C" fn m2_skill_start_cd(skill_id: u32, base_cd_ms: u32, cur_time_ms: u32, cast_speed: u32) -> bool {
+    let mut tracker = get_tracker();
+    tracker.start_skill_cooldown_with_base(skill_id, base_cd_ms, cur_time_ms, cast_speed);
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn m2_skill_is_ready(skill_id: u32, cur_time_ms: u32) -> bool {
+    let tracker = get_tracker();
+    tracker.is_skill_ready(skill_id, cur_time_ms)
+}
