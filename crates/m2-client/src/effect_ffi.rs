@@ -215,3 +215,78 @@ pub extern "C" fn m2_flying_update(
         result
     })
 }
+
+#[no_mangle]
+pub extern "C" fn m2_particle_physics_step(
+    pos: *mut f32,
+    vel: *mut f32,
+    dt: f32,
+    gravity: f32,
+    air_resistance: f32,
+) -> bool {
+    safe_ffi_call(false, || {
+        if pos.is_null() || vel.is_null() || dt <= 0.0 {
+            return false;
+        }
+        unsafe {
+            let vel_slice = std::slice::from_raw_parts_mut(vel, 3);
+            let pos_slice = std::slice::from_raw_parts_mut(pos, 3);
+
+            // 1. Grawitacja (odejmowana od osi Z)
+            vel_slice[2] -= gravity * dt;
+
+            // 2. Opor powietrza (tlumienie calego wektora predkosci)
+            let air_factor = (1.0 - air_resistance).clamp(0.0, 1.0);
+            vel_slice[0] *= air_factor;
+            vel_slice[1] *= air_factor;
+            vel_slice[2] *= air_factor;
+
+            // 3. Calkowanie pozycji
+            pos_slice[0] += vel_slice[0] * dt;
+            pos_slice[1] += vel_slice[1] * dt;
+            pos_slice[2] += vel_slice[2] * dt;
+        }
+        true
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_flying_calculate_step(
+    pos: *mut f32,
+    vel: *mut f32,
+    acc: *const f32,
+    gravity: f32,
+    dt: f32,
+) -> f32 {
+    safe_ffi_call(0.0f32, || {
+        if pos.is_null() || vel.is_null() || dt <= 0.0 {
+            return 0.0f32;
+        }
+        unsafe {
+            let vel_slice = std::slice::from_raw_parts_mut(vel, 3);
+            let pos_slice = std::slice::from_raw_parts_mut(pos, 3);
+
+            if !acc.is_null() {
+                let acc_slice = std::slice::from_raw_parts(acc, 3);
+                vel_slice[0] += acc_slice[0] * dt;
+                vel_slice[1] += acc_slice[1] * dt;
+                vel_slice[2] += acc_slice[2] * dt;
+            }
+
+            vel_slice[2] += gravity * dt;
+
+            let mv_x = vel_slice[0] * dt;
+            let mv_y = vel_slice[1] * dt;
+            let mv_z = vel_slice[2] * dt;
+
+            let dist = (mv_x * mv_x + mv_y * mv_y + mv_z * mv_z).sqrt();
+
+            pos_slice[0] += mv_x;
+            pos_slice[1] += mv_y;
+            pos_slice[2] += mv_z;
+
+            dist
+        }
+    })
+}
+

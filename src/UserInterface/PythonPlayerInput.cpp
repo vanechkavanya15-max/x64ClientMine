@@ -2,6 +2,7 @@
 #include "PythonPlayer.h"
 #include "PythonPlayerEventHandler.h"
 #include "PythonApplication.h"
+#include "EterBase/m2_client_bridge.h"
 #include "EterLib/Camera.h"
 #include "EterBase/Timer.h"
 
@@ -396,6 +397,8 @@ void CPythonPlayer::__OnClickGround(CInstanceBase& rkInstMain, const TPixelPosit
 	if (!__IsMovableGroundDistance(rkInstMain, c_rkPPosPickedGround))
 		return;
 
+	m2_move_to(c_rkPPosPickedGround.x, c_rkPPosPickedGround.y);
+
 	if (rkInstMain.NEW_MoveToDestPixelPositionDirection(c_rkPPosPickedGround))
 		__ShowPickedEffect(c_rkPPosPickedGround);
 }
@@ -426,6 +429,8 @@ void CPythonPlayer::__OnPressGround(CInstanceBase& rkInstMain, const TPixelPosit
 
 	if (!__IsMovableGroundDistance(rkInstMain, c_rkPPosPickedGround))
 		return;
+
+	m2_move_to(c_rkPPosPickedGround.x, c_rkPPosPickedGround.y);
 
 	if (!rkInstMain.NEW_MoveToDestPixelPositionDirection(c_rkPPosPickedGround))
 	{

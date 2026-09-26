@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "ParticleInstance.h"
 #include "ParticleProperty.h"
+#include "EterBase/m2_client_bridge.h"
 
 #include "EterBase/Random.h"
 #include "EterLib/Camera.h"
@@ -45,11 +46,16 @@ BOOL CParticleInstance::Update(float fElapsedTime, float fAngle)
 	UpdateTextureAnimation(fLifePercentage, fElapsedTime);
 	UpdateScale(fLifePercentage, fElapsedTime);
 	UpdateColor(fLifePercentage, fElapsedTime);
-	UpdateGravity(fLifePercentage, fElapsedTime);
-	UpdateAirResistance(fLifePercentage, fElapsedTime);
+	float fGravity = 0.0f;
+	if (!m_pParticleProperty->m_TimeEventGravity.empty())
+		fGravity = GetTimeEventBlendValue(fLifePercentage, m_pParticleProperty->m_TimeEventGravity);
+
+	float fAirResistance = 0.0f;
+	if (!m_pParticleProperty->m_TimeEventAirResistance.empty())
+		fAirResistance = GetTimeEventBlendValue(fLifePercentage, m_pParticleProperty->m_TimeEventAirResistance);
 
 	m_v3LastPosition = m_v3Position;
-	m_v3Position += m_v3Velocity * fElapsedTime;
+	m2_particle_physics_step((float*)&m_v3Position, (float*)&m_v3Velocity, fElapsedTime, fGravity, fAirResistance);
 
 	if (fAngle)
 	{

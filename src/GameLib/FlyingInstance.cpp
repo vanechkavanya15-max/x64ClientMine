@@ -1,6 +1,7 @@
 #include "Stdafx.h"
 #include "EterLib/GrpMath.h"
 #include "EffectLib/EffectManager.h"
+#include "EterBase/m2_client_bridge.h"
 
 #include "MapManager.h"
 
@@ -358,13 +359,11 @@ bool CFlyingInstance::Update()
 
 	D3DXVECTOR3 v3LastPosition = m_v3Position;
 
-	m_v3Velocity += m_v3Accel*CTimer::Instance().GetElapsedSecond();
-	m_v3Velocity.z+=m_pData->m_fGravity * CTimer::Instance().GetElapsedSecond();
-	D3DXVECTOR3 v3Movement = m_v3Velocity * CTimer::Instance().GetElapsedSecond();
-	float _fMoveDistance = D3DXVec3Length(&v3Movement);
+	float dt = CTimer::Instance().GetElapsedSecond();
+	float _fMoveDistance = m2_flying_calculate_step((float*)&m_v3Position, (float*)&m_v3Velocity, (const float*)&m_v3Accel, m_pData->m_fGravity, dt);
+	D3DXVECTOR3 v3Movement = m_v3Position - v3LastPosition;
 	float fCollisionSphereRadius = std::max(_fMoveDistance*2, m_pData->m_fCollisionSphereRadius);
 	m_fRemainRange -= _fMoveDistance;
-	m_v3Position += v3Movement;
 
 	UpdateAttachInstance();
 

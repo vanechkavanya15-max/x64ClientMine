@@ -130,6 +130,8 @@ bool     m2_effect_update(uint32_t instance_id, float dt);
 bool     m2_effect_destroy(uint32_t instance_id);
 uint32_t m2_flying_spawn(uint32_t fly_type, float sx, float sy, float sz, float tx, float ty, float tz, uint32_t target_vid);
 bool     m2_flying_update(uint32_t fly_id, float dt, float* out_x, float* out_y, float* out_z, bool* out_hit);
+bool     m2_particle_physics_step(float* pos_3f, float* vel_3f, float dt, float gravity, float air_resistance);
+float    m2_flying_calculate_step(float* pos_3f, float* vel_3f, const float* acc_3f, float gravity, float dt);
 
 // ============================================================================
 // Phase B7: Camera 3D, Frustum Culling & View State
@@ -148,6 +150,7 @@ int32_t  m2_frustum_test_aabb(float min_x, float min_y, float min_z, float max_x
 // Phase B5: Movement & Terrain Collision
 // ============================================================================
 bool     m2_move_to(float target_x, float target_y);
+bool     m2_move_to_direction(float dir_rot);
 float    m2_get_height_at(float x, float y);
 bool     m2_is_walkable(float x, float y);
 void     m2_stop_movement(void);

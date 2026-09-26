@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "PythonPlayer.h"
 #include "PythonApplication.h"
+#include "EterBase/m2_client_bridge.h"
 
 #include "EterLib/Camera.h"
 
@@ -15,6 +16,7 @@ void CPythonPlayer::NEW_SetMouseMoveState(int eMBS)
 	else if (MBS_CLICK==eMBS)
 	{
 		NEW_Stop();
+		m2_stop_movement();
 
 		m_isDirMov=false;
 	}
@@ -35,6 +37,8 @@ bool CPythonPlayer::NEW_MoveToMouseScreenDirection()
 
 	float fDirRot;
 	NEW_GetMouseDirRotation(fMouseX, fMouseY, &fDirRot);
+
+	m2_move_to_direction(fDirRot);
 
 	return NEW_MoveToDirection(fDirRot);
 }
