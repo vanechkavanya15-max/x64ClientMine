@@ -1,4 +1,6 @@
-use m2_client::actor_appearance::*;
+#[path = "../src/actor_appearance.rs"] 
+mod actor_appearance;
+use actor_appearance::*;
 
 struct MockItemManager;
 
@@ -32,12 +34,45 @@ fn test_part_assignment() {
 
     app.set_part_vnum(PART_MAIN, 11299);
     assert_eq!(app.get_part_vnum(PART_MAIN), 11299);
+    assert_eq!(app.armor_vnum, 11299);
 
     app.set_part_vnum(PART_WEAPON, 299);
     assert_eq!(app.get_part_vnum(PART_WEAPON), 299);
+    assert_eq!(app.weapon_vnum, 299);
 
     app.set_part_vnum(PART_MAX_NUM + 1, 999);
     assert_eq!(app.get_part_vnum(PART_MAX_NUM + 1), 0);
+}
+
+#[test]
+fn test_methods_attach_weapon_change_armor_set_hair() {
+    let mut app = ActorAppearance::new();
+    
+    app.attach_weapon(300);
+    assert_eq!(app.weapon_vnum, 300);
+    assert_eq!(app.get_part_vnum(PART_WEAPON), 300);
+
+    app.change_armor(12000);
+    assert_eq!(app.armor_vnum, 12000);
+    assert_eq!(app.get_part_vnum(PART_MAIN), 12000);
+
+    app.set_hair(250);
+    assert_eq!(app.hair_vnum, 250);
+    assert_eq!(app.get_part_vnum(PART_HAIR), 250);
+}
+
+#[test]
+fn test_ffi_functions() {
+    let vid = 999;
+    
+    assert_eq!(m2_actor_get_weapon(vid), 0);
+    assert_eq!(m2_actor_get_armor(vid), 0);
+    
+    assert!(m2_actor_attach_weapon(vid, 500));
+    assert_eq!(m2_actor_get_weapon(vid), 500);
+    
+    assert!(m2_actor_change_armor(vid, 11299));
+    assert_eq!(m2_actor_get_armor(vid), 11299);
 }
 
 #[test]

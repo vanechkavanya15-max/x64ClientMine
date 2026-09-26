@@ -40,6 +40,10 @@ pub const MODE_WEDDING_DRESS: u8 = 16;
 #[derive(Clone, Default)]
 pub struct ActorAppearance {
     parts: [u32; PART_MAX_NUM as usize],
+    pub weapon_vnum: u32,
+    pub armor_vnum: u32,
+    pub hair_vnum: u32,
+    pub sash_vnum: u32,
     motion_mode: u8,
     is_poly: bool,
     is_wearing_dress: bool,
@@ -55,6 +59,10 @@ impl ActorAppearance {
     pub fn new() -> Self {
         Self {
             parts: [0; PART_MAX_NUM as usize],
+            weapon_vnum: 0,
+            armor_vnum: 0,
+            hair_vnum: 0,
+            sash_vnum: 0,
             motion_mode: MODE_GENERAL,
             is_poly: false,
             is_wearing_dress: false,
@@ -62,9 +70,31 @@ impl ActorAppearance {
         }
     }
 
+    pub fn attach_weapon(&mut self, vnum: u32) {
+        self.weapon_vnum = vnum;
+        self.set_part_vnum(PART_WEAPON, vnum);
+    }
+
+    pub fn change_armor(&mut self, vnum: u32) {
+        self.armor_vnum = vnum;
+        self.set_part_vnum(PART_MAIN, vnum);
+    }
+
+    pub fn set_hair(&mut self, vnum: u32) {
+        self.hair_vnum = vnum;
+        self.set_part_vnum(PART_HAIR, vnum);
+    }
+
     pub fn set_part_vnum(&mut self, part_type: u8, vnum: u32) {
         if part_type < PART_MAX_NUM {
             self.parts[part_type as usize] = vnum;
+            match part_type {
+                PART_MAIN => self.armor_vnum = vnum,
+                PART_WEAPON => self.weapon_vnum = vnum,
+                PART_HAIR => self.hair_vnum = vnum,
+                PART_SASH => self.sash_vnum = vnum,
+                _ => {}
+            }
         }
     }
 
@@ -145,5 +175,63 @@ impl ActorAppearance {
         for i in 0..PART_MAX_NUM as usize {
             self.parts[i] = 0;
         }
+        self.weapon_vnum = 0;
+        self.armor_vnum = 0;
+        self.hair_vnum = 0;
+        self.sash_vnum = 0;
     }
+}
+
+use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
+static ACTOR_APPEARANCES: OnceLock<RwLock<HashMap<u32, ActorAppearance>>> = OnceLock::new();
+
+fn get_actor_appearances() -> &'static RwLock<HashMap<u32, ActorAppearance>> {
+    ACTOR_APPEARANCES.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+#[no_mangle]
+pub extern "C" fn m2_actor_attach_weapon(vid: u32, weapon_vnum: u32) -> bool {
+    catch_unwind(AssertUnwindSafe(|| {
+        let mut appearances = get_actor_appearances().write().unwrap();
+        let app = appearances.entry(vid).or_insert_with(ActorAppearance::new);
+        app.attach_weapon(weapon_vnum);
+        true
+    })).unwrap_or(false)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_actor_change_armor(vid: u32, armor_vnum: u32) -> bool {
+    catch_unwind(AssertUnwindSafe(|| {
+        let mut appearances = get_actor_appearances().write().unwrap();
+        let app = appearances.entry(vid).or_insert_with(ActorAppearance::new);
+        app.change_armor(armor_vnum);
+        true
+    })).unwrap_or(false)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_actor_get_weapon(vid: u32) -> u32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let appearances = get_actor_appearances().read().unwrap();
+        if let Some(app) = appearances.get(&vid) {
+            app.weapon_vnum
+        } else {
+            0
+        }
+    })).unwrap_or(0)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_actor_get_armor(vid: u32) -> u32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let appearances = get_actor_appearances().read().unwrap();
+        if let Some(app) = appearances.get(&vid) {
+            app.armor_vnum
+        } else {
+            0
+        }
+    })).unwrap_or(0)
 }
