@@ -86,3 +86,9 @@ pub fn test_clear_actors() {
     let mut actors = get_actors().write().unwrap();
     actors.clear();
 }
+
+/// Funkcja pomocnicza, pozwalajaca na bezposredni dostep do wspolrzednych aktora po VID.
+pub fn get_actor_pos(vid: u32) -> Option<(f32, f32, f32)> {
+    let actors = get_actors().read().unwrap();
+    actors.get(&vid).map(|a| (a.x, a.y, a.z))
+}
