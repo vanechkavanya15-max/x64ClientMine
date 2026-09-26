@@ -324,3 +324,41 @@ pub extern "C" fn m2_image_apply_colorkey(
         true
     })
 }
+
+#[no_mangle]
+pub extern "C" fn m2_image_decode_tga(
+    data_ptr: *const u8,
+    len: usize,
+    out_width: *mut u32,
+    out_height: *mut u32,
+    out_buf: *mut u8,
+    max_buf_len: usize,
+) -> bool {
+    safe_ffi_call(false, || {
+        if data_ptr.is_null() || out_width.is_null() || out_height.is_null() || out_buf.is_null() || len == 0 {
+            return false;
+        }
+
+        let in_data = unsafe { std::slice::from_raw_parts(data_ptr, len) };
+        let img = match crate::tga_decoder::TgaImage::from_bytes(in_data) {
+            Ok(im) => im,
+            Err(_) => return false,
+        };
+
+        let w = img.width as u32;
+        let h = img.height as u32;
+        let required_bytes = (w as usize) * (h as usize) * 4;
+
+        if max_buf_len < required_bytes || img.rgba_data.len() < required_bytes {
+            return false;
+        }
+
+        unsafe {
+            *out_width = w;
+            *out_height = h;
+            std::ptr::copy_nonoverlapping(img.rgba_data.as_ptr(), out_buf, required_bytes);
+        }
+
+        true
+    })
+}

@@ -103,4 +103,20 @@ impl Frustum {
 
         result
     }
+
+    pub fn view_volume_test_sphere(&self, center: Vec3, radius: f32) -> ViewState {
+        let mut result = ViewState::Inside;
+        for i in 0..6 {
+            let plane = self.planes[i];
+            let d = plane.x * center.x + plane.y * center.y + plane.z * center.z + plane.w;
+            if d < -radius {
+                return ViewState::Outside;
+            }
+            if d < radius {
+                result = ViewState::Partial;
+            }
+        }
+        result
+    }
 }
+

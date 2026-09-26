@@ -7,7 +7,8 @@ description = "Metin2 64-bit Game Engine Core (Phase B)"
 [lib]
 name = "m2_client"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib", "staticlib"]
 
 [dependencies]
-m2-client-bridge = { path = "../../rust_bridge" }
+m2_client_bridge = { package = "m2-client-bridge", path = "../../rust_bridge" }
 glam = "0.29"

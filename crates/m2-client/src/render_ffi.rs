@@ -109,3 +109,61 @@ pub extern "C" fn m2_render_draw_ui_quad(x: f32, y: f32, w: f32, h: f32, color_a
         true
     })
 }
+
+static GLOBAL_FRUSTUM: OnceLock<Mutex<crate::view_frustum::Frustum>> = OnceLock::new();
+
+fn get_frustum() -> std::sync::MutexGuard<'static, crate::view_frustum::Frustum> {
+    GLOBAL_FRUSTUM
+        .get_or_init(|| Mutex::new(crate::view_frustum::Frustum::new()))
+        .lock()
+        .unwrap()
+}
+
+#[no_mangle]
+pub extern "C" fn m2_frustum_build(mat_ptr: *const f32) -> bool {
+    safe_ffi_call(false, || {
+        if mat_ptr.is_null() {
+            return false;
+        }
+        let arr = unsafe { std::slice::from_raw_parts(mat_ptr, 16) };
+        let mut mat_data = [0.0f32; 16];
+        mat_data.copy_from_slice(arr);
+        let mat = glam::Mat4::from_cols_array(&mat_data);
+
+        let mut frustum = get_frustum();
+        frustum.build_view_frustum(mat);
+        true
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_frustum_test_sphere(cx: f32, cy: f32, cz: f32, radius: f32) -> i32 {
+    safe_ffi_call(-1, || {
+        let frustum = get_frustum();
+        let center = glam::Vec3::new(cx, cy, cz);
+        match frustum.view_volume_test_sphere(center, radius) {
+            crate::view_frustum::ViewState::Outside => -1,
+            crate::view_frustum::ViewState::Partial => 0,
+            crate::view_frustum::ViewState::Inside => 1,
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_frustum_test_aabb(
+    min_x: f32, min_y: f32, min_z: f32,
+    max_x: f32, max_y: f32, max_z: f32
+) -> i32 {
+    safe_ffi_call(-1, || {
+        let frustum = get_frustum();
+        let aabb = crate::view_frustum::Aabb {
+            min: glam::Vec3::new(min_x, min_y, min_z),
+            max: glam::Vec3::new(max_x, max_y, max_z),
+        };
+        match frustum.view_volume_test_aabb(&aabb) {
+            crate::view_frustum::ViewState::Outside => -1,
+            crate::view_frustum::ViewState::Partial => 0,
+            crate::view_frustum::ViewState::Inside => 1,
+        }
+    })
+}
