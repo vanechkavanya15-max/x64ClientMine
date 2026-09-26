@@ -1,0 +1,9 @@
+1. We need to implement a global lock/instance for `CharacterManagerCore` in `crates/m2-client/src/character_manager_core.rs` using `std::sync::{OnceLock, RwLock}` or similar to be able to safely use it in C-FFI functions.
+2. We need to implement the C-FFI exported functions inside `crates/m2-client/src/character_manager_core.rs`:
+   - `m2_chr_mgr_create_instance(vid: u32, race: u16, x: f32, y: f32, z: f32) -> bool`
+   - `m2_chr_mgr_delete_instance(vid: u32) -> bool`
+   - `m2_chr_mgr_get_count() -> u32`
+3. We need to wrap each of those in `safe_ffi_call`.
+4. We need to modify `CharacterManagerCore` so `create_instance` takes `x`, `y`, `z` instead of `pos: (i32, i32)` OR keep `pos` but adapt it in FFI if needed. But the prompt says `create_instance(vid: u32, race: u16, x: f32, y: f32, z: f32) -> bool` directly, so it's probably best to update `InstanceBase` inside `character_manager_core.rs` to have `x: f32, y: f32, z: f32` and `race: u16`.
+5. Since there is also `count()` and `clear()` required for `CharacterManagerCore`, we will implement these methods.
+6. The test should be modified to add 1000 instances, read them, and delete them to hit the 100% tests requirement as requested.

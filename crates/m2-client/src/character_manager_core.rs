@@ -1,17 +1,20 @@
+use m2_client_bridge::ffi_guard::safe_ffi_call;
 use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
 
 // Reprezentacja pojedynczej instancji postaci (InstanceBase)
 #[derive(Debug, Clone)]
 pub struct InstanceBase {
     pub vid: u32,
-    pub race: u32,
-    pub name: String,
-    pub pos: (i32, i32),
+    pub race: u16,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }
 
 impl InstanceBase {
-    pub fn new(vid: u32, race: u32, name: String, pos: (i32, i32)) -> Self {
-        Self { vid, race, name, pos }
+    pub fn new(vid: u32, race: u16, x: f32, y: f32, z: f32) -> Self {
+        Self { vid, race, x, y, z }
     }
 }
 
@@ -34,13 +37,13 @@ impl CharacterManagerCore {
     }
 
     // Tworzy nowa postac, zwraca true jesli pomyslnie dodano
-    pub fn create_instance(&mut self, vid: u32, race: u32, name: String, pos: (i32, i32)) -> bool {
+    pub fn create_instance(&mut self, vid: u32, race: u16, x: f32, y: f32, z: f32) -> bool {
         if self.alive_instances.contains_key(&vid) {
             // Instancja o tym VID juz istnieje
             return false;
         }
 
-        let instance = InstanceBase::new(vid, race, name, pos);
+        let instance = InstanceBase::new(vid, race, x, y, z);
         self.alive_instances.insert(vid, instance);
         true
     }
@@ -74,4 +77,61 @@ impl CharacterManagerCore {
             None
         }
     }
+
+    // Zwraca ilosc aktywnych instancji
+    pub fn count(&self) -> usize {
+        self.alive_instances.len()
+    }
+
+    // Czysci menedzer usuwajac wszystkie instancje
+    pub fn clear(&mut self) {
+        self.alive_instances.clear();
+        self.main_actor_vid = None;
+    }
+}
+
+/// Globalny stan przechowujacy CharacterManagerCore, chroniony przez RwLock.
+static CHARACTER_MANAGER: OnceLock<RwLock<CharacterManagerCore>> = OnceLock::new();
+
+pub fn get_character_manager() -> &'static RwLock<CharacterManagerCore> {
+    CHARACTER_MANAGER.get_or_init(|| RwLock::new(CharacterManagerCore::new()))
+}
+
+#[no_mangle]
+pub extern "C" fn m2_chr_mgr_create_instance(
+    vid: u32,
+    race: u16,
+    x: f32,
+    y: f32,
+    z: f32,
+) -> bool {
+    safe_ffi_call(false, || {
+        let mut mgr = match get_character_manager().write() {
+            Ok(lock) => lock,
+            Err(_) => return false,
+        };
+        mgr.create_instance(vid, race, x, y, z)
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_chr_mgr_delete_instance(vid: u32) -> bool {
+    safe_ffi_call(false, || {
+        let mut mgr = match get_character_manager().write() {
+            Ok(lock) => lock,
+            Err(_) => return false,
+        };
+        mgr.delete_instance(vid)
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_chr_mgr_get_count() -> u32 {
+    safe_ffi_call(0, || {
+        let mgr = match get_character_manager().read() {
+            Ok(lock) => lock,
+            Err(_) => return 0,
+        };
+        mgr.count() as u32
+    })
 }
