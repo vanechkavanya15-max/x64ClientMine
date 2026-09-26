@@ -1,107 +1,18 @@
-use std::convert::TryFrom;
-
-pub const CHARACTER_NAME_MAX_LEN: usize = 64;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum ChatType {
-    Talking = 0,
-    Info = 1,
-    Notice = 2,
-    Party = 3,
-    Guild = 4,
-    Command = 5,
-    Shout = 6,
-    Whisper = 7,
-    BigNotice = 8,
-    MaxNum = 9,
-}
-
-impl TryFrom<u8> for ChatType {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(ChatType::Talking),
-            1 => Ok(ChatType::Info),
-            2 => Ok(ChatType::Notice),
-            3 => Ok(ChatType::Party),
-            4 => Ok(ChatType::Guild),
-            5 => Ok(ChatType::Command),
-            6 => Ok(ChatType::Shout),
-            7 => Ok(ChatType::Whisper),
-            8 => Ok(ChatType::BigNotice),
-            9 => Ok(ChatType::MaxNum),
-            _ => Err(()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum WhisperType {
-    Chat = 0,
-    NotExist = 1,
-    TargetBlocked = 2,
-    SenderBlocked = 3,
-    ErrorType = 4,
-    Gm = 5,
-    System = 0xFF,
-}
-
-impl TryFrom<u8> for WhisperType {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(WhisperType::Chat),
-            1 => Ok(WhisperType::NotExist),
-            2 => Ok(WhisperType::TargetBlocked),
-            3 => Ok(WhisperType::SenderBlocked),
-            4 => Ok(WhisperType::ErrorType),
-            5 => Ok(WhisperType::Gm),
-            0xFF => Ok(WhisperType::System),
-            _ => Err(()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ChatMessage {
-    pub chat_type: ChatType,
-    pub vid: u32,
-    pub empire: u8,
-    pub text: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WhisperMessage {
-    pub whisper_type: WhisperType,
-    pub from: String,
-    pub text: String,
-}
-
-#[derive(Debug, Clone)]
-pub enum ParseError {
-    BufferTooSmall,
-    InvalidType,
-}
 
 #[repr(C, packed)]
 struct TPacketGCChat {
     header: u16,
     length: u16,
     chat_type: u8,
-    dw_vid: u32,
-    b_empire: u8,
 }
 
 #[repr(C, packed)]
-struct TPacketGCWhisper {
+struct TPacketGCDamageInfo {
     header: u16,
     length: u16,
-    b_type: u8,
-    sz_name_from: [u8; CHARACTER_NAME_MAX_LEN + 1],
+    vid: u32,
+    flag: u8,
+    damage: i32,
 }
 
 // Strip color codes format like |cFFRRGGBB...|r
@@ -144,10 +55,10 @@ pub fn sanitize_chat_text(input: &str) -> String {
         .collect()
 }
 
-pub fn parse_chat(data: &[u8]) -> Result<(usize, ChatMessage), ParseError> {
+pub fn parse_chat(data: &[u8]) -> Option<(u8, String)> {
     let header_size = std::mem::size_of::<TPacketGCChat>();
     if data.len() < header_size {
-        return Err(ParseError::BufferTooSmall);
+        return None;
     }
 
     let ptr = data.as_ptr() as *const TPacketGCChat;
@@ -155,11 +66,10 @@ pub fn parse_chat(data: &[u8]) -> Result<(usize, ChatMessage), ParseError> {
 
     let length = u16::from_le(packet.length) as usize;
     if data.len() < length || length < header_size {
-        return Err(ParseError::BufferTooSmall);
+        return None;
     }
 
-    let chat_type_raw = packet.chat_type;
-    let chat_type = ChatType::try_from(chat_type_raw).map_err(|_| ParseError::InvalidType)?;
+    let chat_type = packet.chat_type;
     
     let text_data = &data[header_size..length];
     
@@ -167,52 +77,49 @@ pub fn parse_chat(data: &[u8]) -> Result<(usize, ChatMessage), ParseError> {
     let text = text.trim_end_matches('\0');
     let text = sanitize_chat_text(text);
 
-    Ok((
-        length,
-        ChatMessage {
-            chat_type,
-            vid: u32::from_le(packet.dw_vid),
-            empire: packet.b_empire,
-            text,
-        },
-    ))
+    Some((chat_type, text))
 }
 
-pub fn parse_whisper(data: &[u8]) -> Result<(usize, WhisperMessage), ParseError> {
-    let header_size = std::mem::size_of::<TPacketGCWhisper>();
+pub fn parse_damage_info(data: &[u8]) -> Option<(u32, u8, i32)> {
+    let header_size = std::mem::size_of::<TPacketGCDamageInfo>();
     if data.len() < header_size {
-        return Err(ParseError::BufferTooSmall);
+        return None;
     }
 
-    let ptr = data.as_ptr() as *const TPacketGCWhisper;
+    let ptr = data.as_ptr() as *const TPacketGCDamageInfo;
     let packet = unsafe { &*ptr };
 
     let length = u16::from_le(packet.length) as usize;
     if data.len() < length || length < header_size {
-        return Err(ParseError::BufferTooSmall);
+        return None;
     }
 
-    let whisper_type_raw = packet.b_type;
-    let whisper_type = WhisperType::try_from(whisper_type_raw).map_err(|_| ParseError::InvalidType)?;
+    let vid = u32::from_le(packet.vid);
+    let flag = packet.flag;
+    let damage = i32::from_le(packet.damage);
 
-    let name_bytes = &packet.sz_name_from;
-    let name = String::from_utf8_lossy(name_bytes)
-        .trim_end_matches('\0')
-        .to_string();
-    let name = sanitize_chat_text(&name);
+    Some((vid, flag, damage))
+}
 
-    let text_data = &data[header_size..length];
-    
-    let text = String::from_utf8_lossy(text_data).into_owned();
-    let text = text.trim_end_matches('\0');
-    let text = sanitize_chat_text(text);
+#[no_mangle]
+pub extern "C" fn m2_net_parse_damage_info(
+    buf: *const u8,
+    len: usize,
+    out_vid: *mut u32,
+    out_dmg: *mut i32,
+) -> bool {
+    if buf.is_null() || len == 0 || out_vid.is_null() || out_dmg.is_null() {
+        return false;
+    }
 
-    Ok((
-        length,
-        WhisperMessage {
-            whisper_type,
-            from: name,
-            text,
-        },
-    ))
+    let data = unsafe { std::slice::from_raw_parts(buf, len) };
+    if let Some((vid, _flag, damage)) = parse_damage_info(data) {
+        unsafe {
+            *out_vid = vid;
+            *out_dmg = damage;
+        }
+        true
+    } else {
+        false
+    }
 }
