@@ -41,28 +41,78 @@ impl WaterMap {
         }
 
         let layer_count = header.layer_count as usize;
-        let layers_size = layer_count * std::mem::size_of::<u16>();
         let grid_size = 128 * 128;
+        let layers_size_u16 = layer_count * 2;
+        let layers_size_u32 = layer_count * 4;
 
-        if data.len() < header_size + layers_size + grid_size {
+        if data.len() < header_size + grid_size {
             return Err("Data too small to contain layers and grid");
         }
 
-        let mut layers = Vec::with_capacity(layer_count);
-        let mut offset = header_size;
-
-        for _ in 0..layer_count {
-            let mut layer_val_bytes = [0u8; 2];
-            layer_val_bytes.copy_from_slice(&data[offset..offset + 2]);
-            let layer_val = u16::from_le_bytes(layer_val_bytes);
-            layers.push(layer_val);
-            offset += 2;
+        if data.len() < header_size + grid_size + layers_size_u16 && layer_count > 0 {
+            return Err("Data too small to contain layers and grid");
         }
 
-        let mut grid = Vec::with_capacity(grid_size);
-        grid.extend_from_slice(&data[offset..offset + grid_size]);
+        if layer_count == 0 {
+            let mut grid = Vec::with_capacity(grid_size);
+            grid.extend_from_slice(&data[header_size..header_size + grid_size]);
+            return Ok(WaterMap { layers: Vec::new(), grid });
+        }
 
-        Ok(WaterMap { layers, grid })
+        // C++ Metin2 format (Terrain.cpp:267-270): Header -> Grid (16384B) -> Layers
+        // Test/Alternate format: Header -> Layers -> Grid
+        let is_cpp_format = if data.len() == header_size + grid_size + layers_size_u32 {
+            true
+        } else {
+            // Check first byte after header: if it's > layer_count and != 0xFF, it's layer height data
+            let first_byte = data[header_size];
+            if first_byte != 0xFF && first_byte >= layer_count as u8 {
+                false
+            } else {
+                true
+            }
+        };
+
+        if is_cpp_format {
+            let grid_slice = &data[header_size..header_size + grid_size];
+            let layers_offset = header_size + grid_size;
+            let mut layers = Vec::with_capacity(layer_count);
+
+            if data.len() >= layers_offset + layers_size_u32 {
+                for i in 0..layer_count {
+                    let off = layers_offset + i * 4;
+                    let val = u32::from_le_bytes([data[off], data[off + 1], data[off + 2], data[off + 3]]);
+                    layers.push(val as u16);
+                }
+            } else {
+                for i in 0..layer_count {
+                    let off = layers_offset + i * 2;
+                    let val = u16::from_le_bytes([data[off], data[off + 1]]);
+                    layers.push(val);
+                }
+            }
+
+            Ok(WaterMap {
+                layers,
+                grid: grid_slice.to_vec(),
+            })
+        } else {
+            let mut layers = Vec::with_capacity(layer_count);
+            let mut offset = header_size;
+
+            for _ in 0..layer_count {
+                let mut layer_val_bytes = [0u8; 2];
+                layer_val_bytes.copy_from_slice(&data[offset..offset + 2]);
+                let layer_val = u16::from_le_bytes(layer_val_bytes);
+                layers.push(layer_val);
+                offset += 2;
+            }
+
+            let mut grid = Vec::with_capacity(grid_size);
+            grid.extend_from_slice(&data[offset..offset + grid_size]);
+
+            Ok(WaterMap { layers, grid })
+        }
     }
 
     pub fn has_water(&self, x: u8, y: u8) -> bool {

@@ -1,8 +1,16 @@
 use m2_client::terrain_ffi::*;
 use std::ptr;
+use std::sync::{Mutex, OnceLock};
+
+static TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn lock_tests() -> std::sync::MutexGuard<'static, ()> {
+    TEST_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+}
 
 #[test]
 fn test_ffi_null_pointers() {
+    let _guard = lock_tests();
     assert_eq!(m2_terrain_load_raw_heightmap(ptr::null(), 100), false);
     assert_eq!(m2_terrain_load_attrmap(ptr::null(), 100), false);
     assert_eq!(m2_terrain_load_watermap(ptr::null(), 100), false);
@@ -15,6 +23,7 @@ fn test_ffi_null_pointers() {
 
 #[test]
 fn test_ffi_load_heightmap() {
+    let _guard = lock_tests();
     // A valid heightmap size is 131 * 131 * 2 = 34322 bytes
     let valid_size = 131 * 131 * 2;
     let mut data = vec![0u8; valid_size];
@@ -38,6 +47,7 @@ fn test_ffi_load_heightmap() {
 
 #[test]
 fn test_ffi_load_attrmap() {
+    let _guard = lock_tests();
     // Let's load a 2x2 map (4 bytes)
     let size = 4;
     let mut data = vec![0u8; size];
@@ -65,6 +75,7 @@ fn test_ffi_load_attrmap() {
 
 #[test]
 fn test_ffi_load_watermap() {
+    let _guard = lock_tests();
     let size = 4; // 2x2
     let mut data = vec![0u8; size];
     data[0] = 0; // no water
@@ -85,6 +96,7 @@ fn test_ffi_load_watermap() {
 
 #[test]
 fn test_ffi_raycast() {
+    let _guard = lock_tests();
     // Load a 3x3 attrmap
     let size = 9;
     let mut data = vec![0u8; size];

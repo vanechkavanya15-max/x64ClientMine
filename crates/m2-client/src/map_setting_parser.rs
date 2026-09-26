@@ -28,25 +28,25 @@ impl MapSetting {
                 continue;
             }
 
-            match tokens[0] {
-                "MapSize" => {
+            match tokens[0].to_ascii_lowercase().as_str() {
+                "mapsize" | "map_size" => {
                     if tokens.len() >= 3 {
                         width_sectors = tokens[1].parse::<u32>().ok();
                         height_sectors = tokens[2].parse::<u32>().ok();
                     }
                 }
-                "BasePosition" => {
+                "baseposition" | "base_position" => {
                     if tokens.len() >= 3 {
                         base_x = tokens[1].parse::<i32>().ok();
                         base_y = tokens[2].parse::<i32>().ok();
                     }
                 }
-                "TextureSet" => {
+                "textureset" | "texture_set" => {
                     if tokens.len() >= 2 {
                         texture_set_path = Some(tokens[1..].join(" "));
                     }
                 }
-                "Environment" => {
+                "environment" => {
                     if tokens.len() >= 2 {
                         environment_path = Some(tokens[1..].join(" "));
                     }

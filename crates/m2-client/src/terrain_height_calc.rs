@@ -54,4 +54,36 @@ impl TerrainHeightCalculator {
 
         final_height * self.height_scale
     }
+
+    /// Dokladna kalkulacja wysokosci na podstawie dwoch trojkatow siatki terenu,
+    /// bezposrednio odwzorowujaca algorytm C++ CTerrain::GetHeight (AreaTerrain.cpp:408-433).
+    pub fn get_height_triangle(&self, fx: f32, fy: f32) -> f32 {
+        let clamped_fx = fx.clamp(0.0, 128.0);
+        let clamped_fy = fy.clamp(0.0, 128.0);
+
+        let ix = clamped_fx.floor() as usize;
+        let iy = clamped_fy.floor() as usize;
+
+        let x_index = ix + 1;
+        let y_index = iy + 1;
+
+        let h1 = self.raw_map.get_height_raw(x_index, y_index) as f32 * self.height_scale;
+        let h2 = self.raw_map.get_height_raw(x_index + 1, y_index + 1) as f32 * self.height_scale;
+
+        let xdist = clamped_fx - (ix as f32);
+        let ydist = clamped_fy - (iy as f32);
+
+        // Trojkat lewy (xdist <= ydist) vs prawy (xdist > ydist) - zgodnie z C++ AreaTerrain.cpp:408-433
+        if xdist <= ydist {
+            let h3 = self.raw_map.get_height_raw(x_index, y_index + 1) as f32 * self.height_scale;
+            let xslope = h2 - h3;
+            let yslope = h3 - h1;
+            h1 + (xdist * xslope + ydist * yslope)
+        } else {
+            let h3 = self.raw_map.get_height_raw(x_index + 1, y_index) as f32 * self.height_scale;
+            let xslope = h3 - h1;
+            let yslope = h2 - h3;
+            h1 + (xdist * xslope + ydist * yslope)
+        }
+    }
 }

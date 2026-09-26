@@ -1,6 +1,7 @@
 pub const SHADOWMAP_XSIZE: usize = 256;
 pub const SHADOWMAP_YSIZE: usize = 256;
 pub const TERRAIN_SIZE: f32 = 128.0;
+pub const TERRAIN_WORLD_SIZE: f32 = 25600.0;
 
 pub struct TerrainShadowMap {
     pub shadow_map: [u16; SHADOWMAP_XSIZE * SHADOWMAP_YSIZE],
@@ -33,6 +34,25 @@ impl TerrainShadowMap {
         let r = (((val >> 11) & 0x1F) as u32 * 255) / 31;
         let g = (((val >> 5) & 0x3F) as u32 * 255) / 63;
         let b = ((val & 0x1F) as u32 * 255) / 31;
+
+        0xFF000000 | (r << 16) | (g << 8) | b
+    }
+
+    /// Pobiera kolor cienia uzywajac wspolrzednych swiata w centymetrach (0.0..25600.0),
+    /// bezposrednio odwzorowujac funkcje C++ CTerrainImpl::GetShadowMapColor (Terrain.cpp:299-319).
+    pub fn get_shadow_color_world(&self, fx: f32, fy: f32) -> u32 {
+        if fx < 0.0 || fy < 0.0 || fx >= TERRAIN_WORLD_SIZE || fy >= TERRAIN_WORLD_SIZE {
+            return 0xFFFFFFFF;
+        }
+
+        let x = ((fx / TERRAIN_WORLD_SIZE) * 255.0).clamp(0.0, 255.0) as usize;
+        let y = ((fy / TERRAIN_WORLD_SIZE) * 255.0).clamp(0.0, 255.0) as usize;
+
+        let val = self.shadow_map[y * SHADOWMAP_XSIZE + x];
+
+        let b = ((val & 0x1F) as u32) << 3;
+        let g = (((val >> 5) & 0x1F) as u32) << 3;
+        let r = (((val >> 10) & 0x1F) as u32) << 3;
 
         0xFF000000 | (r << 16) | (g << 8) | b
     }

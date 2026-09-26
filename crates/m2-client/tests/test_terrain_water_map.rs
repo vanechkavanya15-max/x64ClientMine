@@ -141,3 +141,28 @@ fn test_out_of_bounds_coordinates() {
     assert_eq!(map.get_water_height(0, 128), None);
     assert_eq!(map.get_water_height(255, 255), None);
 }
+
+#[test]
+fn test_valid_cpp_water_layout() {
+    // Official Metin2 C++ layout: Header (7B) -> Grid (16384B) -> Height Layers (2B each)
+    let mut data = create_valid_header(2);
+    
+    let mut grid = vec![0xFF; 128 * 128];
+    grid[0] = 0; // Layer 0
+    grid[1] = 1; // Layer 1
+    data.extend_from_slice(&grid);
+
+    let layer0: u16 = 250;
+    let layer1: u16 = 500;
+    data.extend_from_slice(&layer0.to_le_bytes());
+    data.extend_from_slice(&layer1.to_le_bytes());
+
+    let map = WaterMap::from_bytes(&data).expect("Should parse official Metin2 C++ watermap");
+    assert!(map.has_water(0, 0));
+    assert!(map.has_water(1, 0));
+    assert!(!map.has_water(2, 0));
+
+    assert_eq!(map.get_water_height(0, 0), Some(250.0));
+    assert_eq!(map.get_water_height(1, 0), Some(500.0));
+    assert_eq!(map.get_water_height(2, 0), None);
+}

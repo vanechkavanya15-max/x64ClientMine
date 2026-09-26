@@ -1,8 +1,8 @@
-const ATTR_BLOCK: u8 = 1 << 0;
-const ATTR_WATER: u8 = 1 << 1;
-#[allow(dead_code)]
-const ATTR_WARP: u8 = 1 << 2;
-const ATTR_SAFE_ZONE: u8 = 1 << 3;
+pub const ATTR_BLOCK: u8 = 1 << 0;
+pub const ATTR_WATER: u8 = 1 << 1;
+pub const ATTR_BANPK: u8 = 1 << 2; // C++ Terrain.h:70 ATTRIBUTE_BANPK (Safe zone)
+pub const ATTR_WARP: u8 = 1 << 2;
+pub const ATTR_SAFE_ZONE: u8 = 1 << 3;
 
 pub struct TerrainAttrMap {
     width: usize,
@@ -37,6 +37,6 @@ impl TerrainAttrMap {
         }
 
         let attr = self.attr_grid[y * self.width + x];
-        (attr & ATTR_SAFE_ZONE) != 0
+        (attr & (ATTR_BANPK | ATTR_SAFE_ZONE)) != 0
     }
 }
