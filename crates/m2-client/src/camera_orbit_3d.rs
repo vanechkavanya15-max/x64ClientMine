@@ -75,6 +75,22 @@ impl OrbitCamera {
         (eye_x, eye_y, eye_z)
     }
 
+    /// Dynamiczne podnoszenie celu kamery przy zblizaniu (zoom in).
+    /// Zgodnie z C++ CameraProcedure.cpp L287-292:
+    /// Przechodzi plynnie z CAMERA_TARGET_STANDARD (100.0) na CAMERA_TARGET_FACE (150.0).
+    pub fn get_dynamic_target_height(&self) -> f32 {
+        let movable_dist = (self.max_distance - self.min_distance).max(1.0);
+        let cur_movable_dist = (self.max_distance - self.distance).max(0.0);
+        const STANDARD: f32 = 100.0;
+        const FACE: f32 = 150.0;
+        STANDARD + (FACE - STANDARD) * (cur_movable_dist / movable_dist).clamp(0.0, 1.0)
+    }
+
+    /// Zwraca pozycje celu z uwzglednieniem dynamicznej wysokosci tors/twarz
+    pub fn get_dynamic_target(&self) -> (f32, f32, f32) {
+        (self.target.0, self.target.1, self.target.2 + self.get_dynamic_target_height())
+    }
+
     pub fn get_view_matrix(&self) -> [[f32; 4]; 4] {
         let eye_pos = self.get_eye();
         let eye = Vec3::new(eye_pos.0, eye_pos.1, eye_pos.2);

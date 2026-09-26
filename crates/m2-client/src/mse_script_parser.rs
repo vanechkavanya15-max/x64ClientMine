@@ -467,11 +467,41 @@ fn parse_time_event_float(tokens: &[String], i: &mut usize) -> Result<Vec<MseTim
     *i += 1;
     let mut events = Vec::new();
     
-    // We expect a number telling us how many elements in the list? No, usually in .txt format it might be inside { } or just the count.
-    // Let's see how Metin2 text file loader parses arrays. 
-    // Usually it's `count` followed by that many elements.
-    if *i < tokens.len() {
-        if let Ok(count) = tokens[*i].parse::<usize>() {
+    if *i >= tokens.len() {
+        return Ok(events);
+    }
+
+    // Obsluga formatu w klamrach { t1 v1 t2 v2 ... }
+    if tokens[*i] == "{" {
+        *i += 1;
+        while *i < tokens.len() && tokens[*i] != "}" {
+            let time = tokens[*i].parse::<f32>().map_err(|_| "Invalid time in time event float")?;
+            *i += 1;
+            if *i >= tokens.len() || tokens[*i] == "}" {
+                return Err("Missing value in time event pair");
+            }
+            let value = tokens[*i].parse::<f32>().map_err(|_| "Invalid value in time event float")?;
+            events.push(MseTimeEventFloat { time, value });
+            *i += 1;
+        }
+        return Ok(events);
+    }
+
+    // Sprawdzmy czy pierwszy token to liczba calkowita 'count' poprzedzajaca pary
+    if let Ok(count) = tokens[*i].parse::<usize>() {
+        let mut is_count_header = true;
+        if *i + count * 2 < tokens.len() {
+            for offset in 1..=count * 2 {
+                if tokens[*i + offset].parse::<f32>().is_err() {
+                    is_count_header = false;
+                    break;
+                }
+            }
+        } else {
+            is_count_header = false;
+        }
+
+        if is_count_header && count > 0 {
             for _ in 0..count {
                 let time = parse_f32(tokens, i)?;
                 let value = parse_f32(tokens, i)?;
@@ -480,28 +510,77 @@ fn parse_time_event_float(tokens: &[String], i: &mut usize) -> Result<Vec<MseTim
             return Ok(events);
         }
     }
-    Err("Failed to parse time event float list")
+
+    // Standardowy format Metin2 Type.cpp: bezposredni ciag par (time, value)
+    while *i + 1 < tokens.len() {
+        if let (Ok(time), Ok(value)) = (tokens[*i].parse::<f32>(), tokens[*i + 1].parse::<f32>()) {
+            events.push(MseTimeEventFloat { time, value });
+            *i += 2;
+        } else {
+            break;
+        }
+    }
+
+    if !events.is_empty() {
+        *i -= 1;
+    }
+    Ok(events)
 }
 
 fn parse_string_list(tokens: &[String], i: &mut usize) -> Result<Vec<String>, &'static str> {
     *i += 1;
     let mut list = Vec::new();
-    if *i < tokens.len() {
-        if let Ok(count) = tokens[*i].parse::<usize>() {
-            for _ in 0..count {
-                *i += 1;
-                if *i < tokens.len() {
-                    let mut s = tokens[*i].clone();
-                    if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
-                        s = s[1..s.len()-1].to_string();
-                    }
-                    list.push(s);
-                } else {
-                    return Err("Failed to parse string list");
-                }
+    if *i >= tokens.len() {
+        return Ok(list);
+    }
+
+    // Obsluga formatu w klamrach { "file1" "file2" }
+    if tokens[*i] == "{" {
+        *i += 1;
+        while *i < tokens.len() && tokens[*i] != "}" {
+            let mut s = tokens[*i].clone();
+            if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
+                s = s[1..s.len() - 1].to_string();
             }
-            return Ok(list);
+            list.push(s);
+            *i += 1;
+        }
+        return Ok(list);
+    }
+
+    // Obsluga z naglowkiem count
+    if let Ok(count) = tokens[*i].parse::<usize>() {
+        for _ in 0..count {
+            *i += 1;
+            if *i < tokens.len() {
+                let mut s = tokens[*i].clone();
+                if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
+                    s = s[1..s.len() - 1].to_string();
+                }
+                list.push(s);
+            } else {
+                return Err("Failed to parse string list");
+            }
+        }
+        return Ok(list);
+    }
+
+    // Bezposrednie stringi / sciezki
+    while *i < tokens.len() {
+        let s = &tokens[*i];
+        if s.starts_with('"') || s.ends_with(".dds") || s.ends_with(".tga") || s.ends_with(".bmp") {
+            let mut clean = s.clone();
+            if clean.starts_with('"') && clean.ends_with('"') && clean.len() >= 2 {
+                clean = clean[1..clean.len() - 1].to_string();
+            }
+            list.push(clean);
+            *i += 1;
+        } else {
+            break;
         }
     }
-    Err("Failed to parse string list")
+    if !list.is_empty() {
+        *i -= 1;
+    }
+    Ok(list)
 }

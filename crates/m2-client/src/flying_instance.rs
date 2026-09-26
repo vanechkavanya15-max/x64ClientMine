@@ -23,6 +23,8 @@ pub struct FlyingInstance {
     pub flown_distance: f32,
     pub yaw: f32,
     pub pitch: f32,
+    pub gravity: f32,
+    pub accel: (f32, f32, f32),
 }
 
 impl FlyingInstance {
@@ -46,9 +48,21 @@ impl FlyingInstance {
             flown_distance: 0.0,
             yaw: 0.0,
             pitch: 0.0,
+            gravity: 0.0,
+            accel: (0.0, 0.0, 0.0),
         };
         instance.update_orientation();
         instance
+    }
+
+    pub fn with_gravity(mut self, gravity: f32) -> Self {
+        self.gravity = gravity;
+        self
+    }
+
+    pub fn with_accel(mut self, ax: f32, ay: f32, az: f32) -> Self {
+        self.accel = (ax, ay, az);
+        self
     }
 
     pub fn update(
@@ -119,6 +133,13 @@ impl FlyingInstance {
                     new_v_z * self.speed,
                 );
             }
+        }
+
+        // Aplikacja grawitacji balistycznej i przyspieszenia (zgodnie z FlyingInstance.cpp L362)
+        if self.gravity != 0.0 || self.accel != (0.0, 0.0, 0.0) {
+            self.velocity.0 += self.accel.0 * dt;
+            self.velocity.1 += self.accel.1 * dt;
+            self.velocity.2 += (self.accel.2 - self.gravity) * dt;
         }
 
         let move_x = self.velocity.0 * dt;

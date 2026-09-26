@@ -108,11 +108,11 @@ fn decode_dxt5_block(data: &[u8], out: &mut [u8], stride: usize) {
     
     if a0 > a1 {
         for i in 1..=6 {
-            alphas[i + 1] = (((8 - i) as u32 * a0 as u32 + i as u32 * a1 as u32) / 7) as u8;
+            alphas[i + 1] = (((7 - i) as u32 * a0 as u32 + i as u32 * a1 as u32) / 7) as u8;
         }
     } else {
         for i in 1..=4 {
-            alphas[i + 1] = (((6 - i) as u32 * a0 as u32 + i as u32 * a1 as u32) / 5) as u8;
+            alphas[i + 1] = (((5 - i) as u32 * a0 as u32 + i as u32 * a1 as u32) / 5) as u8;
         }
         alphas[6] = 0;
         alphas[7] = 255;

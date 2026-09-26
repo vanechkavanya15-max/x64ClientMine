@@ -193,3 +193,28 @@ fn test_mse_script_parser_time_event_interpolation() {
     assert_eq!(p.time_event_color[4].r, 0.0);
     assert_eq!(p.time_event_color[4].a, 0.0);
 }
+
+#[test]
+fn test_mse_script_parser_native_metin2_syntax() {
+    let script = r#"
+        Group EmitterProperty
+        {
+            MaxEmissionCount    50
+            TimeEventEmittingSize 0.0 2.5 0.5 5.0 1.0 10.0
+        }
+        Group ParticleProperty
+        {
+            TimeEventGravity 0.0 100.0 1.0 200.0
+            TextureFiles { "d:/ymir work/effect/etc/fire01.dds" "d:/ymir work/effect/etc/fire02.dds" }
+        }
+    "#;
+
+    let parsed = MseEffectData::parse(script).unwrap();
+    assert_eq!(parsed.emitter_property.max_emission_count, 50);
+    assert_eq!(parsed.emitter_property.time_event_emitting_size.len(), 3);
+    assert_eq!(parsed.emitter_property.time_event_emitting_size[1].time, 0.5);
+    assert_eq!(parsed.emitter_property.time_event_emitting_size[1].value, 5.0);
+    assert_eq!(parsed.particle_property.time_event_gravity.len(), 2);
+    assert_eq!(parsed.particle_property.texture_files.len(), 2);
+    assert_eq!(parsed.particle_property.texture_files[0], "d:/ymir work/effect/etc/fire01.dds");
+}

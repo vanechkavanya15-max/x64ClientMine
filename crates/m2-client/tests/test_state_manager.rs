@@ -91,3 +91,41 @@ fn test_reset_to_defaults() {
     assert_eq!(sm.get_cull_mode(), CullMode::Back);
     assert_eq!(sm.is_wireframe(), false);
 }
+
+#[test]
+fn test_save_restore_render_state() {
+    use state_manager::*;
+    let mut sm = StateManager::new();
+
+    // Default ZENABLE = 1
+    assert_eq!(sm.get_render_state(D3DRS_ZENABLE), 1);
+
+    // Save initial state
+    sm.save_render_state(D3DRS_ZENABLE);
+
+    // Change state
+    assert_eq!(sm.set_render_state(D3DRS_ZENABLE, 0), true);
+    assert_eq!(sm.get_render_state(D3DRS_ZENABLE), 0);
+
+    // Redundant change returns false
+    assert_eq!(sm.set_render_state(D3DRS_ZENABLE, 0), false);
+
+    // Save second state
+    sm.save_render_state(D3DRS_ZENABLE);
+
+    // Change to 2
+    sm.set_render_state(D3DRS_ZENABLE, 2);
+    assert_eq!(sm.get_render_state(D3DRS_ZENABLE), 2);
+
+    // Restore second state (was 0)
+    assert_eq!(sm.restore_render_state(D3DRS_ZENABLE), Some(0));
+    assert_eq!(sm.get_render_state(D3DRS_ZENABLE), 0);
+
+    // Restore first state (was 1)
+    assert_eq!(sm.restore_render_state(D3DRS_ZENABLE), Some(1));
+    assert_eq!(sm.get_render_state(D3DRS_ZENABLE), 1);
+
+    // Restore when empty returns None
+    assert_eq!(sm.restore_render_state(D3DRS_ZENABLE), None);
+}
+

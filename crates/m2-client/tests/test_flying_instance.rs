@@ -149,3 +149,23 @@ fn test_missing_target_vid() {
     assert_eq!(instance.velocity, (10.0, 0.0, 0.0)); // Keeps going straight
     assert_eq!(instance.pos, (10.0, 0.0, 0.0));
 }
+
+#[test]
+fn test_ballistic_gravity() {
+    let mut instance = FlyingInstance::new(
+        (0.0, 0.0, 100.0),
+        (50.0, 0.0, 20.0),
+        None,
+        50.0,
+        1.0,
+        1.0,
+        500.0,
+    ).with_gravity(9.81);
+
+    let status = instance.update(1.0, |_| None);
+    assert_eq!(status, FlyingStatus::Flying);
+    // Z velocity drops by gravity * dt: 20.0 - 9.81 = 10.19
+    assert!((instance.velocity.2 - 10.19).abs() < 0.01);
+    // Z position updates: 100.0 + 10.19 = 110.19
+    assert!((instance.pos.2 - 110.19).abs() < 0.01);
+}

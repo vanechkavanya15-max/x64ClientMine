@@ -42,7 +42,7 @@ impl Frustum {
         self.planes[1] = r3 - r0; // Right
         self.planes[2] = r3 + r1; // Bottom
         self.planes[3] = r3 - r1; // Top
-        self.planes[4] = r3 + r2; // Near
+        self.planes[4] = r2;      // Near (DirectX 9 / D3D depth range [0, 1], C++ frustum.cpp L69)
         self.planes[5] = r3 - r2; // Far
 
         // Normalize each plane
