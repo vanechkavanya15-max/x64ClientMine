@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "rust_bridge",
+    "crates/m2-client",
 ]
 resolver = "2"
