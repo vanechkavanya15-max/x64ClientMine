@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "EffectLib/EffectManager.h"
 #include "AudioLib/SoundEngine.h"
+#include "EterBase/m2_client_bridge.h"
 
 #include "ActorInstance.h"
 #include "RaceData.h"
@@ -157,6 +158,7 @@ void CActorInstance::InputNormalAttackCommand(float fDirRot)
 bool CActorInstance::InputComboAttackCommand(float fDirRot)
 {
 	m_fAtkDirRot=fDirRot;
+	m2_battle_combo_attack(fDirRot);
 
 	if (m_isPreInput)
 		return false;
@@ -312,6 +314,7 @@ void CActorInstance::__ClearCombo()
 	m_dwcurComboIndex = 0;
 	m_isPreInput = FALSE;
 	m_pkCurRaceMotionData = NULL;
+	m2_battle_reset_combo();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////

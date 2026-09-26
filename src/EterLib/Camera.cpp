@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "EterBase/Utils.h"
+#include "EterBase/m2_client_bridge.h"
 #include "Camera.h"
 #include <cmath>
 
@@ -219,6 +220,8 @@ void CCamera::SetViewParams( const D3DXVECTOR3 &v3Eye, const D3DXVECTOR3& v3Targ
     m_v3Eye = v3Eye;
     m_v3Target = v3Target;
     m_v3Up = v3Up;
+
+	m2_camera_set_target(v3Target.x, v3Target.y, v3Target.z);
 
 	// Avoid screen flipping with nan values in the view matrix
 	if (!m_v3Eye.y)
@@ -542,6 +545,8 @@ void CCamera::RotateEyeAroundTarget(float fPitchDegree, float fRollDegree)
 		m_fRoll -= 360.0f;
 	else if (m_fRoll < -360.0f)
 		m_fRoll += 360.0f;
+
+	m2_camera_rotate(m_fRoll, m_fPitch);
 }
 
 void CCamera::RotateEyeAroundPoint(const D3DXVECTOR3 & v3Point, float fPitchDegree, float fRollDegree)

@@ -3,6 +3,7 @@
 #include "GrpImageTexture.h"
 #include "EterImageLib/DDSTextureLoader9.h"
 #include "DecodedImageData.h"
+#include "EterBase/m2_client_bridge.h"
 
 #include <stb_image.h>
 
@@ -112,6 +113,55 @@ bool CGraphicImageTexture::CreateFromDDSTexture(UINT bufSize, const void* c_pvBu
 
 bool CGraphicImageTexture::CreateFromSTB(UINT bufSize, const void* c_pvBuf)
 {
+	// Bezpieczne dekodowanie TGA przez silnik Rust (Faza B4)
+	if (bufSize >= 18 && c_pvBuf != nullptr)
+	{
+		const uint8_t* rawBytes = (const uint8_t*)c_pvBuf;
+		if (rawBytes[2] == 2 || rawBytes[2] == 10)
+		{
+			uint16_t w = (uint16_t)(rawBytes[12] | (rawBytes[13] << 8));
+			uint16_t h = (uint16_t)(rawBytes[14] | (rawBytes[15] << 8));
+			if (w > 0 && h > 0 && w <= 4096 && h <= 4096)
+			{
+				size_t reqLen = (size_t)w * h * 4;
+				std::vector<uint8_t> rgbaBuf(reqLen);
+				uint32_t outW = 0, outH = 0;
+				if (m2_image_decode_tga(rawBytes, bufSize, &outW, &outH, rgbaBuf.data(), reqLen))
+				{
+					LPDIRECT3DTEXTURE9 texture = nullptr;
+					if (SUCCEEDED(ms_lpd3dDevice->CreateTexture(outW, outH, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &texture, nullptr)))
+					{
+						D3DLOCKED_RECT rect;
+						if (SUCCEEDED(texture->LockRect(0, &rect, nullptr, 0)))
+						{
+							uint8_t* dstData = (uint8_t*)rect.pBits;
+							const uint8_t* srcData = rgbaBuf.data();
+							size_t pixelCount = (size_t)outW * outH;
+							for (size_t i = 0; i < pixelCount; ++i)
+							{
+								size_t idx = i * 4;
+								dstData[idx + 0] = srcData[idx + 2]; // B
+								dstData[idx + 1] = srcData[idx + 1]; // G
+								dstData[idx + 2] = srcData[idx + 0]; // R
+								dstData[idx + 3] = srcData[idx + 3]; // A
+							}
+							texture->UnlockRect(0);
+							m_width = outW;
+							m_height = outH;
+							m_bEmpty = false;
+							m_lpd3dTexture = texture;
+							return true;
+						}
+						else if (texture)
+						{
+							texture->Release();
+						}
+					}
+				}
+			}
+		}
+	}
+
 	int width, height, channels;
 	unsigned char* data = stbi_load_from_memory((stbi_uc*)c_pvBuf, bufSize, &width, &height, &channels, 4); // force RGBA
 	if (data) {

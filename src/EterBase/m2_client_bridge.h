@@ -107,6 +107,54 @@ bool     m2_string_normalize(const char* in_str, char* out_buf, size_t out_len);
 bool     m2_engine_init(void);
 void     m2_engine_shutdown(void);
 
+// ============================================================================
+// Phase B2: Combat & Combo Engine
+// ============================================================================
+bool     m2_battle_can_attack(uint32_t attacker_vid, uint32_t victim_vid);
+bool     m2_battle_combo_attack(float dir_rot);
+uint32_t m2_battle_get_combo_index(void);
+void     m2_battle_reset_combo(void);
+
+// ============================================================================
+// Phase B4: Image, DXT & Texture Decoders
+// ============================================================================
+bool     m2_image_decode_dxt(uint32_t dxt_type, const uint8_t* data_ptr, size_t len, uint32_t width, uint32_t height, uint8_t* out_buf);
+bool     m2_image_decode_tga(const uint8_t* data_ptr, size_t len, uint32_t* out_width, uint32_t* out_height, uint8_t* out_buf, size_t max_buf_len);
+bool     m2_image_apply_colorkey(uint8_t* rgba_buf, size_t len, uint8_t r, uint8_t g, uint8_t b);
+
+// ============================================================================
+// Phase B6: Effects, Particle Physics & Flying Projectiles
+// ============================================================================
+uint32_t m2_effect_create(uint32_t effect_id, float x, float y, float z);
+bool     m2_effect_update(uint32_t instance_id, float dt);
+bool     m2_effect_destroy(uint32_t instance_id);
+uint32_t m2_flying_spawn(uint32_t fly_type, float sx, float sy, float sz, float tx, float ty, float tz, uint32_t target_vid);
+bool     m2_flying_update(uint32_t fly_id, float dt, float* out_x, float* out_y, float* out_z, bool* out_hit);
+
+// ============================================================================
+// Phase B7: Camera 3D, Frustum Culling & View State
+// ============================================================================
+bool     m2_render_init(uint32_t width, uint32_t height);
+void     m2_camera_set_target(float x, float y, float z);
+void     m2_camera_rotate(float yaw, float pitch);
+void     m2_camera_zoom(float delta_dist);
+bool     m2_camera_get_eye(float* out_x, float* out_y, float* out_z);
+bool     m2_render_draw_ui_quad(float x, float y, float w, float h, uint32_t color_argb);
+bool     m2_frustum_build(const float* mat_16_floats);
+int32_t  m2_frustum_test_sphere(float cx, float cy, float cz, float radius);
+int32_t  m2_frustum_test_aabb(float min_x, float min_y, float min_z, float max_x, float max_y, float max_z);
+
+// ============================================================================
+// Phase B5: Movement & Terrain Collision
+// ============================================================================
+bool     m2_move_to(float target_x, float target_y);
+float    m2_get_height_at(float x, float y);
+bool     m2_is_walkable(float x, float y);
+void     m2_stop_movement(void);
+float    m2_terrain_get_height(float local_x, float local_y);
+bool     m2_terrain_is_blocked(uint16_t attr_x, uint16_t attr_y);
+bool     m2_terrain_is_water(uint16_t attr_x, uint16_t attr_y);
+
 #ifdef __cplusplus
 }
 #endif
