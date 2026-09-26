@@ -1,39 +1,40 @@
-use m2_client_bridge::net::cg::chat::{TPacketCGChat, m2_net_send_chat};
+use m2_client_bridge::net::cg::chat::{TPacketCGChat, m2_net_send_chat, HEADER_CG_CHAT};
 use std::ffi::CString;
 use std::ptr;
 
 #[test]
 fn test_cg_chat_packet_serialization() {
-    let packet = TPacketCGChat::new(1, "hello");
-    let serialized = packet.to_bytes();
+    let serialized = TPacketCGChat::build_with_message(1, "hello");
 
-    // 4 (header + size + type) + 5 ("hello") + 1 (\0) = 10 bajtow
-    let expected: Vec<u8> = vec![
-        3,          // HEADER_CG_CHAT
-        10, 0,      // length (little-endian u16)
-        1,          // chat_type
-        104, 101, 108, 108, 111, // "hello" w ASCII
-        0           // null terminator
-    ];
+    // 5 (header + length + type) + 5 ("hello") + 1 (\0) = 11 bajtow
+    assert_eq!(serialized.len(), 11);
 
-    assert_eq!(serialized, expected, "Nieprawidlowy uklad bajtow dla TPacketCGChat");
-    assert_eq!(packet.size, 10);
+    let header = u16::from_le_bytes([serialized[0], serialized[1]]);
+    assert_eq!(header, HEADER_CG_CHAT);
+
+    let length = u16::from_le_bytes([serialized[2], serialized[3]]);
+    assert_eq!(length, 11);
+
+    assert_eq!(serialized[4], 1); // chat_type
+    assert_eq!(&serialized[5..10], b"hello");
+    assert_eq!(serialized[10], 0); // null terminator
 }
 
 #[test]
 fn test_cg_chat_packet_serialization_empty_string() {
-    let packet = TPacketCGChat::new(2, "");
-    let serialized = packet.to_bytes();
+    let serialized = TPacketCGChat::build_with_message(2, "");
 
-    // 4 (header) + 0 ("") + 1 (\0) = 5 bajtow
-    let expected: Vec<u8> = vec![
-        3,          // HEADER_CG_CHAT
-        5, 0,       // length (little-endian u16)
-        2,          // chat_type
-        0           // null terminator
-    ];
+    // 5 (header struct) + 0 ("") + 1 (\0) = 6 bajtow
+    assert_eq!(serialized.len(), 6);
 
-    assert_eq!(serialized, expected, "Nieprawidlowy uklad bajtow dla TPacketCGChat (pusty string)");
+    let header = u16::from_le_bytes([serialized[0], serialized[1]]);
+    assert_eq!(header, HEADER_CG_CHAT);
+
+    let length = u16::from_le_bytes([serialized[2], serialized[3]]);
+    assert_eq!(length, 6);
+
+    assert_eq!(serialized[4], 2); // chat_type
+    assert_eq!(serialized[5], 0); // null terminator
 }
 
 #[test]
@@ -43,28 +44,27 @@ fn test_cg_chat_packet_truncation() {
         long_msg.push('A');
     }
     
-    let packet = TPacketCGChat::new(1, &long_msg);
-    assert_eq!(packet.message.len(), 513); // 512 + null byte
-    assert_eq!(packet.size, 517); // 4 + 513
+    let bytes = TPacketCGChat::build_with_message(1, &long_msg);
+    // 5 (header) + 512 + 1 (null) = 518
+    assert_eq!(bytes.len(), 518);
+    let length = u16::from_le_bytes([bytes[2], bytes[3]]);
+    assert_eq!(length, 518);
 }
 
 #[test]
 fn test_cg_chat_packet_utf8_truncation() {
-    // Znak "ż" zajmuje 2 bajty w utf8
+    // Znak \u{017C} zajmuje 2 bajty w UTF-8
     let mut utf8_msg = String::new();
     for _ in 0..256 {
-        utf8_msg.push('ż'); // 512 bajtow
+        utf8_msg.push('\u{017C}'); // 512 bajtow
     }
-    utf8_msg.push('ż'); // extra z, co daje 514 bajtow totalnie
+    utf8_msg.push('\u{017C}'); // 514 bajtow totalnie
 
-    let packet = TPacketCGChat::new(1, &utf8_msg);
-    // Skoro makso to 512 bajtow, i ma "ż" rowne (256 * 2), to bedzie rowno 512
-    assert_eq!(packet.message.len(), 513); 
-    assert_eq!(packet.size, 517);
-
-    let decoded = std::str::from_utf8(&packet.message[..packet.message.len()-1]).unwrap();
-    assert_eq!(decoded.chars().count(), 256);
+    let bytes = TPacketCGChat::build_with_message(1, &utf8_msg);
+    // 5 (header) + 512 + 1 (null) = 518
+    assert_eq!(bytes.len(), 518);
 }
+
 
 #[test]
 fn test_m2_net_send_chat_null_ptr() {

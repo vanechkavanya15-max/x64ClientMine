@@ -1,81 +1,117 @@
+#![allow(non_snake_case)]
+
+// Struktura pakietu ustawienia przedmiotu w ekwipunku (Game -> Client)
+// Zgodna z E:\m2dev-client-src-main\src\UserInterface\Packet.h (TPacketGCItemSet)
+
 use crate::ffi_guard::safe_ffi_call;
 use std::slice;
+use std::ptr;
 
-pub const HEADER_GC_ITEM_SET: u8 = 21;
+pub const HEADER_GC_ITEM_SET: u16 = 0x0511;
+pub const ITEM_SOCKET_SLOT_MAX_NUM: usize = 3;
+pub const ITEM_ATTRIBUTE_SLOT_MAX_NUM: usize = 7;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PacketError {
     BufferTooSmall,
     InvalidHeader,
 }
 
 #[repr(C, packed)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct TItemPos {
     pub window_type: u8,
     pub cell: u16,
 }
 
 #[repr(C, packed)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[allow(non_snake_case)]
 pub struct TPlayerItemAttribute {
-    pub b_type: u8,
-    pub s_value: i16,
+    pub bType: u8,
+    pub sValue: i16,
 }
 
+// Struktura pakietu TPacketGCItemSet
+// Rozmiar: header(2) + length(2) + pos(3) + vnum(4) + count(1) + flags(4)
+// + anti_flags(4) + highlight(1) + alSockets(12) + aAttr(21) = 54 bajty
 #[repr(C, packed)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(non_snake_case)]
 pub struct TPacketGCItemSet {
-    pub header: u8,
-    pub Cell: TItemPos,
+    pub header: u16,
+    pub length: u16,
+    pub pos: TItemPos,
     pub vnum: u32,
     pub count: u8,
-    pub al_sockets: [u32; 3],
-    pub a_attrs: [TPlayerItemAttribute; 7],
+    pub flags: u32,
+    pub anti_flags: u32,
+    pub highlight: u8,
+    pub alSockets: [i32; ITEM_SOCKET_SLOT_MAX_NUM],
+    pub aAttr: [TPlayerItemAttribute; ITEM_ATTRIBUTE_SLOT_MAX_NUM],
 }
 
 impl TPacketGCItemSet {
-    pub const EXPECTED_SIZE: usize = 42;
+    pub const EXPECTED_SIZE: usize = 54;
+    pub const PACKET_SIZE: usize = 54;
 
     pub fn from_bytes(data: &[u8]) -> Result<Self, PacketError> {
-        if data.len() < Self::EXPECTED_SIZE {
+        if data.len() < Self::PACKET_SIZE {
             return Err(PacketError::BufferTooSmall);
         }
-        
-        let header = data[0];
-        if header != HEADER_GC_ITEM_SET {
-            return Err(PacketError::InvalidHeader);
+
+        let header = u16::from_le_bytes(data[0..2].try_into().unwrap());
+        let length = u16::from_le_bytes(data[2..4].try_into().unwrap());
+
+        let window_type = data[4];
+        let cell = u16::from_le_bytes(data[5..7].try_into().unwrap());
+        let pos = TItemPos { window_type, cell };
+
+        let vnum = u32::from_le_bytes(data[7..11].try_into().unwrap());
+        let count = data[11];
+        let flags = u32::from_le_bytes(data[12..16].try_into().unwrap());
+        let anti_flags = u32::from_le_bytes(data[16..20].try_into().unwrap());
+        let highlight = data[20];
+
+        let mut alSockets = [0i32; ITEM_SOCKET_SLOT_MAX_NUM];
+        for i in 0..ITEM_SOCKET_SLOT_MAX_NUM {
+            let offset = 21 + i * 4;
+            alSockets[i] = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
         }
 
-        let window_type = data[1];
-        let cell = u16::from_le_bytes([data[2], data[3]]);
-        
-        let vnum = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
-        let count = data[8];
-        
-        let mut al_sockets = [0u32; 3];
-        for i in 0..3 {
-            let offset = 9 + i * 4;
-            al_sockets[i] = u32::from_le_bytes([data[offset], data[offset+1], data[offset+2], data[offset+3]]);
+        let mut aAttr = [TPlayerItemAttribute { bType: 0, sValue: 0 }; ITEM_ATTRIBUTE_SLOT_MAX_NUM];
+        for i in 0..ITEM_ATTRIBUTE_SLOT_MAX_NUM {
+            let offset = 33 + i * 3;
+            let bType = data[offset];
+            let sValue = i16::from_le_bytes(data[offset + 1..offset + 3].try_into().unwrap());
+            aAttr[i] = TPlayerItemAttribute { bType, sValue };
         }
-        
-        let mut a_attrs = [TPlayerItemAttribute { b_type: 0, s_value: 0 }; 7];
-        for i in 0..7 {
-            let offset = 21 + i * 3;
-            let b_type = data[offset];
-            let s_value = i16::from_le_bytes([data[offset+1], data[offset+2]]);
-            a_attrs[i] = TPlayerItemAttribute { b_type, s_value };
-        }
-        
+
         Ok(Self {
             header,
-            Cell: TItemPos { window_type, cell },
+            length,
+            pos,
             vnum,
             count,
-            al_sockets,
-            a_attrs,
+            flags,
+            anti_flags,
+            highlight,
+            alSockets,
+            aAttr,
         })
+    }
+
+    // Akcesory dla kompatybilnosci
+    pub fn cell(&self) -> TItemPos {
+        unsafe { ptr::addr_of!(self.pos).read_unaligned() }
+    }
+
+    pub fn al_sockets(&self) -> [i32; ITEM_SOCKET_SLOT_MAX_NUM] {
+        unsafe { ptr::addr_of!(self.alSockets).read_unaligned() }
+    }
+
+    pub fn a_attrs(&self) -> [TPlayerItemAttribute; ITEM_ATTRIBUTE_SLOT_MAX_NUM] {
+        unsafe { ptr::addr_of!(self.aAttr).read_unaligned() }
     }
 }
 
@@ -91,7 +127,7 @@ pub unsafe extern "C" fn m2_net_parse_item_set(
         }
 
         let slice = unsafe { slice::from_raw_parts(data, len) };
-        
+
         match TPacketGCItemSet::from_bytes(slice) {
             Ok(packet) => {
                 let boxed = Box::new(packet);

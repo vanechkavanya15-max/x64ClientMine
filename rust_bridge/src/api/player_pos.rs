@@ -3,8 +3,9 @@
 //! Wszystkie funkcje sa chronione przed panika.
 
 use crate::ffi_guard::safe_ffi_call;
+use crate::state::game_state::GLOBAL_GAME_STATE;
 
-/// FFI: Pobiera pozycje i rotacje gracza.
+/// FFI: Pobiera pozycje i rotacje gracza z centralnego stanu gry.
 /// Zwraca true jesli pomyslnie, false jesli wystapil blad (np. null pointer).
 #[no_mangle]
 pub extern "C" fn m2_player_get_position(out_x: *mut f32, out_y: *mut f32, out_rot: *mut f32) -> bool {
@@ -13,11 +14,11 @@ pub extern "C" fn m2_player_get_position(out_x: *mut f32, out_y: *mut f32, out_r
             return false;
         }
 
-        // Faza A: Zwracamy przykladowe zera jako pozycje bazowa przed integracja silnika.
+        let state = GLOBAL_GAME_STATE.read().unwrap();
         unsafe {
-            *out_x = 0.0;
-            *out_y = 0.0;
-            *out_rot = 0.0;
+            *out_x = state.player.x;
+            *out_y = state.player.y;
+            *out_rot = state.player.rot;
         }
 
         true

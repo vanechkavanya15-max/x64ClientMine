@@ -1,37 +1,49 @@
+// Struktura pakietu celu CG na podstawie Packet.h: command_target
+// Komentarze wylacznie po polsku bez polskich znakow diakrytycznych.
+
+use crate::net::constants::cg::TARGET;
 use crate::ffi_guard::safe_ffi_call;
+use crate::net::send_queue::enqueue_outgoing_packet;
 
-pub const HEADER_CG_TARGET: u8 = 61;
+pub const HEADER_CG_TARGET: u16 = TARGET;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C, packed)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TPacketCGTarget {
-    pub header: u8,
+    pub header: u16,
+    pub length: u16,
     pub dw_vid: u32,
 }
 
 impl TPacketCGTarget {
+    pub const HEADER: u16 = TARGET;
+    pub const SIZE: u16 = std::mem::size_of::<Self>() as u16;
+
+    // Tworzy nowy pakiet wyboru celu.
     pub fn new(dw_vid: u32) -> Self {
         Self {
-            header: HEADER_CG_TARGET,
+            header: Self::HEADER,
+            length: Self::SIZE,
             dw_vid,
         }
     }
 
-    pub fn to_bytes(&self) -> [u8; 5] {
-        let mut bytes = [0u8; 5];
-        bytes[0] = self.header;
-        bytes[1..5].copy_from_slice(&self.dw_vid.to_le_bytes());
-        bytes
+    // Serializuje pakiet do wektora bajtow (Little-Endian).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(Self::SIZE as usize);
+        buf.extend_from_slice(&self.header.to_le_bytes());
+        buf.extend_from_slice(&self.length.to_le_bytes());
+        buf.extend_from_slice(&self.dw_vid.to_le_bytes());
+        buf
     }
 }
 
-// Funkcja C-FFI wysylajaca pakiet CG target.
-// Zabezpieczona przed panika w C++.
+// Funkcja C FFI wysylajaca pakiet wyboru celu.
 #[no_mangle]
 pub extern "C" fn m2_net_send_target(dw_vid: u32) -> bool {
     safe_ffi_call(false, || {
-        let _packet = TPacketCGTarget::new(dw_vid);
-        // Tymczasowo zwraca true w symulacji wysylania. Docelowo podlaczona bedzie tu faktyczna logika.
-        true
+        let packet = TPacketCGTarget::new(dw_vid);
+        let bytes = packet.to_bytes();
+        enqueue_outgoing_packet(bytes)
     })
 }

@@ -1,37 +1,52 @@
-use crate::ffi_guard::safe_ffi_call;
+#![allow(non_snake_case)]
 
-#[derive(Debug, PartialEq)]
+// Struktura pakietu usuniecia przedmiotu z ekwipunku (Game -> Client)
+// Zgodna z E:\m2dev-client-src-main\src\UserInterface\Packet.h (TPacketGCItemDel)
+
+use crate::ffi_guard::safe_ffi_call;
+use std::mem::size_of;
+
+pub const HEADER_GC_ITEM_DEL: u16 = 0x0510;
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum PacketError {
     TooShort,
+    InvalidHeader,
 }
 
 #[repr(C, packed)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct TItemPos {
     pub window_type: u8,
     pub cell: u16,
 }
 
+// Struktura pakietu usuniecia przedmiotu
+// Rozmiar: header(2) + length(2) + pos(3) = 7 bajtow
 #[repr(C, packed)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct TPacketGCItemDel {
-    pub header: u8,
+    pub header: u16,
+    pub length: u16,
     pub pos: TItemPos,
 }
 
 impl TPacketGCItemDel {
+    pub const PACKET_SIZE: usize = size_of::<Self>();
+
     pub fn from_bytes(data: &[u8]) -> Result<Self, PacketError> {
-        let expected_size = std::mem::size_of::<Self>();
-        if data.len() < expected_size {
+        if data.len() < Self::PACKET_SIZE {
             return Err(PacketError::TooShort);
         }
 
-        let header = data[0];
-        let window_type = data[1];
-        let cell = u16::from_le_bytes([data[2], data[3]]);
+        let header = u16::from_le_bytes(data[0..2].try_into().unwrap());
+        let length = u16::from_le_bytes(data[2..4].try_into().unwrap());
+        let window_type = data[4];
+        let cell = u16::from_le_bytes(data[5..7].try_into().unwrap());
 
         Ok(Self {
             header,
+            length,
             pos: TItemPos {
                 window_type,
                 cell,

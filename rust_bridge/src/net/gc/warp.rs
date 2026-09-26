@@ -1,58 +1,76 @@
-use crate::ffi_guard::safe_ffi_call;
+#![allow(non_snake_case)]
 
+// Struktura pakietu teleportacji (Warp) (Game -> Client)
+// Zgodna z E:\m2dev-client-src-main\src\UserInterface\Packet.h (TPacketGCWarp)
+
+use crate::ffi_guard::safe_ffi_call;
+use std::ptr;
+
+pub const HEADER_GC_WARP: u16 = 0x0306;
+
+// Struktura pakietu teleportacji
+// Rozmiar: header(2) + length(2) + lX(4) + lY(4) + lAddr(4) + wPort(2) = 18 bajtow
 #[repr(C, packed)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(non_snake_case)]
 pub struct TPacketGCWarp {
-    pub header: u8,
-    pub l_x: i32,
-    pub l_y: i32,
-    pub l_addr: u32,
-    pub w_port: u16,
+    pub header: u16,
+    pub length: u16,
+    pub lX: i32,
+    pub lY: i32,
+    pub lAddr: i32,
+    pub wPort: u16,
 }
 
 impl TPacketGCWarp {
-    /// Oczekiwany rozmiar pakietu wynikajacy ze struktury C++ i #pragma pack(1)
-    pub const PACKET_SIZE: usize = 15;
+    pub const PACKET_SIZE: usize = 18;
 
-    /// Deserializacja pakietu z bufora bajtow
+    // Deserializacja pakietu z bufora bajtow
     pub fn from_bytes(buf: &[u8]) -> Result<Self, String> {
         if buf.len() < Self::PACKET_SIZE {
-            return Err(format!("Bufor jest za krotki. Oczekiwano {}, otrzymano {}", Self::PACKET_SIZE, buf.len()));
+            return Err(format!(
+                "Bufor jest za krotki. Oczekiwano {}, otrzymano {}",
+                Self::PACKET_SIZE,
+                buf.len()
+            ));
         }
 
-        let header = buf[0];
-        
-        let mut l_x_bytes = [0u8; 4];
-        l_x_bytes.copy_from_slice(&buf[1..5]);
-        let l_x = i32::from_le_bytes(l_x_bytes);
-
-        let mut l_y_bytes = [0u8; 4];
-        l_y_bytes.copy_from_slice(&buf[5..9]);
-        let l_y = i32::from_le_bytes(l_y_bytes);
-
-        let mut l_addr_bytes = [0u8; 4];
-        l_addr_bytes.copy_from_slice(&buf[9..13]);
-        let l_addr = u32::from_le_bytes(l_addr_bytes);
-
-        let mut w_port_bytes = [0u8; 2];
-        w_port_bytes.copy_from_slice(&buf[13..15]);
-        let w_port = u16::from_le_bytes(w_port_bytes);
+        let header = u16::from_le_bytes(buf[0..2].try_into().unwrap());
+        let length = u16::from_le_bytes(buf[2..4].try_into().unwrap());
+        let lX = i32::from_le_bytes(buf[4..8].try_into().unwrap());
+        let lY = i32::from_le_bytes(buf[8..12].try_into().unwrap());
+        let lAddr = i32::from_le_bytes(buf[12..16].try_into().unwrap());
+        let wPort = u16::from_le_bytes(buf[16..18].try_into().unwrap());
 
         Ok(TPacketGCWarp {
             header,
-            l_x,
-            l_y,
-            l_addr,
-            w_port,
+            length,
+            lX,
+            lY,
+            lAddr,
+            wPort,
         })
+    }
+
+    // Akcesory dla kompatybilnosci wstecznej
+    pub fn l_x(&self) -> i32 {
+        unsafe { ptr::addr_of!(self.lX).read_unaligned() }
+    }
+
+    pub fn l_y(&self) -> i32 {
+        unsafe { ptr::addr_of!(self.lY).read_unaligned() }
+    }
+
+    pub fn l_addr(&self) -> i32 {
+        unsafe { ptr::addr_of!(self.lAddr).read_unaligned() }
+    }
+
+    pub fn w_port(&self) -> u16 {
+        unsafe { ptr::addr_of!(self.wPort).read_unaligned() }
     }
 }
 
-/// Funkcja C-FFI sluzaca do parsowania pakietu warp z surowego bufora bajtow.
-///
-/// Jesli parsowanie sie powiedzie, alokuje nowa strukture na stercie i zapisuje jej
-/// adres w out_packet. Zwraca true w przypadku sukcesu i false w razie bledu (np. zbyt krotki bufor).
-/// Wymaga uzycia m2_net_free_warp do poprawnego zwolnienia zaalokowanej pamieci.
+// Funkcja C-FFI do parsowania pakietu warp z surowego bufora bajtow
 #[no_mangle]
 pub unsafe extern "C" fn m2_net_parse_warp(
     buf: *const u8,
@@ -63,9 +81,9 @@ pub unsafe extern "C" fn m2_net_parse_warp(
         if buf.is_null() || out_packet.is_null() {
             return false;
         }
-        
+
         let slice = std::slice::from_raw_parts(buf, len);
-        
+
         match TPacketGCWarp::from_bytes(slice) {
             Ok(packet) => {
                 let boxed_packet = Box::new(packet);
@@ -77,7 +95,7 @@ pub unsafe extern "C" fn m2_net_parse_warp(
     })
 }
 
-/// Zwalnia pamiec zajmowana przez strukture TPacketGCWarp zaalokowana z uzyciem m2_net_parse_warp.
+// Zwalnia pamiec zajmowana przez strukture TPacketGCWarp
 #[no_mangle]
 pub unsafe extern "C" fn m2_net_free_warp(packet: *mut TPacketGCWarp) {
     safe_ffi_call((), || {

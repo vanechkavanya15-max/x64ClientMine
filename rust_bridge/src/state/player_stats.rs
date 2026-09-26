@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
+use crate::state::game_state::GLOBAL_GAME_STATE;
 
 pub const PLAYER_STATS: u8 = 0;
+pub const POINT_HP: u8 = 5;
+pub const POINT_MAX_HP: u8 = 6;
 
 // Struktura przechowujaca statystyki postaci
 #[repr(C)]
@@ -196,24 +199,23 @@ pub unsafe extern "C" fn m2_player_stats_free(ptr: *mut PlayerStats) {
 #[no_mangle]
 pub unsafe extern "C" fn m2_player_get_hp() -> i32 {
     safe_ffi_call(0, || {
-        // Implementacja dummy, wlasciwa pobieralaby z globalnego zarzadcy lub aktualnego lokalnego gracza.
-        // Zgodnie z poleceniem wystarczy funkcja FFI chroniona.
-        0
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        state.get_point(POINT_HP) as i32
     })
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn m2_player_get_max_hp() -> i32 {
     safe_ffi_call(0, || {
-        // Dummy - domyslnie 0, aktualizowane przez GC_POINTS z serwera
-        0
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        state.get_point(POINT_MAX_HP) as i32
     })
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn m2_player_is_alive() -> bool {
     safe_ffi_call(false, || {
-        // Dummy - domyslnie false; w pelnej implementacji sprawdzalby hp > 0
-        false
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        state.get_point(POINT_HP) > 0
     })
 }

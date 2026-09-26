@@ -1,24 +1,27 @@
-use m2_client_bridge::net::gc::char_del::PacketGcCharacterDelete;
+use m2_client_bridge::net::gc::char_del::{
+    PacketGcCharacterDelete, TPacketGCCharacterDelete, HEADER_GC_CHARACTER_DEL,
+};
 
 #[test]
 fn test_char_del_valid_buffer() {
-    // HEADER_GC_CHARACTER_DEL = 2, w kodzie zrodlowym (zwykle, to przykladowy header uzywany dla pewnosci)
-    // 0x02, a nastepnie VID = 0x12345678, ktory jako little endian to 0x78, 0x56, 0x34, 0x12
-    let buf: [u8; 5] = [0x02, 0x78, 0x56, 0x34, 0x12];
+    let mut buf = [0u8; 8];
+    buf[0..2].copy_from_slice(&HEADER_GC_CHARACTER_DEL.to_le_bytes());
+    buf[2..4].copy_from_slice(&8u16.to_le_bytes());
+    buf[4..8].copy_from_slice(&0x12345678u32.to_le_bytes());
     
-    let result = PacketGcCharacterDelete::from_bytes(&buf);
+    let result = TPacketGCCharacterDelete::from_bytes(&buf);
     
-    assert!(result.is_ok(), "Powinno byc ok, bufor ma 5 bajtow");
+    assert!(result.is_ok(), "Powinno byc ok, bufor ma 8 bajtow");
     
     let packet = result.unwrap();
-    assert_eq!(packet.header, 0x02, "Header powinnien wynosic 2");
-    assert_eq!(packet.vid, 0x12345678, "VID odczytany niepoprawnie");
+    assert_eq!({ packet.header }, HEADER_GC_CHARACTER_DEL);
+    assert_eq!({ packet.length }, 8);
+    assert_eq!(packet.vid(), 0x12345678, "VID odczytany niepoprawnie");
 }
 
 #[test]
 fn test_char_del_buffer_too_short() {
-    // Krotki bufor - tylko 4 bajty
-    let buf: [u8; 4] = [0x02, 0x78, 0x56, 0x34];
+    let buf: [u8; 7] = [0; 7];
     
     let result = PacketGcCharacterDelete::from_bytes(&buf);
     
@@ -28,14 +31,17 @@ fn test_char_del_buffer_too_short() {
 
 #[test]
 fn test_char_del_buffer_longer_than_needed() {
-    // Bufor ma wiecej niz 5 bajtow, metoda nadal powinna przeczytac pierwsze 5
-    let buf: [u8; 8] = [0x02, 0x78, 0x56, 0x34, 0x12, 0x99, 0xaa, 0xbb];
+    let mut buf = [0u8; 12];
+    buf[0..2].copy_from_slice(&HEADER_GC_CHARACTER_DEL.to_le_bytes());
+    buf[2..4].copy_from_slice(&8u16.to_le_bytes());
+    buf[4..8].copy_from_slice(&0x12345678u32.to_le_bytes());
+    buf[8..12].copy_from_slice(&[0x99, 0xaa, 0xbb, 0xcc]);
     
     let result = PacketGcCharacterDelete::from_bytes(&buf);
     
     assert!(result.is_ok(), "Dalsze bajty w buforze nie powinny przeszkadzac");
     
     let packet = result.unwrap();
-    assert_eq!(packet.header, 0x02);
-    assert_eq!(packet.vid, 0x12345678);
+    assert_eq!({ packet.header }, HEADER_GC_CHARACTER_DEL);
+    assert_eq!(packet.vid(), 0x12345678);
 }

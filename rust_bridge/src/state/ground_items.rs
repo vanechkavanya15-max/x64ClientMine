@@ -82,7 +82,7 @@ impl Default for GroundItemsCache {
     }
 }
 
-/// Faza A: Zwraca VID najblizszego przedmiotu lezacego na ziemi dla podanej pozycji (px, py).
+/// Zwraca VID najblizszego przedmiotu lezacego na ziemi dla podanej pozycji (px, py).
 /// Zwraca 0, jesli brak przedmiotu.
 #[no_mangle]
 pub extern "C" fn m2_ground_find_nearest(px: i32, py: i32) -> u32 {

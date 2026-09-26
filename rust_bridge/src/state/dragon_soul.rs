@@ -1,5 +1,6 @@
 use crate::ffi_guard::safe_ffi_call;
 use crate::state::inventory_item::InventoryItem;
+use crate::state::game_state::GLOBAL_GAME_STATE;
 use std::ptr;
 
 pub const DRAGON_SOUL_MGR: u8 = 0;
@@ -92,10 +93,12 @@ pub extern "C" fn m2_ds_manager_free(ptr: *mut DragonSoulManager) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn m2_ds_get_vnum(_deck: u8, _slot: u8) -> u32 {
+pub unsafe extern "C" fn m2_ds_get_vnum(deck: u8, slot: u8) -> u32 {
     safe_ffi_call(0, || {
-        // Implementacja zalezna od globalnego stanu lub integracji.
-        // Obecnie zwraca 0.
-        0
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        if let Some(&vnum) = state.player.dragon_soul.get(&(deck, slot)) {
+            return vnum;
+        }
+        state.get_item_vnum(11 + deck, slot as u16)
     })
 }

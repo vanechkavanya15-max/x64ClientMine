@@ -5,6 +5,7 @@ pub mod nearest_target;
 pub mod net_channel;
 pub mod net_send;
 pub mod net_send_attack;
+pub mod net_send_chat;
 pub mod net_send_move;
 pub mod net_send_pickup;
 pub mod net_send_use_item;

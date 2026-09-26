@@ -1,81 +1,92 @@
 // Testy jednostkowe serializatora tworzenia postaci
+// Komentarze wylacznie po polsku bez polskich znakow diakrytycznych.
 
-use m2_client_bridge::net::cg::character_create::{TPacketCGPlayerCreate, m2_net_build_cg_player_create, m2_net_free_cg_player_create};
+use m2_client_bridge::net::cg::character_create::{
+    TPacketCGCreateCharacter, m2_net_build_cg_player_create, m2_net_free_cg_player_create,
+    CHARACTER_NAME_MAX_LEN,
+};
 use std::ffi::CString;
 
 #[test]
 fn test_character_create_packet_serialization() {
-    let mut name = [0u8; 25];
+    let mut name = [0u8; CHARACTER_NAME_MAX_LEN + 1];
     let name_str = b"TestName";
     name[..name_str.len()].copy_from_slice(name_str);
 
-    let packet = TPacketCGPlayerCreate {
-        header: 4, // HEADER_CG_PLAYER_CREATE
+    let packet = TPacketCGCreateCharacter {
+        header: 0x0201, // CG::CHARACTER_CREATE
+        length: 77,
         index: 1,
-        name: name,
+        name,
         job: 2,
         shape: 3,
         con: 10,
-        int: 20,
-        str: 30,
+        int_stat: 20,
+        str_stat: 30,
         dex: 40,
     };
 
     let bytes = packet.to_bytes();
     
-    // Sprawdzenie ogolnego rozmiaru bufora (34 bajty)
-    assert_eq!(bytes.len(), 34);
+    // Sprawdzenie ogolnego rozmiaru bufora (77 bajtow)
+    assert_eq!(bytes.len(), 77);
     
-    // Sprawdzenie pol 1-bajtowych
-    assert_eq!(bytes[0], 4);
-    assert_eq!(bytes[1], 1);
+    // Naglowek i dlugosc (u16 LE)
+    let header = u16::from_le_bytes([bytes[0], bytes[1]]);
+    assert_eq!(header, 0x0201);
+    let length = u16::from_le_bytes([bytes[2], bytes[3]]);
+    assert_eq!(length, 77);
+    
+    assert_eq!(bytes[4], 1); // index
     
     // Sprawdzenie tablicy znakow (nazwy postaci) zakonczonej zerami
     for i in 0..8 {
-        assert_eq!(bytes[2 + i], name_str[i]);
+        assert_eq!(bytes[5 + i], name_str[i]);
     }
-    for i in 8..25 {
-        assert_eq!(bytes[2 + i], 0);
+    for i in 8..65 {
+        assert_eq!(bytes[5 + i], 0);
     }
     
-    // Sprawdzenie pola 2-bajtowego w Little-Endian
-    assert_eq!(bytes[27], 2);
-    assert_eq!(bytes[28], 0);
+    // Sprawdzenie pola 2-bajtowego w Little-Endian (job)
+    let job = u16::from_le_bytes([bytes[70], bytes[71]]);
+    assert_eq!(job, 2);
     
     // Sprawdzenie pozostalych pol
-    assert_eq!(bytes[29], 3);
-    assert_eq!(bytes[30], 10);
-    assert_eq!(bytes[31], 20);
-    assert_eq!(bytes[32], 30);
-    assert_eq!(bytes[33], 40);
+    assert_eq!(bytes[72], 3); // shape
+    assert_eq!(bytes[73], 10); // con
+    assert_eq!(bytes[74], 20); // int_stat
+    assert_eq!(bytes[75], 30); // str_stat
+    assert_eq!(bytes[76], 40); // dex
 }
 
 #[test]
 fn test_character_create_packet_new() {
-    let packet = TPacketCGPlayerCreate::new(2, "TestNameLongerThanExpected", 1, 4, 15, 25, 35, 45);
+    let packet = TPacketCGCreateCharacter::new(2, "TestNameLongerThanExpected", 1, 4, 15, 25, 35, 45);
     let bytes = packet.to_bytes();
     
-    // Sprawdzenie ogolnego rozmiaru bufora (34 bajty)
-    assert_eq!(bytes.len(), 34);
+    // Sprawdzenie ogolnego rozmiaru bufora (77 bajtow)
+    assert_eq!(bytes.len(), 77);
     
-    assert_eq!(bytes[0], 4);
-    assert_eq!(bytes[1], 2);
+    let header = u16::from_le_bytes([bytes[0], bytes[1]]);
+    assert_eq!(header, 0x0201);
+    let length = u16::from_le_bytes([bytes[2], bytes[3]]);
+    assert_eq!(length, 77);
+    assert_eq!(bytes[4], 2);
     
-    // "TestNameLongerThanExpected" ma 26 znakow. `new` powinno uciac do 24 znakow.
-    let expected_name = b"TestNameLongerThanExpect";
-    for i in 0..24 {
-        assert_eq!(bytes[2 + i], expected_name[i]);
+    // Nazwa postaci
+    let expected_name = b"TestNameLongerThanExpected";
+    for i in 0..expected_name.len() {
+        assert_eq!(bytes[5 + i], expected_name[i]);
     }
-    assert_eq!(bytes[26], 0); // Null terminator
     
     // Sprawdzenie innych pol
-    assert_eq!(bytes[27], 1);
-    assert_eq!(bytes[28], 0);
-    assert_eq!(bytes[29], 4);
-    assert_eq!(bytes[30], 15);
-    assert_eq!(bytes[31], 25);
-    assert_eq!(bytes[32], 35);
-    assert_eq!(bytes[33], 45);
+    let job = u16::from_le_bytes([bytes[70], bytes[71]]);
+    assert_eq!(job, 1);
+    assert_eq!(bytes[72], 4);
+    assert_eq!(bytes[73], 15);
+    assert_eq!(bytes[74], 25);
+    assert_eq!(bytes[75], 35);
+    assert_eq!(bytes[76], 45);
 }
 
 #[test]
@@ -101,23 +112,26 @@ fn test_character_create_ffi() {
 
     assert!(success);
     assert!(!out_buf.is_null());
-    assert_eq!(out_len, 34);
+    assert_eq!(out_len, 77);
 
     let bytes = unsafe { std::slice::from_raw_parts(out_buf, out_len) };
-    assert_eq!(bytes[0], 4); // HEADER_CG_PLAYER_CREATE
-    assert_eq!(bytes[1], 0); // index
+    let header = u16::from_le_bytes([bytes[0], bytes[1]]);
+    assert_eq!(header, 0x0201);
+    let length = u16::from_le_bytes([bytes[2], bytes[3]]);
+    assert_eq!(length, 77);
+    assert_eq!(bytes[4], 0); // index
 
     // Sprawdzenie nazwy
-    let name_str = b"Warrior\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-    assert_eq!(&bytes[2..27], name_str);
+    assert_eq!(&bytes[5..12], b"Warrior");
+    assert_eq!(bytes[12], 0);
 
-    assert_eq!(bytes[27], 0); // job
-    assert_eq!(bytes[28], 0);
-    assert_eq!(bytes[29], 1); // shape
-    assert_eq!(bytes[30], 90); // con
-    assert_eq!(bytes[31], 10); // int
-    assert_eq!(bytes[32], 80); // str
-    assert_eq!(bytes[33], 20); // dex
+    let job = u16::from_le_bytes([bytes[70], bytes[71]]);
+    assert_eq!(job, 0);
+    assert_eq!(bytes[72], 1); // shape
+    assert_eq!(bytes[73], 90); // con
+    assert_eq!(bytes[74], 10); // int
+    assert_eq!(bytes[75], 80); // str
+    assert_eq!(bytes[76], 20); // dex
 
     unsafe {
         m2_net_free_cg_player_create(out_buf, out_len);
@@ -126,16 +140,23 @@ fn test_character_create_ffi() {
 
 #[test]
 fn test_character_create_packet_stat_ranges() {
-    // Stat ranges are implicitly enforced by u8, but testing boundary logic
-    let packet_min = TPacketCGPlayerCreate::new(0, "Min", 0, 0, 0, 0, 0, 0);
-    assert_eq!(packet_min.con, 0);
-    assert_eq!(packet_min.int, 0);
-    assert_eq!(packet_min.str, 0);
-    assert_eq!(packet_min.dex, 0);
+    let packet_min = TPacketCGCreateCharacter::new(0, "Min", 0, 0, 0, 0, 0, 0);
+    let con_min = { packet_min.con };
+    let int_min = { packet_min.int_stat };
+    let str_min = { packet_min.str_stat };
+    let dex_min = { packet_min.dex };
+    assert_eq!(con_min, 0);
+    assert_eq!(int_min, 0);
+    assert_eq!(str_min, 0);
+    assert_eq!(dex_min, 0);
 
-    let packet_max = TPacketCGPlayerCreate::new(3, "Max", 3, 255, 255, 255, 255, 255);
-    assert_eq!(packet_max.con, 255);
-    assert_eq!(packet_max.int, 255);
-    assert_eq!(packet_max.str, 255);
-    assert_eq!(packet_max.dex, 255);
+    let packet_max = TPacketCGCreateCharacter::new(3, "Max", 3, 255, 255, 255, 255, 255);
+    let con_max = { packet_max.con };
+    let int_max = { packet_max.int_stat };
+    let str_max = { packet_max.str_stat };
+    let dex_max = { packet_max.dex };
+    assert_eq!(con_max, 255);
+    assert_eq!(int_max, 255);
+    assert_eq!(str_max, 255);
+    assert_eq!(dex_max, 255);
 }

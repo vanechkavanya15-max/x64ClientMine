@@ -1,81 +1,113 @@
+#![allow(non_snake_case)]
+
+// Modul obslugujacy wiadomosci prywatne szeptu (Game -> Client)
+// Zgodny z E:\m2dev-client-src-main\src\UserInterface\Packet.h (TPacketGCWhisper)
+
 use crate::ffi_guard::safe_ffi_call;
 use std::ffi::{c_char, CString};
-
 use std::slice;
 
-pub const HEADER_GC_WHISPER: u8 = 34;
-pub const CHARACTER_NAME_MAX_LEN: usize = 24;
+pub const HEADER_GC_WHISPER: u16 = 0x0604;
+pub const CHARACTER_NAME_MAX_LEN: usize = 64;
 
-/// Struktura odpowiadajaca pakietowi C++ TPacketGCWhisper.
-/// BYTE bHeader
-/// WORD wSize
-/// BYTE bType
-/// char szNameFrom[CHARACTER_NAME_MAX_LEN + 1]
-/// reszta bajtow to tekst wiadomosci
-#[derive(Debug, PartialEq)]
+// Struktura pakietu TPacketGCWhisper
+// Rozmiar: header(2) + length(2) + bType(1) + szNameFrom(65) = 70 bajtow
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(non_snake_case)]
 pub struct TPacketGCWhisper {
-    pub header: u8,
-    pub size: u16,
+    pub header: u16,
+    pub length: u16,
+    pub bType: u8,
+    pub szNameFrom: [u8; CHARACTER_NAME_MAX_LEN + 1],
+}
+
+impl TPacketGCWhisper {
+    pub const PACKET_SIZE: usize = 70;
+    pub const MIN_PACKET_SIZE: usize = 70;
+
+    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
+        if data.len() < Self::PACKET_SIZE {
+            return Err("Bufor jest za krotki aby zawierac naglowek szeptu".to_string());
+        }
+
+        let header = u16::from_le_bytes(data[0..2].try_into().unwrap());
+        let length = u16::from_le_bytes(data[2..4].try_into().unwrap());
+        let bType = data[4];
+        let mut szNameFrom = [0u8; CHARACTER_NAME_MAX_LEN + 1];
+        szNameFrom.copy_from_slice(&data[5..70]);
+
+        Ok(Self {
+            header,
+            length,
+            bType,
+            szNameFrom,
+        })
+    }
+}
+
+// Struktura uzytkowa ze zdeserializowanymi stringami
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GcWhisperPacket {
+    pub header: u16,
+    pub length: u16,
     pub b_type: u8,
     pub sz_name_from: String,
     pub message: String,
 }
 
-impl TPacketGCWhisper {
-    /// Minimalny rozmiar pakietu (bez tresci szeptu): 1 + 2 + 1 + 25 = 29 bajtow
-    pub const MIN_PACKET_SIZE: usize = 29;
+impl GcWhisperPacket {
+    pub const MIN_PACKET_SIZE: usize = 70;
 
     pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
         if data.len() < Self::MIN_PACKET_SIZE {
             return Err("Bufor jest za krotki".to_string());
         }
 
-        let header = data[0];
-        if header != HEADER_GC_WHISPER {
-            return Err("Nieprawidlowy naglowek szeptu".to_string());
-        }
+        let header = u16::from_le_bytes(data[0..2].try_into().unwrap());
+        let length = u16::from_le_bytes(data[2..4].try_into().unwrap());
 
-        let mut size_bytes = [0u8; 2];
-        size_bytes.copy_from_slice(&data[1..3]);
-        let size = u16::from_le_bytes(size_bytes);
-
-        if (size as usize) < Self::MIN_PACKET_SIZE {
+        if (length as usize) < Self::MIN_PACKET_SIZE {
             return Err("Rozmiar pakietu zgloszony w naglowku jest mniejszy niz minimum".to_string());
         }
 
-        if data.len() < size as usize {
+        if data.len() < length as usize {
             return Err("Bufor nie zawiera calego pakietu zadeklarowanego w naglowku".to_string());
         }
 
-        let b_type = data[3];
+        let b_type = data[4];
 
-        // Odczytanie nazwy postaci nadawcy. Null-terminated, max 24 char + 1 null.
-        let name_slice = &data[4..4 + CHARACTER_NAME_MAX_LEN + 1];
+        // Odczytanie nazwy postaci nadawcy (null-terminated)
+        let name_slice = &data[5..70];
         let name_end = name_slice.iter().position(|&c| c == 0).unwrap_or(CHARACTER_NAME_MAX_LEN + 1);
         let sz_name_from = String::from_utf8_lossy(&name_slice[..name_end]).into_owned();
 
-        // Reszta to wiadomosc
-        let message_len = (size as usize) - Self::MIN_PACKET_SIZE;
+        // Reszta bajtow stanowi tresc wiadomosci
+        let message_len = (length as usize) - Self::MIN_PACKET_SIZE;
         let message_slice = &data[Self::MIN_PACKET_SIZE..Self::MIN_PACKET_SIZE + message_len];
-        // Szept moze byc null-terminated w kliencie C++, wiec ucinamy
         let message_end = message_slice.iter().position(|&c| c == 0).unwrap_or(message_len);
         let message = String::from_utf8_lossy(&message_slice[..message_end]).into_owned();
 
-        Ok(TPacketGCWhisper {
+        Ok(GcWhisperPacket {
             header,
-            size,
+            length,
             b_type,
             sz_name_from,
             message,
         })
     }
+
+    // Akcesory pomocnicze
+    pub fn size(&self) -> u16 {
+        self.length
+    }
 }
 
-// Struktura na potrzeby C-FFI, poniewaz std::string z Rusta nie moze byc bezpiecznie uzyty w C++
+// Struktura na potrzeby C-FFI
 #[repr(C)]
 pub struct C_TPacketGCWhisper {
-    pub header: u8,
-    pub size: u16,
+    pub header: u16,
+    pub length: u16,
     pub b_type: u8,
     pub sz_name_from: *mut c_char,
     pub message: *mut c_char,
@@ -93,14 +125,14 @@ pub unsafe extern "C" fn m2_net_parse_whisper(
         }
 
         let slice = unsafe { slice::from_raw_parts(data, len) };
-        match TPacketGCWhisper::from_bytes(slice) {
+        match GcWhisperPacket::from_bytes(slice) {
             Ok(rust_packet) => {
                 let name_c = CString::new(rust_packet.sz_name_from).unwrap_or_default();
                 let message_c = CString::new(rust_packet.message).unwrap_or_default();
 
                 let c_packet = Box::new(C_TPacketGCWhisper {
                     header: rust_packet.header,
-                    size: rust_packet.size,
+                    length: rust_packet.length,
                     b_type: rust_packet.b_type,
                     sz_name_from: name_c.into_raw(),
                     message: message_c.into_raw(),

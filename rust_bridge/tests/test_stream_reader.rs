@@ -10,9 +10,11 @@ fn test_tcp_fragmentation() {
     let tea_key = [0x11111111, 0x22222222, 0x33333333, 0x44444444];
     reader.set_tea_key(tea_key);
 
-    // Pakiet STREAM_READER o rozmiarze 13 bajtow
-    let mut dummy_packet = vec![STREAM_READER];
-    dummy_packet.extend_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    // Pakiet m2dev o rozmiarze 13 bajtow: [header: u16, length: u16, payload: 9 bajtow]
+    let mut dummy_packet = Vec::with_capacity(13);
+    dummy_packet.extend_from_slice(&STREAM_READER.to_le_bytes());
+    dummy_packet.extend_from_slice(&13u16.to_le_bytes());
+    dummy_packet.extend_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9]);
     
     // Zgodnie z formatem TEA wyrownujemy do wielokrotnosci 8 bajtow -> 16 bajtow
     let mut padded = dummy_packet.clone();
@@ -44,12 +46,16 @@ fn test_two_packets_concat() {
     let tea_key = [0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD];
     reader.set_tea_key(tea_key);
 
-    // Dwa pakiety STREAM_READER po 13 bajtow kazdy
-    let mut packet1 = vec![STREAM_READER];
-    packet1.extend_from_slice(&[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
+    // Dwa pakiety m2dev po 13 bajtow kazdy [header: u16, length: u16, payload: 9 bajtow]
+    let mut packet1 = Vec::with_capacity(13);
+    packet1.extend_from_slice(&STREAM_READER.to_le_bytes());
+    packet1.extend_from_slice(&13u16.to_le_bytes());
+    packet1.extend_from_slice(&[10, 20, 30, 40, 50, 60, 70, 80, 90]);
     
-    let mut packet2 = vec![STREAM_READER];
-    packet2.extend_from_slice(&[15, 25, 35, 45, 55, 65, 75, 85, 95, 105, 115, 125]);
+    let mut packet2 = Vec::with_capacity(13);
+    packet2.extend_from_slice(&0x0302u16.to_le_bytes());
+    packet2.extend_from_slice(&13u16.to_le_bytes());
+    packet2.extend_from_slice(&[15, 25, 35, 45, 55, 65, 75, 85, 95]);
     
     let mut both_packets = packet1.clone();
     both_packets.extend_from_slice(&packet2);
@@ -76,8 +82,6 @@ fn test_two_packets_concat() {
     let second_data = second.unwrap();
     assert_eq!(second_data, packet2, "Zawartosc drugiego pakietu musi byc prawidlowa");
     
-    // Nie powinno byc juz nic wiecej (mimo nadmiarowych zdekodowanych danych TEA,
-    // nastepny read zwroci None przez brak wystarczajacej dlugosci czy zly naglowek 0)
-    // - poniewaz naglowek w wyrownaniu bedzie 0 (co oczekuje 13 bajtow), a zostalo 6 bajtow.
+    // Nie powinno byc juz nic wiecej w buforze
     assert!(reader.read_next_packet().is_none(), "Brak kolejnych pakietow");
 }

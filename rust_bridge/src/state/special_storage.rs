@@ -45,7 +45,7 @@ impl SpecialStorage {
     }
 }
 
-// Globalny stan (dummy) na potrzeby FFI m2_special_storage_count 
+// Globalny stan na potrzeby FFI m2_special_storage_count 
 // Poniewaz sygnatura FFI nie ma wskaznika
 static mut GLOBAL_STORAGE: Option<SpecialStorage> = None;
 

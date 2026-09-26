@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::state::inventory_item::InventoryItem;
 use crate::ffi_guard::safe_ffi_call;
+use crate::state::game_state::GLOBAL_GAME_STATE;
 
 pub const EQUIPMENT_WEAR: u8 = 0;
 
@@ -89,11 +90,12 @@ pub unsafe extern "C" fn m2_equipment_free(ptr: *mut Equipment) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn m2_equipment_get_vnum(_slot: u8) -> u32 {
+pub unsafe extern "C" fn m2_equipment_get_vnum(slot: u8) -> u32 {
     safe_ffi_call(0, || {
-        // As requested by the user, the signature is fixed to `pub unsafe extern "C" fn m2_equipment_get_vnum(slot: u8) -> u32`
-        // However, this means we cannot access the pointer to the equipment struct.
-        // For now, this is a stub. In a real system, this would access a global singleton.
-        0
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        if let Some(&vnum) = state.player.equipment.get(&slot) {
+            return vnum;
+        }
+        state.get_item_vnum(1, slot as u16)
     })
 }

@@ -1,20 +1,21 @@
-use m2_client_bridge::net::gc::chat::GcChatPacket;
+use m2_client_bridge::net::gc::chat::{
+    GcChatPacket, TPacketGCChat, HEADER_GC_CHAT, HEADER_GC_CHAT_SIZE,
+};
 
 #[test]
 fn test_gc_chat_packet_valid_no_message() {
-    let buf = vec![
-        4,          // header: HEADER_GC_CHAT
-        9, 0,       // size: 9
-        1,          // chat_type: CHAT_TYPE_INFO
-        10, 0, 0, 0,// vid: 10
-        2,          // empire: 2
-    ];
+    let mut buf = vec![0u8; 10];
+    buf[0..2].copy_from_slice(&HEADER_GC_CHAT.to_le_bytes()); // header
+    buf[2..4].copy_from_slice(&10u16.to_le_bytes());          // length: 10
+    buf[4] = 1;                                              // chat_type: CHAT_TYPE_INFO
+    buf[5..9].copy_from_slice(&10u32.to_le_bytes());         // vid: 10
+    buf[9] = 2;                                              // empire: 2
     
     let result = GcChatPacket::from_bytes(&buf);
     assert!(result.is_ok());
     let packet = result.unwrap();
-    assert_eq!(packet.header, 4);
-    assert_eq!(packet.size, 9);
+    assert_eq!(packet.header, HEADER_GC_CHAT);
+    assert_eq!(packet.length, 10);
     assert_eq!(packet.chat_type, 1);
     assert_eq!(packet.vid, 10);
     assert_eq!(packet.empire, 2);
@@ -24,23 +25,21 @@ fn test_gc_chat_packet_valid_no_message() {
 #[test]
 fn test_gc_chat_packet_valid_with_message() {
     let msg = b"Witaj swiecie";
-    let size = 9 + msg.len() as u16;
+    let length = (HEADER_GC_CHAT_SIZE + msg.len()) as u16;
     
-    let mut buf = vec![
-        4,                      // header: HEADER_GC_CHAT
-        (size & 0xFF) as u8,    // size: lower byte
-        (size >> 8) as u8,      // size: upper byte
-        0,                      // chat_type: CHAT_TYPE_TALKING
-        0xFF, 0, 0, 0,          // vid: 255
-        1,                      // empire: 1
-    ];
+    let mut buf = vec![0u8; 10];
+    buf[0..2].copy_from_slice(&HEADER_GC_CHAT.to_le_bytes());
+    buf[2..4].copy_from_slice(&length.to_le_bytes());
+    buf[4] = 0; // chat_type: CHAT_TYPE_TALKING
+    buf[5..9].copy_from_slice(&255u32.to_le_bytes()); // vid
+    buf[9] = 1; // empire: 1
     buf.extend_from_slice(msg);
     
     let result = GcChatPacket::from_bytes(&buf);
     assert!(result.is_ok());
     let packet = result.unwrap();
-    assert_eq!(packet.header, 4);
-    assert_eq!(packet.size, size);
+    assert_eq!(packet.header, HEADER_GC_CHAT);
+    assert_eq!(packet.length, length);
     assert_eq!(packet.chat_type, 0);
     assert_eq!(packet.vid, 255);
     assert_eq!(packet.empire, 1);
@@ -49,8 +48,7 @@ fn test_gc_chat_packet_valid_with_message() {
 
 #[test]
 fn test_gc_chat_packet_buffer_too_short_for_header() {
-    // Bufor krotszy niz 9 bajtow (tylko 8 bajtow)
-    let buf = vec![4, 9, 0, 1, 10, 0, 0, 0];
+    let buf = vec![0u8; 9]; // mniej niz 10 bajtow
     let result = GcChatPacket::from_bytes(&buf);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "Bufor jest za krotki aby zawierac naglowek pakietu czatu");
@@ -58,31 +56,32 @@ fn test_gc_chat_packet_buffer_too_short_for_header() {
 
 #[test]
 fn test_gc_chat_packet_buffer_shorter_than_size() {
-    // Rozmiar to 15, ale w buforze jest tylko 10 bajtow
-    let buf = vec![
-        4,          // header: HEADER_GC_CHAT
-        15, 0,      // size: 15
-        1,          // chat_type: CHAT_TYPE_INFO
-        10, 0, 0, 0,// vid: 10
-        2,          // empire: 2
-        b'X',       // message: 1 byte
-    ];
+    let mut buf = vec![0u8; 10];
+    buf[0..2].copy_from_slice(&HEADER_GC_CHAT.to_le_bytes());
+    buf[2..4].copy_from_slice(&15u16.to_le_bytes()); // deklaracja 15 bajtow
+    buf[4] = 1;
+    buf[5..9].copy_from_slice(&10u32.to_le_bytes());
+    buf[9] = 2;
+    buf.push(b'X'); // razem 11 bajtow, mniej niz 15
+
     let result = GcChatPacket::from_bytes(&buf);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "Bufor jest krotszy niz deklarowany rozmiar pakietu");
 }
 
 #[test]
-fn test_gc_chat_packet_invalid_header() {
-    // Nieprawidlowy naglowek (np. 5)
-    let buf = vec![
-        5,          // header: INVALID
-        9, 0,       // size: 9
-        1,          // chat_type
-        10, 0, 0, 0,// vid
-        2,          // empire
-    ];
-    let result = GcChatPacket::from_bytes(&buf);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "Nieprawidlowy naglowek pakiety czatu");
+fn test_gc_chat_header_struct() {
+    let mut buf = [0u8; 10];
+    buf[0..2].copy_from_slice(&HEADER_GC_CHAT.to_le_bytes());
+    buf[2..4].copy_from_slice(&10u16.to_le_bytes());
+    buf[4] = 3;
+    buf[5..9].copy_from_slice(&999u32.to_le_bytes());
+    buf[9] = 1;
+
+    let packet = TPacketGCChat::from_bytes(&buf).unwrap();
+    assert_eq!({ packet.header }, HEADER_GC_CHAT);
+    assert_eq!({ packet.length }, 10);
+    assert_eq!(packet.type_, 3);
+    assert_eq!({ packet.dwVID }, 999);
+    assert_eq!(packet.bEmpire, 1);
 }

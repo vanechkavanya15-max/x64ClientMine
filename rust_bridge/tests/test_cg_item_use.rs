@@ -2,28 +2,24 @@ use m2_client_bridge::net::cg::item_use::{TPacketCGItemUse, m2_net_send_item_use
 
 #[test]
 fn test_cg_item_use_serialization() {
-    // Przypadek 1: Zwykle wywolanie
     let packet = TPacketCGItemUse::new(1, 12);
-    
     let bytes = packet.to_bytes();
     
-    assert_eq!(bytes.len(), 4, "Pakiet musi miec dokladnie 4 bajty dlugosci (1 header, 1 window_type, 2 cell)");
-    assert_eq!(bytes[0], 11, "Header musi byc rowny 11 (HEADER_CG_ITEM_USE)");
-    assert_eq!(bytes[1], 1, "window_type musi byc 1");
-    // cell = 12 (0x000C). W little-endian: 0x0C 0x00
-    assert_eq!(bytes[2], 12, "Dolny bajt cell ma wynosic 12");
-    assert_eq!(bytes[3], 0, "Gorny bajt cell ma wynosic 0");
+    assert_eq!(bytes.len(), 7, "Pakiet musi miec dokladnie 7 bajtow");
+    assert_eq!(u16::from_le_bytes([bytes[0], bytes[1]]), 0x0501);
+    assert_eq!(u16::from_le_bytes([bytes[2], bytes[3]]), 7);
+    assert_eq!(bytes[4], 1);
+    assert_eq!(bytes[5], 12);
+    assert_eq!(bytes[6], 0);
     
-    // Przypadek 2: Skrajne wartosci
     let packet_edge = TPacketCGItemUse::new(255, 0xFFFF);
-    
     let bytes_edge = packet_edge.to_bytes();
-    assert_eq!(bytes_edge.len(), 4);
-    assert_eq!(bytes_edge[0], 11);
-    assert_eq!(bytes_edge[1], 255);
-    // cell = 0xFFFF w little-endian to 0xFF 0xFF
-    assert_eq!(bytes_edge[2], 255);
-    assert_eq!(bytes_edge[3], 255);
+    assert_eq!(bytes_edge.len(), 7);
+    assert_eq!(u16::from_le_bytes([bytes_edge[0], bytes_edge[1]]), 0x0501);
+    assert_eq!(u16::from_le_bytes([bytes_edge[2], bytes_edge[3]]), 7);
+    assert_eq!(bytes_edge[4], 255);
+    assert_eq!(bytes_edge[5], 255);
+    assert_eq!(bytes_edge[6], 255);
 }
 
 #[test]

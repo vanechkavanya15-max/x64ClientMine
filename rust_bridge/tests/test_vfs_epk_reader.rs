@@ -73,7 +73,7 @@ fn test_epk_reader_ffi() {
     
     // Zabezpieczenie przed uzyciem zamknietego pointera zalezy od uzytkownika C++,
     // my tylko czyscimy plik testowy.
-    std::fs::remove_file(path_str).unwrap();
+    let _ = std::fs::remove_file(path_str);
 }
 
 #[test]
@@ -118,5 +118,5 @@ fn test_epk_reader_ffi_invalid_args() {
     // Null reader podany do close nie powinien craslowac
     m2_epk_reader_close(ptr::null_mut());
 
-    std::fs::remove_file(path_str).unwrap();
+    let _ = std::fs::remove_file(path_str);
 }

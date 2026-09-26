@@ -1,0 +1,6 @@
+add_subdirectory(DirectX)
+add_subdirectory(Granny)
+add_subdirectory(Python)
+add_subdirectory(SpeedTree)
+add_subdirectory(WebView)
+add_subdirectory(RustBridge)

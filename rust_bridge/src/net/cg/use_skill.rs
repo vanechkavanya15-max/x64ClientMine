@@ -1,47 +1,40 @@
-pub const HEADER_CG_USE_SKILL: u8 = 52;
+// Struktura pakietu uzycia umiejetnosci CG na podstawie Packet.h: command_use_skill
+// Komentarze wylacznie po polsku bez polskich znakow diakrytycznych.
 
-// Struktura reprezentujaca pakiet uzycia umiejetnosci (CG - Client to Game).
-// Zgodnie z C++ jest to:
-// typedef struct command_use_skill
-// {
-//     BYTE                bHeader;
-//     DWORD               dwVnum;
-//     DWORD               dwTargetVID;
-// } TPacketCGUseSkill;
+use crate::net::constants::cg::USE_SKILL;
+
+pub const HEADER_CG_USE_SKILL: u16 = USE_SKILL;
+
 #[repr(C, packed)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TPacketCGUseSkill {
-    pub header: u8,
+    pub header: u16,
+    pub length: u16,
     pub dw_vnum: u32,
-    pub dw_vid: u32,
+    pub dw_target_vid: u32,
 }
 
 impl TPacketCGUseSkill {
-    // Tworzy nowy pakiet uzycia umiejetnosci.
-    pub fn new(dw_vnum: u32, dw_vid: u32) -> Self {
+    pub const HEADER: u16 = USE_SKILL;
+    pub const SIZE: u16 = std::mem::size_of::<Self>() as u16;
+
+    // Tworzy nowy pakiet uzycia umiejetnosci o podanym identyfikatorze vnum i celu vid.
+    pub fn new(dw_vnum: u32, dw_target_vid: u32) -> Self {
         Self {
-            header: HEADER_CG_USE_SKILL,
+            header: Self::HEADER,
+            length: Self::SIZE,
             dw_vnum,
-            dw_vid,
+            dw_target_vid,
         }
     }
 
-    // Serializuje strukture do tablicy bajtow (Little-Endian).
-    pub fn to_bytes(&self) -> [u8; 9] {
-        let mut buf = [0u8; 9];
-        
-        // Zapisujemy naglowek (1 bajt).
-        buf[0] = self.header;
-        
-        // Poniewaz struct jest packed, bezpieczniej jest skopiowac wartosci
-        let vnum = self.dw_vnum;
-        let vid = self.dw_vid;
-        
-        // Zapisujemy vnum (4 bajty, Little-Endian).
-        buf[1..5].copy_from_slice(&vnum.to_le_bytes());
-        
-        // Zapisujemy target_vid (4 bajty, Little-Endian).
-        buf[5..9].copy_from_slice(&vid.to_le_bytes());
-        
+    // Serializuje strukture do wektora bajtow (Little-Endian).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(Self::SIZE as usize);
+        buf.extend_from_slice(&self.header.to_le_bytes());
+        buf.extend_from_slice(&self.length.to_le_bytes());
+        buf.extend_from_slice(&self.dw_vnum.to_le_bytes());
+        buf.extend_from_slice(&self.dw_target_vid.to_le_bytes());
         buf
     }
 }

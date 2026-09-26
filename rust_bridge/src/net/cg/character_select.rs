@@ -1,28 +1,39 @@
-// Reprezentuje pakiet wyboru postaci (slot 0-3) z klienta do serwera.
-// Odpowiada to HEADER_CG_PLAYER_SELECT (6) z C++.
+// Struktura pakietu wyboru postaci CG na podstawie Packet.h: command_player_select
+// Komentarze wylacznie po polsku bez polskich znakow diakrytycznych.
 
-pub const HEADER_CG_PLAYER_SELECT: u8 = 6;
+use crate::net::constants::cg::CHARACTER_SELECT;
 
+pub const HEADER_CG_PLAYER_SELECT: u16 = CHARACTER_SELECT;
+
+#[repr(C, packed)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CharacterSelectPacket {
-    pub header: u8,
+pub struct TPacketCGSelectCharacter {
+    pub header: u16,
+    pub length: u16,
     pub player_index: u8,
 }
 
-impl CharacterSelectPacket {
-    // Tworzy nowa instancje pakietu z podanym indeksem gracza
+// Zachowanie kompatybilnosci z wczesniejsza nazwa typu
+pub type CharacterSelectPacket = TPacketCGSelectCharacter;
+
+impl TPacketCGSelectCharacter {
+    pub const HEADER: u16 = CHARACTER_SELECT;
+    pub const SIZE: u16 = std::mem::size_of::<Self>() as u16;
+
+    // Tworzy nowa instancje pakietu z podanym indeksem gracza (slot 0-3).
     pub fn new(player_index: u8) -> Self {
         Self {
-            header: HEADER_CG_PLAYER_SELECT,
+            header: Self::HEADER,
+            length: Self::SIZE,
             player_index,
         }
     }
 
-    // Serializuje pakiet do wektora bajtow (Little-Endian)
-    // Struktura C++ TPacketCGSelectCharacter ma 2 bajty: header i player_index
+    // Serializuje pakiet do wektora bajtow (Little-Endian).
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(2);
-        buf.push(self.header);
+        let mut buf = Vec::with_capacity(Self::SIZE as usize);
+        buf.extend_from_slice(&self.header.to_le_bytes());
+        buf.extend_from_slice(&self.length.to_le_bytes());
         buf.push(self.player_index);
         buf
     }

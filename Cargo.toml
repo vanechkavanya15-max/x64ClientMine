@@ -1,12 +1,5 @@
 [workspace]
 members = [
     "rust_bridge",
-    "crates/m2-client-audio",
-    "crates/m2-client-image",
-    "crates/m2-client-granny",
-    "crates/m2-client-terrain",
-    "crates/m2-client-pyapi",
-    "crates/m2-client-render",
-    "crates/m2-client",
 ]
 resolver = "2"

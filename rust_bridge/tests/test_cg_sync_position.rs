@@ -4,11 +4,11 @@ use m2_client_bridge::net::cg::sync_position::{
 
 #[test]
 fn test_sync_position_element_to_bytes() {
-    let element = TPacketCGSyncPositionElement {
-        dw_vid: 0x12345678,
-        l_x: -100, // 0xFFFFFF9C in 32-bit two's complement
-        l_y: 200,  // 0x000000C8
-    };
+    let element = TPacketCGSyncPositionElement::new(
+        0x12345678,
+        -100, // 0xFFFFFF9C in 32-bit two's complement
+        200,  // 0x000000C8
+    );
 
     let bytes = element.to_bytes();
     assert_eq!(bytes.len(), 12);
@@ -23,37 +23,26 @@ fn test_sync_position_element_to_bytes() {
 
 #[test]
 fn test_sync_position_packet_to_bytes() {
-    let packet = TPacketCGSyncPosition::new(vec![
-        TPacketCGSyncPositionElement {
-            dw_vid: 1,
-            l_x: 10,
-            l_y: 20,
-        },
-        TPacketCGSyncPositionElement {
-            dw_vid: 2,
-            l_x: 30,
-            l_y: 40,
-        },
-    ]);
+    let elements = vec![
+        TPacketCGSyncPositionElement::new(1, 10, 20),
+        TPacketCGSyncPositionElement::new(2, 30, 40),
+    ];
 
-    let bytes = packet.to_bytes();
+    let bytes = TPacketCGSyncPosition::serialize_with_elements(&elements);
     
-    // total size: 5 (header + wSize + count) + 2 * 12 = 29
-    assert_eq!(bytes.len(), 29);
-    assert_eq!(packet.w_size, 29);
-    assert_eq!(packet.count, 2);
+    // total size: 4 (header + length) + 2 * 12 = 28
+    assert_eq!(bytes.len(), 28);
     
     // header
-    assert_eq!(bytes[0], HEADER_CG_SYNC_POSITION);
+    let header = u16::from_le_bytes([bytes[0], bytes[1]]);
+    assert_eq!(header, HEADER_CG_SYNC_POSITION);
     
-    // wSize: 29 -> 1D 00
-    assert_eq!(&bytes[1..3], &[0x1d, 0x00]);
-
-    // count: 2 -> 02 00
-    assert_eq!(&bytes[3..5], &[0x02, 0x00]);
+    // length: 28 -> 1C 00
+    let length = u16::from_le_bytes([bytes[2], bytes[3]]);
+    assert_eq!(length, 28);
     
     // element 1 dw_vid
-    assert_eq!(&bytes[5..9], &[0x01, 0x00, 0x00, 0x00]);
+    assert_eq!(&bytes[4..8], &[0x01, 0x00, 0x00, 0x00]);
 }
 
 #[test]

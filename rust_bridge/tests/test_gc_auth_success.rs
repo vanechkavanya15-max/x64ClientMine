@@ -1,25 +1,28 @@
 use m2_client_bridge::net::gc::auth_success::{
-    m2_net_parse_auth_success, PacketError, TPacketGCAuthSuccess,
+    m2_net_parse_auth_success, PacketError, TPacketGCAuthSuccess, HEADER_GC_AUTH_SUCCESS,
 };
 
 #[test]
 fn test_auth_success_from_bytes_valid() {
-    let buf = vec![150, 0x78, 0x56, 0x34, 0x12, 1]; // header, login_key, b_result
+    let mut buf = Vec::new();
+    buf.extend_from_slice(&HEADER_GC_AUTH_SUCCESS.to_le_bytes()); // header: u16
+    buf.extend_from_slice(&9u16.to_le_bytes());                  // length: u16
+    buf.extend_from_slice(&0x12345678u32.to_le_bytes());         // dwLoginKey: u32
+    buf.push(1);                                                 // bResult: u8
 
     let result = TPacketGCAuthSuccess::from_bytes(&buf);
     assert!(result.is_ok(), "Deserializacja powinna zakonczyc sie sukcesem");
 
     let packet = result.unwrap();
-    assert_eq!(packet.header, 150);
-    // Kopiowanie wartosci pola do zmiennej lokalnej aby zapobiec bledowi niewyrownanego dostepu (#repr(packed))
-    let login_key = packet.dw_login_key;
-    assert_eq!(login_key, 0x12345678);
-    assert_eq!(packet.b_result, 1);
+    assert_eq!({ packet.header }, HEADER_GC_AUTH_SUCCESS);
+    assert_eq!({ packet.length }, 9);
+    assert_eq!(packet.dw_login_key(), 0x12345678);
+    assert_eq!(packet.b_result(), 1);
 }
 
 #[test]
 fn test_auth_success_from_bytes_too_short() {
-    let buf = vec![150, 0x78, 0x56, 0x34, 0x12]; // brakuje b_result
+    let buf = vec![0u8; 8]; // brakuje b_result
 
     let result = TPacketGCAuthSuccess::from_bytes(&buf);
     assert!(
@@ -32,7 +35,11 @@ fn test_auth_success_from_bytes_too_short() {
 
 #[test]
 fn test_auth_success_from_bytes_invalid_header() {
-    let buf = vec![151, 0x78, 0x56, 0x34, 0x12, 1]; // Zly naglowek
+    let mut buf = Vec::new();
+    buf.extend_from_slice(&0x9999u16.to_le_bytes()); // Zly naglowek
+    buf.extend_from_slice(&9u16.to_le_bytes());
+    buf.extend_from_slice(&0x12345678u32.to_le_bytes());
+    buf.push(1);
 
     let result = TPacketGCAuthSuccess::from_bytes(&buf);
     assert!(
@@ -45,7 +52,12 @@ fn test_auth_success_from_bytes_invalid_header() {
 
 #[test]
 fn test_ffi_auth_success_valid() {
-    let buf = vec![150, 0x78, 0x56, 0x34, 0x12, 1];
+    let mut buf = Vec::new();
+    buf.extend_from_slice(&HEADER_GC_AUTH_SUCCESS.to_le_bytes());
+    buf.extend_from_slice(&9u16.to_le_bytes());
+    buf.extend_from_slice(&0x12345678u32.to_le_bytes());
+    buf.push(1);
+
     let mut out_key: u32 = 0;
 
     unsafe {
@@ -57,7 +69,12 @@ fn test_ffi_auth_success_valid() {
 
 #[test]
 fn test_ffi_auth_success_null_ptr() {
-    let buf = vec![150, 0x78, 0x56, 0x34, 0x12, 1];
+    let mut buf = Vec::new();
+    buf.extend_from_slice(&HEADER_GC_AUTH_SUCCESS.to_le_bytes());
+    buf.extend_from_slice(&9u16.to_le_bytes());
+    buf.extend_from_slice(&0x12345678u32.to_le_bytes());
+    buf.push(1);
+
     let mut out_key: u32 = 0;
 
     unsafe {

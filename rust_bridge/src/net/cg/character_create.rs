@@ -1,63 +1,84 @@
-// Serializator pakietu tworzenia postaci (HEADER_CG_CHARACTER_CREATE)
-// Zgodny z TPacketCGCreateCharacter w C++
+// Struktura pakietu tworzenia postaci CG na podstawie Packet.h: command_player_create
+// Komentarze wylacznie po polsku bez polskich znakow diakrytycznych.
 
+use crate::net::constants::cg::CHARACTER_CREATE;
 use crate::ffi_guard::safe_ffi_call;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
+pub const CHARACTER_NAME_MAX_LEN: usize = 64;
+
 #[repr(C, packed)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TPacketCGPlayerCreate {
-    pub header: u8,
+pub struct TPacketCGCreateCharacter {
+    pub header: u16,
+    pub length: u16,
     pub index: u8,
-    pub name: [u8; 25],
+    pub name: [u8; CHARACTER_NAME_MAX_LEN + 1],
     pub job: u16,
     pub shape: u8,
     pub con: u8,
-    pub int: u8,
-    pub str: u8,
+    pub int_stat: u8,
+    pub str_stat: u8,
     pub dex: u8,
 }
 
-impl TPacketCGPlayerCreate {
-    pub fn new(index: u8, name: &str, job: u16, shape: u8, con: u8, int: u8, str: u8, dex: u8) -> Self {
-        let mut name_arr = [0u8; 25];
+// Aliases dla zachowania pelnej zgodnosci z kodem i testami
+pub type TPacketCGPlayerCreate = TPacketCGCreateCharacter;
+pub type CharacterCreatePacket = TPacketCGCreateCharacter;
+
+impl TPacketCGCreateCharacter {
+    pub const HEADER: u16 = CHARACTER_CREATE;
+    pub const SIZE: u16 = std::mem::size_of::<Self>() as u16;
+
+    // Tworzy nowy pakiet z podanymi atrybutami postaci.
+    pub fn new(
+        index: u8,
+        name: &str,
+        job: u16,
+        shape: u8,
+        con: u8,
+        int_stat: u8,
+        str_stat: u8,
+        dex: u8,
+    ) -> Self {
+        let mut name_arr = [0u8; CHARACTER_NAME_MAX_LEN + 1];
         let bytes = name.as_bytes();
-        let len = bytes.len().min(24); // max 24 characters + 1 null terminator
+        let len = bytes.len().min(CHARACTER_NAME_MAX_LEN);
         name_arr[..len].copy_from_slice(&bytes[..len]);
-        
+
         Self {
-            header: 4, // HEADER_CG_PLAYER_CREATE
+            header: Self::HEADER,
+            length: Self::SIZE,
             index,
             name: name_arr,
             job,
             shape,
             con,
-            int,
-            str,
+            int_stat,
+            str_stat,
             dex,
         }
     }
 
-    // Serializuje strukture do wektora bajtow (Little-Endian)
+    // Serializuje strukture do wektora bajtow (Little-Endian).
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(34); // 1+1+25+2+1+1+1+1+1 = 34 bajtow
-        buf.push(self.header);
+        let mut buf = Vec::with_capacity(Self::SIZE as usize);
+        buf.extend_from_slice(&self.header.to_le_bytes());
+        buf.extend_from_slice(&self.length.to_le_bytes());
         buf.push(self.index);
         buf.extend_from_slice(&self.name);
         buf.extend_from_slice(&self.job.to_le_bytes());
         buf.push(self.shape);
         buf.push(self.con);
-        buf.push(self.int);
-        buf.push(self.str);
+        buf.push(self.int_stat);
+        buf.push(self.str_stat);
         buf.push(self.dex);
         buf
     }
 }
 
-// Dla zgodnosci wstecznej z testami, ktore moga uzywac CharacterCreatePacket
-pub type CharacterCreatePacket = TPacketCGPlayerCreate;
-
+// Funkcja C FFI budujaca bufor pakietu tworzenia postaci.
 #[no_mangle]
 pub unsafe extern "C" fn m2_net_build_cg_player_create(
     index: u8,
@@ -65,7 +86,7 @@ pub unsafe extern "C" fn m2_net_build_cg_player_create(
     job: u16,
     shape: u8,
     con: u8,
-    int: u8,
+    int_stat: u8,
     str_stat: u8,
     dex: u8,
     out_buf: *mut *mut u8,
@@ -82,9 +103,9 @@ pub unsafe extern "C" fn m2_net_build_cg_player_create(
             Err(_) => return false,
         };
 
-        let packet = CharacterCreatePacket::new(index, name_str, job, shape, con, int, str_stat, dex);
+        let packet = TPacketCGCreateCharacter::new(index, name_str, job, shape, con, int_stat, str_stat, dex);
         let bytes = packet.to_bytes();
-        
+
         let len = bytes.len();
         let ptr = bytes.into_boxed_slice();
         let raw_ptr = Box::into_raw(ptr) as *mut u8;
@@ -98,6 +119,7 @@ pub unsafe extern "C" fn m2_net_build_cg_player_create(
     })
 }
 
+// Funkcja zwalniajaca zaalokowany bufor C FFI.
 #[no_mangle]
 pub unsafe extern "C" fn m2_net_free_cg_player_create(ptr: *mut u8, len: usize) {
     safe_ffi_call((), || {

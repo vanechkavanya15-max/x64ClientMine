@@ -1,18 +1,20 @@
 # ========================================================
-# GitIgnore dla Klienta Metin2 (Visual Studio 2022 / C++)
+# GitIgnore dla Klienta Metin2 x64 (CMake / MSVC / Rust)
 # ========================================================
 
-# Katalogi wyjsciowe kompilacji i architektury
+# CMake and build directories
+build/
+bin/
+binary/
 [Dd]ebug/
 [Rr]elease/
 [Dd]istribute/
+[Rr]elWithDebInfo/
 x64/
 x86/
-[Bb]in/
-[Oo]bj/
 ipch/
 
-# Pliki i katalogi wewnetrzne Visual Studio
+# Visual Studio files
 .vs/
 *.sdf
 *.opensdf
@@ -23,7 +25,7 @@ ipch/
 *.userosv
 *.sln.docstates
 
-# Pliki obiektowe, prekompilowane naglowki i symbole
+# Compilation objects and symbols
 *.obj
 *.pch
 *.pdb
@@ -40,23 +42,15 @@ ipch/
 *.recipe
 *.log
 
-# Pliki wykonywalne i biblioteki ladowane dynamicznie z kompilacji
-binary/*.exe
-!binary/.gitkeep
-
-# Plik przekraczajacy limit GitHuba (>100MB)
-Cryptopp_lib_debug.lib
-
-# Kopie zapasowe i pliki tymczasowe edytorow
-*.orig
-*.rej
-*.bak
-*~
-*.tmp
-
 # Rust & Python build cache
 target/
 .pytest_cache/
 __pycache__/
 *.pyc
 
+# Backup files
+*.orig
+*.rej
+*.bak
+*~
+*.tmp

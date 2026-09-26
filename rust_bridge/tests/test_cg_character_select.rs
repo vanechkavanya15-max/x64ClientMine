@@ -6,14 +6,20 @@ fn test_character_select_packet_serialization() {
     for slot in 0..=3 {
         let packet = CharacterSelectPacket::new(slot);
         
-        assert_eq!(packet.header, HEADER_CG_PLAYER_SELECT);
-        assert_eq!(packet.player_index, slot);
+        let header = { packet.header };
+        let length = { packet.length };
+        let player_index = { packet.player_index };
+
+        assert_eq!(header, HEADER_CG_PLAYER_SELECT);
+        assert_eq!(length, 5);
+        assert_eq!(player_index, slot);
         
         let bytes = packet.to_bytes();
         
-        // Oczekujemy dokladnie 2 bajtow (Little-Endian to tutaj domyslny format, bo mamy tylko u8)
-        assert_eq!(bytes.len(), 2);
-        assert_eq!(bytes[0], HEADER_CG_PLAYER_SELECT); // header (BYTE)
-        assert_eq!(bytes[1], slot); // player_index (BYTE)
+        // Oczekujemy 5 bajtow: header (2) + length (2) + player_index (1)
+        assert_eq!(bytes.len(), 5);
+        assert_eq!(u16::from_le_bytes([bytes[0], bytes[1]]), HEADER_CG_PLAYER_SELECT);
+        assert_eq!(u16::from_le_bytes([bytes[2], bytes[3]]), 5);
+        assert_eq!(bytes[4], slot);
     }
 }

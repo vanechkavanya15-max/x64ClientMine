@@ -5,6 +5,7 @@ pub mod bot_autopot;
 pub mod chat_filter;
 pub mod dragon_soul;
 pub mod equipment;
+pub mod game_state;
 pub mod ground_items;
 pub mod guild;
 pub mod inventory;
@@ -22,3 +23,5 @@ pub mod skills;
 pub mod special_storage;
 pub mod target;
 pub mod trade;
+
+pub use game_state::*;
