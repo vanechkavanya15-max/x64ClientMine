@@ -243,7 +243,33 @@ impl Metin2Engine {
         self.init_d3d9()?;
         Ok(())
     }
-    
+
+    pub fn init_vfs_packs(&mut self) -> Result<(), EngineError> {
+        let packs = [
+            "pack/root.pck",
+            "pack/locale.pck",
+            "pack/uiscript.pck",
+            "pack/ETC.pck",
+            "pack/uiloading.pck",
+        ];
+        let mut loaded = 0;
+        for p in packs {
+            if std::path::Path::new(p).exists() {
+                match crate::vfs_pck_memory_mapped::mount_archive(p) {
+                    Ok(arch) => {
+                        println!("[+] VFS Pack zaladowany: {} (wpisow: {})", p, arch.entries.len());
+                        loaded += 1;
+                    }
+                    Err(e) => {
+                        println!("[-] Ostrzezenie VFS Pack {}: {}", p, e);
+                    }
+                }
+            }
+        }
+        println!("[+] Zainicjalizowano VFS: {} archiwow PCK zaladowanych.", loaded);
+        Ok(())
+    }
+
     pub fn start_python(&mut self) -> Result<(), EngineError> {
         if self.state != EngineState::D3D9Initialized {
             return Err(EngineError::PythonInitFailed);
@@ -303,6 +329,8 @@ impl Metin2Engine {
 
         self.init_graphics()?;
         println!("[+] Nowoczesny potok graficzny zainicjalizowany.");
+
+        let _ = self.init_vfs_packs();
 
         self.start_python()?;
         println!("[+] Mostek skryptowy powiazany.");
