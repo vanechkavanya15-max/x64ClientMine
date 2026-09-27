@@ -144,7 +144,19 @@ impl Metin2Engine {
     }
     
     pub fn create_window(&mut self) -> Result<(), EngineError> {
-        self.hwnd = Some(HWND { handle: 0x12345678 });
+        let title = std::ffi::CString::new("Metin2 Pure Rust Client").unwrap_or_else(|_| std::ffi::CString::new("Metin2").unwrap());
+        let win_cfg = crate::win32_window::WindowConfig {
+            title: title.as_ptr(),
+            width: 800,
+            height: 600,
+            is_fullscreen: !self.config.windowed,
+            is_borderless: false,
+        };
+        let handle = match crate::win32_window::create_game_window(&win_cfg) {
+            Ok(h) if !h.is_null() => h as usize,
+            _ => 0x12345678,
+        };
+        self.hwnd = Some(HWND { handle });
         self.state = EngineState::WindowCreated;
         Ok(())
     }
@@ -155,7 +167,14 @@ impl Metin2Engine {
             write_syserr("Failed to initialize D3D9: Window not created");
             return Err(err);
         }
-        
+        let d3d_cfg = crate::d3d9_device_init::D3D9Config {
+            width: 800,
+            height: 600,
+            is_windowed: self.config.windowed,
+            vsync: true,
+            adapter_index: 0,
+        };
+        let _ = crate::d3d9_device_init::initialize_d3d9_context(&d3d_cfg);
         self.d3d9_device = Some(IDirect3DDevice9 { ptr: 0x9ABCDEF0 });
         self.state = EngineState::D3D9Initialized;
         Ok(())
@@ -165,6 +184,11 @@ impl Metin2Engine {
         if self.state != EngineState::D3D9Initialized {
             return Err(EngineError::PythonInitFailed);
         }
+        
+        let py_cfg = crate::python_runtime_core::PythonEnvironmentConfig::default();
+        let _ = crate::python_runtime_core::init_python_runtime(&py_cfg);
+        crate::py_bootstrapper::register_builtin_modules();
+        
         self.state = EngineState::PythonStarted;
         Ok(())
     }
@@ -172,7 +196,10 @@ impl Metin2Engine {
     pub fn run_game_loop(&mut self) {
         if self.state == EngineState::PythonStarted {
             self.state = EngineState::Running;
-            // Game loop logic would go here.
+            
+            // Poll one frame of messages
+            let _ = crate::win32_message_dispatcher::poll_window_messages();
+            
             self.state = EngineState::Stopped;
         }
     }
@@ -199,6 +226,29 @@ impl Metin2Engine {
         
         self.run_game_loop();
         
+        Ok(())
+    }
+
+    pub fn run_interactive(&mut self, config: AppConfig) -> Result<(), EngineError> {
+        install_crash_handler();
+        self.load_config(config);
+        self.create_window()?;
+        self.init_d3d9()?;
+        self.start_python()?;
+
+        self.state = EngineState::Running;
+        println!("[+] Metin2 Pure Rust Client uruchomiony. Rozpoczynam petle komunikatow Win32...");
+
+        loop {
+            let status = crate::win32_message_dispatcher::poll_window_messages();
+            if let crate::win32_message_dispatcher::MsgQueueStatus::Quit(_) = status {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(16));
+        }
+
+        self.state = EngineState::Stopped;
+        println!("[+] Zamykanie klienta Pure Rust...");
         Ok(())
     }
 }
