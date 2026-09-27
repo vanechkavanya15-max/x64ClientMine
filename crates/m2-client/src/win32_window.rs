@@ -223,6 +223,28 @@ mod sys {
             0
         }
     }
+
+    pub unsafe fn ShowWindow(_hwnd: WindowHandle, _n_cmd_show: i32) -> i32 {
+        1
+    }
+
+    pub unsafe fn UpdateWindow(_hwnd: WindowHandle) -> i32 {
+        1
+    }
+
+    pub unsafe fn DestroyWindow(_hwnd: WindowHandle) -> i32 {
+        1
+    }
+
+    pub unsafe fn PostQuitMessage(_n_exit_code: i32) {}
+
+    pub unsafe fn GetLastError() -> u32 {
+        0
+    }
+
+    pub unsafe fn GetModuleHandleA(_lp_module_name: *const c_char) -> *mut c_void {
+        ptr::null_mut()
+    }
 }
 
 #[cfg(windows)]
@@ -247,6 +269,10 @@ mod sys {
             hInstance: WindowHandle,
             lpParam: *mut c_void,
         ) -> WindowHandle;
+        pub fn ShowWindow(hWnd: WindowHandle, nCmdShow: i32) -> i32;
+        pub fn UpdateWindow(hWnd: WindowHandle) -> i32;
+        pub fn DestroyWindow(hWnd: WindowHandle) -> i32;
+        pub fn PostQuitMessage(nExitCode: i32);
         pub fn SetWindowTextA(hWnd: WindowHandle, lpString: *const c_char) -> i32;
         pub fn GetWindowLongA(hWnd: WindowHandle, nIndex: i32) -> i32;
         pub fn SetWindowLongA(hWnd: WindowHandle, nIndex: i32, dwNewLong: i32) -> i32;
@@ -266,11 +292,33 @@ mod sys {
             lParam: isize,
         ) -> isize;
     }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        pub fn GetModuleHandleA(lpModuleName: *const c_char) -> *mut c_void;
+        pub fn GetLastError() -> u32;
+    }
 }
 
 extern "system" fn def_window_proc(hwnd: WindowHandle, msg: u32, w_param: usize, l_param: isize) -> isize {
-    unsafe {
-        sys::DefWindowProcA(hwnd, msg, w_param, l_param)
+    match msg {
+        0x0010 => { // WM_CLOSE
+            unsafe {
+                sys::DestroyWindow(hwnd);
+            }
+            crate::win32_message_dispatcher::post_quit_message(0);
+            0
+        }
+        0x0002 => { // WM_DESTROY
+            unsafe {
+                sys::PostQuitMessage(0);
+            }
+            crate::win32_message_dispatcher::post_quit_message(0);
+            0
+        }
+        _ => unsafe {
+            sys::DefWindowProcA(hwnd, msg, w_param, l_param)
+        }
     }
 }
 
@@ -278,12 +326,14 @@ pub fn create_game_window(config: &WindowConfig) -> Result<WindowHandle, String>
     unsafe {
         let class_name = CString::new("Metin2WindowClass").unwrap();
         
+        let h_instance = sys::GetModuleHandleA(ptr::null());
+
         let wnd_class = WndClassA {
-            style: 0,
+            style: 0x0003, // CS_HREDRAW | CS_VREDRAW
             lpfn_wnd_proc: def_window_proc,
             cb_cls_extra: 0,
             cb_wnd_extra: 0,
-            h_instance: ptr::null_mut(),
+            h_instance,
             h_icon: ptr::null_mut(),
             h_cursor: ptr::null_mut(),
             hbr_background: ptr::null_mut(),
@@ -293,7 +343,7 @@ pub fn create_game_window(config: &WindowConfig) -> Result<WindowHandle, String>
 
         sys::RegisterClassA(&wnd_class);
 
-        let mut style = WS_OVERLAPPEDWINDOW;
+        let mut style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
         if config.is_fullscreen || config.is_borderless {
             style = WS_POPUP | WS_VISIBLE;
         }
@@ -321,19 +371,22 @@ pub fn create_game_window(config: &WindowConfig) -> Result<WindowHandle, String>
             class_name.as_ptr(),
             config.title,
             style,
-            0, // CW_USEDEFAULT logic usually handled here, simplified for standalone
+            0,
             0,
             actual_width,
             actual_height,
             ptr::null_mut(),
             ptr::null_mut(),
-            ptr::null_mut(),
+            h_instance,
             ptr::null_mut(),
         );
 
         if hwnd.is_null() {
-            Err("Failed to create window".to_string())
+            let err = sys::GetLastError();
+            Err(format!("Failed to create window (GetLastError={})", err))
         } else {
+            sys::ShowWindow(hwnd, 1); // SW_SHOWNORMAL
+            sys::UpdateWindow(hwnd);
             Ok(hwnd)
         }
     }

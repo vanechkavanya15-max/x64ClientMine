@@ -54,6 +54,71 @@ impl DispatcherState {
 static DISPATCHER_STATE: Mutex<DispatcherState> = Mutex::new(DispatcherState::new());
 
 pub fn poll_window_messages() -> MsgQueueStatus {
+    #[cfg(windows)]
+    {
+        #[repr(C)]
+        struct MSG {
+            hwnd: *mut std::ffi::c_void,
+            message: u32,
+            wparam: usize,
+            lparam: isize,
+            time: u32,
+            pt_x: i32,
+            pt_y: i32,
+        }
+
+        #[link(name = "user32")]
+        extern "system" {
+            fn PeekMessageA(
+                lpMsg: *mut MSG,
+                hWnd: *mut std::ffi::c_void,
+                wMsgFilterMin: u32,
+                wMsgFilterMax: u32,
+                wRemoveMsg: u32,
+            ) -> i32;
+            fn TranslateMessage(lpMsg: *const MSG) -> i32;
+            fn DispatchMessageA(lpMsg: *const MSG) -> isize;
+        }
+
+        const PM_REMOVE: u32 = 0x0001;
+
+        let mut msg = MSG {
+            hwnd: std::ptr::null_mut(),
+            message: 0,
+            wparam: 0,
+            lparam: 0,
+            time: 0,
+            pt_x: 0,
+            pt_y: 0,
+        };
+
+        while unsafe { PeekMessageA(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) } != 0 {
+            if msg.message == WM_QUIT {
+                post_quit_message(msg.wparam as i32);
+                return MsgQueueStatus::Quit(msg.wparam as i32);
+            }
+
+            let win_msg = WinMsg {
+                hwnd: msg.hwnd as usize,
+                message: msg.message,
+                wparam: msg.wparam,
+                lparam: msg.lparam,
+                time: msg.time,
+                pt_x: msg.pt_x,
+                pt_y: msg.pt_y,
+            };
+
+            if let Ok(mut state) = DISPATCHER_STATE.lock() {
+                process_single_message_internal(&mut state, &win_msg);
+            }
+
+            unsafe {
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
+            }
+        }
+    }
+
     let mut state = DISPATCHER_STATE.lock().unwrap();
 
     if let Some(exit_code) = state.quit_requested {

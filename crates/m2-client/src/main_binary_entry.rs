@@ -145,16 +145,54 @@ impl Metin2Engine {
     
     pub fn create_window(&mut self) -> Result<(), EngineError> {
         let title = std::ffi::CString::new("Metin2 Pure Rust Client").unwrap_or_else(|_| std::ffi::CString::new("Metin2").unwrap());
+        
+        let mut width = 800;
+        let mut height = 600;
+        let mut is_windowed = self.config.windowed;
+
+        // Try reading metin2.cfg if present
+        let cfg_path = self.config.config_file.as_deref().unwrap_or("metin2.cfg");
+        if let Ok(content) = std::fs::read_to_string(cfg_path) {
+            for line in content.lines() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    if parts[0] == "WIDTH" {
+                        if let Ok(w) = parts[1].parse::<i32>() {
+                            width = w;
+                        }
+                    } else if parts[0] == "HEIGHT" {
+                        if let Ok(h) = parts[1].parse::<i32>() {
+                            height = h;
+                        }
+                    } else if parts[0] == "WINDOWED" {
+                        if let Ok(w_val) = parts[1].parse::<i32>() {
+                            if !self.config.windowed {
+                                is_windowed = w_val != 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let win_cfg = crate::win32_window::WindowConfig {
             title: title.as_ptr(),
-            width: 800,
-            height: 600,
-            is_fullscreen: !self.config.windowed,
+            width,
+            height,
+            is_fullscreen: !is_windowed,
             is_borderless: false,
         };
         let handle = match crate::win32_window::create_game_window(&win_cfg) {
             Ok(h) if !h.is_null() => h as usize,
-            _ => 0x12345678,
+            _ => {
+                #[cfg(windows)]
+                {
+                    write_syserr("Failed to create Win32 game window");
+                    return Err(EngineError::WindowNotCreated);
+                }
+                #[cfg(not(windows))]
+                { 0x12345678 }
+            }
         };
         self.hwnd = Some(HWND { handle });
         self.state = EngineState::WindowCreated;
@@ -232,23 +270,44 @@ impl Metin2Engine {
     pub fn run_interactive(&mut self, config: AppConfig) -> Result<(), EngineError> {
         install_crash_handler();
         self.load_config(config);
+        println!("[+] Inicjalizacja podsystemow klienta Pure Rust...");
+
         self.create_window()?;
+        println!("[+] Okno gry Win32 utworzone i aktywowane na pulpicie.");
+
         self.init_d3d9()?;
+        println!("[+] Kontekst graficzny Direct3D 9 zainicjalizowany.");
+
         self.start_python()?;
+        println!("[+] Mostek skryptowy powiazany.");
 
         self.state = EngineState::Running;
-        println!("[+] Metin2 Pure Rust Client uruchomiony. Rozpoczynam petle komunikatow Win32...");
+        println!("[+] Metin2 Pure Rust Client dziala w trybie interaktywnym. Uruchomiono petle komunikatow.");
+
+        let mut frame_count: u64 = 0;
+        let mut last_fps_time = std::time::Instant::now();
 
         loop {
             let status = crate::win32_message_dispatcher::poll_window_messages();
-            if let crate::win32_message_dispatcher::MsgQueueStatus::Quit(_) = status {
+            if let crate::win32_message_dispatcher::MsgQueueStatus::Quit(code) = status {
+                println!("[+] Odebrano polecenie zamkniecia okna (exit_code={})", code);
                 break;
             }
+
+            frame_count += 1;
+            if last_fps_time.elapsed().as_secs() >= 5 {
+                let elapsed = last_fps_time.elapsed().as_secs_f64();
+                let fps = frame_count as f64 / elapsed;
+                println!("[+] Petla glowna silnika: {:.1} FPS (wyrenderowano {} klatek)", fps, frame_count);
+                last_fps_time = std::time::Instant::now();
+                frame_count = 0;
+            }
+
             std::thread::sleep(std::time::Duration::from_millis(16));
         }
 
         self.state = EngineState::Stopped;
-        println!("[+] Zamykanie klienta Pure Rust...");
+        println!("[+] Metin2 Pure Rust Client zakonczyl dzialanie pomyslnie.");
         Ok(())
     }
 }
