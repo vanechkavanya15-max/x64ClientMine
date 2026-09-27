@@ -277,3 +277,4 @@ pub mod win32_keyboard_hooks;
 pub mod win32_message_dispatcher;
 pub mod win32_mouse_raw;
 pub mod win32_window;
+pub mod wgpu_engine_context;

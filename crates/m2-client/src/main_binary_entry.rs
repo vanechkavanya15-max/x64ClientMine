@@ -120,6 +120,7 @@ pub struct Metin2Engine {
     pub config: AppConfig,
     pub hwnd: Option<HWND>,
     pub d3d9_device: Option<IDirect3DDevice9>,
+    pub wgpu_context: Option<crate::wgpu_engine_context::WgpuEngineContext>,
 }
 
 impl Default for Metin2Engine {
@@ -135,6 +136,7 @@ impl Metin2Engine {
             config: AppConfig::default(),
             hwnd: None,
             d3d9_device: None,
+            wgpu_context: None,
         }
     }
     
@@ -217,6 +219,30 @@ impl Metin2Engine {
         self.state = EngineState::D3D9Initialized;
         Ok(())
     }
+
+    pub fn init_graphics(&mut self) -> Result<(), EngineError> {
+        if self.hwnd.is_none() {
+            let err = EngineError::WindowNotCreated;
+            write_syserr("Failed to initialize graphics: Window not created");
+            return Err(err);
+        }
+
+        let hwnd_val = self.hwnd.map(|h| h.handle).unwrap_or(0);
+        
+        // Inicjalizacja nowoczesnego silnika wgpu (DirectX 12 / Vulkan)
+        match crate::wgpu_engine_context::WgpuEngineContext::new(hwnd_val, 800, 600) {
+            Ok(ctx) => {
+                println!("[+] Nowoczesny silnik graficzny wgpu aktywny: {}", ctx.get_adapter_info());
+                self.wgpu_context = Some(ctx);
+            }
+            Err(e) => {
+                println!("[-] Informacja wgpu: {}. Aktywuje tryb fallback.", e);
+            }
+        }
+
+        self.init_d3d9()?;
+        Ok(())
+    }
     
     pub fn start_python(&mut self) -> Result<(), EngineError> {
         if self.state != EngineState::D3D9Initialized {
@@ -252,8 +278,8 @@ impl Metin2Engine {
             return Err(e);
         }
         
-        if let Err(e) = self.init_d3d9() {
-            write_syserr("Failed to init D3D9.");
+        if let Err(e) = self.init_graphics() {
+            write_syserr("Failed to init graphics.");
             return Err(e);
         }
         
@@ -275,8 +301,8 @@ impl Metin2Engine {
         self.create_window()?;
         println!("[+] Okno gry Win32 utworzone i aktywowane na pulpicie.");
 
-        self.init_d3d9()?;
-        println!("[+] Kontekst graficzny Direct3D 9 zainicjalizowany.");
+        self.init_graphics()?;
+        println!("[+] Nowoczesny potok graficzny zainicjalizowany.");
 
         self.start_python()?;
         println!("[+] Mostek skryptowy powiazany.");
@@ -286,6 +312,12 @@ impl Metin2Engine {
 
         let mut frame_count: u64 = 0;
         let mut last_fps_time = std::time::Instant::now();
+        let dark_bg = wgpu::Color {
+            r: 0.04,
+            g: 0.05,
+            b: 0.07,
+            a: 1.0,
+        };
 
         loop {
             let status = crate::win32_message_dispatcher::poll_window_messages();
@@ -294,11 +326,16 @@ impl Metin2Engine {
                 break;
             }
 
+            // Renderowanie klatki na GPU przez DirectX 12 / Vulkan
+            if let Some(wgpu_ctx) = &mut self.wgpu_context {
+                let _ = wgpu_ctx.render_clear_frame(dark_bg);
+            }
+
             frame_count += 1;
             if last_fps_time.elapsed().as_secs() >= 5 {
                 let elapsed = last_fps_time.elapsed().as_secs_f64();
                 let fps = frame_count as f64 / elapsed;
-                println!("[+] Petla glowna silnika: {:.1} FPS (wyrenderowano {} klatek)", fps, frame_count);
+                println!("[+] Silnik graficzny GPU aktywny: {:.1} FPS (wyrenderowano {} klatek)", fps, frame_count);
                 last_fps_time = std::time::Instant::now();
                 frame_count = 0;
             }
