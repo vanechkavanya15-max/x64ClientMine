@@ -245,6 +245,10 @@ mod sys {
     pub unsafe fn GetModuleHandleA(_lp_module_name: *const c_char) -> *mut c_void {
         ptr::null_mut()
     }
+
+    pub unsafe fn GetStockObject(_i: i32) -> *mut c_void {
+        ptr::null_mut()
+    }
 }
 
 #[cfg(windows)]
@@ -293,6 +297,11 @@ mod sys {
         ) -> isize;
     }
 
+    #[link(name = "gdi32")]
+    extern "system" {
+        pub fn GetStockObject(i: i32) -> *mut c_void;
+    }
+
     #[link(name = "kernel32")]
     extern "system" {
         pub fn GetModuleHandleA(lpModuleName: *const c_char) -> *mut c_void;
@@ -316,6 +325,28 @@ extern "system" fn def_window_proc(hwnd: WindowHandle, msg: u32, w_param: usize,
             crate::win32_message_dispatcher::post_quit_message(0);
             0
         }
+        0x000F => { // WM_PAINT
+            #[cfg(windows)]
+            unsafe {
+                #[repr(C)]
+                struct PAINTSTRUCT {
+                    hdc: usize,
+                    f_erase: i32,
+                    rc_paint: Rect,
+                    f_restore: i32,
+                    f_inc_update: i32,
+                    rgb_reserved: [u8; 32],
+                }
+                extern "system" {
+                    fn BeginPaint(hwnd: WindowHandle, lpPaint: *mut PAINTSTRUCT) -> usize;
+                    fn EndPaint(hwnd: WindowHandle, lpPaint: *const PAINTSTRUCT) -> i32;
+                }
+                let mut ps = std::mem::zeroed();
+                BeginPaint(hwnd, &mut ps);
+                EndPaint(hwnd, &ps);
+            }
+            0
+        }
         _ => unsafe {
             sys::DefWindowProcA(hwnd, msg, w_param, l_param)
         }
@@ -336,7 +367,7 @@ pub fn create_game_window(config: &WindowConfig) -> Result<WindowHandle, String>
             h_instance,
             h_icon: ptr::null_mut(),
             h_cursor: ptr::null_mut(),
-            hbr_background: ptr::null_mut(),
+            hbr_background: sys::GetStockObject(4), // BLACK_BRUSH (4)
             lpsz_menu_name: ptr::null(),
             lpsz_class_name: class_name.as_ptr(),
         };
