@@ -1,7 +1,9 @@
 use m2_client::recv_shop_logic_v2::*;
 use std::mem::size_of;
+use serial_test::serial;
 
 #[test]
+#[serial]
 fn test_handle_shop_packet_invalid() {
     assert_eq!(m2_net_recv_shop(std::ptr::null(), 0), false);
     
@@ -18,6 +20,7 @@ fn test_handle_shop_packet_invalid() {
 }
 
 #[test]
+#[serial]
 fn test_handle_shop_packet_start() {
     let mut buf = vec![0u8; size_of::<TPacketGCShop>() + 4 + size_of::<TPacketGCShopStart>()];
     let packet = buf.as_mut_ptr() as *mut TPacketGCShop;
@@ -45,6 +48,7 @@ fn test_handle_shop_packet_start() {
 }
 
 #[test]
+#[serial]
 fn test_handle_shop_packet_update_item() {
     let mut buf = vec![0u8; size_of::<TPacketGCShop>() + size_of::<TPacketGCShopUpdateItem>()];
     let packet = buf.as_mut_ptr() as *mut TPacketGCShop;
@@ -67,6 +71,7 @@ fn test_handle_shop_packet_update_item() {
 }
 
 #[test]
+#[serial]
 fn test_handle_shop_packet_messages() {
     let mut buf = vec![0u8; size_of::<TPacketGCShop>()];
     let packet = buf.as_mut_ptr() as *mut TPacketGCShop;
@@ -93,6 +98,7 @@ fn test_handle_shop_packet_messages() {
 }
 
 #[test]
+#[serial]
 fn test_handle_shop_packet_end() {
     let mut buf = vec![0u8; size_of::<TPacketGCShop>()];
     let packet = buf.as_mut_ptr() as *mut TPacketGCShop;
@@ -107,6 +113,7 @@ fn test_handle_shop_packet_end() {
 }
 
 #[test]
+#[serial]
 fn test_handle_shop_packet_update_price() {
     let mut buf = vec![0u8; size_of::<TPacketGCShop>() + size_of::<TPacketGCShopUpdatePrice>()];
     let packet = buf.as_mut_ptr() as *mut TPacketGCShop;

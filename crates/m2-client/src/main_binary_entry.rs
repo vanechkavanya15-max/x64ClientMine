@@ -1,0 +1,204 @@
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::sync::{Mutex, OnceLock};
+use std::panic;
+
+/// Global syserr mutex for thread-safe logging.
+static SYSERR_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+
+/// Logs an error message to syserr.txt.
+pub fn write_syserr(msg: &str) {
+    let _lock = SYSERR_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("syserr.txt") {
+        let _ = writeln!(file, "{}", msg);
+    }
+}
+
+/// Installs a panic hook that writes crash information to syserr.txt.
+pub fn install_crash_handler() {
+    panic::set_hook(Box::new(|panic_info| {
+        let msg = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            *s
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            s.as_str()
+        } else {
+            "Unknown panic"
+        };
+        
+        let location = if let Some(loc) = panic_info.location() {
+            format!("{}:{}:{}", loc.file(), loc.line(), loc.column())
+        } else {
+            "unknown location".to_string()
+        };
+        
+        let err_msg = format!("CRASH: {} at {}", msg, location);
+        write_syserr(&err_msg);
+    }));
+}
+
+/// Win32 Window Handle (C-ABI compatible)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HWND {
+    pub handle: usize,
+}
+
+/// D3D9 Context (C-ABI compatible)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IDirect3D9 {
+    pub ptr: usize,
+}
+
+/// D3D9 Device (C-ABI compatible)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IDirect3DDevice9 {
+    pub ptr: usize,
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
+pub struct AppConfig {
+    pub config_file: Option<String>,
+    pub windowed: bool,
+    pub connect_ip: Option<String>,
+    pub connect_port: Option<u16>,
+}
+
+impl AppConfig {
+    pub fn parse_args<I, T>(args: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: AsRef<str>,
+    {
+        let mut config = AppConfig::default();
+        let mut iter = args.into_iter();
+        
+        while let Some(arg) = iter.next() {
+            let s = arg.as_ref();
+            if s == "--config" {
+                if let Some(val) = iter.next() {
+                    config.config_file = Some(val.as_ref().to_string());
+                }
+            } else if s == "--windowed" {
+                config.windowed = true;
+            } else if s == "--connect" {
+                if let Some(ip) = iter.next() {
+                    config.connect_ip = Some(ip.as_ref().to_string());
+                    if let Some(port) = iter.next() {
+                        if let Ok(p) = port.as_ref().parse::<u16>() {
+                            config.connect_port = Some(p);
+                        }
+                    }
+                }
+            }
+        }
+        config
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum EngineState {
+    Uninitialized,
+    ConfigLoaded,
+    WindowCreated,
+    D3D9Initialized,
+    PythonStarted,
+    Running,
+    Stopped,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum EngineError {
+    WindowNotCreated,
+    D3D9InitFailed,
+    PythonInitFailed,
+}
+
+pub struct Metin2Engine {
+    pub state: EngineState,
+    pub config: AppConfig,
+    pub hwnd: Option<HWND>,
+    pub d3d9_device: Option<IDirect3DDevice9>,
+}
+
+impl Default for Metin2Engine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Metin2Engine {
+    pub fn new() -> Self {
+        Self {
+            state: EngineState::Uninitialized,
+            config: AppConfig::default(),
+            hwnd: None,
+            d3d9_device: None,
+        }
+    }
+    
+    pub fn load_config(&mut self, config: AppConfig) {
+        self.config = config;
+        self.state = EngineState::ConfigLoaded;
+    }
+    
+    pub fn create_window(&mut self) -> Result<(), EngineError> {
+        self.hwnd = Some(HWND { handle: 0x12345678 });
+        self.state = EngineState::WindowCreated;
+        Ok(())
+    }
+    
+    pub fn init_d3d9(&mut self) -> Result<(), EngineError> {
+        if self.hwnd.is_none() {
+            let err = EngineError::WindowNotCreated;
+            write_syserr("Failed to initialize D3D9: Window not created");
+            return Err(err);
+        }
+        
+        self.d3d9_device = Some(IDirect3DDevice9 { ptr: 0x9ABCDEF0 });
+        self.state = EngineState::D3D9Initialized;
+        Ok(())
+    }
+    
+    pub fn start_python(&mut self) -> Result<(), EngineError> {
+        if self.state != EngineState::D3D9Initialized {
+            return Err(EngineError::PythonInitFailed);
+        }
+        self.state = EngineState::PythonStarted;
+        Ok(())
+    }
+    
+    pub fn run_game_loop(&mut self) {
+        if self.state == EngineState::PythonStarted {
+            self.state = EngineState::Running;
+            // Game loop logic would go here.
+            self.state = EngineState::Stopped;
+        }
+    }
+    
+    pub fn run(&mut self, config: AppConfig) -> Result<(), EngineError> {
+        install_crash_handler();
+        
+        self.load_config(config);
+        
+        if let Err(e) = self.create_window() {
+            write_syserr("Failed to create window.");
+            return Err(e);
+        }
+        
+        if let Err(e) = self.init_d3d9() {
+            write_syserr("Failed to init D3D9.");
+            return Err(e);
+        }
+        
+        if let Err(e) = self.start_python() {
+            write_syserr("Failed to start Python.");
+            return Err(e);
+        }
+        
+        self.run_game_loop();
+        
+        Ok(())
+    }
+}

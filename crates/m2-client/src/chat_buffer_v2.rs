@@ -53,9 +53,15 @@ impl ChatBuffer {
         self.forbidden_words = words.into_iter().collect();
     }
 
+    pub fn clear(&mut self) {
+        self.lines.clear();
+        self.last_msg_time = 0;
+    }
+
     pub fn append_line(&mut self, chat_type: u8, text: &str, timestamp: u32) -> bool {
-        // Anti-flood: 500ms min delay (wrapping_sub to avoid overflow lockouts)
-        if timestamp.wrapping_sub(self.last_msg_time) < 500 {
+        // Anti-flood: 500ms min delay for player speech (CHAT_TYPE_TALKING / CHAT_TYPE_SHOUT)
+        let is_flood_checked = chat_type == CHAT_TYPE_TALKING || chat_type == CHAT_TYPE_SHOUT;
+        if is_flood_checked && self.last_msg_time != 0 && timestamp.wrapping_sub(self.last_msg_time) < 500 {
             return false;
         }
 
@@ -85,7 +91,9 @@ impl ChatBuffer {
         };
 
         self.next_id += 1;
-        self.last_msg_time = timestamp;
+        if is_flood_checked {
+            self.last_msg_time = timestamp;
+        }
 
         self.lines.push_back(line);
 

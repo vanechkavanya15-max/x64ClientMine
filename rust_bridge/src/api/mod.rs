@@ -14,5 +14,5 @@ pub mod player_item;
 pub mod player_pos;
 pub mod player_status;
 pub mod py_item;
-pub mod py_player;
+// pub mod py_player; // Zastapione w pelni przez crates/m2-client/src/py_bridge_player.rs
 pub mod string_sanitize;

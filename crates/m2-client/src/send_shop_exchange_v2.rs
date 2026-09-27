@@ -15,7 +15,7 @@ pub const EXCHANGE_SUB_ACCEPT: u8 = 4;
 pub const EXCHANGE_SUB_CANCEL: u8 = 5;
 
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TItemPos {
     pub window_type: u8,
     pub cell: u16,

@@ -10,11 +10,23 @@ pub struct InstanceBase {
     pub x: f32,
     pub y: f32,
     pub z: f32,
+    pub name: String,
+    pub active_loop_motion: Option<u32>,
+    pub is_dead: bool,
 }
 
 impl InstanceBase {
     pub fn new(vid: u32, race: u16, x: f32, y: f32, z: f32) -> Self {
-        Self { vid, race, x, y, z }
+        Self {
+            vid,
+            race,
+            x,
+            y,
+            z,
+            name: String::new(),
+            active_loop_motion: None,
+            is_dead: false,
+        }
     }
 }
 
@@ -44,6 +56,27 @@ impl CharacterManagerCore {
         }
 
         let instance = InstanceBase::new(vid, race, x, y, z);
+        self.alive_instances.insert(vid, instance);
+        true
+    }
+
+    pub fn create_instance_full(
+        &mut self,
+        vid: u32,
+        race: u16,
+        x: f32,
+        y: f32,
+        z: f32,
+        name: String,
+        is_dead: bool,
+    ) -> bool {
+        if self.alive_instances.contains_key(&vid) {
+            return false;
+        }
+
+        let mut instance = InstanceBase::new(vid, race, x, y, z);
+        instance.name = name;
+        instance.is_dead = is_dead;
         self.alive_instances.insert(vid, instance);
         true
     }
