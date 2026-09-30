@@ -26,6 +26,14 @@ pub const WM_PAINT: u32 = 0x000F;
 pub const WM_CLOSE: u32 = 0x0010;
 pub const WM_QUIT: u32 = 0x0012;
 pub const WM_ACTIVATE: u32 = 0x0006;
+pub const WM_KEYDOWN: u32 = 0x0100;
+pub const WM_KEYUP: u32 = 0x0101;
+pub const WM_CHAR: u32 = 0x0102;
+pub const WM_MOUSEMOVE: u32 = 0x0200;
+pub const WM_LBUTTONDOWN: u32 = 0x0201;
+pub const WM_LBUTTONUP: u32 = 0x0202;
+pub const WM_RBUTTONDOWN: u32 = 0x0204;
+pub const WM_RBUTTONUP: u32 = 0x0205;
 
 pub const WA_INACTIVE: usize = 0;
 pub const WA_ACTIVE: usize = 1;
@@ -169,6 +177,101 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         }
         WM_KILLFOCUS => {
             state.has_focus = false;
+            true
+        }
+        WM_MOUSEMOVE => {
+            let mx = (msg.lparam & 0xFFFF) as i16 as i32;
+            let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
+            let mut wm = crate::ui_window_mgr::get_window_manager();
+            wm.handle_mouse_move(mx, my, 1024, 768);
+            true
+        }
+        WM_LBUTTONDOWN => {
+            let mx = (msg.lparam & 0xFFFF) as i16 as i32;
+            let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
+            let mut wm = crate::ui_window_mgr::get_window_manager();
+            wm.handle_mouse_down(mx, my, 1024, 768);
+            true
+        }
+        WM_LBUTTONUP => {
+            let mx = (msg.lparam & 0xFFFF) as i16 as i32;
+            let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
+            let (hit, name) = {
+                let mut wm = crate::ui_window_mgr::get_window_manager();
+                let hit = wm.handle_mouse_up(mx, my, 1024, 768);
+                let name = hit.and_then(|h| wm.windows.get(&h).map(|w| w.name.clone())).unwrap_or_default();
+                (hit, name)
+            };
+            if let Some(h) = hit {
+                let mut wm = crate::ui_window_mgr::get_window_manager();
+                crate::ui_bridge_ffi::handle_ui_click(&name, h, &mut wm);
+            }
+            true
+        }
+        WM_KEYDOWN => {
+            let vk = msg.wparam as u32;
+            let phase = crate::ui_bridge_ffi::CURRENT_PHASE.lock().unwrap().clone();
+            match vk {
+                0x1B => { // VK_ESCAPE
+                    let mut wm = crate::ui_window_mgr::get_window_manager();
+                    if phase == "GAME" {
+                        crate::ui_bridge_ffi::handle_ui_click("HudBtnSystem", 0, &mut wm);
+                    } else if phase == "SELECT" {
+                        crate::ui_bridge_ffi::handle_ui_click("SelectExitButton", 0, &mut wm);
+                    } else {
+                        let is_lb_vis = wm.windows.values().find(|w| w.name == "LoginBoard").map(|w| w.is_show).unwrap_or(false);
+                        if is_lb_vis {
+                            crate::ui_bridge_ffi::handle_ui_click("LoginExitButton", 0, &mut wm);
+                        } else {
+                            crate::ui_bridge_ffi::handle_ui_click("ServerExitButton", 0, &mut wm);
+                        }
+                    }
+                }
+                0x0D => { // VK_RETURN
+                    let mut wm = crate::ui_window_mgr::get_window_manager();
+                    if phase == "SELECT" {
+                        crate::ui_bridge_ffi::handle_ui_click("SelectStartButton", 0, &mut wm);
+                    } else if phase == "GAME" {
+                        println!("[CHAT] Otwieranie pola wprowadzania wiadomosci na czacie...");
+                    } else {
+                        let is_lb_vis = wm.windows.values().find(|w| w.name == "LoginBoard").map(|w| w.is_show).unwrap_or(false);
+                        if is_lb_vis {
+                            crate::ui_bridge_ffi::handle_ui_click("LoginButton", 0, &mut wm);
+                        } else {
+                            crate::ui_bridge_ffi::handle_ui_click("ServerSelectButton", 0, &mut wm);
+                        }
+                    }
+                }
+                0x09 => { // VK_TAB
+                    crate::ui_bridge_ffi::toggle_edit_focus();
+                }
+                0x49 => { // 'I' - Ekwipunek
+                    if phase == "GAME" {
+                        let mut wm = crate::ui_window_mgr::get_window_manager();
+                        crate::ui_bridge_ffi::handle_ui_click("HudBtnInventory", 0, &mut wm);
+                    }
+                }
+                0x43 => { // 'C' - Status postaci
+                    if phase == "GAME" {
+                        let mut wm = crate::ui_window_mgr::get_window_manager();
+                        crate::ui_bridge_ffi::handle_ui_click("HudBtnCharacter", 0, &mut wm);
+                    }
+                }
+                0x56 => { // 'V' - Skille
+                    if phase == "GAME" {
+                        let mut wm = crate::ui_window_mgr::get_window_manager();
+                        crate::ui_bridge_ffi::handle_ui_click("HudBtnSkills", 0, &mut wm);
+                    }
+                }
+                _ => {}
+            }
+            true
+        }
+        WM_CHAR => {
+            let ch = (msg.wparam & 0xFFFF) as u32;
+            if let Some(c) = char::from_u32(ch) {
+                crate::ui_bridge_ffi::handle_char_input(c);
+            }
             true
         }
         _ => false,

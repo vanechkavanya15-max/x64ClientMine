@@ -413,13 +413,20 @@ unsafe fn get_py_sym(name: &str) -> *mut std::ffi::c_void {
     };
     #[cfg(windows)]
     {
-        let mod_name = CString::new("python27.dll").unwrap();
-        let mut h = GetModuleHandleA(mod_name.as_ptr());
-        if h.is_null() {
-            h = LoadLibraryA(mod_name.as_ptr());
-        }
-        if !h.is_null() {
-            return GetProcAddress(h, sym.as_ptr());
+        let candidates = ["python314.dll", "python3.dll", "python27.dll"];
+        for dll in candidates {
+            if let Ok(mod_name) = CString::new(dll) {
+                let mut h = GetModuleHandleA(mod_name.as_ptr());
+                if h.is_null() {
+                    h = LoadLibraryA(mod_name.as_ptr());
+                }
+                if !h.is_null() {
+                    let addr = GetProcAddress(h, sym.as_ptr());
+                    if !addr.is_null() {
+                        return addr;
+                    }
+                }
+            }
         }
         std::ptr::null_mut()
     }

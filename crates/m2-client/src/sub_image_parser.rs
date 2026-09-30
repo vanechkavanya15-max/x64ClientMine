@@ -39,7 +39,8 @@ impl SubImage {
                     version = Some(value.to_string());
                 }
                 "image" => {
-                    image = Some(value.to_string());
+                    let clean = value.trim().trim_matches('"').trim();
+                    image = Some(clean.to_string());
                 }
                 "left" => {
                     left = Some(value.parse::<i32>().map_err(|_| "invalid left value")?);

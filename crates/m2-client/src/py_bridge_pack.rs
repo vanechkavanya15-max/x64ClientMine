@@ -12,6 +12,16 @@ pub fn get_mounted_packs() -> &'static Mutex<HashMap<String, PckArchive>> {
     MOUNTED_PACKS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+pub fn mount_pack_file(path: &str) -> bool {
+    if let Ok(archive) = mount_archive(path) {
+        let mut packs = get_mounted_packs().lock().unwrap();
+        packs.insert(path.to_string(), archive);
+        true
+    } else {
+        false
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn m2_py_pack_mount(archive_path: *const c_char) -> bool {
     safe_ffi_call(false, || {
@@ -24,14 +34,7 @@ pub extern "C" fn m2_py_pack_mount(archive_path: *const c_char) -> bool {
             Err(_) => return false,
         };
 
-        match mount_archive(path_str) {
-            Ok(archive) => {
-                let mut packs = get_mounted_packs().lock().unwrap();
-                packs.insert(path_str.to_string(), archive);
-                true
-            }
-            Err(_) => false,
-        }
+        mount_pack_file(path_str)
     })
 }
 
@@ -86,6 +89,30 @@ pub extern "C" fn m2_py_pack_get_size(filename: *const c_char) -> usize {
             }
         }
         0
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_pack_read_data(filename: *const c_char, out_buf: *mut u8, max_len: usize) -> usize {
+    safe_ffi_call(0, || {
+        if filename.is_null() || out_buf.is_null() || max_len == 0 {
+            return 0;
+        }
+        let c_str = unsafe { CStr::from_ptr(filename) };
+        let name_str = match c_str.to_str() {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
+
+        if let Some(data) = pack_get(name_str) {
+            let copy_len = data.len().min(max_len);
+            unsafe {
+                std::ptr::copy_nonoverlapping(data.as_ptr(), out_buf, copy_len);
+            }
+            copy_len
+        } else {
+            0
+        }
     })
 }
 

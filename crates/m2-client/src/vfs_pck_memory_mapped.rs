@@ -419,3 +419,27 @@ pub fn write_pck_archive(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod inspect_tests {
+    use super::*;
+
+    #[test]
+    fn dump_etc_files() {
+        let p = "E:/m2dev-client-src-main/m2dev-client-main/pack/ETC.pck";
+        if let Ok(arch) = mount_archive(p) {
+            println!("TOTAL ENTRIES: {}", arch.entries.len());
+            for target in ["d:/ymir work/ui/public.dds", "d:/ymir work/ui/severflags_01.dds"] {
+                if let Some(data) = read_file_from_archive(&arch, target) {
+                    let magic = u32::from_le_bytes(data[0..4].try_into().unwrap());
+                    let height = u32::from_le_bytes(data[12..16].try_into().unwrap());
+                    let width = u32::from_le_bytes(data[16..20].try_into().unwrap());
+                    let fourcc = String::from_utf8_lossy(&data[84..88]);
+                    println!("DDS: {} -> magic={:#x}, {}x{}, fourcc={}, len={}", target, magic, width, height, fourcc, data.len());
+                } else {
+                    println!("DDS NOT FOUND: {}", target);
+                }
+            }
+        }
+    }
+}
