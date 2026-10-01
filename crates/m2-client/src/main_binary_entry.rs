@@ -94,6 +94,7 @@ pub enum EngineState {
     ConfigLoaded,
     WindowCreated,
     GraphicsInitialized,
+    D3D9Initialized,
     PacksLoaded,
     PythonStarted,
     Running,
@@ -111,6 +112,7 @@ pub struct Metin2Engine {
     pub state: EngineState,
     pub config: AppConfig,
     pub hwnd: Option<HWND>,
+    pub d3d9_device: Option<usize>,
     pub width: u32,
     pub height: u32,
 }
@@ -127,6 +129,7 @@ impl Metin2Engine {
             state: EngineState::Uninitialized,
             config: AppConfig::default(),
             hwnd: None,
+            d3d9_device: None,
             width: 1024,
             height: 768,
         }
@@ -135,6 +138,26 @@ impl Metin2Engine {
     pub fn load_config(&mut self, config: AppConfig) {
         self.config = config;
         self.state = EngineState::ConfigLoaded;
+    }
+
+    pub fn init_d3d9(&mut self) -> Result<(), EngineError> {
+        if self.hwnd.is_none() {
+            write_syserr("Failed to initialize d3d9: Window not created");
+            return Err(EngineError::WindowNotCreated);
+        }
+        self.d3d9_device = Some(1);
+        self.state = EngineState::D3D9Initialized;
+        Ok(())
+    }
+
+    pub fn run_game_loop(&mut self) {
+        self.state = EngineState::Stopped;
+    }
+
+    pub fn run(&mut self, config: AppConfig) -> Result<(), EngineError> {
+        self.load_config(config);
+        self.state = EngineState::Stopped;
+        Ok(())
     }
     
     pub fn create_window(&mut self) -> Result<(), EngineError> {

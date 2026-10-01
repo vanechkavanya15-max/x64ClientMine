@@ -196,3 +196,12 @@ impl AppTimingClock {
         &self.time
     }
 }
+
+/// Zwraca aktualny globalny czas silnika w milisekundach (zgodny z get_dword_time() w C++).
+pub fn m2_get_time() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+

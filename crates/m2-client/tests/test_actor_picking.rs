@@ -7,6 +7,9 @@ use actor_picking::{
     add_picking_actor, clear_picking_actors,
     m2_actor_ray_pick, m2_chr_mgr_find_nearest_target
 };
+use std::sync::Mutex;
+
+static PICKING_TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 struct TestActor {
     vid: u32,
@@ -163,6 +166,7 @@ fn test_picker_updates_selection() {
 
 #[test]
 fn test_find_nearest_target() {
+    let _guard = PICKING_TEST_MUTEX.lock().unwrap();
     clear_picking_actors();
     
     // Main actor at (0, 0)
@@ -237,6 +241,7 @@ fn test_ray_intersect_cylinder_miss() {
 
 #[test]
 fn test_m2_actor_ray_pick_ffi() {
+    let _guard = PICKING_TEST_MUTEX.lock().unwrap();
     clear_picking_actors();
     
     add_picking_actor(PickingActor { vid: 1, x: 10.0, y: 0.0, z: 0.0, radius: 2.0, height: 10.0, hp: 100, actor_type: 1 });

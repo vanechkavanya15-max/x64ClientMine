@@ -138,3 +138,29 @@ pub unsafe extern "C" fn m2_send_script_answer(idx: u8, out_buf: *mut u8) -> usi
         bytes.len()
     })
 }
+
+/// Zastepuje CPythonNetworkStream::SendQuickSlotDelPacket.
+#[no_mangle]
+pub extern "C" fn SendQuickSlotDelPacket(pos: u8) -> bool {
+    safe_ffi_call(false, || {
+        let mut buf = Vec::with_capacity(5);
+        buf.extend_from_slice(&0x050Au16.to_le_bytes()); // HEADER_CG_QUICKSLOT_DEL
+        buf.extend_from_slice(&5u16.to_le_bytes());
+        buf.push(pos);
+        enqueue_outgoing_packet(buf)
+    })
+}
+
+/// Zastepuje CPythonNetworkStream::SendQuickSlotMovePacket.
+#[no_mangle]
+pub extern "C" fn SendQuickSlotMovePacket(pos: u8, change_pos: u8) -> bool {
+    safe_ffi_call(false, || {
+        let mut buf = Vec::with_capacity(6);
+        buf.extend_from_slice(&0x050Bu16.to_le_bytes()); // HEADER_CG_QUICKSLOT_SWAP
+        buf.extend_from_slice(&6u16.to_le_bytes());
+        buf.push(pos);
+        buf.push(change_pos);
+        enqueue_outgoing_packet(buf)
+    })
+}
+

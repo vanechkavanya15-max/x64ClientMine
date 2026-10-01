@@ -15,13 +15,13 @@ fn test_set_position() {
 #[test]
 fn test_visibility() {
     let handle = wndMgr_Register(1003);
+    assert!(wndMgr_IsShow(handle)); // Okno domyslnie widoczne (jak w Python ui.py)
+
+    assert!(wndMgr_Hide(handle));
     assert!(!wndMgr_IsShow(handle));
 
     assert!(wndMgr_Show(handle));
     assert!(wndMgr_IsShow(handle));
-
-    assert!(wndMgr_Hide(handle));
-    assert!(!wndMgr_IsShow(handle));
 }
 
 #[test]

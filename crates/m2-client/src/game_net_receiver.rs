@@ -290,7 +290,7 @@ fn game_recv_loop(mut stream: TcpStream, mut cipher: SecureCipher) {
 // ============================================================================
 // Parser pakietow - wyciaga kompletne pakiety z bufora
 // ============================================================================
-fn parse_packets(data: &[u8]) -> usize {
+pub fn parse_packets(data: &[u8]) -> usize {
     let mut offset = 0;
     
     while offset + 4 <= data.len() {

@@ -13,6 +13,7 @@ pub struct InstanceBase {
     pub name: String,
     pub active_loop_motion: Option<u32>,
     pub is_dead: bool,
+    pub is_stunned: bool,
 }
 
 impl InstanceBase {
@@ -26,9 +27,11 @@ impl InstanceBase {
             name: String::new(),
             active_loop_motion: None,
             is_dead: false,
+            is_stunned: false,
         }
     }
 }
+
 
 // Centralny menedzer wszystkich postaci w pamieci
 #[derive(Debug, Default)]

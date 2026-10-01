@@ -79,8 +79,12 @@ pub extern "C" fn wndMgr_Hide(handle: u32) -> bool {
 #[no_mangle]
 pub extern "C" fn wndMgr_SetTop(handle: u32) -> bool {
     let mut wm = get_window_manager();
-    wm.top_window = Some(handle);
-    true
+    if wm.windows.contains_key(&handle) {
+        wm.top_window = Some(handle);
+        true
+    } else {
+        false
+    }
 }
 
 #[no_mangle]

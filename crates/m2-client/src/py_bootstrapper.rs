@@ -437,6 +437,13 @@ unsafe fn get_py_sym(name: &str) -> *mut std::ffi::c_void {
 }
 
 unsafe fn call_py_initialize() {
+    let is_init_ptr = get_py_sym("Py_IsInitialized");
+    if !is_init_ptr.is_null() {
+        let is_init_fn: extern "C" fn() -> std::ffi::c_int = std::mem::transmute(is_init_ptr);
+        if is_init_fn() != 0 {
+            return;
+        }
+    }
     let ptr = get_py_sym("Py_Initialize");
     if !ptr.is_null() {
         let func: extern "C" fn() = std::mem::transmute(ptr);
@@ -450,14 +457,22 @@ unsafe fn call_py_run_simple_string(command: *const std::ffi::c_char) -> std::ff
         let func: extern "C" fn(*const std::ffi::c_char) -> std::ffi::c_int = std::mem::transmute(ptr);
         func(command)
     } else {
-        -1 // W trybie testowym bez python27.dll zwracamy -1 (blad symulowany)
+        -1 // W trybie testowym bez python DLL zwracamy -1 (blad symulowany)
     }
 }
 
 unsafe fn call_py_err_print() {
+    let occurred_ptr = get_py_sym("PyErr_Occurred");
+    if !occurred_ptr.is_null() {
+        let occurred_fn: extern "C" fn() -> *mut std::ffi::c_void = std::mem::transmute(occurred_ptr);
+        if occurred_fn().is_null() {
+            return; // Brak bledu do wyswietlenia
+        }
+    }
     let ptr = get_py_sym("PyErr_Print");
     if !ptr.is_null() {
         let func: extern "C" fn() = std::mem::transmute(ptr);
         func();
     }
 }
+

@@ -12,7 +12,13 @@ pub enum WindowType {
     Bar3D,
     Box,
     ListBox,
+    ThinBoard,
+    Board,
+    SlotWindow,
+    EditLine,
+    ScrollBar,
 }
+
 
 pub const HORIZONTAL_ALIGN_LEFT: u8 = 0;
 pub const HORIZONTAL_ALIGN_CENTER: u8 = 1;
