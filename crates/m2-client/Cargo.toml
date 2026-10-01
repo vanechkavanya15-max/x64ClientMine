@@ -25,6 +25,8 @@ raw-window-handle = "0.6.2"
 pollster = "1.0.1"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "tga"] }
 bytemuck = { version = "1.20", features = ["derive"] }
+pyo3 = { version = "0.23", default-features = false, features = ["auto-initialize"] }
+rodio = "0.20"
 
 [dev-dependencies]
 serial_test = "3.2"

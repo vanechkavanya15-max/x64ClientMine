@@ -12,6 +12,12 @@ pub struct WindowManager {
     pub next_handle: u32,
     pub root_windows: Vec<u32>,
     pub top_window: Option<u32>,
+    pub is_attaching: bool,
+    pub attaching_type: u32,
+    pub attaching_index: u32,
+    pub attaching_slot_number: u32,
+    pub attaching_icon_width: u8,
+    pub attaching_icon_height: u8,
     pub white_dummy_tex: Option<Arc<GpuTexture>>,
 }
 
@@ -22,6 +28,12 @@ impl WindowManager {
             next_handle: 100,
             root_windows: Vec::new(),
             top_window: None,
+            is_attaching: false,
+            attaching_type: 0,
+            attaching_index: 0,
+            attaching_slot_number: 0,
+            attaching_icon_width: 0,
+            attaching_icon_height: 0,
             white_dummy_tex: None,
         }
     }
@@ -490,3 +502,39 @@ mod tests {
         assert_eq!(rect, [110, 120, 50, 50]);
     }
 }
+
+impl WindowManager {
+    pub fn attach_icon(&mut self, icon_type: u32, index: u32, slot_number: u32, width: u8, height: u8) {
+        self.is_attaching = true;
+        self.attaching_type = icon_type;
+        self.attaching_index = index;
+        self.attaching_slot_number = slot_number;
+        self.attaching_icon_width = width;
+        self.attaching_icon_height = height;
+    }
+
+    pub fn deattach_icon(&mut self) {
+        self.is_attaching = false;
+    }
+
+    pub fn set_attaching_flag(&mut self, flag: bool) {
+        self.is_attaching = flag;
+    }
+
+    pub fn get_attaching_type(&self) -> u32 {
+        self.attaching_type
+    }
+
+    pub fn get_attaching_index(&self) -> u32 {
+        self.attaching_index
+    }
+
+    pub fn get_attaching_slot_number(&self) -> u32 {
+        self.attaching_slot_number
+    }
+
+    pub fn get_attaching_icon_size(&self) -> (u8, u8) {
+        (self.attaching_icon_width, self.attaching_icon_height)
+    }
+}
+

@@ -1,13 +1,15 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SlotItem {
     pub vnum: u32,
-    pub count: u8,
+    pub count: u32,
     pub icon_path: String,
     pub is_locked: bool,
+    pub color: [f32; 4],
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SlotCell {
+    pub id: usize,
     pub x: i32,
     pub y: i32,
     pub w: i32,
@@ -15,6 +17,7 @@ pub struct SlotCell {
     pub item: Option<SlotItem>,
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SlotWindow {
     pub columns: usize,
     pub rows: usize,
@@ -22,23 +25,38 @@ pub struct SlotWindow {
     pub cells: Vec<SlotCell>,
     pub selected_slot: Option<usize>,
     pub dragged_slot: Option<usize>,
+    pub over_in_event: Option<u32>,
+    pub over_out_event: Option<u32>,
+    pub select_item_event: Option<u32>,
+}
+
+impl SlotItem {
+    pub fn new(vnum: u32, count: u32, icon_path: String, is_locked: bool) -> Self {
+        Self {
+            vnum,
+            count,
+            icon_path,
+            is_locked,
+            color: [1.0, 1.0, 1.0, 1.0],
+        }
+    }
 }
 
 impl SlotWindow {
     pub fn new(columns: usize, rows: usize, cell_size: (i32, i32)) -> Self {
         let mut cells = Vec::with_capacity(columns * rows);
-        for row in 0..rows {
-            for col in 0..columns {
+        for y in 0..rows {
+            for x in 0..columns {
                 cells.push(SlotCell {
-                    x: col as i32 * cell_size.0,
-                    y: row as i32 * cell_size.1,
+                    id: y * columns + x,
+                    x: (x as i32) * cell_size.0,
+                    y: (y as i32) * cell_size.1,
                     w: cell_size.0,
                     h: cell_size.1,
                     item: None,
                 });
             }
         }
-
         Self {
             columns,
             rows,
@@ -46,40 +64,86 @@ impl SlotWindow {
             cells,
             selected_slot: None,
             dragged_slot: None,
+            over_in_event: None,
+            over_out_event: None,
+            select_item_event: None,
         }
     }
 
-    pub fn set_item(&mut self, index: usize, item: SlotItem) -> Result<(), &'static str> {
-        if index >= self.cells.len() {
-            return Err("Index out of bounds");
+    pub fn append_slot(&mut self, id: usize, x: i32, y: i32, w: i32, h: i32) {
+        if !self.has_slot(id) {
+            self.cells.push(SlotCell {
+                id,
+                x,
+                y,
+                w,
+                h,
+                item: None,
+            });
         }
-        self.cells[index].item = Some(item);
-        Ok(())
     }
 
-    pub fn clear_slot(&mut self, index: usize) -> Result<(), &'static str> {
-        if index >= self.cells.len() {
-            return Err("Index out of bounds");
+    pub fn has_slot(&self, id: usize) -> bool {
+        self.cells.iter().any(|c| c.id == id)
+    }
+
+    pub fn set_item(&mut self, id: usize, item: SlotItem) -> Result<(), &'static str> {
+        if let Some(cell) = self.cells.iter_mut().find(|c| c.id == id) {
+            cell.item = Some(item);
+            Ok(())
+        } else {
+            Err("Slot not found")
         }
-        self.cells[index].item = None;
-        Ok(())
+    }
+
+    pub fn set_slot(&mut self, id: usize, vnum: u32, count: u32, color: [f32; 4]) -> Result<(), &'static str> {
+        if let Some(cell) = self.cells.iter_mut().find(|c| c.id == id) {
+            cell.item = Some(SlotItem {
+                vnum,
+                count,
+                icon_path: String::new(),
+                is_locked: false,
+                color,
+            });
+            Ok(())
+        } else {
+            Err("Slot not found")
+        }
+    }
+
+    pub fn set_slot_count(&mut self, id: usize, count: u32) -> Result<(), &'static str> {
+        if let Some(cell) = self.cells.iter_mut().find(|c| c.id == id) {
+            if let Some(item) = &mut cell.item {
+                item.count = count;
+            }
+            Ok(())
+        } else {
+            Err("Slot not found")
+        }
+    }
+
+    pub fn clear_slot(&mut self, id: usize) -> Result<(), &'static str> {
+        if let Some(cell) = self.cells.iter_mut().find(|c| c.id == id) {
+            cell.item = None;
+            Ok(())
+        } else {
+            Err("Slot not found")
+        }
+    }
+
+    pub fn clear_all_slots(&mut self) {
+        for cell in &mut self.cells {
+            cell.item = None;
+        }
     }
 
     pub fn get_cell_index_at_position(&self, mouse_x: i32, mouse_y: i32) -> Option<usize> {
-        let col = mouse_x / self.cell_size.0;
-        let row = mouse_y / self.cell_size.1;
-        
-        // Ensure within window bounds
-        if mouse_x < 0 || mouse_y < 0 || col >= self.columns as i32 || row >= self.rows as i32 {
-            return None;
+        for cell in &self.cells {
+            if mouse_x >= cell.x && mouse_x < cell.x + cell.w && mouse_y >= cell.y && mouse_y < cell.y + cell.h {
+                return Some(cell.id);
+            }
         }
-
-        let index = row as usize * self.columns + col as usize;
-        if index < self.cells.len() {
-            Some(index)
-        } else {
-            None
-        }
+        None
     }
 
     pub fn on_mouse_over(&mut self, mouse_x: i32, mouse_y: i32) -> Option<usize> {
@@ -91,9 +155,11 @@ impl SlotWindow {
     pub fn on_mouse_left_down(&mut self, mouse_x: i32, mouse_y: i32) -> Option<usize> {
         let index = self.get_cell_index_at_position(mouse_x, mouse_y);
         if let Some(idx) = index {
-            if self.cells[idx].item.is_some() {
-                self.dragged_slot = Some(idx);
-                return Some(idx);
+            if let Some(cell) = self.cells.iter().find(|c| c.id == idx) {
+                if cell.item.is_some() {
+                    self.dragged_slot = Some(idx);
+                    return Some(idx);
+                }
             }
         }
         self.dragged_slot = None;
@@ -101,21 +167,27 @@ impl SlotWindow {
     }
 
     pub fn on_mouse_left_up(&mut self, mouse_x: i32, mouse_y: i32) -> Result<Option<(usize, usize)>, &'static str> {
-        if let Some(dragged_idx) = self.dragged_slot {
+        if let Some(dragged_idx) = self.dragged_slot.take() {
             let target_idx = self.get_cell_index_at_position(mouse_x, mouse_y);
-            
-            self.dragged_slot = None;
 
             if let Some(target) = target_idx {
                 if dragged_idx != target {
-                    // Swap items
-                    let temp = self.cells[dragged_idx].item.take();
-                    self.cells[dragged_idx].item = self.cells[target].item.take();
-                    self.cells[target].item = temp;
-                    return Ok(Some((dragged_idx, target)));
+                    let mut dragged_cell_idx = None;
+                    let mut target_cell_idx = None;
+                    
+                    for (i, cell) in self.cells.iter().enumerate() {
+                        if cell.id == dragged_idx { dragged_cell_idx = Some(i); }
+                        if cell.id == target { target_cell_idx = Some(i); }
+                    }
+                    
+                    if let (Some(d_idx), Some(t_idx)) = (dragged_cell_idx, target_cell_idx) {
+                        let temp = self.cells[d_idx].item.take();
+                        self.cells[d_idx].item = self.cells[t_idx].item.take();
+                        self.cells[t_idx].item = temp;
+                        return Ok(Some((dragged_idx, target)));
+                    }
                 }
             } else {
-                 // Drop out of bounds
                  return Ok(None);
             }
         }

@@ -63,6 +63,7 @@ pub struct Window {
     pub down_visual: String,
     pub is_pressed: bool,
     pub is_hover: bool,
+    pub slot_window: Option<crate::ui_widget_slotwindow::SlotWindow>,
 }
 
 impl Window {
@@ -93,6 +94,7 @@ impl Window {
             down_visual: String::new(),
             is_pressed: false,
             is_hover: false,
+            slot_window: None,
         }
     }
 

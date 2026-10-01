@@ -56,8 +56,8 @@ fn test_on_mouse_over() {
 fn test_drag_and_drop_swap() {
     let mut window = SlotWindow::new(5, 9, (32, 32));
     
-    let item1 = SlotItem { vnum: 100, count: 1, icon_path: "item1.png".to_string(), is_locked: false };
-    let item2 = SlotItem { vnum: 200, count: 2, icon_path: "item2.png".to_string(), is_locked: false };
+    let item1 = SlotItem::new(100, 1, "item1.png".to_string(), false);
+    let item2 = SlotItem::new(200, 2, "item2.png".to_string(), false);
     
     assert!(window.set_item(0, item1.clone()).is_ok());
     assert!(window.set_item(1, item2.clone()).is_ok());
@@ -81,7 +81,7 @@ fn test_drag_and_drop_swap() {
 fn test_drag_and_drop_empty_slot() {
     let mut window = SlotWindow::new(5, 9, (32, 32));
     
-    let item = SlotItem { vnum: 100, count: 1, icon_path: "item1.png".to_string(), is_locked: false };
+    let item = SlotItem::new(100, 1, "item1.png".to_string(), false);
     assert!(window.set_item(0, item.clone()).is_ok());
     
     // Start drag from cell 0
@@ -100,7 +100,7 @@ fn test_drag_and_drop_empty_slot() {
 fn test_drag_and_drop_out_of_bounds() {
     let mut window = SlotWindow::new(5, 9, (32, 32));
     
-    let item = SlotItem { vnum: 100, count: 1, icon_path: "item1.png".to_string(), is_locked: false };
+    let item = SlotItem::new(100, 1, "item1.png".to_string(), false);
     assert!(window.set_item(0, item.clone()).is_ok());
     
     // Start drag from cell 0

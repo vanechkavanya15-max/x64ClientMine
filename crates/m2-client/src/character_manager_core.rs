@@ -14,6 +14,11 @@ pub struct InstanceBase {
     pub active_loop_motion: Option<u32>,
     pub is_dead: bool,
     pub is_stunned: bool,
+    pub armor_vnum: u32,
+    pub weapon_vnum: u32,
+    pub hair_vnum: u32,
+    pub rot_deg: f32,
+    pub active_once_motion: Option<u32>,
 }
 
 impl InstanceBase {
@@ -28,6 +33,11 @@ impl InstanceBase {
             active_loop_motion: None,
             is_dead: false,
             is_stunned: false,
+            armor_vnum: 0,
+            weapon_vnum: 0,
+            hair_vnum: 0,
+            rot_deg: 0.0,
+            active_once_motion: None,
         }
     }
 }
