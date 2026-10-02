@@ -236,6 +236,7 @@ pub unsafe extern "C" fn m2_net_observe_recv(data: *const u8, len: usize) {
                             hp: 0,
                             max_hp: 0,
                             name: String::new(),
+                            ..Default::default()
                         };
                         if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
                             state.add_or_update_actor(actor);
@@ -265,6 +266,7 @@ pub unsafe extern "C" fn m2_net_observe_recv(data: *const u8, len: usize) {
                             hp: 0,
                             max_hp: 0,
                             name,
+                            ..Default::default()
                         };
                         if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
                             state.add_or_update_actor(actor);

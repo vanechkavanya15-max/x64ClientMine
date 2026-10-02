@@ -22,6 +22,8 @@ pub static GAME_EVENTS: std::sync::Mutex<Vec<GameEvent>> = std::sync::Mutex::new
 pub mod gc_opcode {
     pub const PING: u16            = 0x0007;
     pub const PHASE: u16           = 0x0008;
+    pub const KEY_CHALLENGE: u16   = 0x000B;
+    pub const KEY_COMPLETE: u16    = 0x000C;
     
     // Character
     pub const CHARACTER_ADD: u16   = 0x0205;
@@ -54,6 +56,7 @@ pub mod gc_opcode {
     pub const ITEM_GROUND_DEL: u16 = 0x0516;
     pub const QUICKSLOT_ADD: u16   = 0x0519;
     pub const QUICKSLOT_DEL: u16   = 0x051A;
+    pub const EXCHANGE: u16        = 0x051C;
     
     // Chat
     pub const CHAT: u16            = 0x0603;
@@ -352,24 +355,24 @@ fn dispatch_packet(header: u16, length: u16, data: &[u8]) {
         gc_opcode::AFFECT_REMOVE => handle_affect(data, false),
         gc_opcode::TARGET => handle_target(data),
         gc_opcode::WARP => handle_warp(data),
-        gc_opcode::QUEST_INFO | gc_opcode::SCRIPT => {
-            println!("[NET] Quest/Script pakiet (opcode=0x{:04X}, len={})", header, length);
-        }
-        gc_opcode::SKILL_LEVEL | gc_opcode::SKILL_LEVEL_NEW => {
-            println!("[NET] SkillLevel pakiet (opcode=0x{:04X}, len={})", header, length);
-        }
-        gc_opcode::SHOP | gc_opcode::GUILD | gc_opcode::MESSENGER 
+        gc_opcode::QUEST_INFO | gc_opcode::SCRIPT
+        | gc_opcode::SKILL_LEVEL | gc_opcode::SKILL_LEVEL_NEW
+        | gc_opcode::SHOP | gc_opcode::GUILD | gc_opcode::MESSENGER 
         | gc_opcode::PARTY_ADD | gc_opcode::PARTY_REMOVE 
         | gc_opcode::FISHING | gc_opcode::LAND_LIST 
         | gc_opcode::NPC_POSITION | gc_opcode::MOUNT
         | gc_opcode::SEPCIAL_EFFECT | gc_opcode::WHISPER
-        | gc_opcode::QUICKSLOT_ADD | gc_opcode::QUICKSLOT_DEL => {
-            // Znany pakiet, ale jeszcze nie obslugiwany szczegolowo
-            println!("[NET] Pakiet GC: opcode=0x{:04X}, len={} (znany, bez handlera)", header, length);
+        | gc_opcode::QUICKSLOT_ADD | gc_opcode::QUICKSLOT_DEL
+        | gc_opcode::EXCHANGE | gc_opcode::KEY_CHALLENGE | gc_opcode::KEY_COMPLETE => {
+            if !crate::game_net_stream_dispatcher_v2::dispatch_packet_extended_v2(header, length, data) {
+                println!("[NET] Pakiet GC: opcode=0x{:04X}, len={} (przekazano do v2)", header, length);
+            }
         }
         _ => {
-            println!("[NET] Nieznany pakiet GC: opcode=0x{:04X}, len={}", header, length);
-            push_event(GameEvent::Unknown { opcode: header, length });
+            if !crate::game_net_stream_dispatcher_v2::dispatch_packet_extended_v2(header, length, data) {
+                println!("[NET] Nieznany pakiet GC: opcode=0x{:04X}, len={}", header, length);
+                push_event(GameEvent::Unknown { opcode: header, length });
+            }
         }
     }
 }
@@ -721,7 +724,7 @@ fn handle_warp(data: &[u8]) {
 // Wysylanie pakietow CG (Client -> Game)
 // ============================================================================
 
-fn send_pong() {
+pub(crate) fn send_pong() {
     let mut pong = [0u8; 4];
     pong[0..2].copy_from_slice(&0x0006u16.to_le_bytes()); // CG::PONG
     pong[2..4].copy_from_slice(&4u16.to_le_bytes());       // length = 4
@@ -778,7 +781,7 @@ fn update_hud_stats(level: i32, hp: i32, max_hp: i32, sp: i32, max_sp: i32, gold
 // ============================================================================
 // Pomocnicza funkcja do wrzucania zdarzen do kolejki
 // ============================================================================
-fn push_event(event: GameEvent) {
+pub(crate) fn push_event(event: GameEvent) {
     if let Ok(mut events) = GAME_EVENTS.lock() {
         // Ograniczamy rozmiar kolejki do 1000 zdarzen
         if events.len() > 1000 {

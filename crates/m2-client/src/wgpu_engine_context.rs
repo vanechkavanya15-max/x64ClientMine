@@ -859,6 +859,9 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
     let mut last_fps_time = std::time::Instant::now();
     let clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
 
+    let mut composition: Option<crate::main_render_pipeline_composition::MainRenderPipelineComposition> = None;
+    let mut pipeline_mgr: Option<crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager> = None;
+
     loop {
         let status = crate::win32_message_dispatcher::poll_window_messages();
         if let crate::win32_message_dispatcher::MsgQueueStatus::Quit(code) = status {
@@ -901,7 +904,28 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
                         batches.push((tex.as_ref(), quads.as_slice()));
                     }
 
-                    if !batches.is_empty() {
+                    if current_phase == "GAME" {
+                        if pipeline_mgr.is_none() {
+                            let pm = crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager::new(&ctx.device, ctx.width, ctx.height);
+                            pipeline_mgr = Some(pm);
+                            let win_cfg = crate::client_engine_main::WindowConfig {
+                                width: ctx.width,
+                                height: ctx.height,
+                                is_windowed: true,
+                                vsync: true,
+                            };
+                            composition = Some(crate::main_render_pipeline_composition::MainRenderPipelineComposition::new(win_cfg));
+                            println!("[+] Aktywowano pelny potok 3D (Skybox, Teren, Woda, Modele, Czasteczki, TextTail) w fazie GAME!");
+                        }
+
+                        if let (Some(ref mut comp), Some(ref pm)) = (&mut composition, &pipeline_mgr) {
+                            if let Err(_e) = comp.execute_frame(ctx, pm, clear_color, &batches) {
+                                let _ = ctx.render_frame_with_quads(clear_color, &batches);
+                            }
+                        } else {
+                            let _ = ctx.render_frame_with_quads(clear_color, &batches);
+                        }
+                    } else if !batches.is_empty() {
                         let _ = ctx.render_frame_with_quads(clear_color, &batches);
                     } else {
                         let _ = ctx.render_clear_frame(clear_color);

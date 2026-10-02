@@ -94,6 +94,9 @@ pub struct Actor {
     pub hp: i32,
     pub max_hp: i32,
     pub name: String,
+    pub motion_mode: i32,
+    pub current_motion: i32,
+    pub is_dead: bool,
 }
 
 impl Default for Actor {
@@ -109,6 +112,9 @@ impl Default for Actor {
             hp: 0,
             max_hp: 0,
             name: String::new(),
+            motion_mode: 0,
+            current_motion: 0,
+            is_dead: false,
         }
     }
 }

@@ -73,6 +73,7 @@ pub fn parse_character_add(data: &[u8]) -> Result<u32, &'static str> {
         hp: 0,
         max_hp: 0,
         name: String::new(),
+        ..Default::default()
     };
 
     if let Ok(mut state) = GLOBAL_GAME_STATE.write() {

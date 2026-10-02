@@ -348,6 +348,9 @@ impl Metin2Engine {
             }
         }
 
+        // Ladowanie baz proto przedmiotow i potworow z archiwow VFS
+        let _ = crate::item_mob_proto_vfs_loader::load_protos_from_vfs();
+
         // Inicjalizacja natywnego interfejsu logowania (ThinBoard, lista serwerow, kanaly, flagi, przyciski)
         crate::ui_bridge_ffi::m2_ui_setup_default_login_ui(self.width, self.height);
 
@@ -893,6 +896,13 @@ if system_py_data:
 
             println!("[+] Mostek Pythona 3.14 zainicjalizowany, uruchamianie system.py...");
             py_run(py_code.as_ptr());
+
+            // Wstrzykujemy pelne, natywne moduly C-API Pythona (player, chr, net, item, ui itp.)
+            if let Err(e) = crate::py_bootstrap_runtime_injector::inject_runtime_modules() {
+                println!("[-] Ostrzezenie wstrzykiwania modulow runtime Pythona: {}", e);
+            } else {
+                println!("[+] Pomyslnie wstrzyknieto pelne moduly runtime Pythona podlaczone pod GameState!");
+            }
         }
 
         self.state = EngineState::PythonStarted;

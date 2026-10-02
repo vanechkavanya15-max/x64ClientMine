@@ -206,6 +206,10 @@ impl NetworkActorMgr {
         self.net_actor_dict.get(&vid)
     }
 
+    pub fn get_actor_mut(&mut self, vid: u32) -> Option<&mut NetworkActorData> {
+        self.net_actor_dict.get_mut(&vid)
+    }
+
     pub fn append_actor(&mut self, net_actor_data: NetworkActorData) {
         let vid = net_actor_data.vid;
         
