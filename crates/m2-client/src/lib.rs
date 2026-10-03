@@ -484,3 +484,4 @@ pub mod input_clipboard_handler;
 pub mod full_input_win32_10;
 pub mod full_ui_adv_15;
 pub mod ui_advanced_system_validator;
+pub mod full_cli_core_08;
