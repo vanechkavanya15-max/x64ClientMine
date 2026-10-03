@@ -494,3 +494,4 @@ pub mod ui_item_tooltip_builder;
 pub mod ui_sound_event_router;
 pub mod full_audio_rodio_10;
 pub mod property_manager_parser;
+pub mod ui_rendertarget_scene_pass;
