@@ -419,9 +419,239 @@ pub extern "C" fn m2_net_ConnectToAccountServer(
                 let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(4)));
                 let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(4)));
 
-                // 1. Handshake GC_KEY_CHALLENGE (77B)
+                // 1. Handshake detekcja protokolu
                 let mut buf = [0u8; 1024];
                 let mut total_read = 0;
+                match stream.read(&mut buf) {
+                    Ok(n) if n > 0 => total_read = n,
+                    _ => {
+                        eprintln!("[-] Blad odczytu handshake z serwerem Auth");
+                        if acc_handler != 0 {
+                            call_python_object_method0(acc_handler, "OnConnectFailure");
+                        }
+                        return;
+                    }
+                }
+
+                if buf[0] == 0xFD || buf[0] == 0xFF {
+                    // Standardowy protokol Metin2 C++ / metin2ToRust
+                    println!("[NET] Rozpoznano klasyczny protokol Metin2 (15B handshake)");
+                    // Wyslij Pong [0xFE]
+                    let _ = stream.write_all(&[0xFEu8]);
+                    // Odbierz Phase Auth [0xFD, 0x0A]
+                    let mut phase_auth = [0u8; 16];
+                    let _ = stream.read(&mut phase_auth);
+
+                    // Wyslij CG_LOGIN (81B)
+                    let mut login_pkt = [0u8; 81];
+                    login_pkt[0] = 0x6Fu8;
+                    let id_b = login_id.as_bytes();
+                    let id_len = id_b.len().min(30);
+                    login_pkt[1..1 + id_len].copy_from_slice(&id_b[..id_len]);
+                    let pwd_b = login_pwd.as_bytes();
+                    let pwd_len = pwd_b.len().min(16);
+                    login_pkt[32..32 + pwd_len].copy_from_slice(&pwd_b[..pwd_len]);
+                    let _ = stream.write_all(&login_pkt);
+
+                    // Odbierz odpowiedz Auth
+                    let mut resp_buf = [0u8; 256];
+                    let mut login_key: u32 = 1337;
+                    if let Ok(rn) = stream.read(&mut resp_buf) {
+                        if rn > 0 {
+                            println!("[NET] Otrzymano odpowiedz Auth ({} B, header 0x{:02X})", rn, resp_buf[0]);
+                            if resp_buf[0] == 0x96 || resp_buf[0] == 0x20 || resp_buf[0] == 0x01 {
+                                if rn >= 5 {
+                                    login_key = u32::from_le_bytes(resp_buf[1..5].try_into().unwrap_or_default());
+                                }
+                                println!("[NET] [+] Klasyczna autoryzacja pomyslna! login_key={}", login_key);
+                            }
+                        }
+                    }
+
+                    // Polaczenie z Game Serverem (Channel 1)
+                    let ch_addr = format!("{}:{}", target_ch_addr, port);
+                    println!("[NET] Laczenie z Game Serverem {}", ch_addr);
+                    match std::net::TcpStream::connect_timeout(&ch_addr.parse().unwrap(), std::time::Duration::from_secs(3)) {
+                        Ok(mut ch_stream) => {
+                            println!("[NET] [+] Polaczono z CH1 ({})", ch_addr);
+                            let _ = ch_stream.set_read_timeout(Some(std::time::Duration::from_secs(4)));
+                            let _ = ch_stream.set_write_timeout(Some(std::time::Duration::from_secs(4)));
+
+                            // 1. Odbierz Handshake
+                            let mut ch_hs = [0u8; 64];
+                            let _ = ch_stream.read(&mut ch_hs);
+                            // 2. Wyslij Pong
+                            let _ = ch_stream.write_all(&[0xFEu8]);
+                            // 3. Odbierz Phase Login [0xFD, 0x02]
+                            let mut ch_pl = [0u8; 16];
+                            let _ = ch_stream.read(&mut ch_pl);
+
+                            // 4. Wyslij CG_LOGIN na Game Server (header 0x6D, login 30B, login_key 4B)
+                            let mut g_login = [0u8; 35];
+                            g_login[0] = 0x6Du8;
+                            let id_b = login_id.as_bytes();
+                            let id_len = id_b.len().min(30);
+                            g_login[1..1 + id_len].copy_from_slice(&id_b[..id_len]);
+                            g_login[31..35].copy_from_slice(&login_key.to_le_bytes());
+                            let _ = ch_stream.write_all(&g_login);
+
+                            // 5. Odbierz pakiety z Game Servera
+                            let mut g_resp = [0u8; 4096];
+                            let mut total_g = 0;
+                            while total_g < 333 {
+                                match ch_stream.read(&mut g_resp[total_g..]) {
+                                    Ok(n) if n > 0 => {
+                                        total_g += n;
+                                        if total_g >= 333 { break; }
+                                    }
+                                    _ => break,
+                                }
+                            }
+                            println!("[NET] Otrzymano {} B z Game Servera", total_g);
+
+                            let mut chars_list = Vec::new();
+                            let mut parsed_slots: [SimplePlayerInfo; 4] = Default::default();
+
+                            // Szukaj pakietu 0x20 (HEADER_GC_LOGIN_SUCCESS_NEWSLOT)
+                            let pkt_20_idx = g_resp[..total_g].iter().position(|&b| b == 0x20);
+                            if let Some(base_idx) = pkt_20_idx {
+                                println!("[NET] Znaleziono pakiet 0x20 listy postaci na offset={}", base_idx);
+                                for i in 0..4 {
+                                    let off = base_idx + 1 + i * 63;
+                                    if off + 63 <= total_g {
+                                        let id = u32::from_le_bytes(g_resp[off..off+4].try_into().unwrap_or_default());
+                                        if id != 0 {
+                                            let name_raw = &g_resp[off+4..off+29];
+                                            let name_len = name_raw.iter().position(|&b| b == 0).unwrap_or(25);
+                                            let name = String::from_utf8_lossy(&name_raw[..name_len]).trim().to_string();
+                                            let job = g_resp[off+29];
+                                            let level = g_resp[off+30];
+                                            let playtime = u32::from_le_bytes(g_resp[off+31..off+35].try_into().unwrap_or_default());
+                                            let st = g_resp[off+35];
+                                            let ht = g_resp[off+36];
+                                            let dx = g_resp[off+37];
+                                            let iq = g_resp[off+38];
+                                            let main_part = u16::from_le_bytes(g_resp[off+39..off+41].try_into().unwrap_or_default());
+                                            let hair_part = u16::from_le_bytes(g_resp[off+42..off+44].try_into().unwrap_or_default());
+
+                                            println!("[NET] Postac slot {}: ID={}, Name='{}', Job={}, Lv={}", i, id, name, job, level);
+
+                                            parsed_slots[i] = SimplePlayerInfo {
+                                                id,
+                                                name: name.clone(),
+                                                job,
+                                                level,
+                                                playtime,
+                                                st,
+                                                ht,
+                                                dx,
+                                                iq,
+                                                main_part,
+                                                hair_part,
+                                                ip_addr: 0x7F000001,
+                                                port,
+                                                guild_id: 0,
+                                                guild_name: String::new(),
+                                                change_name_flag: 0,
+                                            };
+
+                                            chars_list.push(crate::ui_bridge_ffi::CharacterSlot {
+                                                id,
+                                                name,
+                                                job,
+                                                level,
+                                                playtime,
+                                                st,
+                                                ht,
+                                                dx,
+                                                iq,
+                                                main_part,
+                                                hair_part,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+
+                            if chars_list.is_empty() {
+                                parsed_slots[0] = SimplePlayerInfo {
+                                    id: 1001,
+                                    name: "Hero".to_string(),
+                                    job: 0,
+                                    level: 1,
+                                    playtime: 100,
+                                    st: 10,
+                                    ht: 10,
+                                    dx: 10,
+                                    iq: 10,
+                                    main_part: 0,
+                                    hair_part: 0,
+                                    ip_addr: 0x7F000001,
+                                    port,
+                                    guild_id: 0,
+                                    guild_name: String::new(),
+                                    change_name_flag: 0,
+                                };
+                                chars_list.push(crate::ui_bridge_ffi::CharacterSlot {
+                                    id: 1001,
+                                    name: "Hero".to_string(),
+                                    job: 0,
+                                    level: 1,
+                                    playtime: 100,
+                                    st: 10,
+                                    ht: 10,
+                                    dx: 10,
+                                    iq: 10,
+                                    main_part: 0,
+                                    hair_part: 0,
+                                });
+                            }
+
+                            // Zapis stanu postaci
+                            if let Ok(mut state) = NETWORK_STREAM.lock() {
+                                state.is_online = true;
+                                state.login_key = login_key;
+                                state.characters = parsed_slots;
+                            }
+
+                            {
+                                let mut g_chars = crate::ui_bridge_ffi::GLOBAL_CHARACTERS.lock().unwrap();
+                                *g_chars = chars_list.clone();
+                                let mut g_sel = crate::ui_bridge_ffi::SELECTED_CHAR_SLOT.lock().unwrap();
+                                *g_sel = 0;
+                                let mut g_phase = crate::ui_bridge_ffi::CURRENT_PHASE.lock().unwrap();
+                                *g_phase = "SELECT".to_string();
+                                let mut g_sock = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock().unwrap();
+                                *g_sock = Some((ch_stream, SecureCipher::new()));
+                            }
+
+                            // Powiadomienie Pythona w glownym watku:
+                            println!("[NET] Kolejkowanie przejscia do fazy SELECT i ladowania postaci...");
+                            if stream_handler != 0 {
+                                crate::py_event_dispatcher::enqueue_main_thread_action(
+                                    crate::py_event_dispatcher::MainThreadAction::CallObjectMethod0(
+                                        stream_handler,
+                                        "SetSelectCharacterPhase".to_string(),
+                                    ),
+                                );
+                            }
+                            if select_wnd != 0 {
+                                crate::py_event_dispatcher::enqueue_main_thread_action(
+                                    crate::py_event_dispatcher::MainThreadAction::CallObjectMethod0(
+                                        select_wnd,
+                                        "Refresh".to_string(),
+                                    ),
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[-] Nie udalo sie polaczyc z Game Serverem: {}", e);
+                            if acc_handler != 0 { call_python_object_method0(acc_handler, "OnConnectFailure"); }
+                        }
+                    }
+                    return;
+                }
+
                 while total_read < 77 {
                     match stream.read(&mut buf[total_read..]) {
                         Ok(n) if n > 0 => total_read += n,
@@ -770,38 +1000,150 @@ pub extern "C" fn m2_net_DirectEnter(slot: u32) -> bool {
 #[no_mangle]
 pub extern "C" fn m2_net_SendSelectCharacterPacket(slot: u8) -> bool {
     println!("[NET] SendSelectCharacterPacket(slot={})", slot);
-    // Wywolanie logiki przelaczenia postaci w game state
     {
         let mut g_sel = crate::ui_bridge_ffi::SELECTED_CHAR_SLOT.lock().unwrap();
         *g_sel = slot as usize;
     }
-    m2_net_SendEnterGamePacket()
-}
 
-#[no_mangle]
-pub extern "C" fn m2_net_SendSelectEmpirePacket(empire_id: u32) -> bool {
-    println!("[NET] SendSelectEmpirePacket(empire_id={})", empire_id);
-    m2_net_SetEmpireID(empire_id);
+    // Wyslij pakiet CG_CHARACTER_SELECT (header 0x06, slot 1B)
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, _)) = *sock_guard {
+            let pkt = [0x06u8, slot];
+            let _ = std::io::Write::write_all(stream, &pkt);
+        }
+    }
+
+    let is_already_loading = {
+        let mut phase_guard = crate::ui_bridge_ffi::CURRENT_PHASE.lock().unwrap();
+        if *phase_guard == "LOADING" {
+            true
+        } else {
+            *phase_guard = "LOADING".to_string();
+            false
+        }
+    };
+
+    if let Ok(state) = NETWORK_STREAM.lock() {
+        if !is_already_loading {
+            if state.stream_handler != 0 {
+                println!("[NET] Kolejkowanie SetLoadingPhase() w glownym watku...");
+                crate::py_event_dispatcher::enqueue_main_thread_action(
+                    crate::py_event_dispatcher::MainThreadAction::CallObjectMethod0(
+                        state.stream_handler,
+                        "SetLoadingPhase".to_string(),
+                    ),
+                );
+            }
+        } else {
+            let load_wnd = state.phase_windows[PHASE_WINDOW_LOAD];
+            if load_wnd != 0 {
+                println!("[NET] LoadingWindow otwarta! Kolejkowanie LoadData(969600, 278400)...");
+                crate::py_event_dispatcher::enqueue_main_thread_action(
+                    crate::py_event_dispatcher::MainThreadAction::CallObjectMethod2I32(
+                        load_wnd,
+                        "LoadData".to_string(),
+                        969600,
+                        278400,
+                    ),
+                );
+            }
+        }
+    }
     true
 }
 
 #[no_mangle]
-pub extern "C" fn m2_net_SendEnterGamePacket() -> bool {
-    println!("[NET] SendEnterGamePacket() -> Przelaczanie na PHASE_GAME!");
+pub extern "C" fn m2_net_StartGame() -> bool {
+    println!("[NET] StartGame() -> Zadanie przelaczenia na PHASE_GAME");
     {
         let mut g_phase = crate::ui_bridge_ffi::CURRENT_PHASE.lock().unwrap();
+        if *g_phase == "GAME" {
+            println!("[NET] StartGame(): JUZ w fazie GAME - pomijanie podwojnego przelaczenia");
+            return true;
+        }
         *g_phase = "GAME".to_string();
     }
-    // Wywolanie GameWindow w Pythonie jesli zarejestrowane
     if let Ok(state) = NETWORK_STREAM.lock() {
-        let game_wnd = state.phase_windows[PHASE_WINDOW_GAME];
-        if game_wnd != 0 {
-            call_python_object_method0(game_wnd, "Open");
-        }
         if state.stream_handler != 0 {
-            call_python_object_method0(state.stream_handler, "SetGamePhase");
+            println!("[NET] Kolejkowanie SetGamePhase() w glownym watku...");
+            crate::py_event_dispatcher::enqueue_main_thread_action(
+                crate::py_event_dispatcher::MainThreadAction::CallObjectMethod0(
+                    state.stream_handler,
+                    "SetGamePhase".to_string(),
+                ),
+            );
         }
     }
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_Warp(x: i32, y: i32) -> bool {
+    println!("[NET] Warp(x={}, y={})", x, y);
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_GetMainActorRace() -> u32 {
+    let sel = crate::ui_bridge_ffi::SELECTED_CHAR_SLOT.lock().map(|s| *s).unwrap_or(0);
+    if let Ok(state) = NETWORK_STREAM.lock() {
+        if sel < state.characters.len() {
+            return state.characters[sel].job as u32;
+        }
+    }
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_GetMainActorEmpire() -> u32 {
+    m2_net_GetEmpireID()
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_GetMainActorSkillGroup() -> u32 {
+    1
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_IsChatInsultIn(_msg: *const c_char) -> bool {
+    false
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_IsInsultIn(_msg: *const c_char) -> bool {
+    false
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_LoadInsultList(_filename: *const c_char) -> bool {
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_UploadMark(_filename: *const c_char) -> bool {
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_UploadSymbol(_filename: *const c_char) -> bool {
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_GetGuildID() -> u32 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendEnterGamePacket() -> bool {
+    println!("[NET] SendEnterGamePacket() -> Wysylanie HEADER_CG_ENTERGAME (0x0A) do serwera");
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, _)) = *sock_guard {
+            let pkt = [0x0Au8];
+            let _ = std::io::Write::write_all(stream, &pkt);
+        }
+    }
+    crate::game_net_receiver::start_game_recv_thread();
     true
 }
 

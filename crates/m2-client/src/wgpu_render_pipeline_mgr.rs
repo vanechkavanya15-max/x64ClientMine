@@ -41,6 +41,10 @@ pub struct WgpuRenderPipelineManager {
 
     pub character_vertex_buffer: Option<wgpu::Buffer>,
     pub character_vertex_count: u32,
+    pub character_index_buffer: Option<wgpu::Buffer>,
+    pub character_index_count: u32,
+    pub character_uniform_bind_group: Option<wgpu::BindGroup>,
+    pub character_texture_bind_group: Option<wgpu::BindGroup>,
 
     pub ground_item_vertex_buffer: Option<wgpu::Buffer>,
     pub ground_item_vertex_count: u32,
@@ -79,6 +83,20 @@ impl WgpuRenderPipelineManager {
 
         let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
+        let (char_pipe, _char_ub, char_ubg, _u_layout, _tex_layout) =
+            WgpuEngineContext::setup_character_pipeline(device, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let warrior = crate::character_model_vfs_loader::load_warrior_model(device).ok();
+        let (char_vb, char_vc, char_ib, char_ic) = if let Some(m) = warrior {
+            (
+                Some(m.gpu_buffers.vertex_buffer),
+                m.gpu_buffers.vertex_count,
+                Some(m.gpu_buffers.index_buffer),
+                m.gpu_buffers.index_count,
+            )
+        } else {
+            (None, 0, None, 0)
+        };
+
         Self {
             depth_texture,
             depth_view,
@@ -86,7 +104,7 @@ impl WgpuRenderPipelineManager {
             terrain_pipeline: None,
             water_pipeline: None,
             speedtree_pipeline: None,
-            character_pipeline: None,
+            character_pipeline: Some(char_pipe),
             ground_item_pipeline: None,
             magic_effect_pipeline: None,
             projectile_pipeline: None,
@@ -99,8 +117,12 @@ impl WgpuRenderPipelineManager {
             water_vertex_count: 0,
             speedtree_vertex_buffer: None,
             speedtree_vertex_count: 0,
-            character_vertex_buffer: None,
-            character_vertex_count: 0,
+            character_vertex_buffer: char_vb,
+            character_vertex_count: char_vc,
+            character_index_buffer: char_ib,
+            character_index_count: char_ic,
+            character_uniform_bind_group: Some(char_ubg),
+            character_texture_bind_group: None,
             ground_item_vertex_buffer: None,
             ground_item_vertex_count: 0,
             magic_effect_vertex_buffer: None,
@@ -232,8 +254,19 @@ impl WgpuRenderPipelineManager {
                     RenderPhase::CharactersAndMonsters => {
                         if let (Some(pipeline), Some(vb)) = (&self.character_pipeline, &self.character_vertex_buffer) {
                             render_pass.set_pipeline(pipeline);
+                            if let Some(bg0) = &self.character_uniform_bind_group {
+                                render_pass.set_bind_group(0, bg0, &[]);
+                            }
+                            if let Some(bg1) = &self.character_texture_bind_group {
+                                render_pass.set_bind_group(1, bg1, &[]);
+                            }
                             render_pass.set_vertex_buffer(0, vb.slice(..));
-                            render_pass.draw(0..self.character_vertex_count, 0..1);
+                            if let Some(ib) = &self.character_index_buffer {
+                                render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint16);
+                                render_pass.draw_indexed(0..self.character_index_count, 0, 0..1);
+                            } else {
+                                render_pass.draw(0..self.character_vertex_count, 0..1);
+                            }
                         }
                     }
                     RenderPhase::GroundItems => {

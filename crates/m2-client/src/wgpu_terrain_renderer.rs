@@ -44,14 +44,16 @@ pub fn generate_terrain_mesh(height_map: &RawHeightMap) -> Vec<TerrainVertex> {
 
     let w = height_map.width - 1;
     let h = height_map.height - 1;
+    let offset_x = (w as f32) * 0.5 * CELL_SIZE;
+    let offset_y = (h as f32) * 0.5 * CELL_SIZE;
 
     for y in 0..h {
         for x in 0..w {
-            let px0 = x as f32 * CELL_SIZE;
-            let py0 = y as f32 * CELL_SIZE;
+            let px0 = x as f32 * CELL_SIZE - offset_x;
+            let py0 = y as f32 * CELL_SIZE - offset_y;
             
-            let px1 = (x + 1) as f32 * CELL_SIZE;
-            let py1 = (y + 1) as f32 * CELL_SIZE;
+            let px1 = (x + 1) as f32 * CELL_SIZE - offset_x;
+            let py1 = (y + 1) as f32 * CELL_SIZE - offset_y;
 
             let z00 = height_map.get_height(x, y);
             let z10 = height_map.get_height(x + 1, y);
@@ -183,7 +185,7 @@ pub fn create_terrain_pipeline(
             topology: wgpu::PrimitiveTopology::TriangleList,
             strip_index_format: None,
             front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
+            cull_mode: None,
             polygon_mode: wgpu::PolygonMode::Fill,
             unclipped_depth: false,
             conservative: false,
@@ -191,7 +193,7 @@ pub fn create_terrain_pipeline(
         depth_stencil: Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth32Float,
             depth_write_enabled: Some(true),
-            depth_compare: Some(wgpu::CompareFunction::Less),
+            depth_compare: Some(wgpu::CompareFunction::LessEqual),
             stencil: wgpu::StencilState::default(),
             bias: wgpu::DepthBiasState::default(),
         }),

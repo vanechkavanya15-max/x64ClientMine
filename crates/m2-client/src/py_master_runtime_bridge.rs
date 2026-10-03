@@ -130,25 +130,123 @@ else:
             pass
 
 _OBJECT_REGISTRY = {}
+_py_handlers = {}
 
 EVENT_CB_0 = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_char_p)
 def _py_event_dispatch_0(handle, method_ptr):
     try:
-        obj = _OBJECT_REGISTRY.get(handle)
+        obj = _OBJECT_REGISTRY.get(handle) or _py_handlers.get(handle)
         if obj is not None and method_ptr:
             m = method_ptr.decode('utf-8', 'ignore')
             fn = getattr(obj, m, None)
             if fn and callable(fn):
                 fn()
+    except Exception as e:
+        m = method_ptr.decode('utf-8', 'ignore') if method_ptr else ""
+        print(f"[-] PY_EVENT_0 EXCEPTION in {m}: {e}")
+        import traceback; traceback.print_exc()
+
+EVENT_CB_1_STR = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_char_p)
+def _py_event_dispatch_1_str(handle, method_ptr, arg_ptr):
+    try:
+        obj = _OBJECT_REGISTRY.get(handle) or _py_handlers.get(handle)
+        if obj is not None and method_ptr:
+            m = method_ptr.decode('utf-8', 'ignore')
+            arg = arg_ptr.decode('utf-8', 'ignore') if arg_ptr else ""
+            fn = getattr(obj, m, None)
+            if fn and callable(fn):
+                fn(arg)
+    except Exception as e:
+        m = method_ptr.decode('utf-8', 'ignore') if method_ptr else ""
+        print(f"[-] PY_EVENT_1_STR EXCEPTION in {m}: {e}")
+        import traceback; traceback.print_exc()
+
+EVENT_CB_1_I32 = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_int32)
+def _py_event_dispatch_1_i32(handle, method_ptr, val):
+    try:
+        obj = _OBJECT_REGISTRY.get(handle) or _py_handlers.get(handle)
+        if obj is not None and method_ptr:
+            m = method_ptr.decode('utf-8', 'ignore')
+            fn = getattr(obj, m, None)
+            if fn and callable(fn):
+                fn(int(val))
+    except Exception as e:
+        m = method_ptr.decode('utf-8', 'ignore') if method_ptr else ""
+        print(f"[-] PY_EVENT_1_I32 EXCEPTION in {m}: {e}")
+        import traceback; traceback.print_exc()
+
+EVENT_CB_2_I32 = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_int32, ctypes.c_int32)
+def _py_event_dispatch_2_i32(handle, method_ptr, x, y):
+    try:
+        obj = _OBJECT_REGISTRY.get(handle) or _py_handlers.get(handle)
+        m = method_ptr.decode('utf-8', 'ignore') if method_ptr else ""
+        print(f"[PY_EVENT] dispatch_2_i32: handle=0x{handle:X}, method='{m}', x={x}, y={y}, found={obj is not None}")
+        if obj is not None and m:
+            fn = getattr(obj, m, None)
+            if fn and callable(fn):
+                print(f"[PY_EVENT] Executing {type(obj).__name__}.{m}({x}, {y})...")
+                fn(int(x), int(y))
+                print(f"[PY_EVENT] Finished {type(obj).__name__}.{m}!")
+            else:
+                print(f"[-] PY_EVENT: method '{m}' not found or not callable on {type(obj).__name__}")
+        else:
+            print(f"[-] PY_EVENT: handle 0x{handle:X} not found in _OBJECT_REGISTRY (total registered: {len(_OBJECT_REGISTRY)})")
+    except Exception as e:
+        import traceback
+        print(f"[-] PY_EVENT_2_I32 EXCEPTION: {e}")
+        traceback.print_exc()
+
+MOD_CB_0 = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p)
+def _py_mod_dispatch_0(mod_ptr, method_ptr):
+    try:
+        if mod_ptr and method_ptr:
+            mod_name = mod_ptr.decode('utf-8', 'ignore')
+            method_name = method_ptr.decode('utf-8', 'ignore')
+            mod = sys.modules.get(mod_name)
+            if mod:
+                fn = getattr(mod, method_name, None)
+                if fn and callable(fn):
+                    fn()
+    except Exception:
+        pass
+
+MOD_CB_1_STR = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p)
+def _py_mod_dispatch_1_str(mod_ptr, method_ptr, arg_ptr):
+    try:
+        if mod_ptr and method_ptr:
+            mod_name = mod_ptr.decode('utf-8', 'ignore')
+            method_name = method_ptr.decode('utf-8', 'ignore')
+            arg = arg_ptr.decode('utf-8', 'ignore') if arg_ptr else ""
+            mod = sys.modules.get(mod_name)
+            if mod:
+                fn = getattr(mod, method_name, None)
+                if fn and callable(fn):
+                    fn(arg)
     except Exception:
         pass
 
 _c_cb_0 = EVENT_CB_0(_py_event_dispatch_0)
-if m2_lib and hasattr(m2_lib, 'm2_set_py_event_dispatcher_0'):
-    try:
-        m2_lib.m2_set_py_event_dispatcher_0(_c_cb_0)
-    except Exception:
-        pass
+_c_cb_1_str = EVENT_CB_1_STR(_py_event_dispatch_1_str)
+_c_cb_1_i32 = EVENT_CB_1_I32(_py_event_dispatch_1_i32)
+_c_cb_2_i32 = EVENT_CB_2_I32(_py_event_dispatch_2_i32)
+_c_mod_cb_0 = MOD_CB_0(_py_mod_dispatch_0)
+_c_mod_cb_1_str = MOD_CB_1_STR(_py_mod_dispatch_1_str)
+
+if m2_lib:
+    for name, cb in [
+        ('m2_set_py_event_dispatcher_0', _c_cb_0),
+        ('m2_set_py_event_dispatcher_1_str', _c_cb_1_str),
+        ('m2_set_py_event_dispatcher_1_i32', _c_cb_1_i32),
+        ('m2_set_py_event_dispatcher_2_i32', _c_cb_2_i32),
+        ('m2_set_py_mod_dispatcher_0', _c_mod_cb_0),
+        ('m2_set_py_mod_dispatcher_1_str', _c_mod_cb_1_str),
+    ]:
+        fn = getattr(m2_lib, name, None)
+        if fn:
+            try:
+                fn(cb)
+            except Exception:
+                pass
 
 import time
 if not hasattr(time, 'clock'):
@@ -267,13 +365,13 @@ def make_safe_caller(raw_fn, argtypes, restype):
         return res
     return safe_wrapper
 
+class ModType(type):
+    def __getattr__(cls, attr):
+        if attr.isupper():
+            return 1
+        return lambda *args, **kwargs: 0
+
 def create_real_module(module_name, prefix, methods_spec):
-    class ModType(type):
-        def __getattr__(cls, attr):
-            if attr.isupper():
-                return 1
-            return lambda *args, **kwargs: 0
-            
     class DynamicMod(metaclass=ModType):
         pass
         
@@ -446,6 +544,7 @@ AppModule.DIK_RIGHT = 205
 AppModule.DIK_DOWN = 208
 
 setattr(AppModule, 'Abort', staticmethod(lambda: None))
+setattr(AppModule, 'SetFrameSkip', staticmethod(lambda *args: None))
 setattr(AppModule, 'GetRandom', staticmethod(lambda a, b: random.randint(int(a), int(b))))
 setattr(AppModule, 'GetGlobalTimeStamp', staticmethod(lambda: int(time.time())))
 setattr(AppModule, 'SetMouseHandler', staticmethod(lambda handler=None: None))
@@ -465,6 +564,39 @@ setattr(AppModule, 'IsFileExist', staticmethod(lambda f: PackModule.Exist(f)))
 setattr(AppModule, 'SetSoftwareCursor', staticmethod(lambda: None))
 setattr(AppModule, 'SetHardwareCursor', staticmethod(lambda: None))
 setattr(AppModule, 'GetCursorPosition', staticmethod(lambda: (0, 0)))
+setattr(AppModule, 'SetCenterPosition', staticmethod(lambda *args: None))
+def _app_get_camera():
+    if m2_lib:
+        d = m2_lib.m2_app_get_camera_distance() if hasattr(m2_lib, 'm2_app_get_camera_distance') else 1000.0
+        p = m2_lib.m2_app_get_camera_pitch() if hasattr(m2_lib, 'm2_app_get_camera_pitch') else 30.0
+        r = m2_lib.m2_app_get_camera_rotation() if hasattr(m2_lib, 'm2_app_get_camera_rotation') else 0.0
+        return (float(d), float(p), float(r), 100.0)
+    return (1000.0, 30.0, 0.0, 100.0)
+
+def _app_set_camera(dist, pitch, rot, h=100.0):
+    if m2_lib and hasattr(m2_lib, 'm2_app_set_camera'):
+        m2_lib.m2_app_set_camera(float(dist), float(pitch), float(rot), float(h))
+
+def _app_pitch_camera(direction):
+    if m2_lib and hasattr(m2_lib, 'm2_app_pitch_camera'):
+        m2_lib.m2_app_pitch_camera(int(direction))
+
+def _app_rotate_camera(direction):
+    if m2_lib and hasattr(m2_lib, 'm2_app_rotate_camera'):
+        m2_lib.m2_app_rotate_camera(int(direction))
+
+def _app_zoom_camera(delta):
+    if m2_lib and hasattr(m2_lib, 'm2_app_zoom_camera'):
+        m2_lib.m2_app_zoom_camera(float(delta))
+
+setattr(AppModule, 'GetCamera', staticmethod(_app_get_camera))
+setattr(AppModule, 'SetCamera', staticmethod(_app_set_camera))
+setattr(AppModule, 'GetCameraPitch', staticmethod(lambda: _app_get_camera()[1]))
+setattr(AppModule, 'GetCameraRotation', staticmethod(lambda: _app_get_camera()[2]))
+setattr(AppModule, 'PitchCamera', staticmethod(_app_pitch_camera))
+setattr(AppModule, 'RotateCamera', staticmethod(_app_rotate_camera))
+setattr(AppModule, 'ZoomCamera', staticmethod(_app_zoom_camera))
+setattr(AppModule, 'GetImageInfo', staticmethod(lambda path: (False, 0, 0)))
 
 def _app_create(title, w, h, fullscreen=1):
     print(f"[+] [APP] Create('{title}', {w}x{h}, fullscreen={fullscreen})")
@@ -484,95 +616,112 @@ sys.modules['App'] = AppModule
 # ============================================================================
 # 4. Modul background i Background (CPythonBackground - 48 metod)
 # ============================================================================
-class BackgroundModule:
+class BackgroundModule(metaclass=ModType):
+    DISTANCE0 = 0
+    DISTANCE1 = 1
+    DISTANCE2 = 2
+    DISTANCE3 = 3
+    DISTANCE4 = 4
+    DISTANCE_SORT = 0
+    TEXTURE_SORT = 1
+    SHADOW_NONE = 0
+    SHADOW_GROUND = 1
+    SHADOW_GROUND_AND_SOLO = 2
+    SHADOW_ALL = 3
+    SHADOW_ALL_HIGH = 4
+    SHADOW_ALL_MAX = 5
+    SKY_RENDER_MODE_MODULATE = 0
+    SKY_RENDER_MODE_MODULATE2X = 1
+    SKY_RENDER_MODE_MODULATE4X = 2
+
     @staticmethod
-    def Initialize(): pass
+    def Initialize(*args, **kwargs): pass
     @staticmethod
-    def Destroy(): pass
+    def Destroy(*args, **kwargs): pass
     @staticmethod
-    def LoadMap(map_name, x=0, y=0):
+    def LoadMap(map_name, x=0, y=0, *args, **kwargs):
         print(f"[+] [BACKGROUND] LoadMap('{map_name}', x={x}, y={y})")
         return True
     @staticmethod
-    def Update(x=0, y=0, z=0): pass
+    def Update(*args, **kwargs): pass
     @staticmethod
-    def Render(): pass
+    def Render(*args, **kwargs): pass
     @staticmethod
-    def RenderSky(): pass
+    def RenderSky(*args, **kwargs): pass
     @staticmethod
-    def RenderCloud(): pass
+    def RenderCloud(*args, **kwargs): pass
     @staticmethod
-    def RenderWater(): pass
+    def RenderWater(*args, **kwargs): pass
     @staticmethod
-    def RenderEffect(): pass
+    def RenderEffect(*args, **kwargs): pass
     @staticmethod
-    def RenderCharacterShadowToTexture(): pass
+    def RenderCharacterShadowToTexture(*args, **kwargs): pass
     @staticmethod
-    def IsSoftwareTiling(): return False
+    def IsSoftwareTiling(*args, **kwargs): return False
     @staticmethod
-    def EnableSoftwareTiling(flag): pass
+    def EnableSoftwareTiling(*args, **kwargs): pass
     @staticmethod
-    def EnableSnow(flag): pass
+    def EnableSnow(*args, **kwargs): pass
     @staticmethod
-    def GlobalPositionToLocalPosition(gx, gy): return (gx, gy)
+    def GlobalPositionToLocalPosition(gx=0, gy=0, *args, **kwargs): return (gx, gy)
     @staticmethod
-    def GlobalPositionToMapInfo(gx, gy): return ("metin2_map_a1", 0, 0)
+    def GlobalPositionToMapInfo(gx=0, gy=0, *args, **kwargs): return ("metin2_map_a1", 0, 0)
     @staticmethod
-    def GetRenderShadowTime(): return 0.0
+    def GetRenderShadowTime(*args, **kwargs): return 0.0
     @staticmethod
-    def RegisterEnvironmentData(idx, path): return True
+    def RegisterEnvironmentData(*args, **kwargs): return True
     @staticmethod
-    def SetEnvironmentData(idx): return True
+    def SetEnvironmentData(*args, **kwargs): return True
     @staticmethod
-    def GetCurrentMapName(): return "metin2_map_a1"
+    def GetCurrentMapName(*args, **kwargs): return "metin2_map_a1"
     @staticmethod
-    def GetPickingPoint(): return (0.0, 0.0, 0.0)
+    def GetPickingPoint(*args, **kwargs): return (0.0, 0.0, 0.0)
     @staticmethod
-    def BeginEnvironment(): pass
+    def BeginEnvironment(*args, **kwargs): pass
     @staticmethod
-    def EndEnvironment(): pass
+    def EndEnvironment(*args, **kwargs): pass
     @staticmethod
-    def SetCharacterDirLight(): pass
+    def SetCharacterDirLight(*args, **kwargs): pass
     @staticmethod
-    def SetBackgroundDirLight(): pass
+    def SetBackgroundDirLight(*args, **kwargs): pass
     @staticmethod
-    def GetHeight(x, y): return 0.0
+    def GetHeight(*args, **kwargs): return 0.0
     @staticmethod
-    def SetShadowLevel(lvl): pass
+    def SetShadowLevel(*args, **kwargs): pass
     @staticmethod
-    def SetVisiblePart(idx, flag): pass
+    def SetVisiblePart(*args, **kwargs): pass
     @staticmethod
-    def GetShadowMapColor(): return (0, 0, 0, 0)
+    def GetShadowMapColor(*args, **kwargs): return (0, 0, 0, 0)
     @staticmethod
-    def SetSplatLimit(l): pass
+    def SetSplatLimit(*args, **kwargs): pass
     @staticmethod
-    def GetRenderedSplatNum(): return 0
+    def GetRenderedSplatNum(*args, **kwargs): return (0, 0, 0.0, "")
     @staticmethod
-    def GetRenderedGraphicThingInstanceNum(): return 0
+    def GetRenderedGraphicThingInstanceNum(*args, **kwargs): return 0
     @staticmethod
-    def SelectViewDistanceNum(n): pass
+    def SelectViewDistanceNum(*args, **kwargs): pass
     @staticmethod
-    def SetViewDistanceSet(n): pass
+    def SetViewDistanceSet(*args, **kwargs): pass
     @staticmethod
-    def GetFarClip(): return 50000.0
+    def GetFarClip(*args, **kwargs): return 50000.0
     @staticmethod
-    def GetDistanceSetInfo(): return (1, 1, 1)
+    def GetDistanceSetInfo(*args, **kwargs): return (1, 1000.0, 5000.0, 50000.0)
     @staticmethod
-    def SetBGLoading(flag): pass
+    def SetBGLoading(*args, **kwargs): pass
     @staticmethod
-    def SetRenderSort(n): pass
+    def SetRenderSort(*args, **kwargs): pass
     @staticmethod
-    def SetTransparentTree(flag): pass
+    def SetTransparentTree(*args, **kwargs): pass
     @staticmethod
-    def SetXMasTree(n): pass
+    def SetXMasTree(*args, **kwargs): pass
     @staticmethod
-    def RegisterDungeonMapName(name): pass
+    def RegisterDungeonMapName(*args, **kwargs): pass
     @staticmethod
-    def VisibleGuildArea(): pass
+    def VisibleGuildArea(*args, **kwargs): pass
     @staticmethod
-    def DisableGuildArea(): pass
+    def DisableGuildArea(*args, **kwargs): pass
     @staticmethod
-    def WarpTest(): pass
+    def WarpTest(*args, **kwargs): pass
 
 sys.modules['background'] = BackgroundModule
 sys.modules['Background'] = BackgroundModule
@@ -590,11 +739,11 @@ def _get_account_char_str(slot, data_type):
         return buf.value.decode('utf-8', errors='ignore')
     return ""
 
-_py_handlers = {}
-
 def _wrap_set_phase_window(phase, win):
     h = id(win) if win else 0
-    if win and h: _py_handlers[h] = win
+    if win and h:
+        _py_handlers[h] = win
+        _OBJECT_REGISTRY[h] = win
     fn = getattr(m2_lib, 'm2_net_SetPhaseWindow', None)
     if fn:
         fn.argtypes = [ctypes.c_uint32, ctypes.c_size_t]
@@ -602,6 +751,9 @@ def _wrap_set_phase_window(phase, win):
 
 def _wrap_clear_phase_window(phase, win):
     h = id(win) if win else 0
+    if h:
+        _py_handlers.pop(h, None)
+        _OBJECT_REGISTRY.pop(h, None)
     fn = getattr(m2_lib, 'm2_net_ClearPhaseWindow', None)
     if fn:
         fn.argtypes = [ctypes.c_uint32, ctypes.c_size_t]
@@ -609,7 +761,9 @@ def _wrap_clear_phase_window(phase, win):
 
 def _wrap_set_acc_connector_handler(handler):
     h = id(handler) if handler else 0
-    if handler and h: _py_handlers[h] = handler
+    if handler and h:
+        _py_handlers[h] = handler
+        _OBJECT_REGISTRY[h] = handler
     fn = getattr(m2_lib, 'm2_net_SetAccountConnectorHandler', None)
     if fn:
         fn.argtypes = [ctypes.c_size_t]
@@ -617,7 +771,9 @@ def _wrap_set_acc_connector_handler(handler):
 
 def _wrap_set_handler(handler):
     h = id(handler) if handler else 0
-    if handler and h: _py_handlers[h] = handler
+    if handler and h:
+        _py_handlers[h] = handler
+        _OBJECT_REGISTRY[h] = handler
     fn = getattr(m2_lib, 'm2_net_SetHandler', None)
     if fn:
         fn.argtypes = [ctypes.c_size_t]
@@ -681,6 +837,17 @@ net_methods = [
     ("SendQuickSlotDelPacket", "m2_net_SendQuickSlotDelPacket", [ctypes.c_uint8], ctypes.c_bool),
     ("SendQuickSlotMovePacket", "m2_net_SendQuickSlotMovePacket", [ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
     ("SendOnClickPacket", "m2_net_SendOnClickPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("StartGame", "m2_net_StartGame", [], ctypes.c_bool),
+    ("Warp", "m2_net_Warp", [ctypes.c_int32, ctypes.c_int32], ctypes.c_bool),
+    ("GetMainActorRace", "m2_net_GetMainActorRace", [], ctypes.c_uint32),
+    ("GetMainActorEmpire", "m2_net_GetMainActorEmpire", [], ctypes.c_uint32),
+    ("GetMainActorSkillGroup", "m2_net_GetMainActorSkillGroup", [], ctypes.c_uint32),
+    ("IsChatInsultIn", "m2_net_IsChatInsultIn", [ctypes.c_char_p], ctypes.c_bool),
+    ("IsInsultIn", "m2_net_IsInsultIn", [ctypes.c_char_p], ctypes.c_bool),
+    ("LoadInsultList", "m2_net_LoadInsultList", [ctypes.c_char_p], ctypes.c_bool),
+    ("UploadMark", "m2_net_UploadMark", [ctypes.c_char_p], ctypes.c_bool),
+    ("UploadSymbol", "m2_net_UploadSymbol", [ctypes.c_char_p], ctypes.c_bool),
+    ("GetGuildID", "m2_net_GetGuildID", [], ctypes.c_uint32),
 ]
 NetModule = create_real_module('net', 'net', net_methods)
 setattr(NetModule, 'SetPhaseWindow', staticmethod(_wrap_set_phase_window))
@@ -1063,8 +1230,90 @@ player_methods = [
     ("CanDetach", "m2_py_player_can_detach", [ctypes.c_uint32, ctypes.c_uint8, ctypes.c_uint16], ctypes.c_int32),
 ]
 PlayerModule = create_real_module('player', 'player', player_methods)
-setattr(PlayerModule, 'GetMainCharacterPosition', staticmethod(lambda: (0.0, 0.0, 0.0)))
+def _wrap_player_get_main_character_position():
+    fn = getattr(m2_lib, 'm2_py_player_get_main_character_position', None)
+    if fn:
+        try:
+            x, y, z = ctypes.c_float(0.0), ctypes.c_float(0.0), ctypes.c_float(0.0)
+            fn.argtypes = [ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
+            fn.restype = ctypes.c_bool
+            if fn(ctypes.byref(x), ctypes.byref(y), ctypes.byref(z)):
+                return (x.value, y.value, z.value)
+        except Exception: pass
+    return (0.0, 0.0, 0.0)
+
+setattr(PlayerModule, 'GetMainCharacterPosition', staticmethod(_wrap_player_get_main_character_position))
 setattr(PlayerModule, 'GetItemAttribute', staticmethod(lambda w, c, idx: (0, 0)))
+
+# --- Tuple-returning method overrides (C++ Py_BuildValue zwraca tuple, ModType fallback zwraca int) ---
+# QuickSlot: Py_BuildValue("ii", dwWndType, dwWndItemPos) -> (int, int)
+setattr(PlayerModule, 'GetLocalQuickSlot', staticmethod(lambda slot: (0, 0)))
+setattr(PlayerModule, 'GetGlobalQuickSlot', staticmethod(lambda slot: (0, 0)))
+
+# SkillCoolTime: Py_BuildValue("ff", fCoolTime, fElapsedCoolTime) -> (float, float)
+setattr(PlayerModule, 'GetSkillCoolTime', staticmethod(lambda idx: (0.0, 0.0)))
+
+# Alignment: Py_BuildValue("ii", iAlignmentPoint, iAlignmentGrade) -> (int, int)
+setattr(PlayerModule, 'GetAlignmentData', staticmethod(lambda: (0, 4)))
+
+# AutoPotionInfo: Py_BuildValue("biii", ...) -> (bool, int, int, int)
+setattr(PlayerModule, 'GetAutoPotionInfo', staticmethod(lambda t: (False, 0, 0, 0)))
+
+# PartyMemberAffects: zwraca liste
+setattr(PlayerModule, 'GetPartyMemberAffects', staticmethod(lambda pid: []))
+
+# GetItemIndex i GetItemCount: juz powinny byc int, ale dla pewnosci
+# GetItemMetinSocket: Py_BuildValue("i", dwMetinSocketValue) -> int
+setattr(PlayerModule, 'GetItemMetinSocket', staticmethod(lambda w, c, idx: 0))
+
+# GetItemLink: Py_BuildValue("s", ...) -> str
+setattr(PlayerModule, 'GetItemLink', staticmethod(lambda w, c: ""))
+
+# GetCharacterDistance: Py_BuildValue("f", ...) -> float (nie tuple)
+# GetMainCharacterIndex: Py_BuildValue("i", ...) -> int (nie tuple)
+
+# Exchange: tuple returns
+setattr(PlayerModule, 'GetExchangeItemAttribute', staticmethod(lambda owner, pos, idx: (0, 0)))
+setattr(PlayerModule, 'GetExchangeItemMetinSocket', staticmethod(lambda owner, pos, idx: 0))
+
+# Shop
+setattr(PlayerModule, 'GetShopItemAttribute', staticmethod(lambda pos, idx: (0, 0)))
+setattr(PlayerModule, 'GetShopItemMetinSocket', staticmethod(lambda pos, idx: 0))
+
+# Safebox / Mall
+setattr(PlayerModule, 'GetSafeboxItemAttribute', staticmethod(lambda pos, idx: (0, 0)))
+setattr(PlayerModule, 'GetSafeboxItemMetinSocket', staticmethod(lambda pos, idx: 0))
+setattr(PlayerModule, 'GetMallItemAttribute', staticmethod(lambda pos, idx: (0, 0)))
+setattr(PlayerModule, 'GetMallItemMetinSocket', staticmethod(lambda pos, idx: 0))
+
+# Skill
+setattr(PlayerModule, 'GetSkillGradeName', staticmethod(lambda idx: ""))
+setattr(PlayerModule, 'GetSkillLevel', staticmethod(lambda idx: 0))
+setattr(PlayerModule, 'GetSkillCurrentEfficientPercentage', staticmethod(lambda idx: 0.0))
+setattr(PlayerModule, 'GetSkillNextEfficientPercentage', staticmethod(lambda idx: 0.0))
+
+# Target: Py_BuildValue("ii", iHP, iMaxHP) -> (int, int)
+setattr(PlayerModule, 'GetTargetHP', staticmethod(lambda: (0, 0)))
+
+# Guild: Py_BuildValue
+setattr(PlayerModule, 'GetCharacterGuildName', staticmethod(lambda: ""))
+
+# Dragon Soul
+setattr(PlayerModule, 'GetDSItemAttribute', staticmethod(lambda pos, idx: (0, 0)))
+setattr(PlayerModule, 'GetDSItemMetinSocket', staticmethod(lambda pos, idx: 0))
+
+def _wrap_player_get_main_character_index():
+    fn = getattr(m2_lib, 'm2_py_player_get_main_character_index', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_uint32
+            return int(fn())
+        except Exception: pass
+    return 0
+
+setattr(PlayerModule, 'GetMainCharacterIndex', staticmethod(_wrap_player_get_main_character_index))
+setattr(PlayerModule, 'GetTargetVID', staticmethod(lambda: 0))
+
 sys.modules['player'] = PlayerModule
 sys.modules['Player'] = PlayerModule
 
@@ -1111,6 +1360,111 @@ chr_methods = [
 ]
 ChrModule = create_real_module('chr', 'chr', chr_methods)
 setattr(ChrModule, 'GetPixelPosition', staticmethod(lambda vid=0: (0.0, 0.0, 0.0)))
+setattr(ChrModule, 'SetVirtualID', staticmethod(lambda id: None))
+setattr(ChrModule, 'SetNameString', staticmethod(lambda name: None))
+setattr(ChrModule, 'SetInstanceType', staticmethod(lambda t: None))
+setattr(ChrModule, 'SetDirection', staticmethod(lambda d: None))
+setattr(ChrModule, 'Refresh', staticmethod(lambda: None))
+setattr(ChrModule, 'Deform', staticmethod(lambda: None))
+setattr(ChrModule, 'Render', staticmethod(lambda: None))
+setattr(ChrModule, 'RenderCollision', staticmethod(lambda: None))
+setattr(ChrModule, 'Revive', staticmethod(lambda: None))
+setattr(ChrModule, 'Die', staticmethod(lambda: None))
+setattr(ChrModule, 'Hide', staticmethod(lambda: None))
+setattr(ChrModule, 'Show', staticmethod(lambda: None))
+setattr(ChrModule, 'Pick', staticmethod(lambda: 0))
+setattr(ChrModule, 'PickAll', staticmethod(lambda: []))
+setattr(ChrModule, 'LookAt', staticmethod(lambda *args: None))
+setattr(ChrModule, 'SetRotationAll', staticmethod(lambda *args: None))
+setattr(ChrModule, 'BlendRotation', staticmethod(lambda *args: None))
+setattr(ChrModule, 'GetRotation', staticmethod(lambda: 0.0))
+setattr(ChrModule, 'GetProjectPosition', staticmethod(lambda vid=0, h=0: (0, 0)))
+setattr(ChrModule, 'GetVirtualNumber', staticmethod(lambda: 0))
+setattr(ChrModule, 'GetBoundBoxOnlyXY', staticmethod(lambda *args: (0.0, 0.0, 0.0, 0.0)))
+setattr(ChrModule, 'testGetPKData', staticmethod(lambda *args: (0, 4)))
+setattr(ChrModule, 'RaceToJob', staticmethod(lambda race: (int(race) // 2) if int(race) < 8 else 0))
+setattr(ChrModule, 'RaceToSex', staticmethod(lambda race: (int(race) % 2) if int(race) < 8 else 0))
+
+ChrModule.MOTION_MODE_RESERVED = 0
+ChrModule.MOTION_MODE_GENERAL = 1
+ChrModule.MOTION_MODE_ONEHAND_SWORD = 2
+ChrModule.MOTION_MODE_TWOHAND_SWORD = 3
+ChrModule.MOTION_MODE_DUALHAND_SWORD = 4
+ChrModule.MOTION_MODE_BOW = 5
+ChrModule.MOTION_MODE_FAN = 6
+ChrModule.MOTION_MODE_BELL = 7
+ChrModule.MOTION_MODE_FISHING = 8
+ChrModule.MOTION_MODE_HORSE = 9
+ChrModule.MOTION_MODE_HORSE_ONEHAND_SWORD = 10
+ChrModule.MOTION_MODE_HORSE_TWOHAND_SWORD = 11
+ChrModule.MOTION_MODE_HORSE_DUALHAND_SWORD = 12
+ChrModule.MOTION_MODE_HORSE_BOW = 13
+ChrModule.MOTION_MODE_HORSE_FAN = 14
+ChrModule.MOTION_MODE_HORSE_BELL = 15
+ChrModule.MOTION_MODE_WEDDING_DRESS = 16
+
+ChrModule.MOTION_NONE = 0
+ChrModule.MOTION_SPAWN = 1
+ChrModule.MOTION_WAIT = 2
+ChrModule.MOTION_WALK = 3
+ChrModule.MOTION_RUN = 4
+ChrModule.MOTION_CHANGE_WEAPON = 5
+ChrModule.MOTION_DAMAGE = 6
+ChrModule.MOTION_DAMAGE_FLYING = 7
+ChrModule.MOTION_STAND_UP = 8
+ChrModule.MOTION_DAMAGE_BACK = 9
+ChrModule.MOTION_DAMAGE_FLYING_BACK = 10
+ChrModule.MOTION_STAND_UP_BACK = 11
+ChrModule.MOTION_DEAD = 12
+ChrModule.MOTION_DEAD_BACK = 13
+ChrModule.MOTION_NORMAL_ATTACK = 14
+ChrModule.MOTION_COMBO_ATTACK_1 = 15
+ChrModule.MOTION_COMBO_ATTACK_2 = 16
+ChrModule.MOTION_COMBO_ATTACK_3 = 17
+ChrModule.MOTION_COMBO_ATTACK_4 = 18
+ChrModule.MOTION_COMBO_ATTACK_5 = 19
+ChrModule.MOTION_COMBO_ATTACK_6 = 20
+ChrModule.MOTION_COMBO_ATTACK_7 = 21
+ChrModule.MOTION_COMBO_ATTACK_8 = 22
+ChrModule.MOTION_INTRO_WAIT = 23
+ChrModule.MOTION_INTRO_SELECTED = 24
+ChrModule.MOTION_INTRO_NOT_SELECTED = 25
+ChrModule.MOTION_STOP = 32
+ChrModule.MOTION_SKILL = 33
+
+ChrModule.DIR_NORTH = 0
+ChrModule.DIR_NORTHEAST = 1
+ChrModule.DIR_EAST = 2
+ChrModule.DIR_SOUTHEAST = 3
+ChrModule.DIR_SOUTH = 4
+ChrModule.DIR_SOUTHWEST = 5
+ChrModule.DIR_WEST = 6
+ChrModule.DIR_NORTHWEST = 7
+
+ChrModule.INSTANCE_TYPE_PLAYER = 0
+ChrModule.INSTANCE_TYPE_NPC = 1
+ChrModule.INSTANCE_TYPE_ENEMY = 2
+ChrModule.INSTANCE_TYPE_BUILDING = 3
+ChrModule.INSTANCE_TYPE_OBJECT = 4
+
+ChrModule.PART_WEAPON = 0
+ChrModule.PART_HEAD = 1
+ChrModule.PART_WEAPON_LEFT = 2
+
+ChrModule.NAMECOLOR_MOB = 6
+ChrModule.NAMECOLOR_NPC = 7
+ChrModule.NAMECOLOR_PC = 8
+ChrModule.NAMECOLOR_EMPIRE_MOB = 12
+ChrModule.NAMECOLOR_EMPIRE_NPC = 13
+ChrModule.NAMECOLOR_EMPIRE_PC = 14
+ChrModule.NAMECOLOR_FUNC = 18
+ChrModule.NAMECOLOR_PK = 19
+ChrModule.NAMECOLOR_PVP = 20
+ChrModule.NAMECOLOR_PARTY = 21
+ChrModule.NAMECOLOR_WARP = 22
+ChrModule.NAMECOLOR_WAYPOINT = 23
+ChrModule.NAMECOLOR_EXTRA = 28
+
 sys.modules['chr'] = ChrModule
 sys.modules['chrmgr'] = ChrModule
 sys.modules['Chr'] = ChrModule
@@ -1144,6 +1498,7 @@ ItemModule = create_real_module('item', 'item', item_methods)
 setattr(ItemModule, 'GetLimit', staticmethod(lambda idx: (0, 0)))
 setattr(ItemModule, 'GetApply', staticmethod(lambda idx: (0, 0)))
 setattr(ItemModule, 'GetAffect', staticmethod(lambda idx: (0, 0)))
+setattr(ItemModule, 'GetItemSize', staticmethod(lambda *args: (1, 1)))
 setattr(ItemModule, 'GetItemIcon', staticmethod(lambda: "icon/item/00010.tga"))
 sys.modules['item'] = ItemModule
 sys.modules['Item'] = ItemModule
@@ -1158,6 +1513,52 @@ grp_methods = [
 ]
 GrpModule = create_real_module('grp', 'grp', grp_methods)
 setattr(GrpModule, 'GenerateColor', staticmethod(lambda r, g, b, a=1.0: ((int(a * 255) & 0xff) << 24) | ((int(r * 255) & 0xff) << 16) | ((int(g * 255) & 0xff) << 8) | (int(b * 255) & 0xff)))
+setattr(GrpModule, 'ClearDepthBuffer', staticmethod(lambda: None))
+setattr(GrpModule, 'SetGameRenderState', staticmethod(lambda: None))
+setattr(GrpModule, 'SetInterfaceRenderState', staticmethod(lambda: None))
+setattr(GrpModule, 'PushState', staticmethod(lambda: None))
+setattr(GrpModule, 'PopState', staticmethod(lambda: None))
+setattr(GrpModule, 'PushMatrix', staticmethod(lambda: None))
+setattr(GrpModule, 'PopMatrix', staticmethod(lambda: None))
+setattr(GrpModule, 'Translate', staticmethod(lambda *args: None))
+setattr(GrpModule, 'Rotate', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetOmniLight', staticmethod(lambda: None))
+setattr(GrpModule, 'SetViewport', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RestoreViewport', staticmethod(lambda: None))
+setattr(GrpModule, 'SetPerspective', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetOrtho2d', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetOrtho3d', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetCursorPosition', staticmethod(lambda *args: None))
+setattr(GrpModule, 'GetCursorPosition3d', staticmethod(lambda: (0.0, 0.0, 0.0)))
+setattr(GrpModule, 'SetAroundCamera', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetPositionCamera', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetEyeCamera', staticmethod(lambda *args: None))
+setattr(GrpModule, 'GetCameraPosition', staticmethod(lambda: (0.0, 0.0, 0.0)))
+setattr(GrpModule, 'GetTargetPosition', staticmethod(lambda: (0.0, 0.0, 0.0)))
+setattr(GrpModule, 'CreateTextBar', staticmethod(lambda *args: 1))
+setattr(GrpModule, 'CreateBigTextBar', staticmethod(lambda *args: 1))
+setattr(GrpModule, 'DestroyTextBar', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderTextBar', staticmethod(lambda *args: None))
+setattr(GrpModule, 'TextBarTextOut', staticmethod(lambda *args: None))
+setattr(GrpModule, 'TextBarSetTextColor', staticmethod(lambda *args: None))
+setattr(GrpModule, 'TextBarGetTextExtent', staticmethod(lambda *args: (10, 10)))
+setattr(GrpModule, 'ClearTextBar', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetTextBarClipRect', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetAlpha', staticmethod(lambda a: None))
+setattr(GrpModule, 'SetDiffuseColor', staticmethod(lambda *args: None))
+setattr(GrpModule, 'SetClearColor', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderRoundBox', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderBox3d', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderBar', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderBar3d', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderGradationBar', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderCube', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderDownButton', staticmethod(lambda *args: None))
+setattr(GrpModule, 'RenderUpButton', staticmethod(lambda *args: None))
+setattr(GrpModule, 'GetAvailableMemory', staticmethod(lambda: 1024*1024*1024))
+setattr(GrpModule, 'SaveScreenShot', staticmethod(lambda *args: (False, "")))
+setattr(GrpModule, 'SaveScreenShotToPath', staticmethod(lambda *args: (False, "")))
+setattr(GrpModule, 'SetGamma', staticmethod(lambda g: None))
 sys.modules['grp'] = GrpModule
 sys.modules['grpText'] = GrpModule
 sys.modules['grpImage'] = GrpModule
@@ -1227,8 +1628,10 @@ texttail_methods = [
     ("HideCharacter", "m2_text_tail_hide_character", [ctypes.c_uint32], ctypes.c_bool),
     ("AttachTitle", "m2_text_tail_attach_title", [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_float, ctypes.c_float, ctypes.c_float], ctypes.c_bool),
 ]
-sys.modules['textTail'] = create_real_module('textTail', 'texttail', texttail_methods)
-sys.modules['TextTail'] = sys.modules['textTail']
+TextTailModule = create_real_module('textTail', 'texttail', texttail_methods)
+setattr(TextTailModule, 'GetPosition', staticmethod(lambda *args: (0.0, 0.0, 0.0)))
+sys.modules['textTail'] = TextTailModule
+sys.modules['TextTail'] = TextTailModule
 
 # ============================================================================
 # 14. Moduly poboczne (guild, shop, skill, quest, miniMap, exchange, safebox, nonplayer, ime, ServerStateChecker, effect, fly, event, messenger)
@@ -1241,8 +1644,15 @@ guild_methods = [
     ("IsMainMaster", "m2_py_guild_is_main_master", [], ctypes.c_bool),
     ("GetGuildLevel", "m2_py_guild_get_guild_level", [], ctypes.c_int32),
 ]
-sys.modules['guild'] = create_real_module('guild', 'guild', guild_methods)
-sys.modules['Guild'] = sys.modules['guild']
+GuildModule = create_real_module('guild', 'guild', guild_methods)
+setattr(GuildModule, 'GetDragonPowerPoint', staticmethod(lambda: (0, 0)))
+setattr(GuildModule, 'GetGradeData', staticmethod(lambda *args: ("", 0)))
+setattr(GuildModule, 'GetGuildBoardCommentData', staticmethod(lambda *args: (0, "", "")))
+setattr(GuildModule, 'GetGuildExperience', staticmethod(lambda: (0, 0)))
+setattr(GuildModule, 'GetGuildMemberCount', staticmethod(lambda: (0, 0)))
+setattr(GuildModule, 'GetMemberData', staticmethod(lambda *args: (0, "", 0, 0, 0, 0, 0)))
+sys.modules['guild'] = GuildModule
+sys.modules['Guild'] = GuildModule
 
 shop_methods = [
     ("GetItemID", "m2_py_shop_get_item_id", [ctypes.c_uint32], ctypes.c_uint32),
@@ -1254,8 +1664,10 @@ shop_methods = [
     ("Sell", "m2_py_shop_sell", [ctypes.c_uint32, ctypes.c_uint32], None),
     ("IsOpen", "m2_py_shop_is_open", [], ctypes.c_bool),
 ]
-sys.modules['shop'] = create_real_module('shop', 'shop', shop_methods)
-sys.modules['Shop'] = sys.modules['shop']
+ShopModule = create_real_module('shop', 'shop', shop_methods)
+setattr(ShopModule, 'GetItemAttribute', staticmethod(lambda *args: (0, 0)))
+sys.modules['shop'] = ShopModule
+sys.modules['Shop'] = ShopModule
 
 skill_methods = [
     ("GetSkillName", "m2_py_skill_get_name", [ctypes.c_uint32], ctypes.c_char_p),
@@ -1267,8 +1679,12 @@ skill_methods = [
     ("GetGradeName", "m2_py_skill_get_grade_name", [ctypes.c_uint8], ctypes.c_char_p),
     ("GetSkillDescription", "m2_py_skill_get_description", [ctypes.c_uint32], ctypes.c_char_p),
 ]
-sys.modules['skill'] = create_real_module('skill', 'skill', skill_methods)
-sys.modules['Skill'] = sys.modules['skill']
+SkillModule = create_real_module('skill', 'skill', skill_methods)
+setattr(SkillModule, 'GetNewAffectData', staticmethod(lambda *args: ("", 0.0, 0.0)))
+setattr(SkillModule, 'GetSkillRequireStatData', staticmethod(lambda *args: (0, 0)))
+setattr(SkillModule, 'GetSkillRequirementData', staticmethod(lambda *args: ("", 0)))
+sys.modules['skill'] = SkillModule
+sys.modules['Skill'] = SkillModule
 
 quest_methods = [
     ("GetQuestCount", "m2_py_quest_get_quest_count", [], ctypes.c_uint32),
@@ -1277,8 +1693,11 @@ quest_methods = [
     ("SetSkin", "m2_py_quest_set_skin", [ctypes.c_uint8], None),
     ("SetTitle", "m2_py_quest_set_title", [ctypes.c_char_p], None),
 ]
-sys.modules['quest'] = create_real_module('quest', 'quest', quest_methods)
-sys.modules['Quest'] = sys.modules['quest']
+QuestModule = create_real_module('quest', 'quest', quest_methods)
+setattr(QuestModule, 'GetQuestData', staticmethod(lambda *args: ("", 0, "", 0)))
+setattr(QuestModule, 'GetQuestLastTime', staticmethod(lambda *args: ("", 0)))
+sys.modules['quest'] = QuestModule
+sys.modules['Quest'] = QuestModule
 
 minimap_methods = [
     ("SetMinimapPosition", "m2_py_minimap_set_minimap_position", [ctypes.c_float, ctypes.c_float], ctypes.c_bool),
@@ -1286,8 +1705,12 @@ minimap_methods = [
     ("ShowMinimap", "m2_py_minimap_show_minimap", [], ctypes.c_bool),
     ("HideMinimap", "m2_py_minimap_hide_minimap", [], ctypes.c_bool),
 ]
-sys.modules['miniMap'] = create_real_module('miniMap', 'minimap', minimap_methods)
-sys.modules['MiniMap'] = sys.modules['miniMap']
+MiniMapModule = create_real_module('miniMap', 'minimap', minimap_methods)
+setattr(MiniMapModule, 'GetAtlasInfo', staticmethod(lambda *args: (False, "", 0, 0, 0, 0)))
+setattr(MiniMapModule, 'GetAtlasSize', staticmethod(lambda *args: (False, 0, 0)))
+setattr(MiniMapModule, 'GetInfo', staticmethod(lambda *args: (False, "", 0, 0, 0)))
+sys.modules['miniMap'] = MiniMapModule
+sys.modules['MiniMap'] = MiniMapModule
 
 exchange_methods = [
     ("GetItemVnumFromSelf", "m2_py_ui_exchange_get_item_vnum_from_self", [ctypes.c_size_t], ctypes.c_uint32),
@@ -1297,18 +1720,24 @@ exchange_methods = [
     ("isAcceptFromSelf", "m2_py_ui_exchange_is_accepted_from_self", [], ctypes.c_bool),
     ("isAcceptFromTarget", "m2_py_ui_exchange_is_accepted_from_target", [], ctypes.c_bool),
 ]
-sys.modules['exchange'] = create_real_module('exchange', 'exchange', exchange_methods)
-sys.modules['Exchange'] = sys.modules['exchange']
-sys.modules['trade'] = sys.modules['exchange']
-sys.modules['Trade'] = sys.modules['exchange']
+ExchangeModule = create_real_module('exchange', 'exchange', exchange_methods)
+setattr(ExchangeModule, 'GetItemAttributeFromSelf', staticmethod(lambda *args: (0, 0)))
+setattr(ExchangeModule, 'GetItemAttributeFromTarget', staticmethod(lambda *args: (0, 0)))
+sys.modules['exchange'] = ExchangeModule
+sys.modules['Exchange'] = ExchangeModule
+sys.modules['trade'] = ExchangeModule
+sys.modules['Trade'] = ExchangeModule
 
 safebox_methods = [
     ("GetItemID", "m2_py_ui_safebox_get_item_id", [ctypes.c_size_t], ctypes.c_uint32),
     ("GetItemCount", "m2_py_ui_safebox_get_item_count", [ctypes.c_size_t], ctypes.c_uint8),
     ("GetMoney", "m2_py_ui_safebox_get_money", [], ctypes.c_uint32),
 ]
-sys.modules['safebox'] = create_real_module('safebox', 'safebox', safebox_methods)
-sys.modules['Safebox'] = sys.modules['safebox']
+SafeboxModule = create_real_module('safebox', 'safebox', safebox_methods)
+setattr(SafeboxModule, 'GetItemAttribute', staticmethod(lambda *args: (0, 0)))
+setattr(SafeboxModule, 'GetMallItemAttribute', staticmethod(lambda *args: (0, 0)))
+sys.modules['safebox'] = SafeboxModule
+sys.modules['Safebox'] = SafeboxModule
 
 nonplayer_methods = [
     ("GetMonsterName", "m2_py_nonplayer_get_monster_name", [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t], ctypes.c_bool),
@@ -1346,6 +1775,8 @@ class IMEModule:
             cls._text = cls._text[:cls._cursor] + cls._text[cls._cursor+1:]
     @classmethod
     def GetCodePage(cls): return 1250
+    @classmethod
+    def GetCandidate(cls, *args): return ("", 0)
     @classmethod
     def SetMax(cls, m): cls._max = int(m)
     @classmethod
@@ -1581,7 +2012,7 @@ def make_simple_module(name):
 
 for m in [
     'effect', 'Effect', 'fly', 'Fly', 'event', 'Event', 'eventmgr', 'EventMgr',
-    'messenger', 'Messenger', 'profiler', 'Profiler', 'emotion', 'colorInfo'
+    'messenger', 'Messenger', 'profiler', 'Profiler'
 ]:
     if m not in sys.modules:
         sys.modules[m] = make_simple_module(m)

@@ -141,6 +141,12 @@ impl WindowManager {
     pub fn load_image(&mut self, handle: u32, path: &str) -> bool {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.image_path = path.to_string();
+            if win.width <= 0 {
+                win.width = 1024;
+            }
+            if win.height <= 0 {
+                win.height = 768;
+            }
             true
         } else {
             false
@@ -452,43 +458,40 @@ impl WindowManager {
         }
     }
 
-    pub fn update_all_windows(&mut self) {
-        let handlers: Vec<usize> = self.windows.values()
+    pub fn collect_update_handlers(&self) -> Vec<usize> {
+        self.windows.values()
             .filter(|w| w.is_show && w.py_handler != 0 && w.parent.is_none())
             .map(|w| w.py_handler)
-            .collect();
+            .collect()
+    }
+
+    pub fn update_all_windows(&mut self) {
+        let handlers = self.collect_update_handlers();
         for h in handlers {
             crate::py_event_dispatcher::call_python_object_method0(h, "OnUpdate");
         }
     }
 
-    pub fn set_focus(&mut self, handle: u32) {
+    pub fn set_focus(&mut self, handle: u32) -> (usize, usize) {
         if self.active_window == Some(handle) {
-            return;
+            return (0, 0);
         }
-        if let Some(old_h) = self.active_window {
-            if let Some(win) = self.windows.get(&old_h) {
-                if win.py_handler != 0 {
-                    crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnKillFocus");
-                }
-            }
-        }
+        let old_h = if let Some(old) = self.active_window {
+            self.windows.get(&old).map(|w| w.py_handler).unwrap_or(0)
+        } else {
+            0
+        };
         self.active_window = Some(handle);
-        if let Some(win) = self.windows.get(&handle) {
-            if win.py_handler != 0 {
-                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnSetFocus");
-            }
-        }
+        let new_h = self.windows.get(&handle).map(|w| w.py_handler).unwrap_or(0);
+        (old_h, new_h)
     }
 
-    pub fn kill_focus(&mut self, handle: u32) {
+    pub fn kill_focus(&mut self, handle: u32) -> usize {
         if self.active_window == Some(handle) {
             self.active_window = None;
-        }
-        if let Some(win) = self.windows.get(&handle) {
-            if win.py_handler != 0 {
-                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnKillFocus");
-            }
+            self.windows.get(&handle).map(|w| w.py_handler).unwrap_or(0)
+        } else {
+            0
         }
     }
 

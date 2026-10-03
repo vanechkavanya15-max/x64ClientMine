@@ -4,6 +4,7 @@ use std::sync::RwLock;
 
 use crate::ffi_guard::safe_ffi_call;
 
+pub const POINT_LEVEL: u8 = 1;
 pub const POINT_HP: u8 = 5;
 pub const POINT_MAX_HP: u8 = 6;
 pub const POINT_SP: u8 = 7;

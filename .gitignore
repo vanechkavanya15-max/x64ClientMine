@@ -48,6 +48,7 @@ target/
 __pycache__/
 *.pyc
 *.dll
+*.exe
 
 # Backup files
 *.orig

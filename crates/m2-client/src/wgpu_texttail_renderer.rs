@@ -1,4 +1,7 @@
 use glam::{Mat4, Vec3, Vec4};
+use std::sync::{Arc, Mutex, OnceLock};
+use crate::wgpu_engine_context::{GpuTexture, Quad2D};
+use crate::ui_font_renderer::get_global_font_atlas;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -341,3 +344,208 @@ impl TextTailRenderer {
         Ok(payloads)
     }
 }
+
+static GLOBAL_TEXT_TAIL_RENDERER: OnceLock<Mutex<TextTailRenderer>> = OnceLock::new();
+
+pub fn get_text_tail_renderer() -> std::sync::MutexGuard<'static, TextTailRenderer> {
+    GLOBAL_TEXT_TAIL_RENDERER
+        .get_or_init(|| Mutex::new(TextTailRenderer::new()))
+        .lock()
+        .unwrap()
+}
+
+/// Dodaje liczbe zadanych obrazen nad postacia
+pub fn add_damage_number_for_vid(vid: u32, damage: u32, flag: DamageFlag, pos_override: Option<Vec3>) {
+    let mut renderer = get_text_tail_renderer();
+    let pos = if let Some(p) = pos_override {
+        p
+    } else if let Some(tt) = renderer.text_tails.get(&vid) {
+        tt.position + Vec3::new(0.0, 0.0, tt.height)
+    } else if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+        if let Some(actor) = state.actors.get(&vid) {
+            Vec3::new(actor.x, actor.y, actor.z + 180.0)
+        } else if state.player.vid == vid {
+            Vec3::new(state.player.x, state.player.y, state.player.z + 180.0)
+        } else {
+            Vec3::new(0.0, 0.0, 180.0)
+        }
+    } else {
+        Vec3::new(0.0, 0.0, 180.0)
+    };
+
+    renderer.add_damage_number(DamageNumber {
+        virtual_id: vid,
+        damage,
+        flag,
+        position: pos,
+        start_time: 0.0,
+        living_time: 0.0,
+    });
+}
+
+/// Zbiera partie renderowania TextTail (ramki i paski HP dla white_tex oraz napisy dla font_tex)
+pub fn collect_text_tail_render_batches(
+    delta_time: f32,
+    view_proj: &Mat4,
+    screen_w: f32,
+    screen_h: f32,
+    white_tex: Arc<GpuTexture>,
+) -> Vec<(Arc<GpuTexture>, Vec<Quad2D>)> {
+    let mut renderer = get_text_tail_renderer();
+    renderer.update_damage_numbers(delta_time);
+
+    // 1. Synchronizacja z baza aktorow (character_manager_core oraz GLOBAL_GAME_STATE)
+    let (player_pos, player_vid) = {
+        if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+            (Vec3::new(state.player.x, state.player.y, state.player.z), state.player.vid)
+        } else {
+            (Vec3::ZERO, 0)
+        }
+    };
+
+    // Synchronizuj glownego gracza
+    if player_vid != 0 {
+        let entry = renderer.text_tails.entry(player_vid).or_insert_with(|| TextTail {
+            virtual_id: player_vid,
+            name: "Gracz".to_string(),
+            level: Some(1),
+            guild_name: None,
+            alignment: 15000,
+            position: player_pos,
+            height: 190.0,
+            distance_from_player: 0.0,
+            hp_percent: None,
+        });
+        entry.position = player_pos;
+        entry.distance_from_player = 0.0;
+        if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+            let lvl = state.get_point(m2_client_bridge::state::game_state::POINT_LEVEL);
+            if lvl > 0 {
+                entry.level = Some(lvl as u32);
+            }
+        }
+    }
+
+    // Synchronizuj innych aktorow z GLOBAL_GAME_STATE
+    if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+        for (&vid, actor) in &state.actors {
+            if vid == player_vid {
+                continue;
+            }
+            let act_pos = Vec3::new(actor.x, actor.y, actor.z);
+            let dist = (act_pos - player_pos).length();
+            let entry = renderer.text_tails.entry(vid).or_insert_with(|| {
+                let is_mob = actor.b_type == 0 || actor.b_type == 1 || actor.race >= 101;
+                let default_name = if !actor.name.is_empty() {
+                    actor.name.clone()
+                } else if is_mob {
+                    format!("Potwor #{}", actor.race)
+                } else {
+                    format!("Postac #{}", vid)
+                };
+                TextTail {
+                    virtual_id: vid,
+                    name: default_name,
+                    level: None,
+                    guild_name: None,
+                    alignment: if is_mob { -5000 } else { 0 },
+                    position: act_pos,
+                    height: 175.0,
+                    distance_from_player: dist,
+                    hp_percent: if is_mob { Some(100) } else { None },
+                }
+            });
+            entry.position = act_pos;
+            entry.distance_from_player = dist;
+            if !actor.name.is_empty() {
+                entry.name = actor.name.clone();
+            }
+        }
+    }
+
+    // Synchronizuj aktorow z character_manager_core
+    if let Ok(mgr) = crate::character_manager_core::get_character_manager().read() {
+        for (&vid, inst) in &mgr.alive_instances {
+            if vid == player_vid {
+                continue;
+            }
+            let act_pos = Vec3::new(inst.x, inst.y, inst.z);
+            let dist = (act_pos - player_pos).length();
+            let entry = renderer.text_tails.entry(vid).or_insert_with(|| {
+                let is_mob = inst.is_enemy();
+                let default_name = if !inst.name.is_empty() {
+                    inst.name.clone()
+                } else if is_mob {
+                    format!("Potwor #{}", inst.race)
+                } else {
+                    format!("NPC #{}", vid)
+                };
+                TextTail {
+                    virtual_id: vid,
+                    name: default_name,
+                    level: None,
+                    guild_name: None,
+                    alignment: if is_mob { -5000 } else { 0 },
+                    position: act_pos,
+                    height: 175.0,
+                    distance_from_player: dist,
+                    hp_percent: if is_mob { Some(100) } else { None },
+                }
+            });
+            entry.position = act_pos;
+            entry.distance_from_player = dist;
+            if !inst.name.is_empty() {
+                entry.name = inst.name.clone();
+            }
+        }
+    }
+
+    // 2. Generowanie payloadow
+    let payloads = match renderer.generate_render_payloads(view_proj, screen_w, screen_h) {
+        Ok(p) => p,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut rect_quads = Vec::new();
+    let mut text_quads = Vec::new();
+
+    let font_tex_opt = {
+        let mut font = get_global_font_atlas();
+        let _ = font.init_atlas();
+        font.texture.clone()
+    };
+
+    for payload in payloads {
+        match payload {
+            RenderPayload::Rect { x, y, width, height, color, .. } => {
+                let mut q = Quad2D::new(x, y, width, height);
+                q.color = [color.r, color.g, color.b, color.a];
+                rect_quads.push(q);
+            }
+            RenderPayload::Text { x, y, text, color, is_centered, .. } => {
+                let font = get_global_font_atlas();
+                let start_x = if is_centered {
+                    let w = font.measure_text_width(&text);
+                    x - w * 0.5
+                } else {
+                    x
+                };
+                let quads = font.build_text_quads(&text, start_x, y, [color.r, color.g, color.b, color.a], 1.0);
+                text_quads.extend(quads);
+            }
+            _ => {}
+        }
+    }
+
+    let mut batches = Vec::new();
+    if !rect_quads.is_empty() {
+        batches.push((white_tex, rect_quads));
+    }
+    if !text_quads.is_empty() {
+        if let Some(font_tex) = font_tex_opt {
+            batches.push((font_tex, text_quads));
+        }
+    }
+
+    batches
+}

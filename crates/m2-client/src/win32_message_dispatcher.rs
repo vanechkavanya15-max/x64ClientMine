@@ -37,6 +37,11 @@ pub const WM_LBUTTONDOWN: u32 = 0x0201;
 pub const WM_LBUTTONUP: u32 = 0x0202;
 pub const WM_RBUTTONDOWN: u32 = 0x0204;
 pub const WM_RBUTTONUP: u32 = 0x0205;
+pub const WM_MOUSEWHEEL: u32 = 0x020A;
+
+static IS_RMB_DOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static LAST_RMB_X: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+static LAST_RMB_Y: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
 
 pub const WA_INACTIVE: usize = 0;
 pub const WA_ACTIVE: usize = 1;
@@ -186,6 +191,13 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         WM_MOUSEMOVE => {
             let mx = (msg.lparam & 0xFFFF) as i16 as i32;
             let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
+            if IS_RMB_DOWN.load(std::sync::atomic::Ordering::SeqCst) {
+                let prev_x = LAST_RMB_X.swap(mx, std::sync::atomic::Ordering::SeqCst);
+                let prev_y = LAST_RMB_Y.swap(my, std::sync::atomic::Ordering::SeqCst);
+                let dx = mx - prev_x;
+                let dy = my - prev_y;
+                crate::py_bridge_app::m2_app_rotate_camera_delta(dx as f32 * 0.4, -(dy as f32) * 0.25);
+            }
             let mut wm = crate::ui_window_mgr::get_window_manager();
             wm.handle_mouse_move(mx, my, 1024, 768);
             true
@@ -193,7 +205,10 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         WM_LBUTTONDOWN => {
             let mx = (msg.lparam & 0xFFFF) as i16 as i32;
             let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
-            input_mouse_lbutton_dispatcher::dispatch_wm_lbutton_down(mx, my, 1024, 768);
+            let hit = input_mouse_lbutton_dispatcher::dispatch_wm_lbutton_down(mx, my, 1024, 768);
+            if hit.is_none() {
+                handle_game_world_click(mx, my);
+            }
             true
         }
         WM_LBUTTONUP => {
@@ -269,6 +284,47 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
                         crate::ui_bridge_ffi::handle_ui_click("HudBtnSkills", 0, &mut wm);
                     }
                 }
+                0x20 => { // VK_SPACE - Atak wrecz mieczem
+                    if phase == "GAME" {
+                        let (px, py, pz, p_vid) = if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+                            (state.player.x, state.player.y, state.player.z, state.player.vid)
+                        } else {
+                            (0.0, 0.0, 0.0, 0)
+                        };
+                        let player_pos_vec = glam::Vec3::new(px, py, pz);
+
+                        // Znajdz najblizszego wroga w promieniu 350 jednostek
+                        let mut target_vid = 0u32;
+                        let mut min_dist = 350.0f32;
+                        if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+                            for (&vid, actor) in &state.actors {
+                                if vid == p_vid { continue; }
+                                let act_pos = glam::Vec3::new(actor.x, actor.y, actor.z);
+                                let d = (act_pos - player_pos_vec).length();
+                                if d < min_dist {
+                                    min_dist = d;
+                                    target_vid = vid;
+                                }
+                            }
+                        }
+
+                        // Wyslij pakiet HEADER_CG_ATTACK (0x02, 6 bajtow)
+                        let mut atk_pkt = [0u8; 6];
+                        atk_pkt[0] = 0x02; // HEADER_CG_ATTACK
+                        atk_pkt[1] = 0;    // attack_type
+                        atk_pkt[2..6].copy_from_slice(&target_vid.to_le_bytes());
+
+                        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+                            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                                let mut encrypted = atk_pkt.to_vec();
+                                cipher.encrypt_in_place(&mut encrypted);
+                                if std::io::Write::write_all(stream, &encrypted).is_ok() {
+                                    println!("[COMBAT] [SPACJA] Atak mieczem na VID={} (dist={:.1})", target_vid, min_dist);
+                                }
+                            }
+                        }
+                    }
+                }
                 _ => {}
             }
             true
@@ -282,6 +338,9 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         WM_RBUTTONDOWN => {
             let mx = (msg.lparam & 0xFFFF) as i16 as i32;
             let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
+            IS_RMB_DOWN.store(true, std::sync::atomic::Ordering::SeqCst);
+            LAST_RMB_X.store(mx, std::sync::atomic::Ordering::SeqCst);
+            LAST_RMB_Y.store(my, std::sync::atomic::Ordering::SeqCst);
             let mut wm = crate::ui_window_mgr::get_window_manager();
             wm.handle_mouse_right_down(mx, my, 1024, 768);
             true
@@ -289,8 +348,14 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         WM_RBUTTONUP => {
             let mx = (msg.lparam & 0xFFFF) as i16 as i32;
             let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
+            IS_RMB_DOWN.store(false, std::sync::atomic::Ordering::SeqCst);
             let mut wm = crate::ui_window_mgr::get_window_manager();
             wm.handle_mouse_right_up(mx, my, 1024, 768);
+            true
+        }
+        WM_MOUSEWHEEL => {
+            let delta = (msg.wparam >> 16) as i16 as f32;
+            crate::py_bridge_app::m2_app_zoom_camera(-delta * 0.5);
             true
         }
         WM_CHAR => {
@@ -303,6 +368,136 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
             true
         }
         _ => false,
+    }
+}
+
+/// Obsluga klikniecia w swiat gry (wyznaczanie punktu na plaszczyznie terenu i wyslanie ruchu do serwera)
+pub fn handle_game_world_click(mx: i32, my: i32) {
+    let current_phase = crate::ui_bridge_ffi::CURRENT_PHASE.lock().map(|p| p.clone()).unwrap_or_default();
+    if current_phase != "GAME" {
+        return;
+    }
+
+    // 1. Pobieramy aktualne wspolrzedne gracza
+    let (player_pos, player_rot) = {
+        if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+            ([state.player.x, state.player.y, state.player.z], state.player.rot)
+        } else {
+            ([0.0, 0.0, 0.0], 0.0)
+        }
+    };
+
+    // 2. Pobieramy dynamiczne parametry kamery TPP
+    let (cam_dist, cam_pitch, cam_rot, target_height) = if let Ok(app) = crate::py_bridge_app::app_lock() {
+        (app.camera.distance, app.camera.pitch, app.camera.rotation, app.camera.target_height)
+    } else {
+        (650.0, 30.0, 0.0, 100.0)
+    };
+
+    // 3. Obliczamy macierze widoku i projekcji
+    let aspect = 1024.0 / 768.0;
+    let proj = glam::Mat4::perspective_rh(50.0f32.to_radians(), aspect, 10.0, 15000.0);
+
+    let pitch_rad = cam_pitch.to_radians();
+    let rot_rad = (player_rot + cam_rot).to_radians();
+    let eye = glam::Vec3::new(
+        player_pos[0] - cam_dist * pitch_rad.cos() * rot_rad.sin(),
+        player_pos[1] - cam_dist * pitch_rad.cos() * rot_rad.cos(),
+        player_pos[2] + target_height + cam_dist * pitch_rad.sin(),
+    );
+    let target = glam::Vec3::new(player_pos[0], player_pos[1], player_pos[2] + target_height);
+    let up = glam::Vec3::new(0.0, 0.0, 1.0);
+    let view = glam::Mat4::look_at_rh(eye, target, up);
+
+    let inv_vp = (proj * view).inverse();
+    let ndc_x = (2.0 * mx as f32 / 1024.0) - 1.0;
+    let ndc_y = 1.0 - (2.0 * my as f32 / 768.0);
+
+    let p_near = inv_vp.project_point3(glam::Vec3::new(ndc_x, ndc_y, 0.0));
+    let p_far = inv_vp.project_point3(glam::Vec3::new(ndc_x, ndc_y, 1.0));
+    let dir = (p_far - p_near).normalize();
+
+    // 3.5. Sprawdzenie czy klikniecie trafilo w aktora (potwor, gracz, NPC)
+    let mut hit_actor: Option<(u32, bool)> = None;
+    let mut closest_hit_t = f32::MAX;
+
+    if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+        for (&vid, actor) in &state.actors {
+            if vid == state.player.vid { continue; }
+            let actor_center = glam::Vec3::new(actor.x, actor.y, actor.z + 90.0);
+            let v = actor_center - p_near;
+            let t = v.dot(dir);
+            if t > 0.0 && t < closest_hit_t {
+                let d_sq = v.length_squared() - t * t;
+                let radius = 100.0f32;
+                if d_sq <= radius * radius {
+                    closest_hit_t = t;
+                    let is_enemy = actor.b_type == 0 || actor.b_type == 1 || actor.race >= 101;
+                    hit_actor = Some((vid, is_enemy));
+                }
+            }
+        }
+    }
+
+    if let Some((target_vid, is_enemy)) = hit_actor {
+        println!("[TARGET] [+] Kliknieto aktora VID={} (wrog={})", target_vid, is_enemy);
+        if is_enemy {
+            let mut atk_pkt = [0u8; 6];
+            atk_pkt[0] = 0x02; // HEADER_CG_ATTACK
+            atk_pkt[1] = 0;    // attack_type
+            atk_pkt[2..6].copy_from_slice(&target_vid.to_le_bytes());
+
+            if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+                if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                    let mut encrypted = atk_pkt.to_vec();
+                    cipher.encrypt_in_place(&mut encrypted);
+                    let _ = std::io::Write::write_all(stream, &encrypted);
+                }
+            }
+        }
+        return;
+    }
+
+    // 4. Przeciecie promienia z plaszczyzna terenu Z = player_pos[2]
+    let (target_x, target_y) = if dir.z.abs() > 1e-4 {
+        let t = (player_pos[2] - p_near.z) / dir.z;
+        if t > 0.0 {
+            (p_near.x + t * dir.x, p_near.y + t * dir.y)
+        } else {
+            (player_pos[0], player_pos[1])
+        }
+    } else {
+        (player_pos[0], player_pos[1])
+    };
+
+    let dx = target_x - player_pos[0];
+    let dy = target_y - player_pos[1];
+    let rot_deg = (dy.atan2(dx).to_degrees() + 90.0).rem_euclid(360.0);
+
+    // 5. Konstrukcja i wyslanie 16-bajtowego pakietu HEADER_CG_CHARACTER_MOVE (0x07)
+    let mut move_pkt = [0u8; 16];
+    move_pkt[0] = 0x07; // HEADER_CG_CHARACTER_MOVE
+    move_pkt[1] = 0;    // bFunc = FUNC_MOVE
+    move_pkt[2] = 0;    // bArg
+    move_pkt[3] = (rot_deg / 5.0) as u8; // bRot
+    move_pkt[4..8].copy_from_slice(&(target_x as i32).to_le_bytes());
+    move_pkt[8..12].copy_from_slice(&(target_y as i32).to_le_bytes());
+    let dw_time = crate::app_timing_clock::m2_get_time() as u32;
+    move_pkt[12..16].copy_from_slice(&dw_time.to_le_bytes());
+
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut encrypted = move_pkt.to_vec();
+            cipher.encrypt_in_place(&mut encrypted);
+            if std::io::Write::write_all(stream, &encrypted).is_ok() {
+                println!("[MOVE] [+] Wyslano HEADER_CG_CHARACTER_MOVE do ({:.0}, {:.0}) rot={:.1} deg", target_x, target_y, rot_deg);
+            }
+        }
+    }
+
+    // 6. Aktualizacja stanu gracza
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        state.player.rot = rot_deg;
     }
 }
 

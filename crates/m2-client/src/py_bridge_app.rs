@@ -214,6 +214,7 @@ impl PyBridgeApp {
 
 lazy_static! {
     pub static ref PY_APP: Mutex<PyBridgeApp> = Mutex::new(PyBridgeApp::default());
+    pub static ref APP_START_INSTANT: std::time::Instant = std::time::Instant::now();
 }
 
 pub fn app_lock() -> Result<std::sync::MutexGuard<'static, PyBridgeApp>, AppBridgeError> {
@@ -224,12 +225,17 @@ pub fn app_lock() -> Result<std::sync::MutexGuard<'static, PyBridgeApp>, AppBrid
 
 #[no_mangle]
 pub extern "C" fn m2_app_get_time() -> f32 {
-    app_lock().map(|app| app.get_time()).unwrap_or(0.0)
+    let elapsed = APP_START_INSTANT.elapsed().as_secs_f32();
+    if let Ok(mut app) = app_lock() {
+        app.clock.current_time = elapsed;
+        app.clock.global_time = (elapsed * 1000.0) as u32;
+    }
+    elapsed
 }
 
 #[no_mangle]
 pub extern "C" fn m2_app_get_global_time() -> u32 {
-    app_lock().map(|app| app.get_global_time()).unwrap_or(0)
+    APP_START_INSTANT.elapsed().as_millis() as u32
 }
 
 #[no_mangle]
@@ -253,6 +259,54 @@ pub extern "C" fn m2_app_exit() {
 pub extern "C" fn m2_app_set_camera(distance: f32, pitch: f32, rotation: f32, target_height: f32) {
     if let Ok(mut app) = app_lock() {
         app.set_camera(distance, pitch, rotation, target_height);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_app_get_camera_distance() -> f32 {
+    app_lock().map(|a| a.camera.distance).unwrap_or(1000.0)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_app_get_camera_pitch() -> f32 {
+    app_lock().map(|a| a.camera.pitch).unwrap_or(30.0)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_app_get_camera_rotation() -> f32 {
+    app_lock().map(|a| a.camera.rotation).unwrap_or(0.0)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_app_rotate_camera(direction: i32) {
+    if let Ok(mut app) = app_lock() {
+        app.camera.rotation += direction as f32 * 2.0;
+        if app.camera.rotation >= 360.0 { app.camera.rotation -= 360.0; }
+        if app.camera.rotation < 0.0 { app.camera.rotation += 360.0; }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_app_pitch_camera(direction: i32) {
+    if let Ok(mut app) = app_lock() {
+        app.camera.pitch = (app.camera.pitch + direction as f32 * 1.5).clamp(-80.0, 80.0);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_app_zoom_camera(delta: f32) {
+    if let Ok(mut app) = app_lock() {
+        app.camera.distance = (app.camera.distance + delta).clamp(400.0, 3000.0);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_app_rotate_camera_delta(delta_rot: f32, delta_pitch: f32) {
+    if let Ok(mut app) = app_lock() {
+        app.camera.rotation += delta_rot;
+        if app.camera.rotation >= 360.0 { app.camera.rotation -= 360.0; }
+        if app.camera.rotation < 0.0 { app.camera.rotation += 360.0; }
+        app.camera.pitch = (app.camera.pitch + delta_pitch).clamp(-80.0, 80.0);
     }
 }
 

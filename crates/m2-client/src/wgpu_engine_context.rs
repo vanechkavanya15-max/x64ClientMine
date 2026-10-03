@@ -6,6 +6,7 @@ use raw_window_handle::{
     RawWindowHandle, Win32WindowHandle, WindowHandle, WindowsDisplayHandle,
 };
 use wgpu::util::DeviceExt;
+use glam::{Mat4, Quat, Vec3};
 
 #[derive(Debug, Clone)]
 pub struct WgpuWindowTarget {
@@ -99,7 +100,91 @@ pub struct WgpuEngineContext {
     pub uniform_bind_group: Option<wgpu::BindGroup>,
     pub texture_bind_group_layout: Option<wgpu::BindGroupLayout>,
     pub sampler: Option<wgpu::Sampler>,
+
+    // 3D Granny Character & Depth Pipeline
+    pub depth_texture: Option<wgpu::Texture>,
+    pub depth_view: Option<wgpu::TextureView>,
+    pub character_pipeline: Option<wgpu::RenderPipeline>,
+    pub character_uniform_buffer: Option<wgpu::Buffer>,
+    pub character_uniform_bind_group: Option<wgpu::BindGroup>,
+    pub character_uniform_layout: Option<wgpu::BindGroupLayout>,
+    pub character_texture_layout: Option<wgpu::BindGroupLayout>,
+    pub player_mesh_buffers: Option<crate::granny_mesh_gpu_uploader::GpuMeshBuffers>,
+    pub weapon_mesh_buffers: Option<crate::granny_mesh_gpu_uploader::GpuMeshBuffers>,
+    pub player_texture_bind_group: Option<wgpu::BindGroup>,
+    pub weapon_texture_bind_group: Option<wgpu::BindGroup>,
+
+    // 3D Terrain Pipeline
+    pub terrain_pipeline: Option<wgpu::RenderPipeline>,
+    pub terrain_vertex_buffer: Option<wgpu::Buffer>,
+    pub terrain_vertex_count: u32,
 }
+
+pub const SHADER_CHARACTER_WGSL: &str = r#"
+struct ActorUniforms {
+    view_proj: mat4x4<f32>,
+    bone_matrices: array<mat4x4<f32>, 128>,
+}
+
+@group(0) @binding(0)
+var<uniform> uniforms: ActorUniforms;
+
+@group(1) @binding(0)
+var t_diffuse: texture_2d<f32>;
+@group(1) @binding(1)
+var s_diffuse: sampler;
+
+struct VertexInput {
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) tex_coord: vec2<f32>,
+    @location(3) bone_indices: vec4<u32>,
+    @location(4) bone_weights: vec4<f32>,
+}
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) tex_coord: vec2<f32>,
+    @location(1) normal: vec3<f32>,
+}
+
+@vertex
+fn vs_main(model: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+
+    var skinned_pos = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    var skinned_normal = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+
+    for (var i = 0u; i < 4u; i = i + 1u) {
+        let bone_index = model.bone_indices[i];
+        let weight = model.bone_weights[i];
+        let bone_matrix = uniforms.bone_matrices[bone_index];
+
+        let local_pos = vec4<f32>(model.position, 1.0);
+        skinned_pos = skinned_pos + (bone_matrix * local_pos) * weight;
+
+        let local_normal = vec4<f32>(model.normal, 0.0);
+        skinned_normal = skinned_normal + (bone_matrix * local_normal) * weight;
+    }
+
+    out.clip_position = uniforms.view_proj * vec4<f32>(skinned_pos.xyz, 1.0);
+    out.tex_coord = model.tex_coord;
+    out.normal = normalize(skinned_normal.xyz);
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let light_dir = normalize(vec3<f32>(0.577, -0.577, 0.577));
+    let norm = normalize(in.normal);
+    let diffuse = max(dot(norm, light_dir), 0.0);
+    let ambient = 0.45;
+    let light_mult = min(ambient + diffuse * 0.75, 1.0);
+
+    let base_color = textureSample(t_diffuse, s_diffuse, in.tex_coord);
+    return vec4<f32>(base_color.rgb * light_mult, base_color.a);
+}
+"#;
 
 const SHADER_2D_WGSL: &str = r#"
 struct VertexInput {
@@ -146,6 +231,154 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 "#;
 
 impl WgpuEngineContext {
+    /// Tworzy bufor glebokosci dla sceny 3D
+    pub fn create_depth_texture(device: &wgpu::Device, width: u32, height: u32) -> (wgpu::Texture, wgpu::TextureView) {
+        let size = wgpu::Extent3d {
+            width: width.max(1),
+            height: height.max(1),
+            depth_or_array_layers: 1,
+        };
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Metin2 Scene Depth Texture"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        (texture, view)
+    }
+
+    /// Konfiguruje potok renderowania modeli Granny 3D (.gr2) z cieniowaniem diffuse i wagami kosci
+    pub fn setup_character_pipeline(
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+    ) -> (
+        wgpu::RenderPipeline,
+        wgpu::Buffer,
+        wgpu::BindGroup,
+        wgpu::BindGroupLayout,
+        wgpu::BindGroupLayout,
+    ) {
+        let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Character Uniform Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let texture_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Character Texture Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Character Pipeline Layout"),
+            bind_group_layouts: &[Some(&uniform_layout), Some(&texture_layout)],
+            immediate_size: 0,
+        });
+
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Character Granny WGSL Shader"),
+            source: wgpu::ShaderSource::Wgsl(SHADER_CHARACTER_WGSL.into()),
+        });
+
+        let vertex_layout = crate::wgpu_granny_actor_renderer::GrannyActorVertex::desc();
+
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Granny 3D Character Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[Some(vertex_layout)],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        });
+
+        let initial_uniforms = crate::wgpu_granny_actor_renderer::ActorUniforms {
+            view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
+            bone_matrices: [glam::Mat4::IDENTITY.to_cols_array_2d(); 128],
+        };
+
+        let uniform_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Character Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[initial_uniforms]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let uniform_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Character Uniform Bind Group"),
+            layout: &uniform_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+            ],
+        });
+
+        (pipeline, uniform_buf, uniform_bg, uniform_layout, texture_layout)
+    }
+
     /// Inicjalizuje nowoczesny kontekst wgpu (DirectX 12 / Vulkan) z obsluga okna Win32 HWND.
     /// W srodowiskach testowych lub bez fizycznego okna inicjalizuje tryb headless (fallback).
     pub fn new(hwnd: usize, width: u32, height: u32) -> Result<Self, String> {
@@ -185,6 +418,51 @@ impl WgpuEngineContext {
             let (pipeline_2d, uniform_buf, uniform_bg, tex_bg_layout, sampler) =
                 Self::setup_2d_pipeline(&device, config.format, width, height);
 
+            let (depth_texture, depth_view) = Self::create_depth_texture(&device, width, height);
+
+            let (char_pipeline, char_uniform_buf, char_uniform_bg, char_u_layout, char_tex_layout) =
+                Self::setup_character_pipeline(&device, config.format);
+
+            let player_model = crate::character_model_vfs_loader::load_warrior_model(&device).ok();
+            let weapon_model = crate::character_model_vfs_loader::load_sword_weapon_model(&device).ok();
+
+            let player_mesh_buffers = player_model.map(|m| m.gpu_buffers);
+            let weapon_mesh_buffers = weapon_model.map(|m| m.gpu_buffers);
+
+            let player_texture_bind_group = crate::character_model_vfs_loader::create_or_load_diffuse_texture(
+                &device,
+                &queue,
+                &char_tex_layout,
+                &sampler,
+                "pc/warrior/warrior_novice_red.dds",
+                false,
+            ).ok().map(|t| t.bind_group);
+
+            let weapon_texture_bind_group = crate::character_model_vfs_loader::create_or_load_diffuse_texture(
+                &device,
+                &queue,
+                &char_tex_layout,
+                &sampler,
+                "item/weapon/00010.dds",
+                true,
+            ).ok().map(|t| t.bind_group);
+
+            let (terrain_pipeline, terrain_vertex_buffer, terrain_vertex_count) = {
+                let tp = crate::wgpu_terrain_renderer::create_terrain_pipeline(&device, config.format, &char_u_layout);
+                let heights = vec![0.0f32; 33 * 33];
+                let raw_map = crate::terrain_height_patch::RawHeightMap::new(33, 33, heights);
+                let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
+                let count = verts.len() as u32;
+                let buf = if !verts.is_empty() {
+                    Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Terrain Ground Mesh Buffer"),
+                        contents: bytemuck::cast_slice(&verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    }))
+                } else { None };
+                (Some(tp), buf, count)
+            };
+
             Ok(Self {
                 instance,
                 surface: Some(surface),
@@ -200,6 +478,20 @@ impl WgpuEngineContext {
                 uniform_bind_group: Some(uniform_bg),
                 texture_bind_group_layout: Some(tex_bg_layout),
                 sampler: Some(sampler),
+                depth_texture: Some(depth_texture),
+                depth_view: Some(depth_view),
+                character_pipeline: Some(char_pipeline),
+                character_uniform_buffer: Some(char_uniform_buf),
+                character_uniform_bind_group: Some(char_uniform_bg),
+                character_uniform_layout: Some(char_u_layout),
+                character_texture_layout: Some(char_tex_layout),
+                player_mesh_buffers,
+                weapon_mesh_buffers,
+                player_texture_bind_group,
+                weapon_texture_bind_group,
+                terrain_pipeline,
+                terrain_vertex_buffer,
+                terrain_vertex_count,
             })
         } else {
             // Headless fallback dla testow jednostkowych
@@ -219,6 +511,51 @@ impl WgpuEngineContext {
             let (pipeline_2d, uniform_buf, uniform_bg, tex_bg_layout, sampler) =
                 Self::setup_2d_pipeline(&device, wgpu::TextureFormat::Rgba8UnormSrgb, width, height);
 
+            let (depth_texture, depth_view) = Self::create_depth_texture(&device, width, height);
+
+            let (char_pipeline, char_uniform_buf, char_uniform_bg, char_u_layout, char_tex_layout) =
+                Self::setup_character_pipeline(&device, wgpu::TextureFormat::Rgba8UnormSrgb);
+
+            let player_model = crate::character_model_vfs_loader::load_warrior_model(&device).ok();
+            let weapon_model = crate::character_model_vfs_loader::load_sword_weapon_model(&device).ok();
+
+            let player_mesh_buffers = player_model.map(|m| m.gpu_buffers);
+            let weapon_mesh_buffers = weapon_model.map(|m| m.gpu_buffers);
+
+            let player_texture_bind_group = crate::character_model_vfs_loader::create_or_load_diffuse_texture(
+                &device,
+                &queue,
+                &char_tex_layout,
+                &sampler,
+                "pc/warrior/warrior_novice_red.dds",
+                false,
+            ).ok().map(|t| t.bind_group);
+
+            let weapon_texture_bind_group = crate::character_model_vfs_loader::create_or_load_diffuse_texture(
+                &device,
+                &queue,
+                &char_tex_layout,
+                &sampler,
+                "item/weapon/00010.dds",
+                true,
+            ).ok().map(|t| t.bind_group);
+
+            let (terrain_pipeline, terrain_vertex_buffer, terrain_vertex_count) = {
+                let tp = crate::wgpu_terrain_renderer::create_terrain_pipeline(&device, wgpu::TextureFormat::Rgba8UnormSrgb, &char_u_layout);
+                let heights = vec![0.0f32; 33 * 33];
+                let raw_map = crate::terrain_height_patch::RawHeightMap::new(33, 33, heights);
+                let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
+                let count = verts.len() as u32;
+                let buf = if !verts.is_empty() {
+                    Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Headless Terrain Ground Mesh Buffer"),
+                        contents: bytemuck::cast_slice(&verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    }))
+                } else { None };
+                (Some(tp), buf, count)
+            };
+
             Ok(Self {
                 instance,
                 surface: None,
@@ -234,6 +571,20 @@ impl WgpuEngineContext {
                 uniform_bind_group: Some(uniform_bg),
                 texture_bind_group_layout: Some(tex_bg_layout),
                 sampler: Some(sampler),
+                depth_texture: Some(depth_texture),
+                depth_view: Some(depth_view),
+                character_pipeline: Some(char_pipeline),
+                character_uniform_buffer: Some(char_uniform_buf),
+                character_uniform_bind_group: Some(char_uniform_bg),
+                character_uniform_layout: Some(char_u_layout),
+                character_texture_layout: Some(char_tex_layout),
+                player_mesh_buffers,
+                weapon_mesh_buffers,
+                player_texture_bind_group,
+                weapon_texture_bind_group,
+                terrain_pipeline,
+                terrain_vertex_buffer,
+                terrain_vertex_count,
             })
         }
     }
@@ -494,6 +845,13 @@ impl WgpuEngineContext {
                 };
                 self.queue.write_buffer(buf, 0, bytemuck::cast_slice(&[uniforms]));
             }
+
+            let (new_depth_tex, new_depth_view) = Self::create_depth_texture(&self.device, new_width, new_height);
+            self.depth_texture = Some(new_depth_tex);
+            self.depth_view = Some(new_depth_view);
+
+            let aspect = (new_width as f32) / (new_height as f32).max(1.0);
+            self.update_character_uniforms([0.0, 0.0, 0.0], 0.0, aspect);
         }
     }
 
@@ -820,6 +1178,383 @@ impl WgpuEngineContext {
         Ok(())
     }
 
+    /// Aktualizuje macierze projekcji kamery i kosci modelu dla postaci i broni
+    pub fn update_character_uniforms(
+        &self,
+        player_pos: [f32; 3],
+        player_rot_deg: f32,
+        aspect: f32,
+    ) {
+        if let Some(ref buf) = self.character_uniform_buffer {
+            let fov_rad = 50.0f32.to_radians();
+            let near = 10.0f32;
+            let far = 15000.0f32;
+            let proj = glam::Mat4::perspective_rh(fov_rad, aspect, near, far);
+
+            // Pobranie dynamicznych parametrow kamery TPP (distance, pitch, rotation, target_height)
+            let (cam_dist, cam_pitch, cam_rot, target_height) = if let Ok(app) = crate::py_bridge_app::app_lock() {
+                (app.camera.distance, app.camera.pitch, app.camera.rotation, app.camera.target_height)
+            } else {
+                (650.0, 30.0, 0.0, 100.0)
+            };
+
+            let pitch_rad = cam_pitch.to_radians();
+            let rot_rad = (player_rot_deg + cam_rot).to_radians();
+            let eye = glam::Vec3::new(
+                player_pos[0] - cam_dist * pitch_rad.cos() * rot_rad.sin(),
+                player_pos[1] - cam_dist * pitch_rad.cos() * rot_rad.cos(),
+                player_pos[2] + target_height + cam_dist * pitch_rad.sin(),
+            );
+            let target = glam::Vec3::new(player_pos[0], player_pos[1], player_pos[2] + target_height);
+            let up = glam::Vec3::new(0.0, 0.0, 1.0);
+            let view = glam::Mat4::look_at_rh(eye, target, up);
+            let view_proj = proj * view;
+
+            let rot = glam::Quat::from_rotation_z(player_rot_deg.to_radians());
+            let model = glam::Mat4::from_scale_rotation_translation(
+                glam::Vec3::splat(1.0),
+                rot,
+                glam::Vec3::new(player_pos[0], player_pos[1], player_pos[2]),
+            );
+
+            let model_cols = model.to_cols_array_2d();
+            let bones = [model_cols; 128];
+
+            let uniforms = crate::wgpu_granny_actor_renderer::ActorUniforms {
+                view_proj: view_proj.to_cols_array_2d(),
+                bone_matrices: bones,
+            };
+
+            self.queue.write_buffer(buf, 0, bytemuck::cast_slice(&[uniforms]));
+        }
+    }
+
+    /// Renderuje kompletna klatke ze sceny 3D (siatka terenu, siatka Granny postaci i miecza) oraz nakladkami UI 2D
+    pub fn render_frame_with_character_and_quads(
+        &mut self,
+        clear_color: wgpu::Color,
+        player_pos: [f32; 3],
+        player_rot_deg: f32,
+        batches: &[(&GpuTexture, &[Quad2D])],
+    ) -> Result<(), String> {
+        if self.is_headless || self.surface.is_none() {
+            return Ok(());
+        }
+
+        let surface = self.surface.as_ref().unwrap();
+        let frame_status = surface.get_current_texture();
+
+        let frame = match frame_status {
+            wgpu::CurrentSurfaceTexture::Success(f) | wgpu::CurrentSurfaceTexture::Suboptimal(f) => f,
+            wgpu::CurrentSurfaceTexture::Lost => {
+                if let Some(config) = &self.config {
+                    surface.configure(&self.device, config);
+                }
+                return Ok(());
+            }
+            _ => return Ok(()),
+        };
+
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Metin2 3D Character & 2D Frame Encoder"),
+        });
+
+        let aspect = (self.width as f32) / (self.height as f32).max(1.0);
+        self.update_character_uniforms(player_pos, player_rot_deg, aspect);
+
+        // 1. Pass 3D z buforem glebokosci
+        if let (Some(pipeline), Some(uniform_bg), Some(depth_view)) = (
+            &self.character_pipeline,
+            &self.character_uniform_bind_group,
+            &self.depth_view,
+        ) {
+            let mut pass_3d = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Metin2 Character 3D Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(clear_color),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+
+            // 1.1 Renderowanie siatki terenu pod postacia
+            if let (Some(t_pipeline), Some(t_vbuf)) = (&self.terrain_pipeline, &self.terrain_vertex_buffer) {
+                if self.terrain_vertex_count > 0 {
+                    pass_3d.set_pipeline(t_pipeline);
+                    pass_3d.set_bind_group(0, uniform_bg, &[]);
+                    pass_3d.set_vertex_buffer(0, t_vbuf.slice(..));
+                    pass_3d.draw(0..self.terrain_vertex_count, 0..1);
+                }
+            }
+
+            // 1.2 Ustawienie potoku postaci i renderowanie postaci wojownika
+            pass_3d.set_pipeline(pipeline);
+            pass_3d.set_bind_group(0, uniform_bg, &[]);
+
+            if let (Some(mesh_bufs), Some(tex_bg)) = (
+                &self.player_mesh_buffers,
+                &self.player_texture_bind_group,
+            ) {
+                pass_3d.set_bind_group(1, tex_bg, &[]);
+                pass_3d.set_vertex_buffer(0, mesh_bufs.vertex_buffer.slice(..));
+                pass_3d.set_index_buffer(mesh_bufs.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                pass_3d.draw_indexed(0..mesh_bufs.index_count, 0, 0..1);
+            }
+
+            // 1.3 Renderowanie miecza
+            if let (Some(weapon_bufs), Some(tex_bg)) = (
+                &self.weapon_mesh_buffers,
+                &self.weapon_texture_bind_group,
+            ) {
+                pass_3d.set_bind_group(1, tex_bg, &[]);
+                pass_3d.set_vertex_buffer(0, weapon_bufs.vertex_buffer.slice(..));
+                pass_3d.set_index_buffer(weapon_bufs.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                pass_3d.draw_indexed(0..weapon_bufs.index_count, 0, 0..1);
+            }
+        }
+
+        // 2. Pass 2D z nakladkami UI (bez czyszczenia tla)
+        if !batches.is_empty() {
+            let mut vertex_buffers = Vec::with_capacity(batches.len());
+            for (_tex, quads) in batches {
+                if quads.is_empty() {
+                    vertex_buffers.push(None);
+                    continue;
+                }
+                let mut vertices = Vec::with_capacity(quads.len() * 6);
+                for q in *quads {
+                    let [qx, qy, qw, qh] = q.rect;
+                    let [u0, v0, u1, v1] = q.uv;
+                    let qc = q.color;
+
+                    vertices.push(Vertex2D { position: [qx, qy], tex_coords: [u0, v0], color: qc });
+                    vertices.push(Vertex2D { position: [qx + qw, qy], tex_coords: [u1, v0], color: qc });
+                    vertices.push(Vertex2D { position: [qx, qy + qh], tex_coords: [u0, v1], color: qc });
+                    vertices.push(Vertex2D { position: [qx + qw, qy], tex_coords: [u1, v0], color: qc });
+                    vertices.push(Vertex2D { position: [qx + qw, qy + qh], tex_coords: [u1, v1], color: qc });
+                    vertices.push(Vertex2D { position: [qx, qy + qh], tex_coords: [u0, v1], color: qc });
+                }
+
+                let v_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Quad Batch Vertex Buffer 2D"),
+                    contents: bytemuck::cast_slice(&vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+                vertex_buffers.push(Some((v_buf, vertices.len() as u32)));
+            }
+
+            {
+                let mut pass_2d = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Metin2 2D Overlay Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+
+                if let (Some(pipeline_2d), Some(uniform_bg_2d)) = (&self.pipeline_2d, &self.uniform_bind_group) {
+                    pass_2d.set_pipeline(pipeline_2d);
+                    pass_2d.set_bind_group(0, uniform_bg_2d, &[]);
+
+                    for (idx, (tex, _quads)) in batches.iter().enumerate() {
+                        if let Some((v_buf, vertex_count)) = &vertex_buffers[idx] {
+                            pass_2d.set_vertex_buffer(0, v_buf.slice(..));
+                            pass_2d.set_bind_group(1, &tex.bind_group, &[]);
+                            pass_2d.draw(0..*vertex_count, 0..1);
+                        }
+                    }
+                }
+            }
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        self.queue.present(frame);
+
+        Ok(())
+    }
+
+    /// Renderuje postac i bron do bufora pamieci i zwraca RgbaImage (dla headless i testow GPU)
+    pub fn render_character_to_rgba_image(
+        &self,
+        clear_color: wgpu::Color,
+        player_pos: [f32; 3],
+        player_rot_deg: f32,
+    ) -> Result<image::RgbaImage, String> {
+        let width = self.width;
+        let height = self.height;
+
+        let render_target = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Offscreen Character Render Target"),
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let color_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let (_depth_tex, depth_view) = Self::create_depth_texture(&self.device, width, height);
+
+        let aspect = (width as f32) / (height as f32).max(1.0);
+        self.update_character_uniforms(player_pos, player_rot_deg, aspect);
+
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Offscreen Character Render Encoder"),
+        });
+
+        if let (Some(pipeline), Some(uniform_bg)) = (&self.character_pipeline, &self.character_uniform_bind_group) {
+            let mut pass_3d = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Offscreen Metin2 Character 3D Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &color_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(clear_color),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+
+            // 1. Renderowanie siatki terenu
+            if let (Some(t_pipeline), Some(t_vbuf)) = (&self.terrain_pipeline, &self.terrain_vertex_buffer) {
+                if self.terrain_vertex_count > 0 {
+                    pass_3d.set_pipeline(t_pipeline);
+                    pass_3d.set_bind_group(0, uniform_bg, &[]);
+                    pass_3d.set_vertex_buffer(0, t_vbuf.slice(..));
+                    pass_3d.draw(0..self.terrain_vertex_count, 0..1);
+                }
+            }
+
+            pass_3d.set_pipeline(pipeline);
+            pass_3d.set_bind_group(0, uniform_bg, &[]);
+
+            // Renderuj postac wojownika
+            if let (Some(mesh_bufs), Some(tex_bg)) = (
+                &self.player_mesh_buffers,
+                &self.player_texture_bind_group,
+            ) {
+                pass_3d.set_bind_group(1, tex_bg, &[]);
+                pass_3d.set_vertex_buffer(0, mesh_bufs.vertex_buffer.slice(..));
+                pass_3d.set_index_buffer(mesh_bufs.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                pass_3d.draw_indexed(0..mesh_bufs.index_count, 0, 0..1);
+            }
+
+            // Renderuj miecz
+            if let (Some(weapon_bufs), Some(tex_bg)) = (
+                &self.weapon_mesh_buffers,
+                &self.weapon_texture_bind_group,
+            ) {
+                pass_3d.set_bind_group(1, tex_bg, &[]);
+                pass_3d.set_vertex_buffer(0, weapon_bufs.vertex_buffer.slice(..));
+                pass_3d.set_index_buffer(weapon_bufs.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                pass_3d.draw_indexed(0..weapon_bufs.index_count, 0, 0..1);
+            }
+        }
+
+        let unpadded_bytes_per_row = width * 4;
+        let align = 256;
+        let padded_bytes_per_row = (unpadded_bytes_per_row + align - 1) & !(align - 1);
+        let buffer_size = (padded_bytes_per_row * height) as u64;
+
+        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Offscreen Output Buffer"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &render_target,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &output_buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded_bytes_per_row),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+
+        let buffer_slice = output_buffer.slice(..);
+        let (tx, rx) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            let _ = tx.send(result);
+        });
+        let _ = self.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });
+        rx.recv().map_err(|e| format!("Map buffer error: {:?}", e))?
+            .map_err(|e| format!("Map async failed: {:?}", e))?;
+
+        let padded_view = buffer_slice.get_mapped_range()
+            .map_err(|e| format!("Get mapped range error: {:?}", e))?;
+        let padded_slice: &[u8] = &padded_view;
+        let mut unpadded_data = Vec::with_capacity((width * height * 4) as usize);
+        for row in 0..height {
+            let start = (row * padded_bytes_per_row) as usize;
+            let end = start + unpadded_bytes_per_row as usize;
+            unpadded_data.extend_from_slice(&padded_slice[start..end]);
+        }
+        drop(padded_view);
+        output_buffer.unmap();
+
+        image::RgbaImage::from_raw(width, height, unpadded_data)
+            .ok_or_else(|| "Failed to construct RgbaImage from buffer".to_string())
+    }
+
     /// Informacja diagnostyczna o aktywnym API graficznym (DirectX 12 / Vulkan)
     pub fn get_adapter_info(&self) -> String {
         let info = self.adapter.get_info();
@@ -890,6 +1625,9 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
             break;
         }
 
+        // -1. Przetworzenie zakolejkowanych akcji fazowych / Pythona z watkow w tle w glownym watku UI
+        crate::py_event_dispatcher::process_main_thread_actions();
+
         // 0. Wywolanie klatki OnUpdate dla wszystkich aktywnych okien UI Pythona (throttled to 20Hz)
         let t_update_start = std::time::Instant::now();
         {
@@ -902,7 +1640,23 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
                 }
             } else { true };
             if should_update {
-                crate::ui_window_mgr::get_window_manager().update_all_windows();
+                let handlers = crate::ui_window_mgr::get_window_manager().collect_update_handlers();
+                for h in &handlers {
+                    crate::py_event_dispatcher::call_python_object_method0(*h, "OnUpdate");
+                }
+                let active_phase = crate::ui_bridge_ffi::CURRENT_PHASE.lock().map(|g| g.clone()).unwrap_or_default();
+                let target_phase = match active_phase.as_str() {
+                    "LOADING" => Some(crate::py_bridge_net::PHASE_WINDOW_LOAD),
+                    "GAME" => Some(crate::py_bridge_net::PHASE_WINDOW_GAME),
+                    "SELECT" => Some(crate::py_bridge_net::PHASE_WINDOW_SELECT),
+                    _ => None,
+                };
+                if let Some(p) = target_phase {
+                    let phase_h = crate::py_bridge_net::get_phase_window(p);
+                    if phase_h != 0 && !handlers.contains(&phase_h) {
+                        crate::py_event_dispatcher::call_python_object_method0(phase_h, "OnUpdate");
+                    }
+                }
             }
         }
         let t_update_ms = t_update_start.elapsed().as_millis();
@@ -964,6 +1718,55 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
                     }
 
                     if current_phase == "GAME" {
+                        let (player_pos, player_rot) = {
+                            if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+                                if state.player.vid != 0 || state.player.x != 0.0 || state.player.y != 0.0 {
+                                    ([state.player.x, state.player.y, state.player.z], state.player.rot)
+                                } else if let Ok(mgr) = crate::character_manager_core::get_character_manager().read() {
+                                    if let Some(main_char) = mgr.alive_instances.values().next() {
+                                        ([main_char.x, main_char.y, main_char.z], main_char.rot_deg)
+                                    } else {
+                                        ([0.0, 0.0, 0.0], 0.0)
+                                    }
+                                } else {
+                                    ([0.0, 0.0, 0.0], 0.0)
+                                }
+                            } else {
+                                ([0.0, 0.0, 0.0], 0.0)
+                            }
+                        };
+
+                        // 1.5. Zbieranie partii TextTail (imiona, poziomy, rangi i paski HP nad postaciami)
+                        let (cam_dist, cam_pitch, cam_rot, target_height) = if let Ok(app) = crate::py_bridge_app::app_lock() {
+                            (app.camera.distance, app.camera.pitch, app.camera.rotation, app.camera.target_height)
+                        } else {
+                            (650.0, 30.0, 0.0, 100.0)
+                        };
+                        let pitch_rad = cam_pitch.to_radians();
+                        let rot_rad = (player_rot + cam_rot).to_radians();
+                        let eye = glam::Vec3::new(
+                            player_pos[0] - cam_dist * pitch_rad.cos() * rot_rad.sin(),
+                            player_pos[1] - cam_dist * pitch_rad.cos() * rot_rad.cos(),
+                            player_pos[2] + target_height + cam_dist * pitch_rad.sin(),
+                        );
+                        let target = glam::Vec3::new(player_pos[0], player_pos[1], player_pos[2] + target_height);
+                        let up = glam::Vec3::new(0.0, 0.0, 1.0);
+                        let view = glam::Mat4::look_at_rh(eye, target, up);
+                        let aspect = w / h.max(1.0);
+                        let proj = glam::Mat4::perspective_rh(50.0f32.to_radians(), aspect, 10.0, 15000.0);
+                        let view_proj = proj * view;
+
+                        let white_tex_opt = crate::ui_window_mgr::get_window_manager().get_or_create_white_texture();
+                        let texttail_batches = if let Some(white_tex) = white_tex_opt {
+                            crate::wgpu_texttail_renderer::collect_text_tail_render_batches(0.016, &view_proj, w, h, white_tex)
+                        } else {
+                            Vec::new()
+                        };
+
+                        for (tex, quads) in &texttail_batches {
+                            batches.push((tex.as_ref(), quads.as_slice()));
+                        }
+
                         if pipeline_mgr.is_none() {
                             let pm = crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager::new(&ctx.device, ctx.width, ctx.height);
                             pipeline_mgr = Some(pm);
@@ -979,10 +1782,10 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
 
                         if let (Some(ref mut comp), Some(ref pm)) = (&mut composition, &pipeline_mgr) {
                             if let Err(_e) = comp.execute_frame(ctx, pm, clear_color, &batches) {
-                                let _ = ctx.render_frame_with_quads(clear_color, &batches);
+                                let _ = ctx.render_frame_with_character_and_quads(clear_color, player_pos, player_rot, &batches);
                             }
                         } else {
-                            let _ = ctx.render_frame_with_quads(clear_color, &batches);
+                            let _ = ctx.render_frame_with_character_and_quads(clear_color, player_pos, player_rot, &batches);
                         }
                     } else if !batches.is_empty() {
                         let _ = ctx.render_frame_with_quads(clear_color, &batches);

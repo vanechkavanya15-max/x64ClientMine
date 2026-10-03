@@ -178,8 +178,19 @@ impl MainRenderPipelineComposition {
             self.pass_execution_flags |= Self::PASS_CHARACTERS;
             if let (Some(pipeline), Some(vb)) = (&pipeline_mgr.character_pipeline, &pipeline_mgr.character_vertex_buffer) {
                 render_pass.set_pipeline(pipeline);
+                if let Some(bg0) = &pipeline_mgr.character_uniform_bind_group {
+                    render_pass.set_bind_group(0, bg0, &[]);
+                }
+                if let Some(bg1) = &pipeline_mgr.character_texture_bind_group {
+                    render_pass.set_bind_group(1, bg1, &[]);
+                }
                 render_pass.set_vertex_buffer(0, vb.slice(..));
-                render_pass.draw(0..pipeline_mgr.character_vertex_count, 0..1);
+                if let Some(ib) = &pipeline_mgr.character_index_buffer {
+                    render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint16);
+                    render_pass.draw_indexed(0..pipeline_mgr.character_index_count, 0, 0..1);
+                } else {
+                    render_pass.draw(0..pipeline_mgr.character_vertex_count, 0..1);
+                }
             }
 
             // Step 8: Particles & Projectiles

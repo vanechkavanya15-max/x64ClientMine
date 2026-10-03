@@ -144,7 +144,7 @@ fn test_upload_to_gpu_buffer() {
         receiver.await.unwrap().unwrap();
         
         {
-            let data = buffer_slice.get_mapped_range();
+            let data = buffer_slice.get_mapped_range().unwrap();
             let expected_data = bytemuck::cast_slice(&uploader.bone_matrices);
             
             assert_eq!(&*data, expected_data, "Buffer data did not match expected identity matrices");

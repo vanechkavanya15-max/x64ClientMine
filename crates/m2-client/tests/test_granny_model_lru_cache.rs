@@ -1,6 +1,7 @@
 #[path = "../src/full-grn-anim_13.rs"]
 mod full_grn_anim_13;
 
+pub use m2_client::granny_bitknit_decompressor;
 use full_grn_anim_13::granny_model_lru_cache::{GrannyModelLruCache, GrannyModelData};
 use full_grn_anim_13::granny_model_lru_cache::granny_gr2_binary_parser::{GrannyMesh, GrannySkeleton};
 use std::sync::Arc;

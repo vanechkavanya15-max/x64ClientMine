@@ -211,12 +211,20 @@ pub extern "C" fn wndMgr_Destroy(handle: u32) {
 
 #[no_mangle]
 pub extern "C" fn wndMgr_GetWidth(handle: u32) -> i32 {
-    get_window_manager().windows.get(&handle).map(|w| w.width).unwrap_or(0)
+    get_window_manager()
+        .windows
+        .get(&handle)
+        .map(|w| if w.width > 0 { w.width } else { 1024 })
+        .unwrap_or(1024)
 }
 
 #[no_mangle]
 pub extern "C" fn wndMgr_GetHeight(handle: u32) -> i32 {
-    get_window_manager().windows.get(&handle).map(|w| w.height).unwrap_or(0)
+    get_window_manager()
+        .windows
+        .get(&handle)
+        .map(|w| if w.height > 0 { w.height } else { 768 })
+        .unwrap_or(768)
 }
 
 #[no_mangle]
@@ -261,12 +269,20 @@ pub extern "C" fn wndMgr_SetWindowSize(handle: u32, w: i32, h: i32) -> bool {
 
 #[no_mangle]
 pub extern "C" fn wndMgr_GetWindowWidth(handle: u32) -> i32 {
-    get_window_manager().windows.get(&handle).map(|w| w.width).unwrap_or(0)
+    get_window_manager()
+        .windows
+        .get(&handle)
+        .map(|w| if w.width > 0 { w.width } else { 1024 })
+        .unwrap_or(1024)
 }
 
 #[no_mangle]
 pub extern "C" fn wndMgr_GetWindowHeight(handle: u32) -> i32 {
-    get_window_manager().windows.get(&handle).map(|w| w.height).unwrap_or(0)
+    get_window_manager()
+        .windows
+        .get(&handle)
+        .map(|w| if w.height > 0 { w.height } else { 768 })
+        .unwrap_or(768)
 }
 
 #[no_mangle]
@@ -352,12 +368,21 @@ pub extern "C" fn wndMgr_SetName(handle: u32, name: *const c_char) {
 
 #[no_mangle]
 pub extern "C" fn wndMgr_SetFocus(handle: u32) {
-    get_window_manager().set_focus(handle);
+    let (old_h, new_h) = get_window_manager().set_focus(handle);
+    if old_h != 0 {
+        crate::py_event_dispatcher::call_python_object_method0(old_h, "OnKillFocus");
+    }
+    if new_h != 0 {
+        crate::py_event_dispatcher::call_python_object_method0(new_h, "OnSetFocus");
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn wndMgr_KillFocus(handle: u32) {
-    get_window_manager().kill_focus(handle);
+    let old_h = get_window_manager().kill_focus(handle);
+    if old_h != 0 {
+        crate::py_event_dispatcher::call_python_object_method0(old_h, "OnKillFocus");
+    }
 }
 
 #[no_mangle]

@@ -13,6 +13,72 @@ pub fn clear_call_log() {
     CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().clear();
 }
 
+#[derive(Debug, Clone)]
+pub enum MainThreadAction {
+    CallObjectMethod0(usize, String),
+    CallObjectMethod1Str(usize, String, String),
+    CallObjectMethod1I32(usize, String, i32),
+    CallObjectMethod2I32(usize, String, i32, i32),
+    CallModMethod0(String, String),
+    CallModMethod1Str(String, String, String),
+}
+
+static MAIN_THREAD_QUEUE: OnceLock<Mutex<Vec<MainThreadAction>>> = OnceLock::new();
+
+pub fn enqueue_main_thread_action(action: MainThreadAction) {
+    MAIN_THREAD_QUEUE
+        .get_or_init(|| Mutex::new(Vec::new()))
+        .lock()
+        .unwrap()
+        .push(action);
+}
+
+pub fn process_main_thread_actions() {
+    let actions: Vec<MainThreadAction> = {
+        let mut q = MAIN_THREAD_QUEUE
+            .get_or_init(|| Mutex::new(Vec::new()))
+            .lock()
+            .unwrap();
+        if q.is_empty() {
+            return;
+        }
+        std::mem::take(&mut *q)
+    };
+
+    for action in actions {
+        match action {
+            MainThreadAction::CallObjectMethod0(handle, method) => {
+                call_python_object_method0(handle, &method);
+            }
+            MainThreadAction::CallObjectMethod1Str(handle, method, arg) => {
+                call_python_object_method1_str(handle, &method, &arg);
+            }
+            MainThreadAction::CallObjectMethod1I32(handle, method, val) => {
+                call_python_object_method1_i32(handle, &method, val);
+            }
+            MainThreadAction::CallObjectMethod2I32(handle, method, x, y) => {
+                call_python_object_method2_i32(handle, &method, x, y);
+            }
+            MainThreadAction::CallModMethod0(module, method) => {
+                call_python_method(&module, &method, &[]);
+            }
+            MainThreadAction::CallModMethod1Str(module, method, arg) => {
+                let ptr = GLOBAL_PY_MOD_DISPATCHER_1_STR.load(std::sync::atomic::Ordering::SeqCst);
+                if !ptr.is_null() {
+                    let cb: PyModCallback1Str = unsafe { std::mem::transmute(ptr) };
+                    if let (Ok(c_mod), Ok(c_method), Ok(c_arg)) = (
+                        CString::new(module),
+                        CString::new(method),
+                        CString::new(arg),
+                    ) {
+                        cb(c_mod.as_ptr(), c_method.as_ptr(), c_arg.as_ptr());
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[repr(C)]
 pub struct PyObject {
     _private: [u8; 0],
@@ -460,6 +526,19 @@ pub fn call_python_object_method0(py_obj: usize, method: &str) -> bool {
         let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
         let result = call_fn(method_obj, std::ptr::null_mut());
 
+        if result.is_null() {
+            let py_err_occurred = get_py_func("PyErr_Occurred");
+            let py_err_print = get_py_func("PyErr_Print");
+            if !py_err_occurred.is_null() && !py_err_print.is_null() {
+                let err_occ_fn: extern "C" fn() -> *mut PyObject = std::mem::transmute(py_err_occurred);
+                let err_print_fn: extern "C" fn() = std::mem::transmute(py_err_print);
+                if !err_occ_fn().is_null() {
+                    eprintln!("[-] Blad wywolania metody Pythona: .{}()", method);
+                    err_print_fn();
+                }
+            }
+        }
+
         if !py_decref.is_null() {
             let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
             decref_fn(method_obj);
@@ -490,6 +569,7 @@ pub fn call_python_object_method1_i32(py_obj: usize, method: &str, val: i32) -> 
     }
 
     unsafe {
+        let _gil = acquire_gil();
         let py_buildvalue = get_py_func("Py_BuildValue");
         let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
         let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
@@ -543,6 +623,7 @@ pub fn call_python_object_method2_i32(py_obj: usize, method: &str, x: i32, y: i3
         return false;
     }
     let ptr = GLOBAL_PY_DISPATCHER_2_I32.load(std::sync::atomic::Ordering::SeqCst);
+    println!("[DISPATCHER] call_python_object_method2_i32: obj=0x{:X}, method={}, x={}, y={}, has_cb={}", py_obj, method, x, y, !ptr.is_null());
     if !ptr.is_null() {
         let cb: PyEventCallback2I32 = unsafe { std::mem::transmute(ptr) };
         if let Ok(c_method) = CString::new(method) {
@@ -557,6 +638,7 @@ pub fn call_python_object_method2_i32(py_obj: usize, method: &str, x: i32, y: i3
     }
 
     unsafe {
+        let _gil = acquire_gil();
         let py_buildvalue = get_py_func("Py_BuildValue");
         let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
         let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
@@ -591,6 +673,19 @@ pub fn call_python_object_method2_i32(py_obj: usize, method: &str, x: i32, y: i3
         let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
         let result = call_fn(method_obj, py_args);
 
+        if result.is_null() {
+            let py_err_occurred = get_py_func("PyErr_Occurred");
+            let py_err_print = get_py_func("PyErr_Print");
+            if !py_err_occurred.is_null() && !py_err_print.is_null() {
+                let err_occ_fn: extern "C" fn() -> *mut PyObject = std::mem::transmute(py_err_occurred);
+                let err_print_fn: extern "C" fn() = std::mem::transmute(py_err_print);
+                if !err_occ_fn().is_null() {
+                    eprintln!("[-] Blad wywolania metody Pythona: .{}({}, {})", method, x, y);
+                    err_print_fn();
+                }
+            }
+        }
+
         if !py_decref.is_null() {
             let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
             decref_fn(method_obj);
@@ -624,6 +719,7 @@ pub fn call_python_object_method1_str(py_obj: usize, method: &str, s: &str) -> b
     }
 
     unsafe {
+        let _gil = acquire_gil();
         let py_buildvalue = get_py_func("Py_BuildValue");
         let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
         let py_object_getattrstring = get_py_func("PyObject_GetAttrString");

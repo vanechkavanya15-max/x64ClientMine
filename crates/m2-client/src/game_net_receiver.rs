@@ -291,37 +291,224 @@ fn game_recv_loop(mut stream: TcpStream, mut cipher: SecureCipher) {
 }
 
 // ============================================================================
-// Parser pakietow - wyciaga kompletne pakiety z bufora
+// Parser pakietow - wyciaga kompletne pakiety z bufora (wspiera format natywny Metin2 oraz 2-bajtowe opcody)
 // ============================================================================
 pub fn parse_packets(data: &[u8]) -> usize {
     let mut offset = 0;
     
-    while offset + 4 <= data.len() {
-        let header = u16::from_le_bytes([data[offset], data[offset + 1]]);
-        let length = u16::from_le_bytes([data[offset + 2], data[offset + 3]]) as usize;
+    while offset < data.len() {
+        let b0 = data[offset];
         
-        // Walidacja dlugosci pakietu
-        if length < 4 {
-            eprintln!("[NET] Nieprawidlowa dlugosc pakietu: header=0x{:04X}, length={}", header, length);
-            // Pomijalem 4 bajty (minimalny naglowek) i probuje dalej
-            offset += 4;
+        // 1. Sprawdz natywne 1-bajtowe pakiety GC serwera Metin2
+        let native_len: Option<usize> = match b0 {
+            0xFD => Some(2),  // HEADER_GC_PHASE (2 bajty)
+            0x01 => Some(35), // HEADER_GC_CHARACTER_ADD (35 bajtow)
+            0x88 => Some(54), // HEADER_GC_CHAR_ADDITIONAL_INFO (54 bajty)
+            0x04 => { // HEADER_GC_CHAT (dynamiczna dlugosc w data[1..3])
+                if offset + 3 <= data.len() {
+                    let total = u16::from_le_bytes([data[offset + 1], data[offset + 2]]) as usize;
+                    if total >= 3 && total <= 2048 {
+                        Some(total)
+                    } else { None }
+                } else {
+                    return offset; // czekaj na wiecej danych
+                }
+            }
+            0x05 => Some(13), // HEADER_GC_SYNC_POSITION (13 bajtow)
+            0x41 => Some(9),  // HEADER_GC_WARP (9 bajtow)
+            0x42 => { // HEADER_GC_MAIN_CHARACTER
+                if offset + 19 <= data.len() { Some(19) } else { None }
+            }
+            0x03 => Some(27), // HEADER_GC_CHARACTER_MOVE (27 bajtow)
+            0x87 => Some(10), // HEADER_GC_DAMAGE_INFO (10 bajtow)
+            0xFE => Some(1),  // HEADER_GC_PONG (1 bajt)
+            0xFF => Some(13), // HEADER_GC_HANDSHAKE (13 bajtow)
+            _ => None,
+        };
+
+        if let Some(pkt_len) = native_len {
+            if offset + pkt_len > data.len() {
+                // Niekompletny pakiet native, czekaj na reszte bufora
+                break;
+            }
+            let packet_data = &data[offset..offset + pkt_len];
+            handle_native_metin2_packet(b0, packet_data);
+            offset += pkt_len;
             continue;
         }
-        
-        // Sprawdz czy mamy kompletny pakiet w buforze
-        if offset + length > data.len() {
-            // Niekompletny pakiet - czekamy na wiecej danych
-            break;
+
+        // 2. Fallback na pakiety 4-bajtowego naglowka (u16 header, u16 length)
+        if offset + 4 <= data.len() {
+            let header = u16::from_le_bytes([data[offset], data[offset + 1]]);
+            let length = u16::from_le_bytes([data[offset + 2], data[offset + 3]]) as usize;
+            if length >= 4 && length <= 8192 {
+                if offset + length > data.len() {
+                    break;
+                }
+                let packet_data = &data[offset..offset + length];
+                dispatch_packet(header, length as u16, packet_data);
+                offset += length;
+                continue;
+            }
         }
-        
-        // Kompletny pakiet - dispatchuj
-        let packet_data = &data[offset..offset + length];
-        dispatch_packet(header, length as u16, packet_data);
-        
-        offset += length;
+
+        // Pomijamy 1 bajt w razie desynchronizacji
+        offset += 1;
     }
     
     offset
+}
+
+/// Obsluga natywnych pakietow serwera Metin2 (1-bajtowe naglowki)
+fn handle_native_metin2_packet(opcode: u8, data: &[u8]) {
+    match opcode {
+        0xFD => { // PHASE
+            if data.len() >= 2 {
+                let phase_val = data[1];
+                println!("[NET] [+] Odebrano natywny HEADER_GC_PHASE: phase={}", phase_val);
+                push_event(GameEvent::PhaseChange { phase: phase_val });
+            }
+        }
+        0x01 => { // CHARACTER_ADD (35 bajtow)
+            if data.len() >= 26 {
+                let vid = u32::from_le_bytes(data[1..5].try_into().unwrap_or_default());
+                let angle = f32::from_le_bytes(data[5..9].try_into().unwrap_or_default());
+                let x = i32::from_le_bytes(data[9..13].try_into().unwrap_or_default());
+                let y = i32::from_le_bytes(data[13..17].try_into().unwrap_or_default());
+                let z = i32::from_le_bytes(data[17..21].try_into().unwrap_or_default());
+                let char_type = data[21];
+                let race = u16::from_le_bytes(data[22..24].try_into().unwrap_or_default());
+                let move_speed = data[24];
+                let attack_speed = data[25];
+
+                println!("[NET] [+] Native CharAdd: VID={} type={} rasa={} pos=({},{},{}) angle={:.0}",
+                         vid, char_type, race, x, y, z, angle);
+
+                if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+                    if state.player.vid == 0 || state.player.vid == vid {
+                        state.player.vid = vid;
+                        state.player.x = x as f32;
+                        state.player.y = y as f32;
+                        state.player.z = z as f32;
+                        state.player.rot = angle;
+                    }
+                    state.actors.insert(vid, m2_client_bridge::state::game_state::Actor {
+                        vid,
+                        x: x as f32,
+                        y: y as f32,
+                        z: z as f32,
+                        rot: angle,
+                        race,
+                        b_type: char_type,
+                        ..Default::default()
+                    });
+                }
+                push_event(GameEvent::CharacterAdd {
+                    vid, x, y, z, angle, char_type, race, move_speed, attack_speed,
+                });
+            }
+        }
+        0x88 => { // CHAR_ADDITIONAL_INFO (54 bajty)
+            if data.len() >= 47 {
+                let vid = u32::from_le_bytes(data[1..5].try_into().unwrap_or_default());
+                let name_end = data[5..30].iter().position(|&b| b == 0).unwrap_or(25);
+                let name = String::from_utf8_lossy(&data[5..5 + name_end]).to_string();
+                let empire = data[38];
+                let level = u32::from_le_bytes(data[43..47].try_into().unwrap_or_default());
+                println!("[NET] [+] Native CharInfo: VID={} imie='{}' level={} empire={}", vid, name, level, empire);
+                if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+                    state.set_point(m2_client_bridge::state::game_state::POINT_LEVEL, level as i64);
+                    if let Some(actor) = state.actors.get_mut(&vid) {
+                        actor.name = name.clone();
+                    }
+                }
+                push_event(GameEvent::CharacterAdditionalInfo {
+                    vid, name, empire, guild_id: 0, level, pk_mode: 0, mount_vnum: 0,
+                });
+            }
+        }
+        0x04 => { // CHAT
+            if data.len() >= 9 {
+                let chat_type = data[3];
+                let sender_vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                let empire = data[8];
+                let msg = String::from_utf8_lossy(&data[9..]).to_string();
+                println!("[CHAT] [type={}] {}", chat_type, msg);
+                push_event(GameEvent::ChatMessage { chat_type, vid: sender_vid, empire, message: msg });
+            }
+        }
+        0x05 => { // SYNC_POSITION (13 bajtow)
+            if data.len() >= 13 {
+                let vid = u32::from_le_bytes(data[1..5].try_into().unwrap_or_default());
+                let x = i32::from_le_bytes(data[5..9].try_into().unwrap_or_default());
+                let y = i32::from_le_bytes(data[9..13].try_into().unwrap_or_default());
+                println!("[NET] [+] Native SyncPosition: VID={} -> ({}, {})", vid, x, y);
+                if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+                    if state.player.vid == vid || state.player.vid == 0 {
+                        state.player.x = x as f32;
+                        state.player.y = y as f32;
+                    }
+                    if let Some(actor) = state.actors.get_mut(&vid) {
+                        actor.x = x as f32;
+                        actor.y = y as f32;
+                    }
+                }
+            }
+        }
+        0x41 => { // WARP (9 bajtow)
+            if data.len() >= 9 {
+                let x = i32::from_le_bytes(data[1..5].try_into().unwrap_or_default());
+                let y = i32::from_le_bytes(data[5..9].try_into().unwrap_or_default());
+                println!("[NET] [+] Native Warp: ({}, {})", x, y);
+                if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+                    state.player.x = x as f32;
+                    state.player.y = y as f32;
+                }
+            }
+        }
+        0x03 => { // CHARACTER_MOVE (27 bajtow)
+            if data.len() >= 24 {
+                let vid = u32::from_le_bytes(data[1..5].try_into().unwrap_or_default());
+                let func = data[5];
+                let arg = data[6];
+                let rot = data[7];
+                let x = i32::from_le_bytes(data[8..12].try_into().unwrap_or_default());
+                let y = i32::from_le_bytes(data[12..16].try_into().unwrap_or_default());
+                let time = u32::from_le_bytes(data[16..20].try_into().unwrap_or_default());
+                let duration = u32::from_le_bytes(data[20..24].try_into().unwrap_or_default());
+                if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+                    if state.player.vid == vid {
+                        state.player.x = x as f32;
+                        state.player.y = y as f32;
+                        state.player.rot = (rot as f32) * 5.0;
+                    }
+                    if let Some(actor) = state.actors.get_mut(&vid) {
+                        actor.x = x as f32;
+                        actor.y = y as f32;
+                        actor.rot = (rot as f32) * 5.0;
+                    }
+                }
+                push_event(GameEvent::CharacterMove { vid, func, arg, rot, x, y, time, duration });
+            }
+        }
+        0x87 => { // DAMAGE_INFO (10 bajtow)
+            if data.len() >= 10 {
+                let victim_vid = u32::from_le_bytes(data[1..5].try_into().unwrap_or_default());
+                let flag = data[5];
+                let damage = i32::from_le_bytes(data[6..10].try_into().unwrap_or_default());
+                let dmg_flag = match flag {
+                    f if f & 2 != 0 => crate::wgpu_texttail_renderer::DamageFlag::Poison,
+                    f if f & 4 != 0 => crate::wgpu_texttail_renderer::DamageFlag::Dodge,
+                    f if f & 8 != 0 => crate::wgpu_texttail_renderer::DamageFlag::Block,
+                    f if f & 32 != 0 => crate::wgpu_texttail_renderer::DamageFlag::Critical,
+                    _ => crate::wgpu_texttail_renderer::DamageFlag::Normal,
+                };
+                crate::wgpu_texttail_renderer::add_damage_number_for_vid(victim_vid, damage.max(0) as u32, dmg_flag, None);
+                println!("[NET] [+] DAMAGE_INFO: VID={} zadano {} dmg (flag={})", victim_vid, damage, flag);
+            }
+        }
+        _ => {}
+    }
 }
 
 // ============================================================================
@@ -450,6 +637,13 @@ fn handle_main_character(data: &[u8]) {
     println!("[NET] Pozycja: ({}, {}, {}), Imperium: {}", lx, ly, lz, empire);
     println!("[NET] ========================================================");
     
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        state.player.vid = vid;
+        state.player.x = lx as f32;
+        state.player.y = ly as f32;
+        state.player.z = lz as f32;
+    }
+
     push_event(GameEvent::MainCharacterSpawn {
         vid, race, name, x: lx, y: ly, z: lz, empire, skill_group,
     });
@@ -504,6 +698,15 @@ fn handle_player_points(data: &[u8]) {
     println!("[NET] Gold: {}, EXP: {}", gold, exp);
     println!("[NET] ========================================================");
     
+    // Aktualizuj stan globalny
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        for (i, &p) in points.iter().enumerate() {
+            if i < 256 {
+                state.player.points[i] = p as i64;
+            }
+        }
+    }
+
     // Aktualizuj tekst HUD HP/SP
     update_hud_stats(level, hp, max_hp, sp, max_sp, gold);
     
@@ -526,6 +729,10 @@ fn handle_point_change(data: &[u8]) {
         12 => println!("[NET] PointChange: EXP vid={} +{}", vid, amount),
         14 => println!("[NET] PointChange: Gold vid={} amount={} value={}", vid, amount, value),
         _ => {} // ciche dla nieistotnych punktow
+    }
+    
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        state.set_point(point_type, value as i64);
     }
     
     push_event(GameEvent::PointChange { vid, point_type, amount, value });
@@ -559,6 +766,19 @@ fn handle_character_add(data: &[u8]) {
     println!("[NET] CharAdd: VID={} {} rasa={} pos=({},{},{}) angle={:.0}", 
              vid, type_name, race, x, y, z, angle);
     
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        state.actors.insert(vid, m2_client_bridge::state::game_state::Actor {
+            vid,
+            x: x as f32,
+            y: y as f32,
+            z: z as f32,
+            rot: angle,
+            race,
+            b_type: char_type,
+            ..Default::default()
+        });
+    }
+
     push_event(GameEvent::CharacterAdd {
         vid, x, y, z, angle, char_type, race, move_speed, attack_speed,
     });
@@ -594,6 +814,12 @@ fn handle_character_additional_info(data: &[u8]) {
     
     println!("[NET] CharInfo: VID={} '{}' Lv.{} Imp.{} Gildia:{}", vid, name, level, empire, guild_id);
     
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        if let Some(actor) = state.actors.get_mut(&vid) {
+            actor.name = name.clone();
+        }
+    }
+
     push_event(GameEvent::CharacterAdditionalInfo {
         vid, name, empire, guild_id, level, pk_mode, mount_vnum,
     });
@@ -604,6 +830,9 @@ fn handle_character_delete(data: &[u8]) {
     if data.len() < 8 { return; }
     let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
     println!("[NET] CharDel: VID={}", vid);
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        state.actors.remove(&vid);
+    }
     push_event(GameEvent::CharacterDelete { vid });
 }
 
@@ -611,7 +840,6 @@ fn handle_character_update(data: &[u8]) {
     // TPacketGCCharacterUpdate: header(2) + length(2) + dwVID(4) + awPart[4](8) + ...
     if data.len() < 8 { return; }
     let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
-    // Logujemy tylko - pelna aktualizacja wygladu nie jest krytyczna na teraz
     println!("[NET] CharUpdate: VID={}, len={}", vid, data.len());
 }
 
@@ -631,7 +859,16 @@ fn handle_move(data: &[u8]) {
         u32::from_le_bytes(data[23..27].try_into().unwrap_or_default())
     } else { 0 };
     
-    // Nie logujemy kazdego ruchu - za duzo spamu
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        if state.player.vid == vid {
+            state.player.x = x as f32;
+            state.player.y = y as f32;
+        } else if let Some(actor) = state.actors.get_mut(&vid) {
+            actor.x = x as f32;
+            actor.y = y as f32;
+        }
+    }
+
     push_event(GameEvent::CharacterMove {
         vid, func, arg, rot, x, y, time, duration,
     });
@@ -682,9 +919,15 @@ fn handle_change_speed(data: &[u8]) {
 }
 
 fn handle_item_set(data: &[u8]) {
-    if data.len() < 10 { return; }
-    // Logujemy tylko ogolem - szczegolowe parsowanie w nastepnym kroku
-    println!("[NET] ItemSet: len={}", data.len());
+    if data.len() < 12 { return; }
+    let window = data[4];
+    let cell = u16::from_le_bytes(data[5..7].try_into().unwrap_or_default());
+    let vnum = u32::from_le_bytes(data[7..11].try_into().unwrap_or_default());
+    let count = if data.len() > 11 { data[11] } else { 1 };
+    println!("[NET] ItemSet: window={} cell={} vnum={} count={}", window, cell, vnum, count);
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        state.set_item(window, cell, m2_client_bridge::state::game_state::ItemData::new(vnum, count));
+    }
 }
 
 fn handle_item_del(data: &[u8]) {
