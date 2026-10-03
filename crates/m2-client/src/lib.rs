@@ -451,6 +451,9 @@ pub mod py_bridge_guild_skills;
 pub mod send_nav_session_packets;
 pub mod recv_refine_packets_complete;
 pub mod ui_widget_bar3d;
+#[path = "full-input-win32_15.rs"]
+pub mod full_input_win32_15;
+pub mod input_system_validator;
 
 
 pub mod map_property_parser;
