@@ -223,6 +223,7 @@ pub mod terrain_quadtree_cull_v2;
 pub mod texture_splatting_blend_v2;
 pub mod granny_gr2_binary_parser;
 pub mod water_plane_anim_v2;
+pub mod full_map_stream_12;
 pub mod weapon_bone_attach_v2;
 pub mod weather_particle_sim_v2;
 
