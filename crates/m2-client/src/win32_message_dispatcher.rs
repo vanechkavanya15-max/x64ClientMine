@@ -1,6 +1,9 @@
 use std::sync::Mutex;
 use std::collections::VecDeque;
 
+#[path = "input_mouse_lbutton_dispatcher.rs"]
+pub mod input_mouse_lbutton_dispatcher;
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WinMsg {
@@ -190,19 +193,13 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         WM_LBUTTONDOWN => {
             let mx = (msg.lparam & 0xFFFF) as i16 as i32;
             let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
-            let mut wm = crate::ui_window_mgr::get_window_manager();
-            wm.handle_mouse_down(mx, my, 1024, 768);
+            input_mouse_lbutton_dispatcher::dispatch_wm_lbutton_down(mx, my, 1024, 768);
             true
         }
         WM_LBUTTONUP => {
             let mx = (msg.lparam & 0xFFFF) as i16 as i32;
             let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
-            let (hit, name) = {
-                let mut wm = crate::ui_window_mgr::get_window_manager();
-                let hit = wm.handle_mouse_up(mx, my, 1024, 768);
-                let name = hit.and_then(|h| wm.windows.get(&h).map(|w| w.name.clone())).unwrap_or_default();
-                (hit, name)
-            };
+            let (hit, name) = input_mouse_lbutton_dispatcher::dispatch_wm_lbutton_up(mx, my, 1024, 768);
             if let Some(h) = hit {
                 let mut wm = crate::ui_window_mgr::get_window_manager();
                 crate::ui_bridge_ffi::handle_ui_click(&name, h, &mut wm);
