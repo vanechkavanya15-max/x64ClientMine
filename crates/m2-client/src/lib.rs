@@ -450,3 +450,4 @@ pub mod recv_refine_packets_complete;
 pub mod ui_widget_bar3d;
 
 
+pub mod map_property_parser;
