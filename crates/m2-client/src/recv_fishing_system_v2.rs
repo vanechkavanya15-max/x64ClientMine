@@ -14,8 +14,7 @@ pub const FISHING_SUB_HEADER_FAIL: u8 = 3;
 
 pub static HIT_WINDOW_MS: AtomicU32 = AtomicU32::new(0);
 
-#[no_mangle]
-pub extern "C" fn m2_fishing_get_hit_window() -> u32 {
+pub fn get_hit_window() -> u32 {
     HIT_WINDOW_MS.load(Ordering::Relaxed)
 }
 
