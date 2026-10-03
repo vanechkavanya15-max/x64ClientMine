@@ -20,6 +20,7 @@ pub mod actor_motion_queue;
 pub mod actor_picking;
 pub mod actor_pvp_keys;
 pub mod actor_rotation;
+pub mod actor_pet_instance;
 pub mod actor_text_tail;
 pub mod actor_transform;
 pub mod auto_attack;
@@ -337,6 +338,10 @@ pub mod ui_window_quickslot;
 // --- Pure Rust Faza D UI & Gameplay Moduly ---
 pub mod ui_widget_slotwindow;
 pub mod ui_window_character_status;
+pub mod ui_window_pet;
+pub mod ui_window_target;
+pub mod ui_window_shop;
+pub mod ui_window_exchange;
 
 pub mod audio_engine_playback;
 pub mod actor_target_picking;

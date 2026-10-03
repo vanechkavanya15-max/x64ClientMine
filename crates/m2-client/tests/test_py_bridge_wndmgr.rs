@@ -48,3 +48,21 @@ fn test_invalid_handle() {
     assert!(!wndMgr_SetSize(99999, 100, 100));
     assert!(!wndMgr_IsShow(99999));
 }
+
+#[test]
+fn test_autopickup() {
+    wndMgr_SetAutoPickUp(false);
+    assert!(!wndMgr_GetAutoPickUp());
+
+    wndMgr_SetAutoPickUp(true);
+    assert!(wndMgr_GetAutoPickUp());
+}
+
+#[test]
+fn test_fov_level() {
+    wndMgr_SetFOVLevel(45.0);
+    assert_eq!(wndMgr_GetFOVLevel(), 45.0);
+
+    wndMgr_SetFOVLevel(60.0);
+    assert_eq!(wndMgr_GetFOVLevel(), 60.0);
+}

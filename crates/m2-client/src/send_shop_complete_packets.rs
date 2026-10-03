@@ -10,7 +10,7 @@ use m2_client_bridge::ffi_guard::safe_ffi_call;
 use std::io::Write;
 use m2_client_bridge::net::send_queue::enqueue_outgoing_packet;
 
-pub const HEADER_CG_SHOP: u16 = 0x0505;
+pub const HEADER_CG_SHOP: u16 = 0x0801;
 
 pub const SHOP_SUB_END: u8 = 0;
 pub const SHOP_SUB_BUY: u8 = 1;

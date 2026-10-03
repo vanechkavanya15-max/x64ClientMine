@@ -1,7 +1,7 @@
 use std::ffi::CString;
 use m2_client::py_bridge_chat::{
     m2_py_chat_append_chat, m2_py_chat_clear_chat, m2_py_chat_get_chat_color, m2_py_chat_get_chat_line_count,
-    m2_py_chat_set_chat_color,
+    m2_py_chat_set_chat_color, m2_py_chat_create_whisper, m2_py_chat_render_whisper,
 };
 use m2_client::chat_buffer_v2::{get_chat_buffer, CHAT_LINE_MAX_NUM};
 
@@ -103,4 +103,23 @@ fn test_py_chat_anti_flood() {
     assert!(!result2);
     
     assert_eq!(m2_py_chat_get_chat_line_count(), 1);
+}
+
+#[test]
+fn test_py_chat_whisper() {
+    let _guard = TEST_MUTEX.lock().unwrap();
+    let name = CString::new("TargetPlayer").unwrap();
+    
+    // Przed utworzeniem whisper nie powinien istniec
+    assert!(!m2_py_chat_render_whisper(name.as_ptr()));
+    
+    // Utworz whisper
+    assert!(m2_py_chat_create_whisper(name.as_ptr()));
+    
+    // Po utworzeniu render whisper zwraca true
+    assert!(m2_py_chat_render_whisper(name.as_ptr()));
+    
+    // Null safety
+    assert!(!m2_py_chat_create_whisper(std::ptr::null()));
+    assert!(!m2_py_chat_render_whisper(std::ptr::null()));
 }

@@ -40,6 +40,7 @@ pub mod gc_opcode {
     pub const CHANGE_SPEED: u16    = 0x0218;
     pub const SKILL_LEVEL: u16     = 0x021A;
     pub const SKILL_LEVEL_NEW: u16 = 0x021B;
+    pub const SKILL_COOLTIME_END: u16 = 0x021C;
     
     // Movement
     pub const MOVE: u16            = 0x0302;
@@ -63,13 +64,18 @@ pub mod gc_opcode {
     pub const WHISPER: u16         = 0x0604;
     
     // Social
+    pub const PARTY_INVITE: u16    = 0x0710;
     pub const PARTY_ADD: u16       = 0x0711;
+    pub const PARTY_UPDATE: u16    = 0x0712;
     pub const PARTY_REMOVE: u16    = 0x0713;
     pub const GUILD: u16           = 0x0730;
     pub const MESSENGER: u16       = 0x0741;
     
-    // Shop
+    // Shop & Safebox
     pub const SHOP: u16            = 0x0810;
+    pub const SHOP_SIGN: u16       = 0x0811;
+    pub const SAFEBOX_SIZE: u16    = 0x0833;
+    pub const SAFEBOX_MONEY_CHANGE: u16 = 0x0834;
     
     // Quest
     pub const SCRIPT: u16          = 0x0910;
@@ -77,6 +83,8 @@ pub mod gc_opcode {
     
     // UI/Effects
     pub const TARGET: u16          = 0x0A10;
+    pub const TARGET_UPDATE: u16   = 0x0A11;
+    pub const TARGET_DELETE: u16   = 0x0A12;
     pub const AFFECT_ADD: u16      = 0x0A20;
     pub const AFFECT_REMOVE: u16   = 0x0A21;
     pub const SEPCIAL_EFFECT: u16  = 0x0A30;
@@ -176,6 +184,38 @@ pub enum GameEvent {
     // Kanal
     Channel {
         channel: u8,
+    },
+    // Target
+    TargetUpdate {
+        id: i32,
+        x: i32,
+        y: i32,
+    },
+    TargetDelete {
+        id: i32,
+    },
+    // Shop
+    ShopSign {
+        vid: u32,
+        sign: String,
+    },
+    // Safebox
+    SafeboxSize {
+        size: u8,
+    },
+    SafeboxMoneyChange {
+        money: i32,
+    },
+    // Party
+    PartyInvite {
+        leader_pid: u32,
+    },
+    PartyUpdate {
+        pid: u32,
+    },
+    // Skill
+    SkillCooltimeEnd {
+        skill: u8,
     },
     // Nieznany pakiet (logowany dla debugowania)
     Unknown {
@@ -541,6 +581,14 @@ fn dispatch_packet(header: u16, length: u16, data: &[u8]) {
         gc_opcode::AFFECT_ADD => handle_affect(data, true),
         gc_opcode::AFFECT_REMOVE => handle_affect(data, false),
         gc_opcode::TARGET => handle_target(data),
+        gc_opcode::TARGET_UPDATE => handle_target_update(data),
+        gc_opcode::TARGET_DELETE => handle_target_delete(data),
+        gc_opcode::SHOP_SIGN => handle_shop_sign(data),
+        gc_opcode::SAFEBOX_SIZE => handle_safebox_size(data),
+        gc_opcode::SAFEBOX_MONEY_CHANGE => handle_safebox_money_change(data),
+        gc_opcode::PARTY_INVITE => handle_party_invite(data),
+        gc_opcode::PARTY_UPDATE => handle_party_update(data),
+        gc_opcode::SKILL_COOLTIME_END => handle_skill_cooltime_end(data),
         gc_opcode::WARP => handle_warp(data),
         gc_opcode::QUEST_INFO | gc_opcode::SCRIPT
         | gc_opcode::SKILL_LEVEL | gc_opcode::SKILL_LEVEL_NEW
@@ -963,6 +1011,93 @@ fn handle_warp(data: &[u8]) {
     println!("[NET] Warp: len={}", data.len());
 }
 
+fn handle_target_update(data: &[u8]) {
+    if data.len() < 16 { return; }
+    let id = i32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+    let x = i32::from_le_bytes(data[8..12].try_into().unwrap_or_default());
+    let y = i32::from_le_bytes(data[12..16].try_into().unwrap_or_default());
+    println!("[NET] TargetUpdate: ID={} x={} y={}", id, x, y);
+    push_event(GameEvent::TargetUpdate { id, x, y });
+}
+
+fn handle_target_delete(data: &[u8]) {
+    if data.len() < 8 { return; }
+    let id = i32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+    println!("[NET] TargetDelete: ID={}", id);
+    push_event(GameEvent::TargetDelete { id });
+}
+
+fn handle_shop_sign(data: &[u8]) {
+    if data.len() < 8 { return; }
+    let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+    let sign = if data.len() > 8 {
+        let sign_data = &data[8..];
+        let sign_end = sign_data.iter().take(33).position(|&b| b == 0).unwrap_or(sign_data.len().min(33));
+        String::from_utf8_lossy(&sign_data[..sign_end]).to_string()
+    } else {
+        String::new()
+    };
+    println!("[NET] ShopSign: VID={} sign='{}'", vid, sign);
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        if sign.is_empty() {
+            crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "BINARY_PrivateShop_Disappear", vid as i32);
+        } else {
+            crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "BINARY_PrivateShop_Appear", vid as i32);
+        }
+    }
+    push_event(GameEvent::ShopSign { vid, sign });
+}
+
+fn handle_safebox_size(data: &[u8]) {
+    if data.len() < 5 { return; }
+    let size = data[4];
+    println!("[NET] SafeboxSize: size={}", size);
+    crate::recv_safebox_packets_complete::m2_safebox_recv_open(size);
+    push_event(GameEvent::SafeboxSize { size });
+}
+
+fn handle_safebox_money_change(data: &[u8]) {
+    if data.len() < 8 { return; }
+    let money = i32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+    println!("[NET] SafeboxMoneyChange: money={}", money);
+    crate::recv_safebox_packets_complete::m2_safebox_set_money(money);
+    push_event(GameEvent::SafeboxMoneyChange { money });
+}
+
+fn handle_party_invite(data: &[u8]) {
+    if data.len() < 8 { return; }
+    let leader_pid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+    println!("[NET] PartyInvite: leader_pid={}", leader_pid);
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "RecvPartyInviteQuestion", leader_pid as i32);
+    }
+    push_event(GameEvent::PartyInvite { leader_pid });
+}
+
+fn handle_party_update(data: &[u8]) {
+    if data.len() >= std::mem::size_of::<crate::recv_party_logic_v2::TPacketGCPartyUpdate>() {
+        let packet = unsafe { &*(data.as_ptr() as *const crate::recv_party_logic_v2::TPacketGCPartyUpdate) };
+        crate::recv_party_logic_v2::PARTY_MANAGER.handle_party_update(packet);
+        let pid = packet.pid;
+        println!("[NET] PartyUpdate: pid={}", pid);
+        let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+        if game_wnd != 0 {
+            crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "UpdatePartyMemberInfo", pid as i32);
+        }
+        push_event(GameEvent::PartyUpdate { pid });
+    }
+}
+
+fn handle_skill_cooltime_end(data: &[u8]) {
+    if data.len() < 5 { return; }
+    let skill_id = data[4];
+    println!("[NET] SkillCooltimeEnd: skill={}", skill_id);
+    let _ = crate::recv_combat_skills_complete::process_skill_cooltime_end(data);
+    push_event(GameEvent::SkillCooltimeEnd { skill: skill_id });
+}
+
 // ============================================================================
 // Wysylanie pakietow CG (Client -> Game)
 // ============================================================================
@@ -1099,5 +1234,13 @@ mod tests {
         assert_eq!(gc_opcode::CHAT, 0x0603);
         assert_eq!(gc_opcode::TIME, 0x0B13);
         assert_eq!(gc_opcode::CHANNEL, 0x0B14);
+        assert_eq!(gc_opcode::TARGET_UPDATE, 0x0A11);
+        assert_eq!(gc_opcode::TARGET_DELETE, 0x0A12);
+        assert_eq!(gc_opcode::SHOP_SIGN, 0x0811);
+        assert_eq!(gc_opcode::SAFEBOX_SIZE, 0x0833);
+        assert_eq!(gc_opcode::SAFEBOX_MONEY_CHANGE, 0x0834);
+        assert_eq!(gc_opcode::PARTY_INVITE, 0x0710);
+        assert_eq!(gc_opcode::PARTY_UPDATE, 0x0712);
+        assert_eq!(gc_opcode::SKILL_COOLTIME_END, 0x021C);
     }
 }

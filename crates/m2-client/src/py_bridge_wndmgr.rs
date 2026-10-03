@@ -531,3 +531,30 @@ pub extern "C" fn wndMgr_ShowCursor(_handle: u32) {}
 
 #[no_mangle]
 pub extern "C" fn wndMgr_HideCursor(_handle: u32) {}
+
+static AUTO_PICKUP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static FOV_LEVEL: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(30.0f32.to_bits());
+
+/// Zwraca aktualny stan automatycznego podnoszenia przedmiotow.
+#[no_mangle]
+pub extern "C" fn wndMgr_GetAutoPickUp() -> bool {
+    AUTO_PICKUP.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// Ustawia stan automatycznego podnoszenia przedmiotow.
+#[no_mangle]
+pub extern "C" fn wndMgr_SetAutoPickUp(enable: bool) {
+    AUTO_PICKUP.store(enable, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// Zwraca aktualny kat widzenia kamery (FOV Level).
+#[no_mangle]
+pub extern "C" fn wndMgr_GetFOVLevel() -> f32 {
+    f32::from_bits(FOV_LEVEL.load(std::sync::atomic::Ordering::SeqCst))
+}
+
+/// Ustawia kat widzenia kamery (FOV Level).
+#[no_mangle]
+pub extern "C" fn wndMgr_SetFOVLevel(fov: f32) {
+    FOV_LEVEL.store(fov.to_bits(), std::sync::atomic::Ordering::SeqCst);
+}

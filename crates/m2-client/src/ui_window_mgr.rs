@@ -706,6 +706,181 @@ pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTe
                     }
                 }
             }
+            WindowType::Bar3D => {
+                if let Some(tex) = white_tex {
+                    let fw = w as f32;
+                    let fh = h as f32;
+                    let fgx = gx as f32;
+                    let fgy = gy as f32;
+
+                    // Tlo srodkowe
+                    let bg_color = if win.color == [1.0, 1.0, 1.0, 1.0] {
+                        [0.18, 0.18, 0.18, 0.9]
+                    } else {
+                        win.color
+                    };
+                    let mut bg_quad = Quad2D::new(fgx + 1.0, fgy + 1.0, (fw - 2.0).max(1.0), (fh - 2.0).max(1.0));
+                    bg_quad.color = bg_color;
+                    add_quad(batches, tex.clone(), bg_quad);
+
+                    // Jasne krawedzie (gora i lewo)
+                    let light_col = [0.85, 0.85, 0.85, 1.0];
+                    let mut top_q = Quad2D::new(fgx, fgy, fw, 1.0);
+                    top_q.color = light_col;
+                    add_quad(batches, tex.clone(), top_q);
+
+                    let mut left_q = Quad2D::new(fgx, fgy, 1.0, fh);
+                    left_q.color = light_col;
+                    add_quad(batches, tex.clone(), left_q);
+
+                    // Ciemne krawedzie (dol i prawo)
+                    let dark_col = [0.08, 0.08, 0.08, 1.0];
+                    let mut bot_q = Quad2D::new(fgx, fgy + fh - 1.0, fw, 1.0);
+                    bot_q.color = dark_col;
+                    add_quad(batches, tex.clone(), bot_q);
+
+                    let mut right_q = Quad2D::new(fgx + fw - 1.0, fgy, 1.0, fh);
+                    right_q.color = dark_col;
+                    add_quad(batches, tex.clone(), right_q);
+                }
+            }
+            WindowType::Board | WindowType::ThinBoard => {
+                if let Some(tex) = white_tex {
+                    let fw = w as f32;
+                    let fh = h as f32;
+                    let fgx = gx as f32;
+                    let fgy = gy as f32;
+
+                    let is_thin = win.window_type == WindowType::ThinBoard;
+
+                    // Tlo panelu Metin2
+                    let bg_color = if win.color == [1.0, 1.0, 1.0, 1.0] {
+                        if is_thin { [0.03, 0.03, 0.04, 0.8] } else { [0.05, 0.05, 0.07, 0.9] }
+                    } else {
+                        win.color
+                    };
+                    let mut bg = Quad2D::new(fgx, fgy, fw, fh);
+                    bg.color = bg_color;
+                    add_quad(batches, tex.clone(), bg);
+
+                    // Ramka panelu
+                    let border_light = if is_thin {
+                        [0.45, 0.45, 0.48, 0.95]
+                    } else {
+                        [0.55, 0.50, 0.40, 0.95] // Metin2 Board - odcien zlocisto-stalowy
+                    };
+                    let border_dark = [0.12, 0.12, 0.15, 1.0];
+
+                    // Gora i lewo (jasne / podswietlenie)
+                    let mut t_q = Quad2D::new(fgx, fgy, fw, 1.0);
+                    t_q.color = border_light;
+                    add_quad(batches, tex.clone(), t_q);
+
+                    let mut l_q = Quad2D::new(fgx, fgy, 1.0, fh);
+                    l_q.color = border_light;
+                    add_quad(batches, tex.clone(), l_q);
+
+                    // Dol i prawo (ciemne / cien)
+                    let mut b_q = Quad2D::new(fgx, fgy + fh - 1.0, fw, 1.0);
+                    b_q.color = border_dark;
+                    add_quad(batches, tex.clone(), b_q);
+
+                    let mut r_q = Quad2D::new(fgx + fw - 1.0, fgy, 1.0, fh);
+                    r_q.color = border_dark;
+                    add_quad(batches, tex.clone(), r_q);
+
+                    if !is_thin && fw > 4.0 && fh > 4.0 {
+                        // Wewnetrzna ramka ozdobna dla Board
+                        let inner_border = [0.25, 0.22, 0.18, 0.85];
+                        let mut in_t = Quad2D::new(fgx + 2.0, fgy + 2.0, fw - 4.0, 1.0);
+                        in_t.color = inner_border;
+                        add_quad(batches, tex.clone(), in_t);
+
+                        let mut in_l = Quad2D::new(fgx + 2.0, fgy + 2.0, 1.0, fh - 4.0);
+                        in_l.color = inner_border;
+                        add_quad(batches, tex.clone(), in_l);
+
+                        let mut in_b = Quad2D::new(fgx + 2.0, fgy + fh - 3.0, fw - 4.0, 1.0);
+                        in_b.color = inner_border;
+                        add_quad(batches, tex.clone(), in_b);
+
+                        let mut in_r = Quad2D::new(fgx + fw - 3.0, fgy + 2.0, 1.0, fh - 4.0);
+                        in_r.color = inner_border;
+                        add_quad(batches, tex.clone(), in_r);
+                    }
+                }
+            }
+            WindowType::EditLine => {
+                let fw = w as f32;
+                let fh = h as f32;
+                let fgx = gx as f32;
+                let fgy = gy as f32;
+
+                // Tlo pola tekstowego i obramowanie
+                if let Some(tex) = white_tex {
+                    let bg_color = if win.color == [1.0, 1.0, 1.0, 1.0] {
+                        [0.05, 0.05, 0.05, 0.8]
+                    } else {
+                        win.color
+                    };
+                    let mut bg = Quad2D::new(fgx, fgy, fw, fh);
+                    bg.color = bg_color;
+                    add_quad(batches, tex.clone(), bg);
+
+                    // Wklesla ramka editline (ciemna u gory/po lewej, jasniejsza na dole/po prawej)
+                    let edge_dark = [0.1, 0.1, 0.12, 1.0];
+                    let edge_light = [0.35, 0.35, 0.38, 1.0];
+
+                    let mut t_q = Quad2D::new(fgx, fgy, fw, 1.0);
+                    t_q.color = edge_dark;
+                    add_quad(batches, tex.clone(), t_q);
+
+                    let mut l_q = Quad2D::new(fgx, fgy, 1.0, fh);
+                    l_q.color = edge_dark;
+                    add_quad(batches, tex.clone(), l_q);
+
+                    let mut b_q = Quad2D::new(fgx, fgy + fh - 1.0, fw, 1.0);
+                    b_q.color = edge_light;
+                    add_quad(batches, tex.clone(), b_q);
+
+                    let mut r_q = Quad2D::new(fgx + fw - 1.0, fgy, 1.0, fh);
+                    r_q.color = edge_light;
+                    add_quad(batches, tex.clone(), r_q);
+                }
+
+                // Renderowanie tekstu wpisanego w pole
+                let font = get_global_font_atlas();
+                let text_w = font.measure_text_width(&win.text);
+                let tx = fgx + 4.0;
+                let ty = fgy + (fh - font.line_height).max(0.0) / 2.0;
+
+                if !win.text.is_empty() {
+                    if let Some(ref font_tex) = font.texture {
+                        let t_quads = font.build_text_quads(&win.text, tx, ty, win.text_color, 1.0);
+                        for q in t_quads {
+                            add_quad(batches, font_tex.clone(), q);
+                        }
+                    }
+                }
+
+                // Migajacy kursor
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0);
+                let cursor_visible = (now_ms / 500) % 2 == 0;
+
+                if cursor_visible {
+                    if let Some(tex) = white_tex {
+                        let cur_x = tx + text_w;
+                        let cur_y = ty;
+                        let cur_h = font.line_height.min(fh.max(12.0));
+                        let mut cursor_q = Quad2D::new(cur_x, cur_y, 1.5, cur_h);
+                        cursor_q.color = win.text_color;
+                        add_quad(batches, tex.clone(), cursor_q);
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -743,6 +918,20 @@ mod tests {
         let win = wm.windows.get(&child).unwrap();
         let rect = win.calc_global_rect(Some([100, 100, 300, 200]), 1024, 768);
         assert_eq!(rect, [110, 120, 50, 50]);
+    }
+
+    #[test]
+    fn test_ui_window_mgr_new_window_types() {
+        let mut wm = WindowManager::new();
+        let bar3d = wm.register(WindowType::Bar3D);
+        let board = wm.register(WindowType::Board);
+        let thin_board = wm.register(WindowType::ThinBoard);
+        let edit_line = wm.register(WindowType::EditLine);
+
+        assert_eq!(wm.windows.get(&bar3d).unwrap().window_type, WindowType::Bar3D);
+        assert_eq!(wm.windows.get(&board).unwrap().window_type, WindowType::Board);
+        assert_eq!(wm.windows.get(&thin_board).unwrap().window_type, WindowType::ThinBoard);
+        assert_eq!(wm.windows.get(&edit_line).unwrap().window_type, WindowType::EditLine);
     }
 }
 

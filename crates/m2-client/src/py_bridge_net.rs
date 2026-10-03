@@ -1007,8 +1007,9 @@ pub extern "C" fn m2_net_SendSelectCharacterPacket(slot: u8) -> bool {
 
     // Wyslij pakiet CG_CHARACTER_SELECT (header 0x06, slot 1B)
     if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
-        if let Some((ref mut stream, _)) = *sock_guard {
-            let pkt = [0x06u8, slot];
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut pkt = [0x06u8, slot];
+            cipher.encrypt_in_place(&mut pkt);
             let _ = std::io::Write::write_all(stream, &pkt);
         }
     }
@@ -1484,6 +1485,7 @@ pub extern "C" fn m2_net_SendPartyInvitePacket(vid: u32) -> bool {
                 return stream.write_all(&enc_buf).is_ok();
             }
         }
+        m2_client_bridge::net::send_queue::enqueue_outgoing_packet(out_buf[..len].to_vec());
         true
     } else {
         false
@@ -1502,10 +1504,122 @@ pub extern "C" fn m2_net_SendPartyExitPacket() -> bool {
                 return stream.write_all(&enc_buf).is_ok();
             }
         }
+        m2_client_bridge::net::send_queue::enqueue_outgoing_packet(out_buf[..len].to_vec());
         true
     } else {
         false
     }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendSafeboxCheckin(safebox_pos: u8, inven_window: u8, inven_cell: u16) -> bool {
+    let window = if inven_window == 0 { 1 } else { inven_window };
+    let mut out_buf = [0u8; 32];
+    let len = unsafe {
+        crate::send_item_storage_packets::m2_net_send_safebox_checkin(
+            safebox_pos,
+            window,
+            inven_cell,
+            out_buf.as_mut_ptr(),
+        )
+    };
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        m2_client_bridge::net::send_queue::enqueue_outgoing_packet(out_buf[..len].to_vec());
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendSafeboxCheckout(safebox_pos: u8, inven_window: u8, inven_cell: u16) -> bool {
+    let window = if inven_window == 0 { 1 } else { inven_window };
+    let mut out_buf = [0u8; 32];
+    let len = unsafe {
+        crate::send_item_storage_packets::m2_net_send_safebox_checkout(
+            safebox_pos,
+            window,
+            inven_cell,
+            out_buf.as_mut_ptr(),
+        )
+    };
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        m2_client_bridge::net::send_queue::enqueue_outgoing_packet(out_buf[..len].to_vec());
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendSafeboxCheckinPacket(inven_cell: u16, safebox_pos: u8) -> bool {
+    m2_net_SendSafeboxCheckin(safebox_pos, 1, inven_cell)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendSafeboxCheckoutPacket(safebox_pos: u8, inven_cell: u16) -> bool {
+    m2_net_SendSafeboxCheckout(safebox_pos, 1, inven_cell)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendGuildAdmin(sub_header: u8, id: u32) -> bool {
+    let packet_res = match sub_header {
+        crate::send_guild_admin_packets::guild_sub::ADD_MEMBER => {
+            crate::send_guild_admin_packets::build_guild_add_member_packet(id)
+        }
+        crate::send_guild_admin_packets::guild_sub::REMOVE_MEMBER => {
+            crate::send_guild_admin_packets::build_guild_remove_member_packet(id)
+        }
+        crate::send_guild_admin_packets::guild_sub::DELETE_COMMENT => {
+            crate::send_guild_admin_packets::build_guild_delete_comment_packet(id)
+        }
+        _ => {
+            let mut data = Vec::new();
+            let len = (std::mem::size_of::<crate::send_guild_admin_packets::TPacketCGGuild>() + 4) as u16;
+            let packet = crate::send_guild_admin_packets::TPacketCGGuild::new(sub_header, len);
+            data.extend_from_slice(&packet.to_bytes());
+            data.extend_from_slice(&id.to_le_bytes());
+            Ok(data)
+        }
+    };
+
+    if let Ok(bytes) = packet_res {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = bytes.clone();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        m2_client_bridge::net::send_queue::enqueue_outgoing_packet(bytes);
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendGuildAddMemberPacket(vid: u32) -> bool {
+    m2_net_SendGuildAdmin(crate::send_guild_admin_packets::guild_sub::ADD_MEMBER, vid)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendGuildRemoveMemberPacket(pid: u32) -> bool {
+    m2_net_SendGuildAdmin(crate::send_guild_admin_packets::guild_sub::REMOVE_MEMBER, pid)
 }
 
 #[no_mangle]

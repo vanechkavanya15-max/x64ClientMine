@@ -11,6 +11,24 @@ pub struct TPacketGCTarget {
     pub bHPPercent: u8,
 }
 
+#[repr(C, packed)]
+#[derive(Clone, Copy, Debug)]
+pub struct TPacketGCTargetUpdate {
+    pub header: u16,
+    pub length: u16,
+    pub id: i32,
+    pub x: i32,
+    pub y: i32,
+}
+
+#[repr(C, packed)]
+#[derive(Clone, Copy, Debug)]
+pub struct TPacketGCTargetDelete {
+    pub header: u16,
+    pub length: u16,
+    pub id: i32,
+}
+
 /// Stan przechowujacy informacje o aktualnym celu
 #[derive(Default, Clone, Copy, Debug)]
 pub struct TargetState {

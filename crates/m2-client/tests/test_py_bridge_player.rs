@@ -2,6 +2,9 @@ use m2_client::py_bridge_player::{
     m2_py_player_get_item_count, m2_py_player_get_item_count_by_vnum, m2_py_player_get_item_index,
     m2_py_player_get_main_character_position, m2_py_player_get_status, m2_py_player_pick_close_item,
     m2_py_player_send_click_item, m2_py_player_set_status,
+    m2_py_player_get_local_quickslot, m2_py_player_request_add_local_quickslot,
+    m2_py_player_request_use_local_quickslot, m2_py_player_act_emotion,
+    m2_py_player_can_fishing, m2_py_player_get_fishing_value, m2_py_player_set_fishing_value,
 };
 use m2_client_bridge::state::game_state::{ItemData, GLOBAL_GAME_STATE};
 use serial_test::serial;
@@ -86,5 +89,39 @@ fn test_py_player_packets() {
     unsafe {
         assert!(m2_py_player_send_click_item(1, 0));
         assert!(m2_py_player_pick_close_item());
+    }
+}
+
+#[test]
+#[serial]
+fn test_py_player_quickslots() {
+    unsafe {
+        // Dodaj quickslot (slot 3, typ 1 = inventory, pos 12)
+        assert!(m2_py_player_request_add_local_quickslot(3, 1, 12));
+        let (q_type, q_pos) = m2_py_player_get_local_quickslot(3);
+        assert_eq!(q_type, 1);
+        assert_eq!(q_pos, 12);
+
+        // Uzyj quickslota (typ 1 wysyla packet TPacketCGItemUse)
+        assert!(m2_py_player_request_use_local_quickslot(3));
+    }
+}
+
+#[test]
+#[serial]
+fn test_py_player_act_emotion() {
+    unsafe {
+        assert!(m2_py_player_act_emotion(10));
+    }
+}
+
+#[test]
+#[serial]
+fn test_py_player_fishing() {
+    GLOBAL_GAME_STATE.write().unwrap().reset();
+    unsafe {
+        assert!(m2_py_player_can_fishing());
+        m2_py_player_set_fishing_value(42);
+        assert_eq!(m2_py_player_get_fishing_value(), 42);
     }
 }

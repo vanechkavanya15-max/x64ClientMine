@@ -1,5 +1,25 @@
 use crate::character_manager_core::{get_character_manager, InstanceBase};
 use m2_client_bridge::ffi_guard::safe_ffi_call;
+use std::collections::HashMap;
+use std::ffi::CStr;
+use std::os::raw::c_char;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{OnceLock, RwLock};
+
+static PICKED_VID: AtomicU32 = AtomicU32::new(0);
+
+#[derive(Debug, Clone, Default)]
+pub struct RaceData {
+    pub race_id: u32,
+    pub path: String,
+    pub loaded: bool,
+}
+
+static RACE_DATA_REGISTRY: OnceLock<RwLock<HashMap<u32, RaceData>>> = OnceLock::new();
+
+pub fn get_race_registry() -> &'static RwLock<HashMap<u32, RaceData>> {
+    RACE_DATA_REGISTRY.get_or_init(|| RwLock::new(HashMap::new()))
+}
 
 /// Pobiera referencje do aktora o danym VID i zwraca u32 VID, jesli istnieje
 #[no_mangle]
@@ -140,5 +160,71 @@ pub extern "C" fn m2_chr_is_dead(vid: u32) -> bool {
         } else {
             false
         }
+    })
+}
+
+/// Ustawia identyfikator kliknietego aktora (VID).
+#[no_mangle]
+pub extern "C" fn m2_py_chr_set_picked_vid(vid: u32) {
+    PICKED_VID.store(vid, Ordering::SeqCst);
+}
+
+/// Pobiera identyfikator kliknietego aktora (VID).
+#[no_mangle]
+pub extern "C" fn m2_py_chr_pick() -> u32 {
+    safe_ffi_call(0, || {
+        let picked = PICKED_VID.load(Ordering::SeqCst);
+        if picked != 0 {
+            return picked;
+        }
+        if let Ok(mgr) = get_character_manager().read() {
+            if let Some(main_vid) = mgr.main_actor_vid {
+                return main_vid;
+            }
+        }
+        0
+    })
+}
+
+/// Rejestruje nowa rase w menedzerze ras postaci (chrmgr.CreateRace).
+#[no_mangle]
+pub extern "C" fn m2_py_chrmgr_create_race(race_id: u32) -> bool {
+    safe_ffi_call(false, || {
+        let mut reg = match get_race_registry().write() {
+            Ok(lock) => lock,
+            Err(_) => return false,
+        };
+        reg.entry(race_id).or_insert(RaceData {
+            race_id,
+            path: String::new(),
+            loaded: false,
+        });
+        true
+    })
+}
+
+/// Laduje sciezke i dane dla zarejestrowanej rasy (chrmgr.LoadRaceData).
+#[no_mangle]
+pub extern "C" fn m2_py_chrmgr_load_race_data(race_id: u32, path: *const c_char) -> bool {
+    safe_ffi_call(false, || {
+        if path.is_null() {
+            return false;
+        }
+        let c_str = unsafe { CStr::from_ptr(path) };
+        let path_str = match c_str.to_str() {
+            Ok(s) => s.to_string(),
+            Err(_) => return false,
+        };
+
+        let mut reg = match get_race_registry().write() {
+            Ok(lock) => lock,
+            Err(_) => return false,
+        };
+        reg.insert(race_id, RaceData {
+            race_id,
+            path: path_str,
+            loaded: true,
+        });
+        true
     })
 }

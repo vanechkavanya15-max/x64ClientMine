@@ -33,29 +33,50 @@ impl FontAtlas {
         }
     }
 
+    /// Zwraca znaki ASCII + polskie znaki diakrytyczne + symbole Metin2
+    pub fn get_chars_to_render() -> Vec<char> {
+        let mut chars = Vec::new();
+        // ASCII 32..126
+        for code in 32u8..=126u8 {
+            chars.push(code as char);
+        }
+        // Polskie znaki diakrytyczne
+        let polish_chars = ['ą', 'ć', 'ę', 'ł', 'ń', 'ó', 'ś', 'ź', 'ż', 'Ą', 'Ć', 'Ę', 'Ł', 'Ń', 'Ó', 'Ś', 'Ź', 'Ż'];
+        chars.extend_from_slice(&polish_chars);
+        // Symbole Metin2 i interpunkcja
+        let special_chars = [
+            '”', '“', '„', '»', '«', '·', '•', '©', '®', '™', '°', '±', '—', '–',
+            '↑', '↓', '→', '←', '▲', '▼', '►', '◄', '★', '☆', '♥', '♦', '♣', '♠',
+        ];
+        chars.extend_from_slice(&special_chars);
+        chars
+    }
+
     /// Inicjalizuje atlas czcionki na GPU
     pub fn init_atlas(&mut self) -> Result<(), String> {
         if self.texture.is_some() {
             return Ok(());
         }
 
-        let atlas_w = 512u32;
-        let atlas_h = 256u32;
+        let chars = Self::get_chars_to_render();
+
+        let atlas_w = 1024u32;
+        let atlas_h = 512u32;
         let mut rgba = vec![0u8; (atlas_w * atlas_h * 4) as usize];
 
-        // Wygeneruj glify (32..127 ASCII oraz typowe znaki)
-        let cell_w = 12u32;
-        let cell_h = 16u32;
+        // Wygeneruj glify (16x20 pikseli na komorke)
+        let cell_w = 16u32;
+        let cell_h = 20u32;
         let cols = atlas_w / cell_w;
 
         #[cfg(windows)]
         {
-            self.rasterize_gdi_glyphs(&mut rgba, atlas_w, atlas_h, cell_w, cell_h, cols);
+            self.rasterize_gdi_glyphs(&mut rgba, atlas_w, atlas_h, cell_w, cell_h, cols, &chars);
         }
 
         #[cfg(not(windows))]
         {
-            self.rasterize_fallback_glyphs(&mut rgba, atlas_w, atlas_h, cell_w, cell_h, cols);
+            self.rasterize_fallback_glyphs(&mut rgba, atlas_w, atlas_h, cell_w, cell_h, cols, &chars);
         }
 
         // Stworz teksture GPU w WGPU
@@ -66,7 +87,7 @@ impl FontAtlas {
         let ctx = ctx_mutex.as_ref()
             .ok_or_else(|| "WGPU context is None".to_string())?;
 
-        let gpu_tex = ctx.create_texture_from_rgba(&rgba, atlas_w, atlas_h, Some("UI Font Atlas"))?;
+        let gpu_tex = ctx.create_texture_from_rgba(&rgba, atlas_w, atlas_h, Some("UI Font Atlas UTF-8"))?;
         self.texture = Some(Arc::new(gpu_tex));
         Ok(())
     }
@@ -80,6 +101,7 @@ impl FontAtlas {
         cell_w: u32,
         cell_h: u32,
         cols: u32,
+        chars: &[char],
     ) {
         use std::ffi::c_void;
 
@@ -134,7 +156,7 @@ impl FontAtlas {
         unsafe {
             let hdc = CreateCompatibleDC(std::ptr::null_mut());
             if hdc.is_null() {
-                self.rasterize_fallback_glyphs(rgba, atlas_w, atlas_h, cell_w, cell_h, cols);
+                self.rasterize_fallback_glyphs(rgba, atlas_w, atlas_h, cell_w, cell_h, cols, chars);
                 return;
             }
 
@@ -156,7 +178,7 @@ impl FontAtlas {
             let hbm = CreateDIBSection(hdc, &bmi, 0, &mut bits, std::ptr::null_mut(), 0);
             if hbm.is_null() || bits.is_null() {
                 DeleteDC(hdc);
-                self.rasterize_fallback_glyphs(rgba, atlas_w, atlas_h, cell_w, cell_h, cols);
+                self.rasterize_fallback_glyphs(rgba, atlas_w, atlas_h, cell_w, cell_h, cols, chars);
                 return;
             }
 
@@ -173,18 +195,17 @@ impl FontAtlas {
 
             let dib_slice = std::slice::from_raw_parts_mut(bits as *mut u8, (atlas_w * atlas_h * 4) as usize);
 
-            // Renderuj znaki od 32 (spacja) do 126 (tylda)
-            for code in 32u8..=126u8 {
-                let c = code as char;
-                let idx = (code - 32) as u32;
-                let col = idx % cols;
-                let row = idx / cols;
+            // Renderuj znaki z zestawu UTF-8
+            for (idx, &c) in chars.iter().enumerate() {
+                let u32_c = c as u32;
+                let col = (idx as u32) % cols;
+                let row = (idx as u32) / cols;
 
                 let gx = col * cell_w;
                 let gy = row * cell_h;
 
                 let mut char_w: i32 = 0;
-                GetCharWidth32W(hdc, code as u32, code as u32, &mut char_w);
+                GetCharWidth32W(hdc, u32_c, u32_c, &mut char_w);
                 let actual_w = if char_w > 0 { char_w.min(cell_w as i32) } else { 7 };
 
                 let mut rc = RECT {
@@ -194,8 +215,12 @@ impl FontAtlas {
                     bottom: (gy + cell_h) as i32,
                 };
 
-                let ch_utf16: [u16; 1] = [code as u16];
-                DrawTextW(hdc, ch_utf16.as_ptr(), 1, &mut rc, 0x00000000 | 0x00000004); // DT_LEFT | DT_VCENTER
+                let ch_utf16: Vec<u16> = {
+                    let mut b = [0; 2];
+                    c.encode_utf16(&mut b).to_vec()
+                };
+
+                DrawTextW(hdc, ch_utf16.as_ptr(), ch_utf16.len() as i32, &mut rc, 0x00000000 | 0x00000004); // DT_LEFT | DT_VCENTER
 
                 let u0 = gx as f32 / atlas_w as f32;
                 let v0 = gy as f32 / atlas_h as f32;
@@ -231,7 +256,7 @@ impl FontAtlas {
         }
     }
 
-    fn rasterize_fallback_glyphs(
+    pub fn rasterize_fallback_glyphs(
         &mut self,
         rgba: &mut [u8],
         atlas_w: u32,
@@ -239,13 +264,12 @@ impl FontAtlas {
         cell_w: u32,
         cell_h: u32,
         cols: u32,
+        chars: &[char],
     ) {
-        // Podstawowy generator bitmapowy dla znakow ASCII
-        for code in 32u8..=126u8 {
-            let c = code as char;
-            let idx = (code - 32) as u32;
-            let col = idx % cols;
-            let row = idx / cols;
+        // Podstawowy generator bitmapowy dla znakow fallback
+        for (idx, &c) in chars.iter().enumerate() {
+            let col = (idx as u32) % cols;
+            let row = (idx as u32) / cols;
             let gx = col * cell_w;
             let gy = row * cell_h;
 
@@ -327,6 +351,18 @@ impl FontAtlas {
         }
         quads
     }
+
+    /// Generuje quady 2D z pelna obsluga UTF-8 (alias kompatybilnosci)
+    pub fn render_text_utf8(
+        &self,
+        text: &str,
+        x: i32,
+        y: i32,
+        color: [f32; 4],
+        scale: f32,
+    ) -> Vec<Quad2D> {
+        self.build_text_quads(text, x as f32, y as f32, color, scale)
+    }
 }
 
 static GLOBAL_FONT_ATLAS: OnceLock<Mutex<FontAtlas>> = OnceLock::new();
@@ -337,3 +373,35 @@ pub fn get_global_font_atlas() -> std::sync::MutexGuard<'static, FontAtlas> {
         .lock()
         .unwrap()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_font_atlas_utf8_chars() {
+        let chars = FontAtlas::get_chars_to_render();
+        assert!(chars.contains(&'a'));
+        assert!(chars.contains(&'ą'));
+        assert!(chars.contains(&'Ł'));
+        assert!(chars.contains(&'•'));
+    }
+
+    #[test]
+    fn test_font_atlas_measure_and_build() {
+        let mut atlas = FontAtlas::new();
+        let chars = FontAtlas::get_chars_to_render();
+        let mut rgba = vec![0u8; 1024 * 512 * 4];
+        atlas.rasterize_fallback_glyphs(&mut rgba, 1024, 512, 16, 20, 64, &chars);
+
+        assert!(atlas.glyphs.contains_key(&'ą'));
+        assert!(atlas.glyphs.contains_key(&'ź'));
+
+        let w = atlas.measure_text_width("Witaj Swiecie");
+        assert!(w > 0.0);
+
+        let quads = atlas.build_text_quads("Czesc", 10.0, 10.0, [1.0, 1.0, 1.0, 1.0], 1.0);
+        assert_eq!(quads.len(), 5);
+    }
+}
+

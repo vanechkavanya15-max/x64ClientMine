@@ -102,3 +102,118 @@ pub unsafe extern "C" fn m2_py_player_get_main_character_position(
         true
     })
 }
+
+static FISHING_VALUE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Pobiera lokalny slot z paska szybkiego dostepu (type, pos).
+#[allow(improper_ctypes_definitions)]
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_local_quickslot(slot_idx: u32) -> (u32, u32) {
+    safe_ffi_call((0, 0), || {
+        let res = crate::recv_quickslot_sync_v2::m2_quickslot_get_v2(slot_idx as u8);
+        (res.slot_type as u32, res.slot_position)
+    })
+}
+
+/// Wysyla zadanie przypisania nowego elementu do lokalnego slotu szybkiego wyboru.
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_request_add_local_quickslot(
+    slot_idx: u32,
+    slot_type: u32,
+    slot_pos: u32,
+) -> bool {
+    safe_ffi_call(false, || {
+        // Optymistyczna synchronizacja lokalnego rejestru quickslotow
+        let add_pkt = crate::recv_quickslot_sync_v2::TPacketGCQuickSlotAdd {
+            header: 0,
+            length: 0,
+            pos: slot_idx as u8,
+            slot: crate::recv_quickslot_sync_v2::TQuickSlot {
+                slot_type: slot_type as u8,
+                slot_position: slot_pos,
+            },
+        };
+        crate::recv_quickslot_sync_v2::process_quickslot_add(&add_pkt as *const _ as *const u8);
+
+        // Wyslanie pakietu sieciowego do serwera
+        crate::send_quickslot_quest_v2::SendQuickSlotAddPacket(
+            slot_idx as u8,
+            slot_type as u8,
+            slot_pos as u8,
+        )
+    })
+}
+
+/// Wysyla zadanie aktywacji/uzycia wskazanego slotu szybkiego dostepu.
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_request_use_local_quickslot(slot_idx: u32) -> bool {
+    safe_ffi_call(false, || {
+        let slot = crate::recv_quickslot_sync_v2::m2_quickslot_get_v2(slot_idx as u8);
+        match slot.slot_type {
+            crate::recv_quickslot_sync_v2::SLOT_TYPE_INVENTORY => {
+                let packet = TPacketCGItemUse::new(1, slot.slot_position as u16);
+                enqueue_outgoing_packet(packet.to_bytes())
+            }
+            crate::recv_quickslot_sync_v2::SLOT_TYPE_SKILL => {
+                crate::send_combat::SendUseSkillPacket(slot.slot_position, 0)
+            }
+            crate::recv_quickslot_sync_v2::SLOT_TYPE_EMOTION => {
+                m2_py_player_act_emotion(slot.slot_position)
+            }
+            _ => false,
+        }
+    })
+}
+
+/// Uruchamia animacje emocji postaci gracza.
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_act_emotion(emotion_id: u32) -> bool {
+    safe_ffi_call(false, || {
+        let mut state = GLOBAL_GAME_STATE.write().unwrap();
+        let main_vid = state.player.vid;
+        if let Some(actor) = state.actors.get_mut(&main_vid) {
+            actor.current_motion = emotion_id as i32;
+        }
+        if let Ok(mut mgr) = crate::character_manager_core::get_character_manager().write() {
+            if let Some(main_vid) = mgr.main_actor_vid {
+                if let Some(inst) = mgr.get_instance_mut(main_vid) {
+                    inst.active_once_motion = Some(emotion_id);
+                }
+            }
+        }
+        true
+    })
+}
+
+/// Sprawdza czy gracz moze rozpoczac lowienie ryb.
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_can_fishing() -> bool {
+    safe_ffi_call(false, || {
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        if state.player.is_mounted {
+            return false;
+        }
+        if let Ok(mgr) = crate::character_manager_core::get_character_manager().read() {
+            if let Some(main_inst) = mgr.get_main_instance() {
+                if main_inst.is_dead {
+                    return false;
+                }
+            }
+        }
+        true
+    })
+}
+
+/// Ustawia wartosc stanu lowienia ryb (gauge/wartosc lowienia).
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_set_fishing_value(val: u32) {
+    FISHING_VALUE.store(val, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// Pobiera aktualna wartosc stanu lowienia ryb.
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_fishing_value() -> u32 {
+    safe_ffi_call(0, || {
+        FISHING_VALUE.load(std::sync::atomic::Ordering::SeqCst)
+    })
+}

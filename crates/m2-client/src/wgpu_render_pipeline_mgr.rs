@@ -20,8 +20,10 @@ pub struct WgpuRenderPipelineManager {
     pub depth_view: wgpu::TextureView,
 
     pub skybox_pipeline: Option<wgpu::RenderPipeline>,
+    pub skybox_bind_group: Option<wgpu::BindGroup>,
     pub terrain_pipeline: Option<wgpu::RenderPipeline>,
     pub water_pipeline: Option<wgpu::RenderPipeline>,
+    pub water_bind_group: Option<wgpu::BindGroup>,
     pub speedtree_pipeline: Option<wgpu::RenderPipeline>,
     pub character_pipeline: Option<wgpu::RenderPipeline>,
     pub ground_item_pipeline: Option<wgpu::RenderPipeline>,
@@ -83,7 +85,7 @@ impl WgpuRenderPipelineManager {
 
         let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let (char_pipe, _char_ub, char_ubg, _u_layout, _tex_layout) =
+        let (char_pipe, _char_ub, char_ubg, u_layout, _tex_layout) =
             WgpuEngineContext::setup_character_pipeline(device, wgpu::TextureFormat::Rgba8UnormSrgb);
         let warrior = crate::character_model_vfs_loader::load_warrior_model(device).ok();
         let (char_vb, char_vc, char_ib, char_ic) = if let Some(m) = warrior {
@@ -97,24 +99,123 @@ impl WgpuRenderPipelineManager {
             (None, 0, None, 0)
         };
 
+        // 1. Inicjalizacja skybox_pipeline
+        let skybox_renderer = crate::wgpu_skybox_renderer::SkyboxRenderer::new(
+            device,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            Self::DEPTH_FORMAT,
+        );
+        let skybox_pipeline = Some(skybox_renderer.pipeline);
+        let skybox_bind_group = Some(skybox_renderer.uniform_bind_group);
+
+        // 2. Inicjalizacja terrain_pipeline oraz bufora wierzcholkow terenu
+        let terrain_pipeline = Some(crate::wgpu_terrain_renderer::create_terrain_pipeline(
+            device,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            &u_layout,
+        ));
+        let terrain_bind_group = Some(char_ubg.clone());
+        let (terrain_vertex_buffer, terrain_vertex_count) = if let Some((buf, count)) = WgpuEngineContext::load_terrain_mesh_from_vfs(device) {
+            (Some(buf), count)
+        } else {
+            let heights = vec![0.0f32; 33 * 33];
+            let raw_map = crate::terrain_height_patch::RawHeightMap::new(33, 33, heights);
+            let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
+            let count = verts.len() as u32;
+            let buf = if !verts.is_empty() {
+                Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Terrain Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&verts),
+                    usage: wgpu::BufferUsages::VERTEX,
+                }))
+            } else {
+                None
+            };
+            (buf, count)
+        };
+
+        // 3. Inicjalizacja water_pipeline
+        let water_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Water Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+        let water_renderer = crate::wgpu_water_plane_renderer::WgpuWaterPlaneRenderer::new(
+            device,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            &water_bind_group_layout,
+        );
+        let water_pipeline = Some(water_renderer.pipeline);
+        let water_bind_group = Some(water_renderer.bind_group);
+
+        let water_verts = [
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [-5000.0, -5000.0, 0.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [ 5000.0, -5000.0, 0.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [ 5000.0,  5000.0, 0.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [-5000.0, -5000.0, 0.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [ 5000.0,  5000.0, 0.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [-5000.0,  5000.0, 0.0], diffuse: 0xFFFFFFFF },
+        ];
+        let water_vertex_buffer = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Water Plane Vertex Buffer"),
+            contents: bytemuck::cast_slice(&water_verts),
+            usage: wgpu::BufferUsages::VERTEX,
+        }));
+        let water_vertex_count = water_verts.len() as u32;
+
+        // 4. Inicjalizacja text_tail_pipeline
+        let text_tail_pipeline = Some(Self::create_text_tail_pipeline(
+            device,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            Self::DEPTH_FORMAT,
+        ));
+
         Self {
             depth_texture,
             depth_view,
-            skybox_pipeline: None,
-            terrain_pipeline: None,
-            water_pipeline: None,
+            skybox_pipeline,
+            skybox_bind_group,
+            terrain_pipeline,
+            water_pipeline,
+            water_bind_group,
             speedtree_pipeline: None,
             character_pipeline: Some(char_pipe),
             ground_item_pipeline: None,
             magic_effect_pipeline: None,
             projectile_pipeline: None,
-            text_tail_pipeline: None,
+            text_tail_pipeline,
 
-            terrain_vertex_buffer: None,
-            terrain_bind_group: None,
-            terrain_vertex_count: 0,
-            water_vertex_buffer: None,
-            water_vertex_count: 0,
+            terrain_vertex_buffer,
+            terrain_bind_group,
+            terrain_vertex_count,
+            water_vertex_buffer,
+            water_vertex_count,
             speedtree_vertex_buffer: None,
             speedtree_vertex_count: 0,
             character_vertex_buffer: char_vb,
@@ -132,6 +233,95 @@ impl WgpuRenderPipelineManager {
             text_tail_vertex_buffer: None,
             text_tail_vertex_count: 0,
         }
+    }
+
+    pub fn create_skybox_pipeline(
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
+    ) -> wgpu::RenderPipeline {
+        let skybox_renderer = crate::wgpu_skybox_renderer::SkyboxRenderer::new(device, format, depth_format);
+        skybox_renderer.pipeline
+    }
+
+    pub fn create_text_tail_pipeline(
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
+    ) -> wgpu::RenderPipeline {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("TextTail WGSL Shader"),
+            source: wgpu::ShaderSource::Wgsl(r#"
+                struct VertexInput {
+                    @location(0) position: vec2<f32>,
+                    @location(1) tex_coords: vec2<f32>,
+                    @location(2) color: vec4<f32>,
+                };
+                struct VertexOutput {
+                    @builtin(position) clip_position: vec4<f32>,
+                    @location(0) tex_coords: vec2<f32>,
+                    @location(1) color: vec4<f32>,
+                };
+                @vertex
+                fn vs_main(model: VertexInput) -> VertexOutput {
+                    var out: VertexOutput;
+                    out.clip_position = vec4<f32>(model.position, 0.0, 1.0);
+                    out.tex_coords = model.tex_coords;
+                    out.color = model.color;
+                    return out;
+                }
+                @fragment
+                fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+                    return in.color;
+                }
+            "#.into()),
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("TextTail Pipeline Layout"),
+            bind_group_layouts: &[],
+            immediate_size: 0,
+        });
+
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("TextTail Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[Some(crate::wgpu_engine_context::Vertex2D::desc())],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: depth_format,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::Always),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        })
     }
 
     pub fn resize(&mut self, device: &wgpu::Device, width: u32, height: u32) {
@@ -222,6 +412,9 @@ impl WgpuRenderPipelineManager {
                     RenderPhase::SkyBoxAndAmbient => {
                         if let Some(pipeline) = &self.skybox_pipeline {
                             render_pass.set_pipeline(pipeline);
+                            if let Some(bg) = &self.skybox_bind_group {
+                                render_pass.set_bind_group(0, bg, &[]);
+                            }
                             render_pass.draw(0..6, 0..1);
                         }
                     }
@@ -240,6 +433,9 @@ impl WgpuRenderPipelineManager {
                     RenderPhase::Water3D => {
                         if let (Some(pipeline), Some(vb)) = (&self.water_pipeline, &self.water_vertex_buffer) {
                             render_pass.set_pipeline(pipeline);
+                            if let Some(bg) = &self.water_bind_group {
+                                render_pass.set_bind_group(0, bg, &[]);
+                            }
                             render_pass.set_vertex_buffer(0, vb.slice(..));
                             render_pass.draw(0..self.water_vertex_count, 0..1);
                         }

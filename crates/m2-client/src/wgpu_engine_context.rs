@@ -43,6 +43,41 @@ pub struct Vertex2D {
     pub color: [f32; 4],
 }
 
+impl Vertex2D {
+    pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex2D>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: (std::mem::size_of::<[f32; 2]>() * 2) as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+            ],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CharacterActorUniforms {
+    pub view_proj: [[f32; 4]; 4],
+    pub bone_matrices: [[[f32; 4]; 4]; 128],
+    pub fog_color: [f32; 4],
+    pub fog_params: [f32; 4],
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ScreenUniforms {
@@ -124,6 +159,8 @@ pub const SHADER_CHARACTER_WGSL: &str = r#"
 struct ActorUniforms {
     view_proj: mat4x4<f32>,
     bone_matrices: array<mat4x4<f32>, 128>,
+    fog_color: vec4<f32>,
+    fog_params: vec4<f32>,
 }
 
 @group(0) @binding(0)
@@ -146,6 +183,7 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coord: vec2<f32>,
     @location(1) normal: vec3<f32>,
+    @location(2) world_pos: vec3<f32>,
 }
 
 @vertex
@@ -170,6 +208,7 @@ fn vs_main(model: VertexInput) -> VertexOutput {
     out.clip_position = uniforms.view_proj * vec4<f32>(skinned_pos.xyz, 1.0);
     out.tex_coord = model.tex_coord;
     out.normal = normalize(skinned_normal.xyz);
+    out.world_pos = skinned_pos.xyz;
     return out;
 }
 
@@ -182,7 +221,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let light_mult = min(ambient + diffuse * 0.75, 1.0);
 
     let base_color = textureSample(t_diffuse, s_diffuse, in.tex_coord);
-    return vec4<f32>(base_color.rgb * light_mult, base_color.a);
+    let lit_color = base_color.rgb * light_mult;
+
+    // Aplikacja mgly (fog_params: [fog_start, fog_end, density, mode])
+    let fog_start = uniforms.fog_params.x;
+    let fog_end = uniforms.fog_params.y;
+    let dist = length(in.world_pos);
+    let fog_factor = clamp((dist - fog_start) / max(fog_end - fog_start, 0.0001), 0.0, 1.0);
+    let final_color = mix(lit_color, uniforms.fog_color.rgb, fog_factor);
+
+    return vec4<f32>(final_color, base_color.a);
 }
 "#;
 
@@ -268,7 +316,7 @@ impl WgpuEngineContext {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -354,9 +402,11 @@ impl WgpuEngineContext {
             cache: None,
         });
 
-        let initial_uniforms = crate::wgpu_granny_actor_renderer::ActorUniforms {
+        let initial_uniforms = CharacterActorUniforms {
             view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
             bone_matrices: [glam::Mat4::IDENTITY.to_cols_array_2d(); 128],
+            fog_color: [0.7, 0.75, 0.8, 1.0],
+            fog_params: [2400.0, 25600.0, 0.001, 1.0],
         };
 
         let uniform_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -449,18 +499,22 @@ impl WgpuEngineContext {
 
             let (terrain_pipeline, terrain_vertex_buffer, terrain_vertex_count) = {
                 let tp = crate::wgpu_terrain_renderer::create_terrain_pipeline(&device, config.format, &char_u_layout);
-                let heights = vec![0.0f32; 33 * 33];
-                let raw_map = crate::terrain_height_patch::RawHeightMap::new(33, 33, heights);
-                let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
-                let count = verts.len() as u32;
-                let buf = if !verts.is_empty() {
-                    Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("Terrain Ground Mesh Buffer"),
-                        contents: bytemuck::cast_slice(&verts),
-                        usage: wgpu::BufferUsages::VERTEX,
-                    }))
-                } else { None };
-                (Some(tp), buf, count)
+                if let Some((buf, count)) = Self::load_terrain_mesh_from_vfs(&device) {
+                    (Some(tp), Some(buf), count)
+                } else {
+                    let heights = vec![0.0f32; 33 * 33];
+                    let raw_map = crate::terrain_height_patch::RawHeightMap::new(33, 33, heights);
+                    let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
+                    let count = verts.len() as u32;
+                    let buf = if !verts.is_empty() {
+                        Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Terrain Ground Mesh Buffer"),
+                            contents: bytemuck::cast_slice(&verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        }))
+                    } else { None };
+                    (Some(tp), buf, count)
+                }
             };
 
             Ok(Self {
@@ -542,18 +596,22 @@ impl WgpuEngineContext {
 
             let (terrain_pipeline, terrain_vertex_buffer, terrain_vertex_count) = {
                 let tp = crate::wgpu_terrain_renderer::create_terrain_pipeline(&device, wgpu::TextureFormat::Rgba8UnormSrgb, &char_u_layout);
-                let heights = vec![0.0f32; 33 * 33];
-                let raw_map = crate::terrain_height_patch::RawHeightMap::new(33, 33, heights);
-                let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
-                let count = verts.len() as u32;
-                let buf = if !verts.is_empty() {
-                    Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("Headless Terrain Ground Mesh Buffer"),
-                        contents: bytemuck::cast_slice(&verts),
-                        usage: wgpu::BufferUsages::VERTEX,
-                    }))
-                } else { None };
-                (Some(tp), buf, count)
+                if let Some((buf, count)) = Self::load_terrain_mesh_from_vfs(&device) {
+                    (Some(tp), Some(buf), count)
+                } else {
+                    let heights = vec![0.0f32; 33 * 33];
+                    let raw_map = crate::terrain_height_patch::RawHeightMap::new(33, 33, heights);
+                    let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
+                    let count = verts.len() as u32;
+                    let buf = if !verts.is_empty() {
+                        Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Headless Terrain Ground Mesh Buffer"),
+                            contents: bytemuck::cast_slice(&verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        }))
+                    } else { None };
+                    (Some(tp), buf, count)
+                }
             };
 
             Ok(Self {
@@ -1220,13 +1278,73 @@ impl WgpuEngineContext {
             let model_cols = model.to_cols_array_2d();
             let bones = [model_cols; 128];
 
-            let uniforms = crate::wgpu_granny_actor_renderer::ActorUniforms {
+            let uniforms = CharacterActorUniforms {
                 view_proj: view_proj.to_cols_array_2d(),
                 bone_matrices: bones,
+                fog_color: [0.7, 0.75, 0.8, 1.0],
+                fog_params: [2400.0, 25600.0, 0.001, 1.0],
             };
 
             self.queue.write_buffer(buf, 0, bytemuck::cast_slice(&[uniforms]));
         }
+    }
+
+    /// Laduje siatke wierzcholkow terenu z VFS lub archiwow gry (np. height.raw z map_outdoor)
+    pub fn load_terrain_mesh_from_vfs(device: &wgpu::Device) -> Option<(wgpu::Buffer, u32)> {
+        use wgpu::util::DeviceExt;
+        let candidates = [
+            "alune24update_dung1/000000/height.raw",
+            "d:/ymir work/map/metin2_map_a1/000000/height.raw",
+            "map/metin2_map_a1/000000/height.raw",
+            "E:/Alune-AkademiaDUMP/alune24update_dung1/000000/height.raw",
+            "E:/Alune-AkademiaDUMP/metin2_map_a1/000000/height.raw",
+        ];
+
+        let mut raw_bytes = None;
+        for cand in &candidates {
+            if let Some(bytes) = crate::texture_vfs_pipeline::read_vfs_bytes(cand) {
+                if bytes.len() >= crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_BYTES {
+                    raw_bytes = Some(bytes);
+                    break;
+                }
+            }
+            if let Ok(bytes) = std::fs::read(cand) {
+                if bytes.len() >= crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_BYTES {
+                    raw_bytes = Some(bytes);
+                    break;
+                }
+            }
+        }
+
+        if let Some(bytes) = raw_bytes {
+            let mut loader = crate::map_outdoor_vfs_loader::MapOutdoorVfsLoader::new();
+            if loader.load_height_map(&bytes[..crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_BYTES]).is_ok() {
+                if let Some(ref hm) = loader.height_map {
+                    let mut heights = Vec::with_capacity(crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_XSIZE * crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_YSIZE);
+                    for y in 0..crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_YSIZE {
+                        for x in 0..crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_XSIZE {
+                            heights.push(hm.get_height(x, y) as f32);
+                        }
+                    }
+                    let raw_map = crate::terrain_height_patch::RawHeightMap::new(
+                        crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_XSIZE,
+                        crate::map_outdoor_vfs_loader::HEIGHTMAP_RAW_YSIZE,
+                        heights,
+                    );
+                    let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
+                    if !verts.is_empty() {
+                        let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Terrain VFS Heightmap Mesh Buffer"),
+                            contents: bytemuck::cast_slice(&verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        return Some((buf, verts.len() as u32));
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     /// Renderuje kompletna klatke ze sceny 3D (siatka terenu, siatka Granny postaci i miecza) oraz nakladkami UI 2D
@@ -1262,6 +1380,14 @@ impl WgpuEngineContext {
 
         let aspect = (self.width as f32) / (self.height as f32).max(1.0);
         self.update_character_uniforms(player_pos, player_rot_deg, aspect);
+
+        // Uruchom ladowanie siatki terenu z VFS lub map_outdoor jesli dostepne
+        if self.terrain_vertex_buffer.is_none() || self.terrain_vertex_count == 0 {
+            if let Some((buf, count)) = Self::load_terrain_mesh_from_vfs(&self.device) {
+                self.terrain_vertex_buffer = Some(buf);
+                self.terrain_vertex_count = count;
+            }
+        }
 
         // 1. Pass 3D z buforem glebokosci
         if let (Some(pipeline), Some(uniform_bg), Some(depth_view)) = (

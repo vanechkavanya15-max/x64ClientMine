@@ -26,8 +26,8 @@ fn test_send_shop_end() {
     assert_eq!(len, 5);
     
     // Check struct memory
-    assert_eq!(buf[0], 0x05); // Header 0x0505
-    assert_eq!(buf[1], 0x05);
+    assert_eq!(buf[0], 0x01); // Header 0x0801
+    assert_eq!(buf[1], 0x08);
     assert_eq!(buf[2], 0x05); // Length 5
     assert_eq!(buf[3], 0x00);
     assert_eq!(buf[4], SHOP_SUB_END);
@@ -44,8 +44,8 @@ fn test_send_shop_buy() {
     let len = m2_send_shop_buy(pos, count, buf.as_mut_ptr());
     
     assert_eq!(len, 7); // 5 (struct) + 1 (count) + 1 (pos)
-    assert_eq!(buf[0], 0x05); // Header 0x0505
-    assert_eq!(buf[1], 0x05);
+    assert_eq!(buf[0], 0x01); // Header 0x0801
+    assert_eq!(buf[1], 0x08);
     assert_eq!(buf[2], 0x07); // Length 7
     assert_eq!(buf[3], 0x00);
     assert_eq!(buf[4], SHOP_SUB_BUY);
@@ -63,8 +63,8 @@ fn test_send_shop_sell() {
     let len = m2_send_shop_sell(pos, buf.as_mut_ptr());
     
     assert_eq!(len, 6); // 5 (struct) + 1 (pos)
-    assert_eq!(buf[0], 0x05); // Header 0x0505
-    assert_eq!(buf[1], 0x05);
+    assert_eq!(buf[0], 0x01); // Header 0x0801
+    assert_eq!(buf[1], 0x08);
     assert_eq!(buf[2], 0x06); // Length 6
     assert_eq!(buf[3], 0x00);
     assert_eq!(buf[4], SHOP_SUB_SELL);
@@ -82,8 +82,8 @@ fn test_send_shop_sell_new() {
     let len = m2_send_shop_sell_new(pos, count, buf.as_mut_ptr());
     
     assert_eq!(len, 7); // 5 (struct) + 1 (pos) + 1 (count)
-    assert_eq!(buf[0], 0x05); // Header 0x0505
-    assert_eq!(buf[1], 0x05);
+    assert_eq!(buf[0], 0x01); // Header 0x0801
+    assert_eq!(buf[1], 0x08);
     assert_eq!(buf[2], 0x07); // Length 7
     assert_eq!(buf[3], 0x00);
     assert_eq!(buf[4], SHOP_SUB_SELL2);

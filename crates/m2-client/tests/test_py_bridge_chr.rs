@@ -136,3 +136,33 @@ fn test_m2_chr_blend_loop_motion() {
     
     assert!(!m2_chr_blend_loop_motion(9999, 123));
 }
+
+#[test]
+#[serial]
+fn test_m2_py_chr_pick() {
+    m2_py_chr_set_picked_vid(4004);
+    assert_eq!(m2_py_chr_pick(), 4004);
+
+    m2_py_chr_set_picked_vid(0);
+    let mut mgr = get_character_manager().write().unwrap();
+    mgr.clear();
+    mgr.create_instance_full(5005, 0, 0.0, 0.0, 0.0, "PickedActor".to_string(), false);
+    mgr.main_actor_vid = Some(5005);
+    drop(mgr);
+
+    assert_eq!(m2_py_chr_pick(), 5005);
+}
+
+#[test]
+#[serial]
+fn test_m2_py_chrmgr_create_and_load_race() {
+    assert!(m2_py_chrmgr_create_race(101));
+    let path = std::ffi::CString::new("d:/ymir work/monster/wolf/wolf.msm").unwrap();
+    assert!(m2_py_chrmgr_load_race_data(101, path.as_ptr()));
+
+    let reg = get_race_registry().read().unwrap();
+    let data = reg.get(&101).expect("Race 101 should exist");
+    assert_eq!(data.race_id, 101);
+    assert_eq!(data.path, "d:/ymir work/monster/wolf/wolf.msm");
+    assert!(data.loaded);
+}

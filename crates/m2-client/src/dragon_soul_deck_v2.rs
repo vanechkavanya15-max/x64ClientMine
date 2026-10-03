@@ -20,6 +20,42 @@ pub enum DragonSoulGrade {
     Legendary,
 }
 
+impl DragonSoulGrade {
+    pub fn next(&self) -> Option<Self> {
+        match self {
+            DragonSoulGrade::Normal => Some(DragonSoulGrade::Brilliant),
+            DragonSoulGrade::Brilliant => Some(DragonSoulGrade::Rare),
+            DragonSoulGrade::Rare => Some(DragonSoulGrade::Ancient),
+            DragonSoulGrade::Ancient => Some(DragonSoulGrade::Legendary),
+            DragonSoulGrade::Legendary => None,
+        }
+    }
+}
+
+/// Stopien czystosci smoczego kamienia (Dragon Soul Clarity / Step)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum DragonSoulClarity {
+    Lowest = 0,   // Matowy / Klarowny
+    Low = 1,      // Przejrzysty
+    Mid = 2,      // Bez skazy
+    High = 3,     // Znakomity
+    Highest = 4,  // Wyborny / Perfekcyjny
+}
+
+impl DragonSoulClarity {
+    pub fn next(&self) -> Option<Self> {
+        match self {
+            DragonSoulClarity::Lowest => Some(DragonSoulClarity::Low),
+            DragonSoulClarity::Low => Some(DragonSoulClarity::Mid),
+            DragonSoulClarity::Mid => Some(DragonSoulClarity::High),
+            DragonSoulClarity::High => Some(DragonSoulClarity::Highest),
+            DragonSoulClarity::Highest => None,
+        }
+    }
+}
+
+pub const DS_MAX_REFINE_LEVEL: u8 = 6;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DeckType {
     Deck1,
@@ -86,6 +122,250 @@ pub struct DragonSoulStone {
     pub bonus: Bonus,
 }
 
+/// Rozszerzona reprezentacja kamienia ze stopniem czystosci i poziomem ulepszenia +0..+6
+#[derive(Debug, Clone, PartialEq)]
+pub struct DragonSoulRefineStone {
+    pub category: StoneCategory,
+    pub grade: DragonSoulGrade,
+    pub clarity: DragonSoulClarity,
+    pub level: u8, // 0..=6
+    pub bonus: Bonus,
+}
+
+impl DragonSoulRefineStone {
+    pub fn new(
+        category: StoneCategory,
+        grade: DragonSoulGrade,
+        clarity: DragonSoulClarity,
+        level: u8,
+        bonus: Bonus,
+    ) -> Self {
+        Self {
+            category,
+            grade,
+            clarity,
+            level: level.min(DS_MAX_REFINE_LEVEL),
+            bonus,
+        }
+    }
+
+    pub fn from_base(stone: &DragonSoulStone) -> Self {
+        Self {
+            category: stone.category,
+            grade: stone.grade,
+            clarity: DragonSoulClarity::Lowest,
+            level: 0,
+            bonus: stone.bonus,
+        }
+    }
+
+    pub fn to_base(&self) -> DragonSoulStone {
+        DragonSoulStone {
+            category: self.category,
+            grade: self.grade,
+            bonus: self.bonus,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DragonSoulRefineType {
+    Grade,    // Stopien jakosci
+    Clarity,  // Stopien czystosci
+    Level,    // Poziom (+0..+6)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DragonSoulRefineError {
+    NotEnoughStones,
+    MismatchedCategory,
+    MismatchedGrade,
+    MismatchedClarity,
+    MaxGradeReached,
+    MaxClarityReached,
+    MaxLevelReached,
+    InvalidBeanItem,
+    RefineFailed,
+}
+
+pub struct DragonSoulRefine;
+
+impl DragonSoulRefine {
+    /// Generuje kanoniczny VNUM smoczego kamienia
+    pub fn make_vnum(
+        category: StoneCategory,
+        grade: DragonSoulGrade,
+        clarity: DragonSoulClarity,
+        level: u8,
+    ) -> u32 {
+        let cat_idx = match category {
+            StoneCategory::Diamond => 1,
+            StoneCategory::Ruby => 2,
+            StoneCategory::Jade => 3,
+            StoneCategory::Sapphire => 4,
+            StoneCategory::Garnet => 5,
+            StoneCategory::Onyx => 6,
+        };
+        let grade_idx = match grade {
+            DragonSoulGrade::Normal => 0,
+            DragonSoulGrade::Brilliant => 1,
+            DragonSoulGrade::Rare => 2,
+            DragonSoulGrade::Ancient => 3,
+            DragonSoulGrade::Legendary => 4,
+        };
+        let clarity_idx = clarity as u32;
+        let lvl = (level.min(DS_MAX_REFINE_LEVEL)) as u32;
+        100000 + cat_idx * 10000 + grade_idx * 1000 + clarity_idx * 100 + lvl * 10
+    }
+
+    /// Dekoduje kanoniczny VNUM smoczego kamienia
+    pub fn parse_vnum(vnum: u32) -> Option<(StoneCategory, DragonSoulGrade, DragonSoulClarity, u8)> {
+        if !(110000..=170000).contains(&vnum) {
+            return None;
+        }
+        let rem = vnum - 100000;
+        let cat_idx = rem / 10000;
+        let grade_idx = (rem % 10000) / 1000;
+        let clarity_idx = (rem % 1000) / 100;
+        let level = ((rem % 100) / 10) as u8;
+
+        let category = match cat_idx {
+            1 => StoneCategory::Diamond,
+            2 => StoneCategory::Ruby,
+            3 => StoneCategory::Jade,
+            4 => StoneCategory::Sapphire,
+            5 => StoneCategory::Garnet,
+            6 => StoneCategory::Onyx,
+            _ => return None,
+        };
+        let grade = match grade_idx {
+            0 => DragonSoulGrade::Normal,
+            1 => DragonSoulGrade::Brilliant,
+            2 => DragonSoulGrade::Rare,
+            3 => DragonSoulGrade::Ancient,
+            4 => DragonSoulGrade::Legendary,
+            _ => return None,
+        };
+        let clarity = match clarity_idx {
+            0 => DragonSoulClarity::Lowest,
+            1 => DragonSoulClarity::Low,
+            2 => DragonSoulClarity::Mid,
+            3 => DragonSoulClarity::High,
+            4 => DragonSoulClarity::Highest,
+            _ => return None,
+        };
+        Some((category, grade, clarity, level.min(DS_MAX_REFINE_LEVEL)))
+    }
+
+    /// Uszlachetnianie jakosci (Grade):
+    /// Wymaga co najmniej 2 kamieni tej samej kategorii i jakosci.
+    pub fn refine_grade(
+        stones: &[DragonSoulRefineStone],
+        success: bool,
+    ) -> Result<DragonSoulRefineStone, DragonSoulRefineError> {
+        if stones.len() < 2 {
+            return Err(DragonSoulRefineError::NotEnoughStones);
+        }
+        let first = &stones[0];
+        for stone in stones {
+            if stone.category != first.category {
+                return Err(DragonSoulRefineError::MismatchedCategory);
+            }
+            if stone.grade != first.grade {
+                return Err(DragonSoulRefineError::MismatchedGrade);
+            }
+        }
+        let next_grade = first.grade.next().ok_or(DragonSoulRefineError::MaxGradeReached)?;
+
+        if success {
+            Ok(DragonSoulRefineStone {
+                category: first.category,
+                grade: next_grade,
+                clarity: DragonSoulClarity::Lowest,
+                level: 0,
+                bonus: Bonus {
+                    attack: first.bonus.attack + 5,
+                    defense: first.bonus.defense + 5,
+                },
+            })
+        } else {
+            Err(DragonSoulRefineError::RefineFailed)
+        }
+    }
+
+    /// Uszlachetnianie stopnia czystosci (Clarity):
+    /// Wymaga kamieni tej samej kategorii, jakosci i stopnia czystosci.
+    pub fn refine_clarity(
+        stones: &[DragonSoulRefineStone],
+        success: bool,
+    ) -> Result<DragonSoulRefineStone, DragonSoulRefineError> {
+        if stones.len() < 2 {
+            return Err(DragonSoulRefineError::NotEnoughStones);
+        }
+        let first = &stones[0];
+        for stone in stones {
+            if stone.category != first.category {
+                return Err(DragonSoulRefineError::MismatchedCategory);
+            }
+            if stone.grade != first.grade {
+                return Err(DragonSoulRefineError::MismatchedGrade);
+            }
+            if stone.clarity != first.clarity {
+                return Err(DragonSoulRefineError::MismatchedClarity);
+            }
+        }
+        let next_clarity = first.clarity.next().ok_or(DragonSoulRefineError::MaxClarityReached)?;
+
+        if success {
+            Ok(DragonSoulRefineStone {
+                category: first.category,
+                grade: first.grade,
+                clarity: next_clarity,
+                level: 0,
+                bonus: Bonus {
+                    attack: first.bonus.attack + 3,
+                    defense: first.bonus.defense + 3,
+                },
+            })
+        } else {
+            Err(DragonSoulRefineError::RefineFailed)
+        }
+    }
+
+    /// Uszlachetnianie poziomu kamienia (+0..+6):
+    /// Wymaga smoczego ziarna (Dragon Soul Bean: np. 70251, 70252, 70253).
+    pub fn refine_level(
+        stone: &DragonSoulRefineStone,
+        bean_vnum: u32,
+        success: bool,
+    ) -> Result<DragonSoulRefineStone, DragonSoulRefineError> {
+        match bean_vnum {
+            70251 | 70252 | 70253 => {},
+            _ => return Err(DragonSoulRefineError::InvalidBeanItem),
+        }
+
+        if stone.level >= DS_MAX_REFINE_LEVEL {
+            return Err(DragonSoulRefineError::MaxLevelReached);
+        }
+
+        if success {
+            let next_level = stone.level + 1;
+            Ok(DragonSoulRefineStone {
+                category: stone.category,
+                grade: stone.grade,
+                clarity: stone.clarity,
+                level: next_level,
+                bonus: Bonus {
+                    attack: stone.bonus.attack + 4,
+                    defense: stone.bonus.defense + 4,
+                },
+            })
+        } else {
+            Err(DragonSoulRefineError::RefineFailed)
+        }
+    }
+}
+
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct DragonSoulDeck {
     pub diamond: Option<DragonSoulStone>,
@@ -138,13 +418,13 @@ impl DragonSoulDeck {
             if let Some(stone) = stone_opt {
                 if let Some(grade) = current_grade {
                     if grade != stone.grade {
-                        return None; // Not all stones have the same grade
+                        return None;
                     }
                 } else {
                     current_grade = Some(stone.grade);
                 }
             } else {
-                return None; // Missing a stone, so no full set
+                return None;
             }
         }
         current_grade
@@ -168,7 +448,6 @@ impl DragonSoulDeck {
             }
         }
 
-        // Apply set bonus if all 6 stones are present and of the same grade
         if let Some(set_grade) = self.get_set_grade() {
             let set_bonus = match set_grade {
                 DragonSoulGrade::Normal => Bonus { attack: 10, defense: 10 },
@@ -236,7 +515,6 @@ impl Default for DragonSoulSystemV2 {
     }
 }
 
-
 static DRAGON_SOUL_SYSTEM: OnceLock<Mutex<DragonSoulSystemV2>> = OnceLock::new();
 
 pub fn get_dragon_soul_system() -> &'static Mutex<DragonSoulSystemV2> {
@@ -263,3 +541,83 @@ pub extern "C" fn m2_ds_activate_deck(deck_idx: u8) -> bool {
     result.unwrap_or(false)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dragon_soul_vnum_roundtrip() {
+        let vnum = DragonSoulRefine::make_vnum(
+            StoneCategory::Ruby,
+            DragonSoulGrade::Ancient,
+            DragonSoulClarity::Mid,
+            4,
+        );
+        let parsed = DragonSoulRefine::parse_vnum(vnum).unwrap();
+        assert_eq!(parsed.0, StoneCategory::Ruby);
+        assert_eq!(parsed.1, DragonSoulGrade::Ancient);
+        assert_eq!(parsed.2, DragonSoulClarity::Mid);
+        assert_eq!(parsed.3, 4);
+    }
+
+    #[test]
+    fn test_dragon_soul_refine_grade() {
+        let stone1 = DragonSoulRefineStone::new(
+            StoneCategory::Diamond,
+            DragonSoulGrade::Normal,
+            DragonSoulClarity::Lowest,
+            0,
+            Bonus { attack: 10, defense: 10 },
+        );
+        let stone2 = stone1.clone();
+
+        let upgraded = DragonSoulRefine::refine_grade(&[stone1, stone2], true).unwrap();
+        assert_eq!(upgraded.grade, DragonSoulGrade::Brilliant);
+        assert_eq!(upgraded.bonus.attack, 15);
+    }
+
+    #[test]
+    fn test_dragon_soul_refine_clarity() {
+        let stone1 = DragonSoulRefineStone::new(
+            StoneCategory::Jade,
+            DragonSoulGrade::Rare,
+            DragonSoulClarity::Lowest,
+            0,
+            Bonus { attack: 10, defense: 10 },
+        );
+        let stone2 = stone1.clone();
+
+        let upgraded = DragonSoulRefine::refine_clarity(&[stone1, stone2], true).unwrap();
+        assert_eq!(upgraded.clarity, DragonSoulClarity::Low);
+        assert_eq!(upgraded.bonus.attack, 13);
+    }
+
+    #[test]
+    fn test_dragon_soul_refine_level() {
+        let stone = DragonSoulRefineStone::new(
+            StoneCategory::Sapphire,
+            DragonSoulGrade::Rare,
+            DragonSoulClarity::High,
+            2,
+            Bonus { attack: 20, defense: 20 },
+        );
+
+        // Uszlachetnienie zielonym ziarnem 70251 z sukcesem
+        let upgraded = DragonSoulRefine::refine_level(&stone, 70251, true).unwrap();
+        assert_eq!(upgraded.level, 3);
+        assert_eq!(upgraded.bonus.attack, 24);
+
+        // Max poziom +6
+        let max_stone = DragonSoulRefineStone::new(
+            StoneCategory::Sapphire,
+            DragonSoulGrade::Rare,
+            DragonSoulClarity::High,
+            6,
+            Bonus { attack: 30, defense: 30 },
+        );
+        assert_eq!(
+            DragonSoulRefine::refine_level(&max_stone, 70251, true),
+            Err(DragonSoulRefineError::MaxLevelReached)
+        );
+    }
+}
