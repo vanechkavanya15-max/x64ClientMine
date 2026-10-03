@@ -466,3 +466,4 @@ pub mod guild_mark_atlas_loader;
 pub mod ui_scissor_clip_rect;
 pub mod syslog_structured_logger;
 pub mod window_display_mode_switcher;
+pub mod weapon_trace_quad_generator;
