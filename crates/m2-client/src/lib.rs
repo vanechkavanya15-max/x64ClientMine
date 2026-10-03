@@ -366,6 +366,8 @@ pub mod recv_social_quest_complete;
 pub mod game_state_unified;
 pub mod wgpu_shadow_mapping;
 pub mod audio_engine_playback_complete;
+pub mod audio_engine_shutdown;
+pub mod full_audio_rodio_13;
 pub mod main_render_pipeline_composition;
 pub mod end_to_end_integration_test;
 pub mod py_bridge_chr_runtime;
