@@ -177,6 +177,7 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         }
         WM_KILLFOCUS => {
             state.has_focus = false;
+            // Clean up keyboard state on focus lost is handled externally via input_focus_lost_cleanup::process_focus_lost_cleanup
             true
         }
         WM_MOUSEMOVE => {
