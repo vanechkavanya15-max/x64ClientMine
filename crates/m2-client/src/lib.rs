@@ -440,6 +440,7 @@ pub mod wgpu_terrain_splat_converter;
 pub mod wgpu_water_mesh_integration;
 
 // --- Parity Wave 2 Modules ---
+pub mod gpu_frame_diagnostics;
 pub mod py_bridge_player_skills;
 pub mod py_bridge_player_target;
 pub mod py_bridge_chr_attach;
