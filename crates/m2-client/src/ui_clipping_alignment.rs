@@ -3,8 +3,8 @@
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
-use m2_client::ui_window_mgr::{get_window_manager, WindowManager};
-use m2_client::ui_window_core::{
+use crate::ui_window_mgr::{get_window_manager, WindowManager};
+use crate::ui_window_core::{
     HORIZONTAL_ALIGN_CENTER, HORIZONTAL_ALIGN_LEFT, HORIZONTAL_ALIGN_RIGHT, VERTICAL_ALIGN_BOTTOM,
     VERTICAL_ALIGN_CENTER, VERTICAL_ALIGN_TOP,
 };

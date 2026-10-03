@@ -154,7 +154,7 @@ pub extern "C" fn m2_py_player_is_available_belt_inventory_cell(pos: i32) -> boo
                 let mut belt_grade = 0;
                 
                 // Get item from ItemManager
-                let mgr = m2_client::py_bridge_item_nonplayer_runtime::get_item_manager_runtime().lock().unwrap();
+                let mgr = crate::py_bridge_item_nonplayer_runtime::get_item_manager_runtime().lock().unwrap();
                 if let Some(item_proto) = mgr.items.get(&vnum) {
                     belt_grade = item_proto.alValues[0];
                 }

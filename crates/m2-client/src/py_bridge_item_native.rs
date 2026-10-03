@@ -10,8 +10,8 @@ use crate::py_bootstrapper::{py_init_module, PyMethodDef};
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 
 pub struct ItemNativeManager {
-    items: HashMap<u32, TItemTable>,
-    selected_vnum: u32,
+    pub items: HashMap<u32, TItemTable>,
+    pub selected_vnum: u32,
 }
 
 impl ItemNativeManager {

@@ -1,5 +1,5 @@
 use m2_client_bridge::ffi_guard::safe_ffi_call;
-use m2_client::ui_bridge_ffi::ACTIVE_GAME_SOCKET;
+use crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET;
 use std::io::Write;
 
 pub const HEADER_CG_EXCHANGE: u16 = 0x0506;

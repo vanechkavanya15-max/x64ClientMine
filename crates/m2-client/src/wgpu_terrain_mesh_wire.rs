@@ -1,4 +1,4 @@
-use m2_client::terrain_height_patch::{RawHeightMap, CELL_SIZE, TERRAIN_PATCHSIZE};
+use crate::terrain_height_patch::{RawHeightMap, CELL_SIZE, TERRAIN_PATCHSIZE};
 
 // Using Metin2's exact C++ Normal Vector calculation algorithm
 pub fn calculate_normal_metin2(

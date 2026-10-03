@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 #[cfg(test)]
-use m2_client::wgpu_terrain_splatting::TerrainSplattingRenderer;
+use crate::wgpu_terrain_splatting::TerrainSplattingRenderer;
 #[cfg(not(test))]
 use crate::wgpu_terrain_splatting::TerrainSplattingRenderer;
 
 #[cfg(test)]
-use m2_client::texture_set_parser::TextureSet;
+use crate::texture_set_parser::TextureSet;
 #[cfg(not(test))]
 use crate::texture_set_parser::TextureSet;
 

@@ -1,6 +1,6 @@
-use m2_client::ui_texture_mgr::{UiImageResource, UiTextureManager};
-use m2_client::wgpu_engine_context::{Quad2D, GpuTexture};
-use m2_client::ui_window_core::{HORIZONTAL_ALIGN_LEFT, HORIZONTAL_ALIGN_CENTER, HORIZONTAL_ALIGN_RIGHT};
+use crate::ui_texture_mgr::{UiImageResource, UiTextureManager};
+use crate::wgpu_engine_context::{Quad2D, GpuTexture};
+use crate::ui_window_core::{HORIZONTAL_ALIGN_LEFT, HORIZONTAL_ALIGN_CENTER, HORIZONTAL_ALIGN_RIGHT};
 use std::sync::Arc;
 
 pub struct NumberLineWidget {

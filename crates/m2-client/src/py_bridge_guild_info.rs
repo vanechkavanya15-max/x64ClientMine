@@ -1,4 +1,4 @@
-use m2_client::recv_guild_logic_v2::{get_guild_state, GuildMemberData};
+use crate::recv_guild_logic_v2::{get_guild_state, GuildMemberData};
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 use std::ptr;
 

@@ -1,10 +1,10 @@
 use std::sync::Arc;
-use m2_client::wgpu_engine_context::{GpuTexture, WgpuEngineContext};
-use m2_client::wgpu_skybox_renderer::SkyboxRenderer;
-use m2_client::vfs_pck_memory_mapped::read_file_from_archive;
-use m2_client::py_bridge_pack::get_mounted_packs;
-use m2_client::tga_decoder::TgaImage;
-use m2_client::ui_texture_mgr::UiTextureManager;
+use crate::wgpu_engine_context::{GpuTexture, WgpuEngineContext};
+use crate::wgpu_skybox_renderer::SkyboxRenderer;
+use crate::vfs_pck_memory_mapped::read_file_from_archive;
+use crate::py_bridge_pack::get_mounted_packs;
+use crate::tga_decoder::TgaImage;
+use crate::ui_texture_mgr::UiTextureManager;
 
 #[repr(C)]
 #[derive(Debug, Clone, PartialEq)]

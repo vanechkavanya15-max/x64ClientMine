@@ -10,7 +10,7 @@ use crate::item_proto_binary_loader::{
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 
 #[cfg(test)]
-use m2_client::item_proto_binary_loader::{
+use crate::item_proto_binary_loader::{
     TItemTable, ITEM_APPLY_MAX_NUM, ITEM_SOCKET_MAX_NUM, ITEM_VALUES_MAX_NUM,
 };
 #[cfg(test)]
@@ -91,7 +91,7 @@ pub extern "C" fn m2_py_item_get_affect(index: usize, out_type: *mut u8, out_val
             #[cfg(not(test))]
             let mut apply_bytes = [0u8; std::mem::size_of::<crate::item_proto_binary_loader::TItemApply>()];
             #[cfg(test)]
-            let mut apply_bytes = [0u8; std::mem::size_of::<m2_client::item_proto_binary_loader::TItemApply>()];
+            let mut apply_bytes = [0u8; std::mem::size_of::<crate::item_proto_binary_loader::TItemApply>()];
             unsafe {
                 std::ptr::copy_nonoverlapping(
                     std::ptr::addr_of!(item.aApplies[index]) as *const u8,

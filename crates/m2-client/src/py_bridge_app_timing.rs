@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::app_timing_clock::m2_get_time;
 
 #[cfg(test)]
-use m2_client::app_timing_clock::m2_get_time;
+use crate::app_timing_clock::m2_get_time;
 
 #[derive(Debug)]
 pub struct AppTimingState {

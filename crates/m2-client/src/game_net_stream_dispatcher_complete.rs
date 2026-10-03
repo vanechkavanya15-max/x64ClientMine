@@ -1,4 +1,3 @@
-use m2_client;
 /// Dispatcher of Game Phase packets
 use std::mem::size_of;
 
@@ -148,22 +147,22 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::WARP => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_warp_phase_v2::m2_net_recv_warp(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_warp_phase_v2::m2_net_recv_warp(buf_slice.as_ptr(), buf_slice.len());
             return gc::WARP;
         },
         gc::PVP => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_combat_skills_complete::m2_recv_pvp(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_combat_skills_complete::m2_recv_pvp(buf_slice.as_ptr(), buf_slice.len());
             return gc::PVP;
         },
         gc::DUEL_START => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_combat_skills_complete::m2_recv_duel_start(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_combat_skills_complete::m2_recv_duel_start(buf_slice.as_ptr(), buf_slice.len());
             return gc::DUEL_START;
         },
         gc::CHARACTER_ADD => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_actors::m2_client_parse_char_add(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_actors::m2_client_parse_char_add(buf_slice.as_ptr(), buf_slice.len());
             return gc::CHARACTER_ADD;
         },
         gc::CHAR_ADDITIONAL_INFO => {
@@ -207,22 +206,22 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::PLAYER_POINT_CHANGE => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_actors::m2_client_parse_point_change(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_actors::m2_client_parse_point_change(buf_slice.as_ptr(), buf_slice.len());
             return gc::PLAYER_POINT_CHANGE;
         },
         gc::DAMAGE_INFO => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_combat_skills_complete::m2_recv_damage_info(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_combat_skills_complete::m2_recv_damage_info(buf_slice.as_ptr(), buf_slice.len());
             return gc::DAMAGE_INFO;
         },
         gc::ITEM_DEL => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_item_trade_complete::m2_net_recv_item_del(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_item_trade_complete::m2_net_recv_item_del(buf_slice.as_ptr(), buf_slice.len());
             return gc::ITEM_DEL;
         },
         gc::ITEM_SET => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_item_trade_complete::m2_net_recv_item_set(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_item_trade_complete::m2_net_recv_item_set(buf_slice.as_ptr(), buf_slice.len());
             return gc::ITEM_SET;
         },
         gc::ITEM_GET => {
@@ -233,17 +232,17 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::ITEM_UPDATE => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_item_trade_complete::m2_net_recv_item_update(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_item_trade_complete::m2_net_recv_item_update(buf_slice.as_ptr(), buf_slice.len());
             return gc::ITEM_UPDATE;
         },
         gc::ITEM_GROUND_ADD => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_item_trade_complete::m2_net_recv_item_ground_add(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_item_trade_complete::m2_net_recv_item_ground_add(buf_slice.as_ptr(), buf_slice.len());
             return gc::ITEM_GROUND_ADD;
         },
         gc::ITEM_GROUND_DEL => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_item_trade_complete::m2_net_recv_item_ground_del(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_item_trade_complete::m2_net_recv_item_ground_del(buf_slice.as_ptr(), buf_slice.len());
             return gc::ITEM_GROUND_DEL;
         },
         gc::ITEM_OWNERSHIP => {
@@ -266,7 +265,7 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::SHOP => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_item_trade_complete::m2_net_recv_shop(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_item_trade_complete::m2_net_recv_shop(buf_slice.as_ptr(), buf_slice.len());
             return gc::SHOP;
         },
         gc::SHOP_SIGN => {
@@ -274,7 +273,7 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::EXCHANGE => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_exchange_logic_v2::m2_net_recv_exchange(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_exchange_logic_v2::m2_net_recv_exchange(buf_slice.as_ptr(), buf_slice.len());
             return gc::EXCHANGE;
         },
         gc::QUEST_INFO => {
@@ -285,7 +284,7 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::SCRIPT => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_quest_dialog_v2::m2_quest_recv_script_packet(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_quest_dialog_v2::m2_quest_recv_script_packet(buf_slice.as_ptr(), buf_slice.len());
             return gc::SCRIPT;
         },
         gc::QUEST_CONFIRM => {
@@ -302,12 +301,12 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::CREATE_FLY => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_combat_skills_complete::m2_recv_create_fly(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_combat_skills_complete::m2_recv_create_fly(buf_slice.as_ptr(), buf_slice.len());
             return gc::CREATE_FLY;
         },
         gc::FLY_TARGETING => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_combat_skills_complete::m2_recv_fly_targeting(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_combat_skills_complete::m2_recv_fly_targeting(buf_slice.as_ptr(), buf_slice.len());
             return gc::FLY_TARGETING;
         },
         gc::ADD_FLY_TARGETING => {
@@ -315,22 +314,22 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::SKILL_LEVEL => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_combat_skills_complete::m2_recv_skill_level(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_combat_skills_complete::m2_recv_skill_level(buf_slice.as_ptr(), buf_slice.len());
             return gc::SKILL_LEVEL;
         },
         gc::SKILL_LEVEL_NEW => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_combat_skills_complete::m2_recv_skill_level_new(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_combat_skills_complete::m2_recv_skill_level_new(buf_slice.as_ptr(), buf_slice.len());
             return gc::SKILL_LEVEL_NEW;
         },
         gc::SKILL_COOLTIME_END => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_combat_skills_complete::m2_recv_skill_cooltime_end(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_combat_skills_complete::m2_recv_skill_cooltime_end(buf_slice.as_ptr(), buf_slice.len());
             return gc::SKILL_COOLTIME_END;
         },
         gc::MESSENGER => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_messenger_friends_v2::m2_client_parse_messenger(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_messenger_friends_v2::m2_client_parse_messenger(buf_slice.as_ptr(), buf_slice.len());
             return gc::MESSENGER;
         },
         gc::GUILD => {
@@ -392,12 +391,12 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::REFINE_INFORMATION => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_item_trade_complete::m2_net_recv_refine_info(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_item_trade_complete::m2_net_recv_refine_info(buf_slice.as_ptr(), buf_slice.len());
             return gc::REFINE_INFORMATION;
         },
         gc::REFINE_INFORMATION_NEW => {
             let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
-            m2_client::recv_item_trade_complete::m2_net_recv_refine_info_new(buf_slice.as_ptr(), buf_slice.len());
+            crate::recv_item_trade_complete::m2_net_recv_refine_info_new(buf_slice.as_ptr(), buf_slice.len());
             return gc::REFINE_INFORMATION_NEW;
         },
         gc::SEPCIAL_EFFECT => {

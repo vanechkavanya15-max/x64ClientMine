@@ -4,7 +4,7 @@ use std::mem::size_of;
 #[cfg(not(test))]
 use crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET;
 #[cfg(test)]
-use m2_client::ui_bridge_ffi::ACTIVE_GAME_SOCKET;
+use crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET;
 
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 use std::io::Write;

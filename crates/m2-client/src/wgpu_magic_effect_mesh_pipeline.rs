@@ -262,6 +262,7 @@ impl WgpuMagicEffectMeshPipeline {
             let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("EffectMesh Pipeline Layout"),
                 bind_group_layouts: &[Some(&self.bind_group_layout), Some(texture_bind_group_layout)],
+                immediate_size: 0,
             });
 
             let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {

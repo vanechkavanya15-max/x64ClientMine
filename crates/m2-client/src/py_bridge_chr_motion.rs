@@ -1,5 +1,5 @@
-use m2_client::character_manager_core::get_character_manager;
-use m2_client::motion_slerp_blend_v2::{Pose, slerp_rotation};
+use crate::character_manager_core::get_character_manager;
+use crate::motion_slerp_blend_v2::{Pose, slerp_rotation};
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 use glam::{Vec3, Quat};
 

@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
-use m2_client::wgpu_engine_context::{GpuTexture, WgpuEngineContext};
-use m2_client::ui_texture_mgr::UiImageResource;
+use crate::wgpu_engine_context::{GpuTexture, WgpuEngineContext};
+use crate::ui_texture_mgr::UiImageResource;
 
 /// Reprezentacja kamery specyficzna dla pojedynczego RenderTargetu.
 #[derive(Clone, Debug)]
