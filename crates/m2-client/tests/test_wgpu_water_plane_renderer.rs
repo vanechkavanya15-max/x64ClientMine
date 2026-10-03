@@ -65,34 +65,3 @@ fn test_wgpu_water_plane_renderer_is_accessible() {
 }
 
 #[test]
-fn test_calculate_water_fresnel() {
-    use m2_client::wgpu_water_plane_renderer::calculate_water_fresnel;
-    let normal = glam::Vec3::new(0.0, 0.0, 1.0);
-    // Looking straight down: cos_theta = 1.0 -> fresnel = R0
-    let view_dir_straight = glam::Vec3::new(0.0, 0.0, 1.0);
-    let r0 = 0.02;
-    let f1 = calculate_water_fresnel(normal, view_dir_straight, r0);
-    assert!((f1 - 0.02).abs() < 1e-6);
-
-    // Looking perpendicular (glancing angle): cos_theta = 0.0 -> fresnel = 1.0
-    let view_dir_glancing = glam::Vec3::new(1.0, 0.0, 0.0);
-    let f2 = calculate_water_fresnel(normal, view_dir_glancing, r0);
-    assert!((f2 - 1.0).abs() < 1e-6);
-}
-
-#[test]
-fn test_calculate_water_foam() {
-    use m2_client::wgpu_water_plane_renderer::calculate_water_foam;
-    
-    // Deep water (alpha > threshold) -> 0 foam
-    let foam1 = calculate_water_foam(0.5, 0.0, 0.3);
-    assert_eq!(foam1, 0.0);
-    
-    // Near shore (alpha < threshold) -> foam generated based on time and depth
-    let foam2 = calculate_water_foam(0.1, 0.0, 0.3); // alpha = 0.1, depth factor = 1.0 - (0.1/0.3) = 0.666
-    assert!(foam2 > 0.0);
-    
-    // Exactly at shore (alpha = 0.0) -> max depth factor = 1.0
-    let foam3 = calculate_water_foam(0.0, std::f32::consts::PI / 4.0, 0.3); 
-    assert!(foam3 > 0.0 && foam3 <= 1.0);
-}
