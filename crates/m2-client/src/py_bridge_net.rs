@@ -1729,6 +1729,124 @@ pub extern "C" fn m2_net_SendMovePacket(
     m2_send_move(func, x, y, rot, time, out_buf)
 }
 
+fn send_raw_encrypted_packet(bytes: &[u8]) -> bool {
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut enc_buf = bytes.to_vec();
+            cipher.encrypt_in_place(&mut enc_buf);
+            return stream.write_all(&enc_buf).is_ok();
+        }
+    }
+    m2_client_bridge::net::send_queue::enqueue_outgoing_packet(bytes.to_vec());
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendScriptButtonPacket(button_idx: u32) -> bool {
+    // CG::SCRIPT_BUTTON = 0x0902
+    let mut pkt = Vec::with_capacity(8);
+    pkt.extend_from_slice(&0x0902u16.to_le_bytes());
+    pkt.extend_from_slice(&8u16.to_le_bytes());
+    pkt.extend_from_slice(&button_idx.to_le_bytes());
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendScriptSelectItemPacket(item_idx: u32) -> bool {
+    // CG::SCRIPT_SELECT_ITEM = 0x0903
+    let mut pkt = Vec::with_capacity(8);
+    pkt.extend_from_slice(&0x0903u16.to_le_bytes());
+    pkt.extend_from_slice(&8u16.to_le_bytes());
+    pkt.extend_from_slice(&item_idx.to_le_bytes());
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendQuestConfirmPacket(request_vid: u32, answer: u8) -> bool {
+    // CG::QUEST_CONFIRM = 0x0905
+    let mut pkt = Vec::with_capacity(9);
+    pkt.extend_from_slice(&0x0905u16.to_le_bytes());
+    pkt.extend_from_slice(&9u16.to_le_bytes());
+    pkt.extend_from_slice(&request_vid.to_le_bytes());
+    pkt.push(answer);
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendQuestCancelPacket(request_vid: u32) -> bool {
+    // CG::QUEST_CANCEL = 0x0906
+    let mut pkt = Vec::with_capacity(8);
+    pkt.extend_from_slice(&0x0906u16.to_le_bytes());
+    pkt.extend_from_slice(&8u16.to_le_bytes());
+    pkt.extend_from_slice(&request_vid.to_le_bytes());
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendSafeboxItemMovePacket(src_pos: u8, dst_pos: u8, count: u8) -> bool {
+    // CG::SAFEBOX_ITEM_MOVE = 0x0822
+    let mut pkt = Vec::with_capacity(7);
+    pkt.extend_from_slice(&0x0822u16.to_le_bytes());
+    pkt.extend_from_slice(&7u16.to_le_bytes());
+    pkt.push(src_pos);
+    pkt.push(dst_pos);
+    pkt.push(count);
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendMallCheckoutPacket(mall_pos: u8, inv_pos: u8) -> bool {
+    // CG::MALL_CHECKOUT = 0x0840
+    let mut pkt = Vec::with_capacity(6);
+    pkt.extend_from_slice(&0x0840u16.to_le_bytes());
+    pkt.extend_from_slice(&6u16.to_le_bytes());
+    pkt.push(mall_pos);
+    pkt.push(inv_pos);
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendFishingPacket(sub: u8, dir: i32) -> bool {
+    // CG::FISHING = 0x0B01
+    let mut pkt = Vec::with_capacity(9);
+    pkt.extend_from_slice(&0x0B01u16.to_le_bytes());
+    pkt.extend_from_slice(&9u16.to_le_bytes());
+    pkt.push(sub);
+    pkt.extend_from_slice(&dir.to_le_bytes());
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendEmpirePacket(empire: u8) -> bool {
+    // CG::EMPIRE = 0x010A
+    let mut pkt = Vec::with_capacity(5);
+    pkt.extend_from_slice(&0x010Au16.to_le_bytes());
+    pkt.extend_from_slice(&5u16.to_le_bytes());
+    pkt.push(empire);
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendMyShopPacket(name: *const c_char, count: u8) -> bool {
+    // CG::MYSHOP = 0x0802
+    if name.is_null() {
+        return false;
+    }
+    let cstr = unsafe { CStr::from_ptr(name) };
+    let bytes = cstr.to_bytes();
+    let mut shop_name = [0u8; 33];
+    let copy_len = bytes.len().min(32);
+    shop_name[..copy_len].copy_from_slice(&bytes[..copy_len]);
+
+    let len = 4 + 33 + 1; // header + name + count
+    let mut pkt = Vec::with_capacity(len);
+    pkt.extend_from_slice(&0x0802u16.to_le_bytes());
+    pkt.extend_from_slice(&(len as u16).to_le_bytes());
+    pkt.extend_from_slice(&shop_name);
+    pkt.push(count);
+    send_raw_encrypted_packet(&pkt)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

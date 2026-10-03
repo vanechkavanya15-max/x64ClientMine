@@ -51,15 +51,22 @@ extern "C" {
 
 #[cfg(target_env = "gnu")]
 #[no_mangle]
-pub static mut __security_cookie: usize = 0xBB40E64E;
+pub static mut __security_cookie: usize = 0x2B992DDFA232;
 
-#[cfg(target_env = "gnu")]
-#[no_mangle]
-pub extern "C" fn __security_check_cookie(_cookie: usize) {}
-
-#[cfg(target_env = "gnu")]
-#[no_mangle]
-pub extern "C" fn __GSHandlerCheck() {}
+#[cfg(all(target_env = "gnu", target_arch = "x86_64"))]
+core::arch::global_asm!(
+    ".globl __chkstk",
+    "__chkstk:",
+    "jmp ___chkstk_ms",
+    "",
+    ".globl __security_check_cookie",
+    "__security_check_cookie:",
+    "ret",
+    "",
+    ".globl __GSHandlerCheck",
+    "__GSHandlerCheck:",
+    "ret"
+);
 
 #[derive(Debug, Clone)]
 pub struct SecureCipher {

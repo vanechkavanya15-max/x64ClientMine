@@ -202,4 +202,83 @@ impl UiWindowMinimap {
 
         Ok(results)
     }
+
+    /// Skanuje instancje z CharacterManagerCore i aktualizuje pozycje gracza oraz znaczniki radarowe (blips)
+    pub fn scan_alive_actors(&mut self) {
+        if let Ok(mgr) = crate::character_manager_core::get_character_manager().read() {
+            if let Some(main_vid) = mgr.main_actor_vid {
+                if let Some(main_inst) = mgr.alive_instances.get(&main_vid) {
+                    self.state.player_x = main_inst.x;
+                    self.state.player_y = main_inst.y;
+                    self.state.player_rotation = main_inst.rot_deg;
+                }
+            }
+
+            self.state.pins.clear();
+
+            for (vid, inst) in &mgr.alive_instances {
+                if inst.is_dead || Some(*vid) == mgr.main_actor_vid {
+                    continue;
+                }
+
+                let pin_type = if inst.race < 8 {
+                    PinType::Player
+                } else if inst.race >= 8001 && inst.race <= 8030 {
+                    PinType::Metin
+                } else if inst.is_enemy() {
+                    PinType::Monster
+                } else {
+                    PinType::Portal // NPC / zyla / sklep
+                };
+
+                self.state.pins.push(MinimapPin {
+                    id: *vid,
+                    x: inst.x,
+                    y: inst.y,
+                    pin_type,
+                });
+            }
+        }
+        let _ = self.update_state();
+    }
 }
+
+static GLOBAL_MINIMAP: std::sync::OnceLock<std::sync::Mutex<UiWindowMinimap>> = std::sync::OnceLock::new();
+
+pub fn get_global_minimap() -> &'static std::sync::Mutex<UiWindowMinimap> {
+    GLOBAL_MINIMAP.get_or_init(|| std::sync::Mutex::new(UiWindowMinimap::new(1000)))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_minimap_scan_and_count() -> usize {
+    if let Ok(mut mm) = get_global_minimap().lock() {
+        mm.scan_alive_actors();
+        mm.state.pins.len()
+    } else {
+        0
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_minimap_get_pin(
+    index: usize,
+    out_id: *mut u32,
+    out_screen_x: *mut f32,
+    out_screen_y: *mut f32,
+    out_color: *mut u32,
+) -> bool {
+    if let Ok(mm) = get_global_minimap().lock() {
+        if let Ok(pins) = mm.calculate_pin_screen_positions(64.0) {
+            if index < pins.len() {
+                let (id, sx, sy, col) = pins[index];
+                if !out_id.is_null() { *out_id = id; }
+                if !out_screen_x.is_null() { *out_screen_x = sx; }
+                if !out_screen_y.is_null() { *out_screen_y = sy; }
+                if !out_color.is_null() { *out_color = col; }
+                return true;
+            }
+        }
+    }
+    false
+}
+

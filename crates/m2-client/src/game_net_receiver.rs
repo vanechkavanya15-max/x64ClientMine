@@ -88,6 +88,7 @@ pub mod gc_opcode {
     pub const AFFECT_ADD: u16      = 0x0A20;
     pub const AFFECT_REMOVE: u16   = 0x0A21;
     pub const SEPCIAL_EFFECT: u16  = 0x0A30;
+    pub const SPECIFIC_EFFECT: u16 = 0x0A31;
     pub const MOUNT: u16           = 0x0A40;
     pub const NPC_POSITION: u16    = 0x0A50;
     
@@ -96,6 +97,25 @@ pub mod gc_opcode {
     pub const LAND_LIST: u16       = 0x0B12;
     pub const TIME: u16            = 0x0B13;
     pub const CHANNEL: u16         = 0x0B14;
+    
+    // Control, Auth & Account (nowe opkody)
+    pub const RESPOND_CHANNELSTATUS: u16 = 0x0010;
+    pub const LOGIN_SUCCESS3: u16        = 0x0104;
+    pub const LOGIN_SUCCESS4: u16        = 0x0105;
+    pub const LOGIN_FAILURE: u16         = 0x0106;
+    pub const LOGIN_KEY: u16             = 0x0107;
+    pub const AUTH_SUCCESS: u16          = 0x0108;
+    pub const EMPIRE: u16                = 0x0109;
+    pub const CHANGE_NAME: u16           = 0x010C;
+    pub const PLAYER_CREATE_SUCCESS: u16 = 0x020C;
+    pub const PLAYER_CREATE_FAILURE: u16 = 0x020D;
+    pub const PLAYER_DELETE_SUCCESS: u16 = 0x020E;
+    pub const PLAYER_DELETE_WRONG_SOCIAL_ID: u16 = 0x020F;
+    pub const ITEM_DROP: u16             = 0x0513;
+    pub const SYMBOL_DATA: u16           = 0x0732;
+    pub const MARK_BLOCK: u16            = 0x0C10;
+    pub const MARK_IDXLIST: u16          = 0x0C11;
+    pub const MARK_DIFF_DATA: u16        = 0x0C12;
 }
 
 // ============================================================================
@@ -217,6 +237,28 @@ pub enum GameEvent {
     SkillCooltimeEnd {
         skill: u8,
     },
+    // Auth & Account
+    LoginFailure {
+        reason: String,
+    },
+    AuthSuccess {
+        handle: u32,
+        random_key: u32,
+    },
+    Empire {
+        empire: u8,
+    },
+    PlayerCreateSuccess,
+    PlayerCreateFailure {
+        reason: u8,
+    },
+    PlayerDeleteSuccess,
+    PlayerDeleteWrongSocialId,
+    ItemDrop {
+        cell: u8,
+        vnum: u32,
+        count: u8,
+    },
     // Nieznany pakiet (logowany dla debugowania)
     Unknown {
         opcode: u16,
@@ -337,9 +379,25 @@ pub fn parse_packets(data: &[u8]) -> usize {
     let mut offset = 0;
     
     while offset < data.len() {
+        // 1. Sprawdz format nowoczesny 4-bajtowego naglowka (u16 header, u16 length)
+        if offset + 4 <= data.len() {
+            let header = u16::from_le_bytes([data[offset], data[offset + 1]]);
+            let length = u16::from_le_bytes([data[offset + 2], data[offset + 3]]) as usize;
+            // Poprawne opcody Metin2 naleza do przestrzeni 0x0001..=0x0FFF, a dlugosc miesci sie w [4, 65000]
+            if header >= 0x0001 && header <= 0x0FFF && length >= 4 && length <= 65000 {
+                if offset + length > data.len() {
+                    // Czekaj na kompletny pakiet w buforze
+                    break;
+                }
+                let packet_data = &data[offset..offset + length];
+                dispatch_packet(header, length as u16, packet_data);
+                offset += length;
+                continue;
+            }
+        }
+
+        // 2. Fallback na legacy 1-bajtowe pakiety (wsparcie starych serwerow testowych)
         let b0 = data[offset];
-        
-        // 1. Sprawdz natywne 1-bajtowe pakiety GC serwera Metin2
         let native_len: Option<usize> = match b0 {
             0xFD => Some(2),  // HEADER_GC_PHASE (2 bajty)
             0x01 => Some(35), // HEADER_GC_CHARACTER_ADD (35 bajtow)
@@ -375,21 +433,6 @@ pub fn parse_packets(data: &[u8]) -> usize {
             handle_native_metin2_packet(b0, packet_data);
             offset += pkt_len;
             continue;
-        }
-
-        // 2. Fallback na pakiety 4-bajtowego naglowka (u16 header, u16 length)
-        if offset + 4 <= data.len() {
-            let header = u16::from_le_bytes([data[offset], data[offset + 1]]);
-            let length = u16::from_le_bytes([data[offset + 2], data[offset + 3]]) as usize;
-            if length >= 4 && length <= 8192 {
-                if offset + length > data.len() {
-                    break;
-                }
-                let packet_data = &data[offset..offset + length];
-                dispatch_packet(header, length as u16, packet_data);
-                offset += length;
-                continue;
-            }
         }
 
         // Pomijamy 1 bajt w razie desynchronizacji

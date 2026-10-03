@@ -685,7 +685,15 @@ class BackgroundModule(metaclass=ModType):
     @staticmethod
     def SetBackgroundDirLight(*args, **kwargs): pass
     @staticmethod
-    def GetHeight(*args, **kwargs): return 0.0
+    def GetHeight(x=0.0, y=0.0, *args, **kwargs):
+        try:
+            fn = getattr(m2_lib, 'm2_terrain_get_height', None)
+            if fn:
+                fn.argtypes = [ctypes.c_float, ctypes.c_float]
+                fn.restype = ctypes.c_float
+                return fn(float(x), float(y))
+        except Exception: pass
+        return 0.0
     @staticmethod
     def SetShadowLevel(*args, **kwargs): pass
     @staticmethod
@@ -840,6 +848,16 @@ net_methods = [
     ("SendGuildAddMemberPacket", "m2_net_SendGuildAddMemberPacket", [ctypes.c_uint32], ctypes.c_bool),
     ("SendGuildRemoveMemberPacket", "m2_net_SendGuildRemoveMemberPacket", [ctypes.c_uint32], ctypes.c_bool),
     ("SendQuestInputStringPacket", "m2_net_SendQuestInputStringPacket", [ctypes.c_char_p], ctypes.c_bool),
+    ("SendScriptButtonPacket", "m2_net_SendScriptButtonPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendScriptSelectItemPacket", "m2_net_SendScriptSelectItemPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendQuestConfirmPacket", "m2_net_SendQuestConfirmPacket", [ctypes.c_uint32, ctypes.c_uint8], ctypes.c_bool),
+    ("SendQuestCancelPacket", "m2_net_SendQuestCancelPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendSafeboxItemMovePacket", "m2_net_SendSafeboxItemMovePacket", [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
+    ("SendMallCheckoutPacket", "m2_net_SendMallCheckoutPacket", [ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
+    ("SendFishingPacket", "m2_net_SendFishingPacket", [ctypes.c_uint8, ctypes.c_int32], ctypes.c_bool),
+    ("SendEmpirePacket", "m2_net_SendEmpirePacket", [ctypes.c_uint8], ctypes.c_bool),
+    ("SendSelectEmpirePacket", "m2_net_SendEmpirePacket", [ctypes.c_uint8], ctypes.c_bool),
+    ("SendMyShopPacket", "m2_net_SendMyShopPacket", [ctypes.c_char_p, ctypes.c_uint8], ctypes.c_bool),
     ("SendQuickSlotAddPacket", "m2_net_SendQuickSlotAddPacket", [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint32], ctypes.c_bool),
     ("SendQuickSlotDelPacket", "m2_net_SendQuickSlotDelPacket", [ctypes.c_uint8], ctypes.c_bool),
     ("SendQuickSlotMovePacket", "m2_net_SendQuickSlotMovePacket", [ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
@@ -1250,7 +1268,23 @@ def _wrap_player_get_main_character_position():
     return (0.0, 0.0, 0.0)
 
 setattr(PlayerModule, 'GetMainCharacterPosition', staticmethod(_wrap_player_get_main_character_position))
-setattr(PlayerModule, 'GetItemAttribute', staticmethod(lambda w, c, idx: (0, 0)))
+
+def _wrap_player_get_item_attribute(w=1, c=0, idx=0):
+    fn = getattr(m2_lib, 'm2_py_player_get_item_attribute', None)
+    if fn:
+        try:
+            atype = ctypes.c_uint8(0)
+            aval = ctypes.c_int16(0)
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int16)]
+            fn.restype = ctypes.c_bool
+            slot = c if (w is not None and c is not None and idx is not None) else w
+            attr_i = idx if idx is not None else c
+            win = w if (idx is not None and c is not None) else 1
+            if fn(int(win), int(slot), int(attr_i), ctypes.byref(atype), ctypes.byref(aval)):
+                return (atype.value, aval.value)
+        except Exception: pass
+    return (0, 0)
+setattr(PlayerModule, 'GetItemAttribute', staticmethod(_wrap_player_get_item_attribute))
 
 # --- Tuple-returning method overrides (C++ Py_BuildValue zwraca tuple, ModType fallback zwraca int) ---
 # QuickSlot: Py_BuildValue("ii", dwWndType, dwWndItemPos) -> (int, int)
@@ -1269,15 +1303,23 @@ setattr(PlayerModule, 'GetAutoPotionInfo', staticmethod(lambda t: (False, 0, 0, 
 # PartyMemberAffects: zwraca liste
 setattr(PlayerModule, 'GetPartyMemberAffects', staticmethod(lambda pid: []))
 
-# GetItemIndex i GetItemCount: juz powinny byc int, ale dla pewnosci
 # GetItemMetinSocket: Py_BuildValue("i", dwMetinSocketValue) -> int
-setattr(PlayerModule, 'GetItemMetinSocket', staticmethod(lambda w, c, idx: 0))
+def _wrap_player_get_item_metin_socket(w=1, c=0, idx=0):
+    fn = getattr(m2_lib, 'm2_py_player_get_item_metin_socket', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8]
+            fn.restype = ctypes.c_int32
+            slot = c if (w is not None and c is not None and idx is not None) else w
+            sock_i = idx if idx is not None else c
+            win = w if (idx is not None and c is not None) else 1
+            return fn(int(win), int(slot), int(sock_i))
+        except Exception: pass
+    return 0
+setattr(PlayerModule, 'GetItemMetinSocket', staticmethod(_wrap_player_get_item_metin_socket))
 
 # GetItemLink: Py_BuildValue("s", ...) -> str
 setattr(PlayerModule, 'GetItemLink', staticmethod(lambda w, c: ""))
-
-# GetCharacterDistance: Py_BuildValue("f", ...) -> float (nie tuple)
-# GetMainCharacterIndex: Py_BuildValue("i", ...) -> int (nie tuple)
 
 # Exchange: tuple returns
 setattr(PlayerModule, 'GetExchangeItemAttribute', staticmethod(lambda owner, pos, idx: (0, 0)))
@@ -1300,7 +1342,19 @@ setattr(PlayerModule, 'GetSkillCurrentEfficientPercentage', staticmethod(lambda 
 setattr(PlayerModule, 'GetSkillNextEfficientPercentage', staticmethod(lambda idx: 0.0))
 
 # Target: Py_BuildValue("ii", iHP, iMaxHP) -> (int, int)
-setattr(PlayerModule, 'GetTargetHP', staticmethod(lambda: (0, 0)))
+def _wrap_player_get_target_hp(*args, **kwargs):
+    fn = getattr(m2_lib, 'm2_py_player_get_target_hp', None)
+    if fn:
+        try:
+            hp = ctypes.c_int32(0)
+            max_hp = ctypes.c_int32(0)
+            fn.argtypes = [ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)]
+            fn.restype = ctypes.c_bool
+            if fn(ctypes.byref(hp), ctypes.byref(max_hp)):
+                return (hp.value, max_hp.value)
+        except Exception: pass
+    return (0, 0)
+setattr(PlayerModule, 'GetTargetHP', staticmethod(_wrap_player_get_target_hp))
 
 # Guild: Py_BuildValue
 setattr(PlayerModule, 'GetCharacterGuildName', staticmethod(lambda: ""))
@@ -1379,7 +1433,22 @@ setattr(ChrModule, 'Revive', staticmethod(lambda: None))
 setattr(ChrModule, 'Die', staticmethod(lambda: None))
 setattr(ChrModule, 'Hide', staticmethod(lambda: None))
 setattr(ChrModule, 'Show', staticmethod(lambda: None))
-setattr(ChrModule, 'Pick', staticmethod(lambda: 0))
+def _wrap_chr_pick():
+    fn = getattr(m2_lib, 'm2_chr_Pick', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_uint32
+            res = fn()
+            if res > 0: return res
+        except Exception: pass
+    fn2 = getattr(m2_lib, 'm2_py_player_get_target_vid', None)
+    if fn2:
+        try:
+            fn2.restype = ctypes.c_uint32
+            return fn2()
+        except Exception: pass
+    return 0
+setattr(ChrModule, 'Pick', staticmethod(_wrap_chr_pick))
 setattr(ChrModule, 'PickAll', staticmethod(lambda: []))
 setattr(ChrModule, 'LookAt', staticmethod(lambda *args: None))
 setattr(ChrModule, 'SetRotationAll', staticmethod(lambda *args: None))
@@ -1472,9 +1541,159 @@ ChrModule.NAMECOLOR_WARP = 22
 ChrModule.NAMECOLOR_WAYPOINT = 23
 ChrModule.NAMECOLOR_EXTRA = 28
 
+class ChrmgrModule:
+    @staticmethod
+    def SetEmpireNameMode(mode=1, *args, **kwargs): pass
+    @staticmethod
+    def GetVIDInfo(vid=0, *args, **kwargs): return ""
+    @staticmethod
+    def GetPickedVID(*args, **kwargs):
+        try:
+            fn = getattr(m2_lib, 'm2_py_player_get_target_vid', None)
+            if fn:
+                fn.restype = ctypes.c_uint32
+                vid = fn()
+                if vid > 0: return vid
+        except Exception: pass
+        return -1
+    @staticmethod
+    def SetShapeModel(shape=0, path="", *args, **kwargs): pass
+    @staticmethod
+    def AppendShapeSkin(shape=0, part=0, path="", *args, **kwargs): pass
+    @staticmethod
+    def SetPathName(path="", *args, **kwargs): pass
+    @staticmethod
+    def LoadRaceData(race=0, path="", *args, **kwargs): return True
+    @staticmethod
+    def LoadLocalRaceData(race=0, path="", *args, **kwargs): return True
+    @staticmethod
+    def CreateRace(race=0, *args, **kwargs): return True
+    @staticmethod
+    def SelectRace(race=0, *args, **kwargs): return True
+    @staticmethod
+    def RegisterAttachingBoneName(race=0, part=0, bone="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterMotionMode(race=0, mode=0, *args, **kwargs): pass
+    @staticmethod
+    def SetMotionRandomWeight(race=0, mode=0, motion=0, weight=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterNormalAttack(race=0, mode=0, count=0, *args, **kwargs): pass
+    @staticmethod
+    def ReserveComboAttack(vid=0, combo=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterComboAttack(race=0, mode=0, combo=0, count=0, *args, **kwargs): pass
+    @staticmethod
+    def ReserveComboAttackNew(vid=0, combo=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterComboAttackNew(race=0, mode=0, combo=0, count=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterMotionData(race=0, mode=0, motion=0, path="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterRaceName(race=0, name="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterRaceSrcName(name="", src="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterCacheMotionData(race=0, mode=0, motion=0, path="", weight=0, *args, **kwargs): pass
+    @staticmethod
+    def SetAffect(race=0, affect=0, file="", *args, **kwargs): pass
+    @staticmethod
+    def SetEmoticon(vid=0, emoticon=0, *args, **kwargs): pass
+    @staticmethod
+    def IsPossibleEmoticon(vid=0, *args, **kwargs): return True
+    @staticmethod
+    def RegisterEffect(etype=0, bone="", file="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterCacheEffect(etype=0, bone="", file="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterPointEffect(point=0, file="", *args, **kwargs): pass
+    @staticmethod
+    def ShowPointEffect(vid=0, point=0, *args, **kwargs): pass
+    @staticmethod
+    def ToggleDirectionLine(enable=0, *args, **kwargs): pass
+    @staticmethod
+    def SetMovingSpeed(speed=100, *args, **kwargs): pass
+    @staticmethod
+    def SetDustGap(gap=0, *args, **kwargs): pass
+    @staticmethod
+    def SetHorseDustGap(gap=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterTitleName(index=0, name="", *args, **kwargs): pass
+    @staticmethod
+    def RefreshAllPCTextTail(*args, **kwargs): pass
+    @staticmethod
+    def RegisterNameColor(index=0, r=0, g=0, b=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterTitleColor(index=0, r=0, g=0, b=0, *args, **kwargs): pass
+
+ChrmgrModule.NAMECOLOR_MOB = 6
+ChrmgrModule.NAMECOLOR_NPC = 7
+ChrmgrModule.NAMECOLOR_PC = 8
+ChrmgrModule.NAMECOLOR_EMPIRE_MOB = 12
+ChrmgrModule.NAMECOLOR_EMPIRE_NPC = 13
+ChrmgrModule.NAMECOLOR_EMPIRE_PC = 14
+ChrmgrModule.NAMECOLOR_FUNC = 18
+ChrmgrModule.NAMECOLOR_PK = 19
+ChrmgrModule.NAMECOLOR_PVP = 20
+ChrmgrModule.NAMECOLOR_PARTY = 21
+ChrmgrModule.NAMECOLOR_WARP = 22
+ChrmgrModule.NAMECOLOR_WAYPOINT = 23
+ChrmgrModule.NAMECOLOR_EXTRA = 28
+ChrmgrModule.EFFECT_SPAWN_DISAPPEAR = 0
+ChrmgrModule.EFFECT_SPAWN_APPEAR = 1
+ChrmgrModule.EFFECT_DUST = 2
+ChrmgrModule.EFFECT_HORSE_DUST = 3
+ChrmgrModule.EFFECT_STUN = 4
+ChrmgrModule.EFFECT_HIT = 5
+ChrmgrModule.EFFECT_FLAME_ATTACK = 6
+ChrmgrModule.EFFECT_FLAME_HIT = 7
+ChrmgrModule.EFFECT_FLAME_ATTACH = 8
+ChrmgrModule.EFFECT_ELECTRIC_ATTACK = 9
+ChrmgrModule.EFFECT_ELECTRIC_HIT = 10
+ChrmgrModule.EFFECT_ELECTRIC_ATTACH = 11
+ChrmgrModule.EFFECT_SELECT = 12
+ChrmgrModule.EFFECT_TARGET = 13
+ChrmgrModule.EFFECT_CRITICAL = 14
+ChrmgrModule.EFFECT_DAMAGE_TARGET = 15
+ChrmgrModule.EFFECT_DAMAGE_NOT_TARGET = 16
+ChrmgrModule.EFFECT_DAMAGE_SELFDAMAGE = 17
+ChrmgrModule.EFFECT_DAMAGE_SELFDAMAGE2 = 18
+ChrmgrModule.EFFECT_DAMAGE_POISON = 19
+ChrmgrModule.EFFECT_DAMAGE_MISS = 20
+ChrmgrModule.EFFECT_DAMAGE_TARGETMISS = 21
+ChrmgrModule.EFFECT_DAMAGE_CRITICAL = 22
+ChrmgrModule.EFFECT_LEVELUP = 23
+ChrmgrModule.EFFECT_SKILLUP = 24
+ChrmgrModule.EFFECT_HPUP_RED = 25
+ChrmgrModule.EFFECT_SPUP_BLUE = 26
+ChrmgrModule.EFFECT_SPEEDUP_GREEN = 27
+ChrmgrModule.EFFECT_DXUP_PURPLE = 28
+ChrmgrModule.EFFECT_PENETRATE = 29
+ChrmgrModule.EFFECT_BLOCK = 30
+ChrmgrModule.EFFECT_DODGE = 31
+ChrmgrModule.EFFECT_FIRECRACKER = 32
+ChrmgrModule.EFFECT_SPIN_TOP = 33
+ChrmgrModule.EFFECT_WEAPON = 34
+ChrmgrModule.EFFECT_AFFECT = 35
+ChrmgrModule.EFFECT_EMOTICON = 36
+ChrmgrModule.EFFECT_EMPIRE = 37
+ChrmgrModule.EFFECT_REFINED = 38
+ChrmgrModule.EFFECT_SUCCESS = 39
+ChrmgrModule.EFFECT_FAIL = 40
+ChrmgrModule.EFFECT_FR_SUCCESS = 41
+ChrmgrModule.EFFECT_PERCENT_DAMAGE1 = 42
+ChrmgrModule.EFFECT_PERCENT_DAMAGE2 = 43
+ChrmgrModule.EFFECT_PERCENT_DAMAGE3 = 44
+ChrmgrModule.EFFECT_AUTO_HPUP = 45
+ChrmgrModule.EFFECT_AUTO_SPUP = 46
+ChrmgrModule.EFFECT_RAMADAN_RING_EQUIP = 47
+ChrmgrModule.EFFECT_HALLOWEEN_CANDY_EQUIP = 48
+ChrmgrModule.EFFECT_HAPPINESS_RING_EQUIP = 49
+ChrmgrModule.EFFECT_LOVE_PENDANT_EQUIP = 50
+ChrmgrModule.EFFECT_AGGREGATE_MONSTER = 51
+
 sys.modules['chr'] = ChrModule
-sys.modules['chrmgr'] = ChrModule
 sys.modules['Chr'] = ChrModule
+sys.modules['chrmgr'] = ChrmgrModule
 
 # ============================================================================
 # 9. Modul item (CPythonItem - ponad 45 metod)

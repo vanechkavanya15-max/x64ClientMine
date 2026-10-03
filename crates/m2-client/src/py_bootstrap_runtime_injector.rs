@@ -258,6 +258,16 @@ net_methods = [
     ("SendGuildAddMemberPacket", "m2_net_SendGuildAddMemberPacket", [ctypes.c_uint32], ctypes.c_bool),
     ("SendGuildRemoveMemberPacket", "m2_net_SendGuildRemoveMemberPacket", [ctypes.c_uint32], ctypes.c_bool),
     ("SendQuestInputStringPacket", "m2_net_SendQuestInputStringPacket", [ctypes.c_char_p], ctypes.c_bool),
+    ("SendScriptButtonPacket", "m2_net_SendScriptButtonPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendScriptSelectItemPacket", "m2_net_SendScriptSelectItemPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendQuestConfirmPacket", "m2_net_SendQuestConfirmPacket", [ctypes.c_uint32, ctypes.c_uint8], ctypes.c_bool),
+    ("SendQuestCancelPacket", "m2_net_SendQuestCancelPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendSafeboxItemMovePacket", "m2_net_SendSafeboxItemMovePacket", [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
+    ("SendMallCheckoutPacket", "m2_net_SendMallCheckoutPacket", [ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
+    ("SendFishingPacket", "m2_net_SendFishingPacket", [ctypes.c_uint8, ctypes.c_int32], ctypes.c_bool),
+    ("SendEmpirePacket", "m2_net_SendEmpirePacket", [ctypes.c_uint8], ctypes.c_bool),
+    ("SendSelectEmpirePacket", "m2_net_SendEmpirePacket", [ctypes.c_uint8], ctypes.c_bool),
+    ("SendMyShopPacket", "m2_net_SendMyShopPacket", [ctypes.c_char_p, ctypes.c_uint8], ctypes.c_bool),
     ("SendQuickSlotAddPacket", "m2_net_SendQuickSlotAddPacket", [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint32], ctypes.c_bool),
     ("SendQuickSlotDelPacket", "m2_net_SendQuickSlotDelPacket", [ctypes.c_uint8], ctypes.c_bool),
     ("SendQuickSlotMovePacket", "m2_net_SendQuickSlotMovePacket", [ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
@@ -406,7 +416,107 @@ chr_methods = [
     ("IsSelectedVID", "m2_py_chrmgr_is_selected_vid", [ctypes.c_uint32], ctypes.c_bool),
 ]
 sys.modules['chr'] = create_real_module('chr', 'chr', chr_methods)
-sys.modules['chrmgr'] = sys.modules['chr']
+
+class ChrmgrModule:
+    @staticmethod
+    def SetEmpireNameMode(mode=1, *args, **kwargs): pass
+    @staticmethod
+    def GetVIDInfo(vid=0, *args, **kwargs): return ""
+    @staticmethod
+    def GetPickedVID(*args, **kwargs):
+        try:
+            fn = getattr(m2_lib, 'm2_py_player_get_target_vid', None)
+            if fn:
+                fn.restype = ctypes.c_uint32
+                vid = fn()
+                if vid > 0: return vid
+        except Exception: pass
+        return -1
+    @staticmethod
+    def SetShapeModel(shape=0, path="", *args, **kwargs): pass
+    @staticmethod
+    def AppendShapeSkin(shape=0, part=0, path="", *args, **kwargs): pass
+    @staticmethod
+    def SetPathName(path="", *args, **kwargs): pass
+    @staticmethod
+    def LoadRaceData(race=0, path="", *args, **kwargs): return True
+    @staticmethod
+    def LoadLocalRaceData(race=0, path="", *args, **kwargs): return True
+    @staticmethod
+    def CreateRace(race=0, *args, **kwargs): return True
+    @staticmethod
+    def SelectRace(race=0, *args, **kwargs): return True
+    @staticmethod
+    def RegisterAttachingBoneName(race=0, part=0, bone="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterMotionMode(race=0, mode=0, *args, **kwargs): pass
+    @staticmethod
+    def SetMotionRandomWeight(race=0, mode=0, motion=0, weight=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterNormalAttack(race=0, mode=0, count=0, *args, **kwargs): pass
+    @staticmethod
+    def ReserveComboAttack(vid=0, combo=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterComboAttack(race=0, mode=0, combo=0, count=0, *args, **kwargs): pass
+    @staticmethod
+    def ReserveComboAttackNew(vid=0, combo=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterComboAttackNew(race=0, mode=0, combo=0, count=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterMotionData(race=0, mode=0, motion=0, path="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterRaceName(race=0, name="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterRaceSrcName(name="", src="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterCacheMotionData(race=0, mode=0, motion=0, path="", weight=0, *args, **kwargs): pass
+    @staticmethod
+    def SetAffect(race=0, affect=0, file="", *args, **kwargs): pass
+    @staticmethod
+    def SetEmoticon(vid=0, emoticon=0, *args, **kwargs): pass
+    @staticmethod
+    def IsPossibleEmoticon(vid=0, *args, **kwargs): return True
+    @staticmethod
+    def RegisterEffect(etype=0, bone="", file="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterCacheEffect(etype=0, bone="", file="", *args, **kwargs): pass
+    @staticmethod
+    def RegisterPointEffect(point=0, file="", *args, **kwargs): pass
+    @staticmethod
+    def ShowPointEffect(vid=0, point=0, *args, **kwargs): pass
+    @staticmethod
+    def ToggleDirectionLine(enable=0, *args, **kwargs): pass
+    @staticmethod
+    def SetMovingSpeed(speed=100, *args, **kwargs): pass
+    @staticmethod
+    def SetDustGap(gap=0, *args, **kwargs): pass
+    @staticmethod
+    def SetHorseDustGap(gap=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterTitleName(index=0, name="", *args, **kwargs): pass
+    @staticmethod
+    def RefreshAllPCTextTail(*args, **kwargs): pass
+    @staticmethod
+    def RegisterNameColor(index=0, r=0, g=0, b=0, *args, **kwargs): pass
+    @staticmethod
+    def RegisterTitleColor(index=0, r=0, g=0, b=0, *args, **kwargs): pass
+
+ChrmgrModule.NAMECOLOR_MOB = 6
+ChrmgrModule.NAMECOLOR_NPC = 7
+ChrmgrModule.NAMECOLOR_PC = 8
+ChrmgrModule.NAMECOLOR_EMPIRE_MOB = 12
+ChrmgrModule.NAMECOLOR_EMPIRE_NPC = 13
+ChrmgrModule.NAMECOLOR_EMPIRE_PC = 14
+ChrmgrModule.NAMECOLOR_FUNC = 18
+ChrmgrModule.NAMECOLOR_PK = 19
+ChrmgrModule.NAMECOLOR_PVP = 20
+ChrmgrModule.NAMECOLOR_PARTY = 21
+ChrmgrModule.NAMECOLOR_WARP = 22
+ChrmgrModule.NAMECOLOR_WAYPOINT = 23
+ChrmgrModule.NAMECOLOR_EXTRA = 28
+
+sys.modules['chrmgr'] = ChrmgrModule
+
 
 # Item Module
 item_methods = [

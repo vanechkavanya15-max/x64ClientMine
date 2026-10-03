@@ -236,6 +236,8 @@ pub mod water_plane_anim_v2;
 pub mod full_map_stream_12;
 pub mod weapon_bone_attach_v2;
 pub mod weather_particle_sim_v2;
+pub mod cpoly_evaluator;
+pub mod mining_system;
 
 // --- Auto-registered modules from Jules Swarm Fala 2 ---
 pub mod actor_polymorph_v2;

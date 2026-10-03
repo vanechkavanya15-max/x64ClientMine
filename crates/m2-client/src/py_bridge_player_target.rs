@@ -166,3 +166,24 @@ pub unsafe extern "C" fn m2_py_player_is_attack_target(vid: u32) -> bool {
     })
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_target_hp(out_hp: *mut i32, out_max_hp: *mut i32) -> bool {
+    safe_ffi_call(false, || {
+        let state = get_player_target_state().lock().unwrap();
+        if state.target_vid == 0 {
+            return false;
+        }
+        if let Ok(g_state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+            if let Some(actor) = g_state.actors.get(&state.target_vid) {
+                if !out_hp.is_null() && !out_max_hp.is_null() {
+                    *out_hp = actor.hp;
+                    *out_max_hp = actor.max_hp.max(1);
+                    return true;
+                }
+            }
+        }
+        false
+    })
+}
+
+

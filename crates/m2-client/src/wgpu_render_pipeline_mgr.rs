@@ -196,6 +196,36 @@ impl WgpuRenderPipelineManager {
             Self::DEPTH_FORMAT,
         ));
 
+        // 5. Inicjalizacja speedtree_pipeline
+        let speedtree_pipeline = Some(Self::create_speedtree_pipeline(
+            device,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            Self::DEPTH_FORMAT,
+            &u_layout,
+        ));
+
+        // 6. Inicjalizacja magic_effect_pipeline
+        let magic_effect_pipeline = Some(Self::create_magic_effect_pipeline(
+            device,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            Self::DEPTH_FORMAT,
+        ));
+
+        // 7. Inicjalizacja projectile_pipeline
+        let projectile_pipeline = Some(Self::create_projectile_pipeline(
+            device,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            Self::DEPTH_FORMAT,
+        ));
+
+        // 8. Inicjalizacja ground_item_pipeline
+        let ground_item_pipeline = Some(Self::create_speedtree_pipeline(
+            device,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            Self::DEPTH_FORMAT,
+            &u_layout,
+        ));
+
         Self {
             depth_texture,
             depth_view,
@@ -204,11 +234,11 @@ impl WgpuRenderPipelineManager {
             terrain_pipeline,
             water_pipeline,
             water_bind_group,
-            speedtree_pipeline: None,
+            speedtree_pipeline,
             character_pipeline: Some(char_pipe),
-            ground_item_pipeline: None,
-            magic_effect_pipeline: None,
-            projectile_pipeline: None,
+            ground_item_pipeline,
+            magic_effect_pipeline,
+            projectile_pipeline,
             text_tail_pipeline,
 
             terrain_vertex_buffer,
@@ -315,6 +345,258 @@ impl WgpuRenderPipelineManager {
                 format: depth_format,
                 depth_write_enabled: Some(false),
                 depth_compare: Some(wgpu::CompareFunction::Always),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        })
+    }
+
+    pub fn create_speedtree_pipeline(
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
+        uniform_layout: &wgpu::BindGroupLayout,
+    ) -> wgpu::RenderPipeline {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("SpeedTree WGSL Shader"),
+            source: wgpu::ShaderSource::Wgsl(r#"
+                struct Camera {
+                    view_proj: mat4x4<f32>,
+                };
+                @group(0) @binding(0)
+                var<uniform> camera: Camera;
+
+                struct VertexInput {
+                    @location(0) position: vec3<f32>,
+                    @location(1) normal: vec3<f32>,
+                    @location(2) uv: vec2<f32>,
+                };
+                struct VertexOutput {
+                    @builtin(position) clip_position: vec4<f32>,
+                    @location(0) normal: vec3<f32>,
+                    @location(1) uv: vec2<f32>,
+                };
+                @vertex
+                fn vs_main(model: VertexInput) -> VertexOutput {
+                    var out: VertexOutput;
+                    out.clip_position = camera.view_proj * vec4<f32>(model.position, 1.0);
+                    out.normal = model.normal;
+                    out.uv = model.uv;
+                    return out;
+                }
+                @fragment
+                fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+                    let n = normalize(in.normal);
+                    let sun = normalize(vec3<f32>(0.5, 0.7, -1.0));
+                    let diff = max(dot(n, -sun), 0.0);
+                    let bark_color = vec3<f32>(0.35, 0.25, 0.15);
+                    let color = bark_color * (0.4 + diff * 0.6);
+                    return vec4<f32>(color, 1.0);
+                }
+            "#.into()),
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("SpeedTree Pipeline Layout"),
+            bind_group_layouts: &[Some(uniform_layout)],
+            immediate_size: 0,
+        });
+
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("SpeedTree Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[Some(crate::wgpu_terrain_renderer::TerrainVertex::desc())],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: depth_format,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        })
+    }
+
+    pub fn create_magic_effect_pipeline(
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
+    ) -> wgpu::RenderPipeline {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("MagicEffect WGSL Shader"),
+            source: wgpu::ShaderSource::Wgsl(r#"
+                struct VertexInput {
+                    @location(0) position: vec3<f32>,
+                    @location(1) uv: vec2<f32>,
+                };
+                struct VertexOutput {
+                    @builtin(position) clip_position: vec4<f32>,
+                    @location(0) uv: vec2<f32>,
+                };
+                @vertex
+                fn vs_main(model: VertexInput) -> VertexOutput {
+                    var out: VertexOutput;
+                    out.clip_position = vec4<f32>(model.position, 1.0);
+                    out.uv = model.uv;
+                    return out;
+                }
+                @fragment
+                fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+                    let d = length(in.uv - vec2<f32>(0.5, 0.5));
+                    let alpha = clamp(1.0 - d * 2.0, 0.0, 1.0);
+                    let color = vec3<f32>(1.0, 0.8, 0.2);
+                    return vec4<f32>(color * alpha, alpha);
+                }
+            "#.into()),
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("MagicEffect Pipeline Layout"),
+            bind_group_layouts: &[],
+            immediate_size: 0,
+        });
+
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("MagicEffect Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[Some(crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex::desc())],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: depth_format,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        })
+    }
+
+    pub fn create_projectile_pipeline(
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
+    ) -> wgpu::RenderPipeline {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Projectile WGSL Shader"),
+            source: wgpu::ShaderSource::Wgsl(r#"
+                struct VertexInput {
+                    @location(0) position: vec3<f32>,
+                    @location(1) uv: vec2<f32>,
+                };
+                struct VertexOutput {
+                    @builtin(position) clip_position: vec4<f32>,
+                    @location(0) uv: vec2<f32>,
+                };
+                @vertex
+                fn vs_main(model: VertexInput) -> VertexOutput {
+                    var out: VertexOutput;
+                    out.clip_position = vec4<f32>(model.position, 1.0);
+                    out.uv = model.uv;
+                    return out;
+                }
+                @fragment
+                fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+                    let d = length(in.uv - vec2<f32>(0.5, 0.5));
+                    let alpha = clamp(1.0 - d * 2.5, 0.0, 1.0);
+                    let color = vec3<f32>(0.2, 0.6, 1.0);
+                    return vec4<f32>(color * alpha, alpha);
+                }
+            "#.into()),
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Projectile Pipeline Layout"),
+            bind_group_layouts: &[],
+            immediate_size: 0,
+        });
+
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Projectile Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[Some(crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex::desc())],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: depth_format,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),

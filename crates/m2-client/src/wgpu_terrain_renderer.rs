@@ -138,15 +138,28 @@ pub fn create_terrain_pipeline(
 
         @fragment
         fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-            let sun_dir = normalize(vec3<f32>(1.0, -1.0, -1.0)); // From above, angle
+            let sun_dir = normalize(vec3<f32>(0.5, 0.7, -1.0));
             let n = normalize(in.normal);
             let diffuse = max(dot(n, -sun_dir), 0.0);
-            let ambient = 0.3;
+            let ambient = 0.35;
             
-            // Base green color for terrain testing
-            let base_color = vec3<f32>(0.2, 0.6, 0.2); 
+            // Naturalne strefy terenu Metin2 (trawa, sciezki, skaliste zbocza)
+            let slope = 1.0 - abs(n.z);
+            let grass = vec3<f32>(0.28, 0.48, 0.22);
+            let dirt = vec3<f32>(0.45, 0.36, 0.24);
+            let rock = vec3<f32>(0.42, 0.40, 0.38);
             
-            let final_color = base_color * (ambient + diffuse);
+            var surface_color = mix(grass, dirt, clamp(slope * 1.5, 0.0, 1.0));
+            if (slope > 0.45) {
+                let rock_factor = clamp((slope - 0.45) / 0.35, 0.0, 1.0);
+                surface_color = mix(surface_color, rock, rock_factor);
+            }
+            
+            // Detal powierzchni
+            let detail = (sin(in.tex_coord.x * 16.0) * cos(in.tex_coord.y * 16.0)) * 0.04;
+            surface_color = clamp(surface_color + vec3<f32>(detail, detail, detail), vec3<f32>(0.0), vec3<f32>(1.0));
+            
+            let final_color = surface_color * (ambient + diffuse * 0.65);
             return vec4<f32>(final_color, 1.0);
         }
     ";

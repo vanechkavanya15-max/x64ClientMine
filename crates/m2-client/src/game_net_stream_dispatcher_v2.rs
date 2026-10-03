@@ -411,6 +411,82 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
         0x0B11 => { // DUNGEON
             return crate::recv_dungeon_info_v2::parse_dungeon_packet(data);
         }
+        0x0010 => { // RESPOND_CHANNELSTATUS
+            return true;
+        }
+        0x0106 => { // LOGIN_FAILURE
+            let reason = if data.len() >= 5 {
+                let end = data[4..].iter().position(|&b| b == 0).unwrap_or(data.len() - 4);
+                String::from_utf8_lossy(&data[4..4 + end]).to_string()
+            } else {
+                "Niepoprawne dane logowania".to_string()
+            };
+            eprintln!("[NET] [-] Blad logowania: {}", reason);
+            push_event(GameEvent::LoginFailure { reason });
+            return true;
+        }
+        0x0107 => { // LOGIN_KEY
+            return true;
+        }
+        0x0108 => { // AUTH_SUCCESS
+            if data.len() >= 12 {
+                let handle = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                let random_key = u32::from_le_bytes(data[8..12].try_into().unwrap_or_default());
+                println!("[NET] [+] Autoryzacja udana! Handle: {}, Key: {}", handle, random_key);
+                push_event(GameEvent::AuthSuccess { handle, random_key });
+                return true;
+            }
+            return true;
+        }
+        0x0109 => { // EMPIRE
+            if data.len() >= 5 {
+                let empire = data[4];
+                println!("[NET] [+] Wybrane krolestwo: {}", empire);
+                push_event(GameEvent::Empire { empire });
+                return true;
+            }
+            return true;
+        }
+        0x010C => { // CHANGE_NAME
+            return true;
+        }
+        0x020C => { // PLAYER_CREATE_SUCCESS
+            println!("[NET] [+] Postac utworzona pomyslnie!");
+            push_event(GameEvent::PlayerCreateSuccess);
+            return true;
+        }
+        0x020D => { // PLAYER_CREATE_FAILURE
+            let reason = if data.len() >= 5 { data[4] } else { 0 };
+            eprintln!("[NET] [-] Blad tworzenia postaci, kod: {}", reason);
+            push_event(GameEvent::PlayerCreateFailure { reason });
+            return true;
+        }
+        0x020E => { // PLAYER_DELETE_SUCCESS
+            println!("[NET] [+] Postac skasowana pomyslnie.");
+            push_event(GameEvent::PlayerDeleteSuccess);
+            return true;
+        }
+        0x020F => { // PLAYER_DELETE_WRONG_SOCIAL_ID
+            eprintln!("[NET] [-] Niepoprawny kod usuniecia postaci (Social ID).");
+            push_event(GameEvent::PlayerDeleteWrongSocialId);
+            return true;
+        }
+        0x0513 => { // ITEM_DROP
+            if data.len() >= 10 {
+                let cell = data[4];
+                let vnum = u32::from_le_bytes(data[5..9].try_into().unwrap_or_default());
+                let count = data[9];
+                push_event(GameEvent::ItemDrop { cell, vnum, count });
+                return true;
+            }
+            return true;
+        }
+        0x0732 => { // SYMBOL_DATA
+            return true;
+        }
+        0x0C10 | 0x0C11 | 0x0C12 => { // MARK_BLOCK, MARK_IDXLIST, MARK_DIFF_DATA
+            return true;
+        }
         _ => {}
     }
     

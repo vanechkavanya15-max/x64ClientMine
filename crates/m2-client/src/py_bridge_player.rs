@@ -217,3 +217,5 @@ pub unsafe extern "C" fn m2_py_player_get_fishing_value() -> u32 {
         FISHING_VALUE.load(std::sync::atomic::Ordering::SeqCst)
     })
 }
+
+

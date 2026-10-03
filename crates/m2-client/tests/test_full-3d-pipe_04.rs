@@ -78,10 +78,7 @@ fn test_wgpu_resources_fallback() {
     // Tests wgpu resource creation if an adapter is available, otherwise skips
     let pass = WgpuShadowDepthPass::new();
 
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::all(),
-        ..Default::default()
-    });
+    let instance = wgpu::Instance::default();
 
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::LowPower,
