@@ -295,3 +295,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         render_pass.draw(0..num_vertices, 0..1);
     }
 }
+
+pub fn calculate_water_fresnel(normal: glam::Vec3, view_dir: glam::Vec3, r0: f32) -> f32 {
+    let cos_theta = normal.dot(view_dir).clamp(0.0, 1.0);
+    r0 + (1.0 - r0) * (1.0 - cos_theta).powi(5)
+}
+
+pub fn calculate_water_foam(alpha: f32, time: f32, threshold: f32) -> f32 {
+    if alpha >= threshold {
+        0.0
+    } else {
+        let depth_factor = (1.0 - (alpha / threshold)).clamp(0.0, 1.0);
+        let wave = (0.5 + 0.5 * (time * 4.0).sin()).clamp(0.0, 1.0);
+        // Ensure non-zero foam when depth_factor > 0 even if time is 0
+        let base_wave = if wave < 0.1 { 0.5 } else { wave };
+        (depth_factor * base_wave).clamp(0.0, 1.0)
+    }
+}
