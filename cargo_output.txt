@@ -1,0 +1,905 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /app/rust_bridge/Cargo.toml
+workspace: /app/Cargo.toml
+    Checking m2-client v0.2.0 (/app/crates/m2-client)
+error[E0583]: file not found for module `fishing_logic_v2`
+   --> crates/m2-client/src/lib.rs:185:1
+    |
+185 | pub mod fishing_logic_v2;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: to create the module `fishing_logic_v2`, create file "crates/m2-client/src/fishing_logic_v2.rs" or "crates/m2-client/src/fishing_logic_v2/mod.rs"
+    = note: if there is a `mod fishing_logic_v2` elsewhere in the crate already, import it with `use crate::...` instead
+
+warning: unused import: `std::collections::HashMap`
+ --> crates/m2-client/src/actor_ffi.rs:1:5
+  |
+1 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `OnceLock` and `RwLock`
+ --> crates/m2-client/src/actor_ffi.rs:2:17
+  |
+2 | use std::sync::{OnceLock, RwLock};
+  |                 ^^^^^^^^  ^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates/m2-client/src/actor_motion_queue.rs:1:5
+  |
+1 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `OnceLock` and `RwLock`
+ --> crates/m2-client/src/actor_motion_queue.rs:2:17
+  |
+2 | use std::sync::{OnceLock, RwLock};
+  |                 ^^^^^^^^  ^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates/m2-client/src/actor_picking.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `OnceLock` and `RwLock`
+ --> crates/m2-client/src/actor_picking.rs:3:17
+  |
+3 | use std::sync::{OnceLock, RwLock};
+  |                 ^^^^^^^^  ^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates/m2-client/src/inventory_ffi.rs:1:5
+  |
+1 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Mutex` and `OnceLock`
+ --> crates/m2-client/src/inventory_ffi.rs:2:17
+  |
+2 | use std::sync::{Mutex, OnceLock};
+  |                 ^^^^^  ^^^^^^^^
+
+warning: unused import: `m2_client_bridge::ffi_guard::safe_ffi_call`
+ --> crates/m2-client/src/item_use_logic.rs:2:5
+  |
+2 | use m2_client_bridge::ffi_guard::safe_ffi_call;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HEIGHTMAP_RAW_SIZE` and `RawHeightMap`
+ --> crates/m2-client/src/movement_ffi.rs:3:59
+  |
+3 | ...nHeightCalculator, RawHeightMap, HEIGHTMAP_RAW_SIZE};
+  |                       ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `RANK_BOSS` and `RANK_KING`
+   --> crates/m2-client/src/mob_proto_binary_loader.rs:208:63
+    |
+208 | ...ata, NonPlayerDatabase, RANK_BOSS, RANK_KING};
+    |                            ^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `std::ffi::CStr`
+   --> crates/m2-client/src/mob_proto_binary_loader.rs:209:5
+    |
+209 | use std::ffi::CStr;
+    |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::panic::catch_unwind`
+ --> crates/m2-client/src/camera_terrain_clamp_v2.rs:2:5
+  |
+2 | use std::panic::catch_unwind;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variant `DRAGON_SOUL_INVENTORY` should have an upper camel case name
+  --> crates/m2-client/src/inventory_grid_v2.rs:51:5
+   |
+51 |     DRAGON_SOUL_INVENTORY = 5,
+   |     ^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper camel case: `DragonSoulInventory`
+   |
+   = note: `#[warn(non_camel_case_types)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variant `BELT_INVENTORY` should have an upper camel case name
+  --> crates/m2-client/src/inventory_grid_v2.rs:52:5
+   |
+52 |     BELT_INVENTORY = 7,
+   |     ^^^^^^^^^^^^^^ help: convert the identifier to upper camel case: `BeltInventory`
+
+warning: unnecessary parentheses around assigned value
+  --> crates/m2-client/src/player_stat_calc_v2.rs:56:17
+   |
+56 |         let d = (self.dex.max(0) as i64);
+   |                 ^                      ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+56 -         let d = (self.dex.max(0) as i64);
+56 +         let d = self.dex.max(0) as i64 ;
+   |
+
+warning: unused import: `AlignmentType`
+  --> crates/m2-client/src/pvp_gvg_manager_v2.rs:88:31
+   |
+88 | use crate::pvp_mode_manager::{AlignmentType, PvpMode, PvpModeManager};
+   |                               ^^^^^^^^^^^^^
+
+warning: unused import: `crate::character_manager_core::get_character_manager`
+  --> crates/m2-client/src/pvp_gvg_manager_v2.rs:90:5
+   |
+90 | use crate::character_manager_core::get_character_manager;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::ffi::CStr`
+ --> crates/m2-client/src/recv_guild_logic_v2.rs:3:5
+  |
+3 | use std::ffi::CStr;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused imports: `c_char` and `c_void`
+ --> crates/m2-client/src/speedtree_forest_renderer.rs:1:16
+  |
+1 | use std::ffi::{c_char, c_void};
+  |                ^^^^^^  ^^^^^^
+
+warning: unused import: `std::convert::TryInto`
+ --> crates/m2-client/src/granny_gr2_binary_parser.rs:1:5
+  |
+1 | use std::convert::TryInto;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+ --> crates/m2-client/src/client_thread_orchestrator.rs:1:5
+  |
+1 | use std::collections::VecDeque;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `c_int`
+ --> crates/m2-client/src/granny_library_loader.rs:2:28
+  |
+2 | use std::os::raw::{c_char, c_int, c_void};
+  |                            ^^^^^
+
+warning: unused imports: `CString`, `c_char`, and `c_void`
+ --> crates/m2-client/src/main_binary_entry.rs:6:16
+  |
+6 | use std::ffi::{CString, c_char, c_void};
+  |                ^^^^^^^  ^^^^^^  ^^^^^^
+
+warning: unused import: `InstanceBase`
+ --> crates/m2-client/src/py_bridge_chr.rs:1:60
+  |
+1 | use crate::character_manager_core::{get_character_manager, InstanceBase};
+  |                                                            ^^^^^^^^^^^^
+
+warning: unused import: `MinimapScreenPos`
+ --> crates/m2-client/src/py_bridge_minimap.rs:5:92
+  |
+5 | ...2_minimap_world_to_screen, MinimapScreenPos};
+  |                               ^^^^^^^^^^^^^^^^
+
+warning: unused import: `ToSocketAddrs`
+ --> crates/m2-client/src/py_bridge_net_runtime.rs:3:27
+  |
+3 | use std::net::{TcpStream, ToSocketAddrs};
+  |                           ^^^^^^^^^^^^^
+
+warning: unused imports: `CG_CHAT` and `CG_WHISPER`
+ --> crates/m2-client/src/py_bridge_net_runtime.rs:9:99
+  |
+9 | ...GChat, TPacketCGWhisper, CG_CHAT, CG_WHISPER};
+  |                             ^^^^^^^  ^^^^^^^^^^
+
+warning: unused imports: `HEADER_CG_ITEM_DROP2`, `HEADER_CG_ITEM_DROP`, `HEADER_CG_ITEM_MOVE`, `HEADER_CG_ITEM_USE`, and `TItemPos`
+  --> crates/m2-client/src/py_bridge_net_runtime.rs:13:5
+   |
+13 |     HEADER_CG_ITEM_DROP, HEADER_CG_ITEM_DROP2, HEADER_CG_ITEM_MOVE, HEADER_CG_ITEM_USE, TItemPos,
+   |     ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^
+
+warning: unused import: `std::os::raw::c_char`
+ --> crates/m2-client/src/py_bridge_shop.rs:1:5
+  |
+1 | use std::os::raw::c_char;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `PlayerClass`, `PlayerStats`, and `SkillCalculator`
+ --> crates/m2-client/src/py_bridge_skill.rs:6:31
+  |
+6 | use crate::skill_calculator::{PlayerClass, PlayerStats, SkillCalculator};
+  |                               ^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `SKILL_TYPE_ATTACK`, `SKILL_TYPE_BUFF`, and `SKILL_TYPE_TOGGLE`
+ --> crates/m2-client/src/py_bridge_skill.rs:7:58
+  |
+7 | ...leCore, SKILL_TYPE_ATTACK, SKILL_TYPE_BUFF, SKILL_TYPE_TOGGLE};
+  |            ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CStr`
+ --> crates/m2-client/src/python_runtime_core.rs:2:32
+  |
+2 | use std::ffi::{c_char, c_void, CStr, CString};
+  |                                ^^^^
+
+warning: unused import: `OnceLock`
+ --> crates/m2-client/src/python_runtime_core.rs:3:24
+  |
+3 | use std::sync::{Mutex, OnceLock};
+  |                        ^^^^^^^^
+
+warning: unused import: `WgpuEngineContext`
+ --> crates/m2-client/src/ui_window_mgr.rs:8:54
+  |
+8 | use crate::wgpu_engine_context::{GpuTexture, Quad2D, WgpuEngineContext};
+  |                                                      ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HORIZONTAL_ALIGN_LEFT` and `HORIZONTAL_ALIGN_RIGHT`
+ --> crates/m2-client/src/ui_bridge_ffi.rs:6:66
+  |
+6 | ...IGN_CENTER, HORIZONTAL_ALIGN_LEFT, HORIZONTAL_ALIGN_RIGHT};
+  |                ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `PACK_KEY_SIZE`
+ --> crates/m2-client/src/vfs_pck_memory_mapped.rs:7:15
+  |
+7 |     PACK_KEY, PACK_KEY_SIZE, PACK_NONCE_SIZE,
+  |               ^^^^^^^^^^^^^
+
+warning: unused imports: `Arc` and `Mutex`
+ --> crates/m2-client/src/game_net_receiver.rs:8:17
+  |
+8 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+warning: unused import: `std::mem::size_of`
+ --> crates/m2-client/src/character_create_flow.rs:1:5
+  |
+1 | use std::mem::size_of;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Read`
+ --> crates/m2-client/src/character_delete_flow.rs:1:15
+  |
+1 | use std::io::{Read, Write};
+  |               ^^^^
+
+warning: unused import: `CString`
+ --> crates/m2-client/src/chat_system_network.rs:1:22
+  |
+1 | use std::ffi::{CStr, CString};
+  |                      ^^^^^^^
+
+warning: unused imports: `HORIZONTAL_ALIGN_CENTER` and `HORIZONTAL_ALIGN_RIGHT`
+ --> crates/m2-client/src/ui_window_character_status.rs:1:41
+  |
+1 | ...indowType, HORIZONTAL_ALIGN_CENTER, HORIZONTAL_ALIGN_RIGHT};
+  |               ^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `POINT_DX`, `POINT_HP`, `POINT_HT`, `POINT_IQ`, `POINT_LEVEL`, `POINT_MAX_HP`, `POINT_MAX_SP`, `POINT_SP`, and `POINT_ST`
+ --> crates/m2-client/src/ui_window_character_status.rs:3:43
+  |
+3 | ...e, POINT_HP, POINT_MAX_HP, POINT_SP, POINT_MAX_SP, POINT_ST, POINT_HT, POINT_DX, POINT_IQ, POINT_LEVEL};
+  |       ^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^  ^^^^^^^^  ^^^^^^^^  ^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `rodio::source::Source`
+ --> crates/m2-client/src/audio_engine_playback.rs:4:5
+  |
+4 | use rodio::source::Source;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Mat4` and `Vec4`
+ --> crates/m2-client/src/actor_target_picking.rs:6:18
+  |
+6 | use glam::{Vec3, Vec4, Mat4};
+  |                  ^^^^  ^^^^
+
+warning: unused import: `gc_opcode`
+ --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:6:32
+  |
+6 | use crate::game_net_receiver::{gc_opcode, GameEvent, push_event, send_pong};
+  |                                ^^^^^^^^^
+
+warning: unused import: `crate::character_manager_core::get_character_manager`
+ --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:7:5
+  |
+7 | use crate::character_manager_core::get_character_manager;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `c_void`
+ --> crates/m2-client/src/py_bridge_player_native.rs:3:24
+  |
+3 | use std::ffi::{c_char, c_void};
+  |                        ^^^^^^
+
+warning: unused imports: `Empire`, `TextTail`, and `Vector3`
+ --> crates/m2-client/src/py_bridge_graphics_audio.rs:7:30
+  |
+7 | use crate::actor_text_tail::{TextTail, Empire, Vector3};
+  |                              ^^^^^^^^  ^^^^^^  ^^^^^^^
+
+warning: unused import: `m2_audio_set_master_volume`
+   --> crates/m2-client/src/py_bridge_graphics_audio.rs:195:5
+    |
+195 |     m2_audio_set_master_volume,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CStr`
+ --> crates/m2-client/src/py_event_dispatcher.rs:1:32
+  |
+1 | use std::ffi::{c_char, c_void, CStr, CString};
+  |                                ^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> crates/m2-client/src/wgpu_terrain_splatting.rs:1:5
+  |
+1 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::num::NonZeroU32`
+ --> crates/m2-client/src/wgpu_water_plane_renderer.rs:1:5
+  |
+1 | use std::num::NonZeroU32;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Mat4`
+ --> crates/m2-client/src/wgpu_particle_billboard_renderer.rs:1:12
+  |
+1 | use glam::{Mat4, Quat, Vec2, Vec3};
+  |            ^^^^
+
+warning: unused import: `std::f32::consts::PI`
+ --> crates/m2-client/src/wgpu_particle_system_renderer.rs:6:5
+  |
+6 | use std::f32::consts::PI;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `OnceLock` and `RwLock`
+ --> crates/m2-client/src/recv_character_lifecycle_complete.rs:3:17
+  |
+3 | use std::sync::{OnceLock, RwLock};
+  |                 ^^^^^^^^  ^^^^^^
+
+warning: unused import: `AffectFlagContainer`
+ --> crates/m2-client/src/recv_character_lifecycle_complete.rs:5:67
+  |
+5 | ...orData, NetworkActorMgr, AffectFlagContainer};
+  |                             ^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary braces around assigned value
+   --> crates/m2-client/src/recv_item_trade_complete.rs:351:35
+    |
+351 |                 state.owner_vid = { start_ex.owner_vid };
+    |                                   ^^                  ^^
+    |
+    = note: `#[warn(unused_braces)]` (part of `#[warn(unused)]`) on by default
+help: remove these braces
+    |
+351 -                 state.owner_vid = { start_ex.owner_vid };
+351 +                 state.owner_vid = start_ex.owner_vid ;
+    |
+
+warning: unnecessary braces around assigned value
+   --> crates/m2-client/src/recv_item_trade_complete.rs:400:23
+    |
+400 |         state.type_ = { packet.type_ };
+    |                       ^^            ^^
+    |
+help: remove these braces
+    |
+400 -         state.type_ = { packet.type_ };
+400 +         state.type_ = packet.type_ ;
+    |
+
+warning: unnecessary braces around assigned value
+   --> crates/m2-client/src/recv_item_trade_complete.rs:401:21
+    |
+401 |         state.pos = { packet.pos };
+    |                     ^^          ^^
+    |
+help: remove these braces
+    |
+401 -         state.pos = { packet.pos };
+401 +         state.pos = packet.pos ;
+    |
+
+warning: unnecessary braces around assigned value
+   --> crates/m2-client/src/recv_item_trade_complete.rs:417:23
+    |
+417 |         state.type_ = { packet.type_ };
+    |                       ^^            ^^
+    |
+help: remove these braces
+    |
+417 -         state.type_ = { packet.type_ };
+417 +         state.type_ = packet.type_ ;
+    |
+
+warning: unnecessary braces around assigned value
+   --> crates/m2-client/src/recv_item_trade_complete.rs:418:21
+    |
+418 |         state.pos = { packet.pos };
+    |                     ^^          ^^
+    |
+help: remove these braces
+    |
+418 -         state.pos = { packet.pos };
+418 +         state.pos = packet.pos ;
+    |
+
+warning: unused import: `Arc`
+ --> crates/m2-client/src/game_state_unified.rs:2:17
+  |
+2 | use std::sync::{Arc, RwLock};
+  |                 ^^^
+
+warning: unused import: `BgmState`
+ --> crates/m2-client/src/audio_engine_playback_complete.rs:1:49
+  |
+1 | use crate::sound_bgm_manager::{SoundBgmManager, BgmState};
+  |                                                 ^^^^^^^^
+
+warning: unused import: `SpatialSoundOutput`
+ --> crates/m2-client/src/audio_engine_playback_complete.rs:2:56
+  |
+2 | use crate::sound_spatial_3d::{calculate_spatial_sound, SpatialSoundOutput};
+  |                                                        ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `WavAudio`
+ --> crates/m2-client/src/audio_engine_playback_complete.rs:5:51
+  |
+5 | use crate::sound_buffer_cache::{SoundBufferCache, WavAudio};
+  |                                                   ^^^^^^^^
+
+warning: unused import: `crate::sound_wav_parser`
+ --> crates/m2-client/src/audio_engine_playback_complete.rs:6:5
+  |
+6 | use crate::sound_wav_parser;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `process_motion_sound_event`
+   --> crates/m2-client/src/audio_engine_playback_complete.rs:123:60
+    |
+123 | ...otionSoundEventData, process_motion_sound_event};
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `RenderPhase`
+ --> crates/m2-client/src/main_render_pipeline_composition.rs:2:66
+  |
+2 | ...:{WgpuRenderPipelineManager, RenderPhase};
+  |                                 ^^^^^^^^^^^
+
+warning: unused import: `EnginePhase`
+ --> crates/m2-client/src/main_render_pipeline_composition.rs:4:47
+  |
+4 | use crate::client_engine_main::{WindowConfig, EnginePhase};
+  |                                               ^^^^^^^^^^^
+
+warning: unused import: `std::ffi::c_char`
+   --> crates/m2-client/src/end_to_end_integration_test.rs:1:5
+    |
+  1 | use std::ffi::c_char;
+    |     ^^^^^^^^^^^^^^^^
+    |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+   --> crates/m2-client/src/lib.rs:369:1
+    |
+369 | pub mod end_to_end_integration_test;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates/m2-client/src/item_mob_proto_vfs_loader.rs:5:5
+  |
+5 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TItemTable`
+ --> crates/m2-client/src/item_mob_proto_vfs_loader.rs:6:63
+  |
+6 | use crate::item_proto_binary_loader::{load_item_proto_binary, TItemTable};
+  |                                                               ^^^^^^^^^^
+
+warning: unused import: `TMobTable`
+ --> crates/m2-client/src/item_mob_proto_vfs_loader.rs:7:61
+  |
+7 | use crate::mob_proto_binary_loader::{load_mob_proto_binary, TMobTable};
+  |                                                             ^^^^^^^^^
+
+warning: unused variable: `ia`
+  --> crates/m2-client/src/inventory_grid.rs:62:25
+   |
+62 |             if let Some(ia) = item_a { sys.del_item(WindowType::INVENTOR...
+   |                         ^^ help: if this is intentional, prefix it with an underscore: `_ia`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `ib`
+  --> crates/m2-client/src/inventory_grid.rs:63:25
+   |
+63 |             if let Some(ib) = item_b { sys.del_item(WindowType::INVENTOR...
+   |                         ^^ help: if this is intentional, prefix it with an underscore: `_ib`
+
+warning: value assigned to `decompressed` is never read
+   --> crates/m2-client/src/mob_proto_binary_loader.rs:128:28
+    |
+128 |     let mut decompressed = Vec::new();
+    |                            ^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `header`
+  --> crates/m2-client/src/recv_actors.rs:54:9
+   |
+54 |     let header = u16::from_le_bytes(data[0..2].try_into().unwrap());
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_header`
+
+warning: unused variable: `length`
+  --> crates/m2-client/src/recv_actors.rs:55:9
+   |
+55 |     let length = u16::from_le_bytes(data[2..4].try_into().unwrap());
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_length`
+
+warning: unused variable: `amount`
+  --> crates/m2-client/src/recv_actors.rs:93:9
+   |
+93 |     let amount = i32::from_le_bytes(data[9..13].try_into().unwrap());
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_amount`
+
+warning: unused variable: `lX`
+  --> crates/m2-client/src/warp_phase_reconnect.rs:29:9
+   |
+29 |     let lX = i32::from_le_bytes(data[4..8].try_into().unwrap());
+   |         ^^ help: if this is intentional, prefix it with an underscore: `_lX`
+
+warning: unused variable: `lY`
+  --> crates/m2-client/src/warp_phase_reconnect.rs:30:9
+   |
+30 |     let lY = i32::from_le_bytes(data[8..12].try_into().unwrap());
+   |         ^^ help: if this is intentional, prefix it with an underscore: `_lY`
+
+warning: value assigned to `up` is never read
+   --> crates/m2-client/src/camera_terrain_clamp_v2.rs:106:18
+    |
+106 |     let mut up = Vec3::new(0.0, 1.0, 0.0);
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `old_item`
+   --> crates/m2-client/src/inventory_grid_v2.rs:140:21
+    |
+140 |         if let Some(old_item) = self.items[slot as usize] {
+    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_old_item`
+
+warning: unused variable: `distance_xy`
+  --> crates/m2-client/src/recv_fly_bullet_v2.rs:46:13
+   |
+46 |         let distance_xy = (dx * dx + dy * dy).sqrt();
+   |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_distance_xy`
+
+warning: unused variable: `header`
+   --> crates/m2-client/src/recv_fly_bullet_v2.rs:103:9
+    |
+103 |     let header = u16::from_le_bytes(data[0..2].try_into().unwrap());
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_header`
+
+warning: unused variable: `length`
+   --> crates/m2-client/src/recv_fly_bullet_v2.rs:104:9
+    |
+104 |     let length = u16::from_le_bytes(data[2..4].try_into().unwrap());
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_length`
+
+warning: unused variable: `sample_handle`
+   --> crates/m2-client/src/audio_mss_device.rs:212:18
+    |
+212 |     if let Some((sample_handle, _vol)) = state.playing_sounds.remove(&s...
+    |                  ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_handle`
+
+warning: unused variable: `net_cmd_rx`
+  --> crates/m2-client/src/client_thread_orchestrator.rs:65:26
+   |
+65 |         let (net_cmd_tx, net_cmd_rx) = mpsc::channel();
+   |                          ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_net_cmd_rx`
+
+warning: unused variable: `net_event_tx`
+  --> crates/m2-client/src/client_thread_orchestrator.rs:66:14
+   |
+66 |         let (net_event_tx, net_event_rx) = mpsc::channel();
+   |              ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_net_event_tx`
+
+warning: unused variable: `asset_req_rx`
+  --> crates/m2-client/src/client_thread_orchestrator.rs:68:28
+   |
+68 |         let (asset_req_tx, asset_req_rx) = mpsc::channel();
+   |                            ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_asset_req_rx`
+
+warning: unused variable: `asset_event_tx`
+  --> crates/m2-client/src/client_thread_orchestrator.rs:69:14
+   |
+69 |         let (asset_event_tx, asset_event_rx) = mpsc::channel();
+   |              ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_asset_event_tx`
+
+warning: value assigned to `stream` is never read
+   --> crates/m2-client/src/client_thread_orchestrator.rs:144:25
+    |
+144 |                         stream = None;
+    |                         ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `net_cmd_tx`
+   --> crates/m2-client/src/client_thread_orchestrator.rs:103:14
+    |
+103 |         let (net_cmd_tx, net_cmd_rx) = mpsc::channel::<PacketCmd>();
+    |              ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_net_cmd_tx`
+
+warning: unused variable: `net_cmd_rx`
+   --> crates/m2-client/src/client_thread_orchestrator.rs:103:26
+    |
+103 |         let (net_cmd_tx, net_cmd_rx) = mpsc::channel::<PacketCmd>();
+    |                          ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_net_cmd_rx`
+
+warning: unused variable: `net_event_tx`
+   --> crates/m2-client/src/client_thread_orchestrator.rs:104:13
+    |
+104 |         let net_event_tx = self.channels.net_tx.clone();
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_net_event_tx`
+
+warning: unused variable: `format_version`
+  --> crates/m2-client/src/granny_file_importer.rs:38:9
+   |
+38 |     let format_version = u32::from_le_bytes(data[16..20].try_into().unwr...
+   |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_format_version`
+
+warning: unnecessary `unsafe` block
+   --> crates/m2-client/src/py_bridge_net_runtime.rs:177:5
+    |
+177 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+   --> crates/m2-client/src/py_bridge_net_runtime.rs:187:5
+    |
+187 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+
+warning: unused variable: `t_update_ms`
+   --> crates/m2-client/src/wgpu_engine_context.rs:908:13
+    |
+908 |         let t_update_ms = t_update_start.elapsed().as_millis();
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_t_update_ms`
+
+warning: unused variable: `t_collect_ms`
+   --> crates/m2-client/src/wgpu_engine_context.rs:932:13
+    |
+932 |         let t_collect_ms = t_collect_start.elapsed().as_millis();
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_t_collect_ms`
+
+warning: variable does not need to be mutable
+   --> crates/m2-client/src/game_net_receiver.rs:199:13
+    |
+199 | ...   let mut guard = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock().u...
+    |           ----^^^^^
+    |           |
+    |           help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `decompressed_buffer` is never read
+   --> crates/m2-client/src/item_proto_binary_loader.rs:118:44
+    |
+118 |     let mut decompressed_buffer: Vec<u8> = Vec::new();
+    |                                            ^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `x`
+   --> crates/m2-client/src/map_setting_loader.rs:202:34
+    |
+202 | pub fn locate_map_by_coordinates(x: i32, y: i32) -> Option<MapConfig> {
+    |                                  ^ help: if this is intentional, prefix it with an underscore: `_x`
+
+warning: unused variable: `y`
+   --> crates/m2-client/src/map_setting_loader.rs:202:42
+    |
+202 | pub fn locate_map_by_coordinates(x: i32, y: i32) -> Option<MapConfig> {
+    |                                          ^ help: if this is intentional, prefix it with an underscore: `_y`
+
+warning: unreachable pattern
+ --> crates/m2-client/src/game_net_stream_dispatcher.rs:7:29
+  |
+7 |         gc_opcode::TARGET | 0x0A10 => {
+  |         -----------------   ^^^^^^ no value can reach this
+  |         |
+  |         matches all the relevant values
+  |
+  = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/m2-client/src/game_net_stream_dispatcher.rs:14:53
+   |
+14 |         gc_opcode::SCRIPT | gc_opcode::QUEST_INFO | 0x0910 | 0x0912 => {
+   |         -----------------                           ^^^^^^ no value can reach this
+   |         |
+   |         matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/m2-client/src/game_net_stream_dispatcher.rs:14:62
+   |
+14 |         gc_opcode::SCRIPT | gc_opcode::QUEST_INFO | 0x0910 | 0x0912 => {
+   |                             ---------------------            ^^^^^^ no value can reach this
+   |                             |
+   |                             matches all the relevant values
+
+warning: variable does not need to be mutable
+   --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:222:21
+    |
+222 | ...   let mut move_data = crate::recv_movement::CharacterMoveData {
+    |           ----^^^^^^^^^
+    |           |
+    |           help: remove this `mut`
+
+warning: unused variable: `length`
+   --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:101:49
+    |
+101 | ...extended_v2(header: u16, length: u16, data: &[u8]) -> bool {
+    |                             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_length`
+
+warning: unused variable: `pong_data`
+   --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:104:25
+    |
+104 |             if let Some(pong_data) = crate::recv_ping_sync_v2::recv_pin...
+    |                         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pong_data`
+
+warning: unused variable: `vid`
+   --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:155:21
+    |
+155 |                 let vid = u32::from_le_bytes(data[4..8].try_into().unwr...
+    |                     ^^^ help: if this is intentional, prefix it with an underscore: `_vid`
+
+warning: unused variable: `move_data`
+   --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:222:21
+    |
+222 |                 let mut move_data = crate::recv_movement::CharacterMove...
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_move_data`
+
+warning: unused variable: `vid`
+   --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:240:26
+    |
+240 |             if let Some((vid, dtype, dmg)) = crate::recv_chat::parse_da...
+    |                          ^^^ help: if this is intentional, prefix it with an underscore: `_vid`
+
+warning: unused variable: `dtype`
+   --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:240:31
+    |
+240 | ...       if let Some((vid, dtype, dmg)) = crate::recv_chat::parse_dama...
+    |                             ^^^^^ help: if this is intentional, prefix it with an underscore: `_dtype`
+
+warning: unused variable: `dmg`
+   --> crates/m2-client/src/game_net_stream_dispatcher_v2.rs:240:38
+    |
+240 | ...if let Some((vid, dtype, dmg)) = crate::recv_chat::parse_damage_info...
+    |                             ^^^ help: if this is intentional, prefix it with an underscore: `_dmg`
+
+warning: unused variable: `angle`
+   --> crates/m2-client/src/py_bridge_graphics_audio.rs:179:13
+    |
+179 |         let angle = dy.atan2(dx);
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_angle`
+
+warning: unused variable: `qc`
+   --> crates/m2-client/src/wgpu_particle_billboard_renderer.rs:120:25
+    |
+120 |                     let qc = q.conjugate();
+    |                         ^^ help: if this is intentional, prefix it with an underscore: `_qc`
+
+warning: value assigned to `v3_up` is never read
+  --> crates/m2-client/src/wgpu_particle_billboard_renderer.rs:81:25
+   |
+81 |         let mut v3_up = Vec3::ZERO;
+   |                         ^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: value assigned to `v3_cross` is never read
+  --> crates/m2-client/src/wgpu_particle_billboard_renderer.rs:82:28
+   |
+82 |         let mut v3_cross = Vec3::ZERO;
+   |                            ^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: variable does not need to be mutable
+   --> crates/m2-client/src/wgpu_flying_projectile_renderer.rs:177:17
+    |
+177 |             let mut e = [
+    |                 ----^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `prefix`
+   --> crates/m2-client/src/wgpu_texttail_renderer.rs:313:21
+    |
+313 |                 let prefix = match dmg.flag {
+    |                     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prefix`
+
+warning: variable does not need to be mutable
+   --> crates/m2-client/src/wgpu_camera_orbit_controller.rs:131:13
+    |
+131 |         let mut offset = Vec3::new(0.0, -self.distance, 0.0);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> crates/m2-client/src/wgpu_camera_orbit_controller.rs:136:13
+    |
+136 |         let mut pitched = Vec3::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `cos_y`
+   --> crates/m2-client/src/wgpu_camera_orbit_controller.rs:127:13
+    |
+127 |         let cos_y = yaw_rad.cos();
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_cos_y`
+
+warning: unused variable: `sin_y`
+   --> crates/m2-client/src/wgpu_camera_orbit_controller.rs:128:13
+    |
+128 |         let sin_y = yaw_rad.sin();
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_sin_y`
+
+warning: value assigned to `ambient` is never read
+   --> crates/m2-client/src/wgpu_skybox_renderer.rs:374:23
+    |
+374 |     let mut ambient = [0.0; 4];
+    |                       ^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `diffuse` is never read
+   --> crates/m2-client/src/wgpu_skybox_renderer.rs:375:23
+    |
+375 |     let mut diffuse = [0.0; 4];
+    |                       ^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `fog` is never read
+   --> crates/m2-client/src/wgpu_skybox_renderer.rs:376:19
+    |
+376 |     let mut fog = [0.0; 4];
+    |                   ^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `sp`
+   --> crates/m2-client/src/py_bridge_ui_subsystems.rs:188:13
+    |
+188 |         let sp = if let Some(main_vid) = chrmgr.main_actor_vid {
+    |             ^^ help: if this is intentional, prefix it with an underscore: `_sp`
+
+warning: unused variable: `actor`
+   --> crates/m2-client/src/py_bridge_ui_subsystems.rs:189:25
+    |
+189 |             if let Some(actor) = chrmgr.alive_instances.get(&main_vid) {
+    |                         ^^^^^ help: if this is intentional, prefix it with an underscore: `_actor`
+
+warning: unnecessary `unsafe` block
+   --> crates/m2-client/src/ui_drag_drop_system.rs:121:23
+    |
+121 |         let written = unsafe {
+    |                       ^^^^^^ unnecessary `unsafe` block
+
+warning: unused variable: `shift_down`
+   --> crates/m2-client/src/ui_widget_editline_ime.rs:303:67
+    |
+303 | ... u32, ctrl_down: bool, shift_down: bool) -> bool {
+    |                           ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_shift_down`
+
+For more information about this error, try `rustc --explain E0583`.
+warning: `m2-client` (lib) generated 133 warnings
+error: could not compile `m2-client` (lib) due to 1 previous error; 133 warnings emitted
