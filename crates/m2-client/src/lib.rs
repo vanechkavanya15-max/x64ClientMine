@@ -200,6 +200,7 @@ pub mod recv_target_info_v2;
 pub mod recv_warp_phase_v2;
 pub mod safebox_mall_manager_v2;
 pub mod sash_wing_physics_v2;
+pub mod sash_wing_attachment_system;
 pub mod send_chat_packets_v2;
 pub mod secure_cipher_handshake;
 pub mod send_combat_packets_v2;
