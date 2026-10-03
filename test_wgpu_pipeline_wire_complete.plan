@@ -1,0 +1,6 @@
+I will create the file `crates/m2-client/src/wgpu_pipeline_wire_complete.rs` containing a module which implements the wire completion for WgpuRenderPipelineManager, including initialization for pipelines like skybox, terrain, water, character, magic_effect, and shared uniform buffers (`ViewProjectionMatrix`, `LightDir`, `FogParams`), matching the logical intent of `GrpDevice.cpp` and `GrpScreen.cpp`.
+
+Then, I will write the test file `crates/m2-client/tests/test_wgpu_pipeline_wire_complete.rs` that imports the module directly with `#[path = "../src/wgpu_pipeline_wire_complete.rs"] mod wgpu_pipeline_wire_complete;` and test edge cases and logic correctness (at least 5-8 solid tests).
+
+I will run `cargo test --package m2-client` and make sure it is 100% green. 
+After all is passing I will submit.
