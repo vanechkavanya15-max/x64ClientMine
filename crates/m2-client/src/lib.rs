@@ -261,6 +261,7 @@ pub mod d3d9_terrain_mesh_renderer;
 pub mod d3d9_texture_factory;
 pub mod d3d9_vertex_buffer;
 pub mod granny_animation_evaluator;
+pub mod granny_engine_validator;
 pub mod granny_attachment_system;
 pub mod granny_file_importer;
 pub mod granny_library_loader;
