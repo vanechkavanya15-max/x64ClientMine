@@ -1,0 +1,2 @@
+Failed to initialize d3d9: Window not created
+test_syserr_message_12345
