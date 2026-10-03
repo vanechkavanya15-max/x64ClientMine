@@ -469,3 +469,5 @@ pub mod window_display_mode_switcher;
 pub mod weapon_trace_quad_generator;
 pub mod full_grn_anim_11;
 pub mod granny_bitknit_decompressor;
+pub mod full_grn_anim_12;
+pub mod granny_vertex_weights_extractor;
