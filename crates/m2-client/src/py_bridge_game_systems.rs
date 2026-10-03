@@ -14,26 +14,55 @@ pub extern "C" fn m2_py_gamesys_skill_get_name(skill_id: u32) -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_gamesys_skill_get_level(_skill_id: u32) -> u32 {
-    // Note: Skill level is usually derived from the player's current skill data 
-    // in the inventory/character state, but in this interface we return 0 
-    // to satisfy the signature since the underlying character state module isn't complete.
+pub extern "C" fn m2_py_gamesys_skill_get_level(skill_id: u32) -> u32 {
     safe_ffi_call(0, || {
-        0
+        unsafe {
+            m2_client_bridge::state::skills::m2_skills_get_global_level(skill_id) as u32
+        }
     })
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_gamesys_skill_get_cool_time(_skill_id: u32) -> u32 {
-    // Dummy return, actual calculation requires character context.
+pub extern "C" fn m2_py_gamesys_skill_get_cool_time(skill_id: u32) -> u32 {
     safe_ffi_call(0, || {
-        0
+        unsafe {
+            let next_use = m2_client_bridge::state::skills::m2_skills_get_global_next_use_time(skill_id);
+            let current = m2_client_bridge::timer::get_msec();
+            if next_use > current {
+                next_use.saturating_sub(current)
+            } else {
+                0
+            }
+        }
     })
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_gamesys_skill_can_use_skill(_skill_id: u32) -> bool {
+pub extern "C" fn m2_py_gamesys_skill_can_use_skill(skill_id: u32) -> bool {
     safe_ffi_call(false, || {
+        let skill_level = unsafe { m2_client_bridge::state::skills::m2_skills_get_global_level(skill_id) };
+        if skill_level == 0 {
+            return false;
+        }
+
+        let current_sp = if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+            state.get_sp()
+        } else {
+            return false;
+        };
+
+        let sp_cost = crate::skill_data_cache_v2::m2_skill_get_sp_cost(skill_id, skill_level);
+
+        if (current_sp as u32) < sp_cost {
+            return false;
+        }
+
+        let next_use = unsafe { m2_client_bridge::state::skills::m2_skills_get_global_next_use_time(skill_id) };
+        let current = m2_client_bridge::timer::get_msec();
+        if next_use > current {
+            return false;
+        }
+
         true
     })
 }

@@ -118,3 +118,38 @@ pub unsafe extern "C" fn m2_skills_set_global_container(ptr: *mut SkillsContaine
         GLOBAL_PLAYER_SKILLS = ptr;
     })
 }
+#[no_mangle]
+pub unsafe extern "C" fn m2_skills_container_get_level(ptr: *const SkillsContainer, vnum: u32) -> u8 {
+    crate::ffi_guard::safe_ffi_call(0, || {
+        if !ptr.is_null() {
+            if let Some(skill) = (*ptr).skills.get(&vnum) {
+                return skill.level;
+            }
+        }
+        0
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_skills_get_global_level(vnum: u32) -> u8 {
+    crate::ffi_guard::safe_ffi_call(0, || {
+        if !GLOBAL_PLAYER_SKILLS.is_null() {
+            if let Some(skill) = (*GLOBAL_PLAYER_SKILLS).skills.get(&vnum) {
+                return skill.level;
+            }
+        }
+        0
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_skills_get_global_next_use_time(vnum: u32) -> u32 {
+    crate::ffi_guard::safe_ffi_call(0, || {
+        if !GLOBAL_PLAYER_SKILLS.is_null() {
+            if let Some(skill) = (*GLOBAL_PLAYER_SKILLS).skills.get(&vnum) {
+                return skill.next_use_time;
+            }
+        }
+        0
+    })
+}
