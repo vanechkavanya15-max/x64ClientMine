@@ -277,6 +277,22 @@ player_methods = [
     ("GetSkillCoolTime", "m2_py_player_get_skill_cool_time", [ctypes.c_uint32], ctypes.c_float),
     ("IsPartyMember", "m2_py_player_is_party_member", [ctypes.c_uint32], ctypes.c_bool),
     ("GetPartyMemberHP", "m2_py_player_get_party_member_hp", [ctypes.c_uint32], ctypes.c_int32),
+    ("GetItemAttribute", "m2_py_player_get_item_attribute", [ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int16)], ctypes.c_bool),
+    ("GetItemMetinSocket", "m2_py_player_get_item_metin_socket", [ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8], ctypes.c_int32),
+    ("GetItemFlags", "m2_py_player_get_item_flags", [ctypes.c_uint8, ctypes.c_uint16], ctypes.c_uint32),
+    ("GetItemGrade", "m2_py_player_get_item_grade", [ctypes.c_uint8, ctypes.c_uint16], ctypes.c_uint32),
+    ("MoveItem", "m2_py_player_move_item", [ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8], ctypes.c_bool),
+    ("CanRefine", "m2_py_player_can_refine", [ctypes.c_uint8, ctypes.c_uint16], ctypes.c_bool),
+    ("IsEquipmentSlot", "m2_py_player_is_equipment_slot", [ctypes.c_uint16], ctypes.c_bool),
+    ("IsCostumeSlot", "m2_py_player_is_costume_slot", [ctypes.c_uint16], ctypes.c_bool),
+    ("IsBeltInventorySlot", "m2_py_player_is_belt_inventory_slot", [ctypes.c_uint16], ctypes.c_bool),
+    ("IsDSEquipmentSlot", "m2_py_player_is_ds_equipment_slot", [ctypes.c_uint16], ctypes.c_bool),
+    ("SlotTypeToInvenType", "m2_py_player_slot_type_to_inven_type", [ctypes.c_uint8], ctypes.c_uint8),
+    ("IsAvailableBeltInventoryCell", "m2_py_player_is_available_belt_inventory_cell", [ctypes.c_uint16], ctypes.c_bool),
+    ("GetTargetVID", "m2_py_player_get_target_vid", [], ctypes.c_uint32),
+    ("SetTargetVID", "m2_py_player_set_target_vid", [ctypes.c_uint32], None),
+    ("ClearTargetVID", "m2_py_player_clear_target_vid", [], None),
+    ("IsAttackTarget", "m2_py_player_is_attack_target", [ctypes.c_uint32], ctypes.c_bool),
 ]
 sys.modules['player'] = create_real_module('player', 'player', player_methods)
 
@@ -293,6 +309,23 @@ chr_methods = [
     ("GetNameByVID", "m2_py_chr_get_name_by_vid", [ctypes.c_uint32], ctypes.c_char_p),
     ("GetInstanceType", "m2_py_chr_get_instance_type", [ctypes.c_uint32], ctypes.c_uint32),
     ("HasInstance", "m2_py_chrmgr_is_instance", [ctypes.c_uint32], ctypes.c_bool),
+    ("SetRace", "m2_py_chr_set_race", [ctypes.c_uint32], ctypes.c_bool),
+    ("SetArmor", "m2_py_chr_set_armor", [ctypes.c_uint32], ctypes.c_bool),
+    ("ChangeShape", "m2_py_chr_change_shape", [ctypes.c_uint32], ctypes.c_bool),
+    ("SetWeapon", "m2_py_chr_set_weapon", [ctypes.c_uint32], ctypes.c_bool),
+    ("SetHair", "m2_py_chr_set_hair", [ctypes.c_uint32], ctypes.c_bool),
+    ("ChangeHair", "m2_py_chr_change_hair", [ctypes.c_uint32], ctypes.c_bool),
+    ("CreateInstance", "m2_py_chr_create_instance", [ctypes.c_uint32], ctypes.c_bool),
+    ("DeleteInstance", "m2_py_chr_delete_instance", [ctypes.c_uint32], ctypes.c_bool),
+    ("DeleteInstanceByFade", "m2_py_chr_delete_instance_by_fade", [ctypes.c_uint32], ctypes.c_bool),
+    ("Select", "m2_py_chr_select", [ctypes.c_uint32], ctypes.c_bool),
+    ("Unselect", "m2_py_chr_unselect", [], ctypes.c_bool),
+    ("Destroy", "m2_py_chr_destroy", [], ctypes.c_bool),
+    ("PushLoopMotion", "m2_py_chr_push_loop_motion", [ctypes.c_uint32, ctypes.c_float], ctypes.c_bool),
+    ("PushOnceMotion", "m2_py_chr_push_once_motion", [ctypes.c_uint32, ctypes.c_float], ctypes.c_bool),
+    ("SetLoopMotion", "m2_py_chr_set_loop_motion", [ctypes.c_uint32], ctypes.c_bool),
+    ("SetMotionMode", "m2_py_chr_set_motion_mode", [ctypes.c_uint32], ctypes.c_bool),
+    ("AttachEffectByID", "m2_py_chr_attach_effect_by_id", [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32], ctypes.c_uint32),
 ]
 sys.modules['chr'] = create_real_module('chr', 'chr', chr_methods)
 sys.modules['chrmgr'] = sys.modules['chr']
@@ -309,6 +342,16 @@ item_methods = [
     ("GetLimit", "m2_py_item_get_limit", [ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int32)], ctypes.c_bool),
     ("GetApply", "m2_py_item_get_apply", [ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int16)], ctypes.c_bool),
     ("GetItemDescription", "m2_py_item_get_item_description", [], ctypes.c_char_p),
+    ("IsMetin", "m2_py_item_is_metin", [], ctypes.c_bool),
+    ("IsRefineScroll", "m2_py_item_is_refine_scroll", [], ctypes.c_bool),
+    ("IsDetachScroll", "m2_py_item_is_detach_scroll", [], ctypes.c_bool),
+    ("IsKey", "m2_py_item_is_key", [], ctypes.c_bool),
+    ("Is1GoldItem", "m2_py_item_is_1gold_item", [], ctypes.c_bool),
+    ("IsAntiFlag", "m2_py_item_is_anti_flag", [ctypes.c_uint32], ctypes.c_bool),
+    ("GetAffect", "m2_py_item_get_affect", [ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_int32)], ctypes.c_bool),
+    ("GetSocket", "m2_py_item_get_socket", [ctypes.c_uint32], ctypes.c_int32),
+    ("GetValue", "m2_py_item_get_value", [ctypes.c_uint32], ctypes.c_int32),
+    ("GetItemSize", "m2_py_item_get_item_size", [], ctypes.c_uint8),
 ]
 sys.modules['item'] = create_real_module('item', 'item', item_methods)
 setattr(sys.modules['item'], 'GetItemDescription', staticmethod(lambda: "Item Description"))
@@ -359,6 +402,11 @@ wndmgr_methods = [
     ("SetOverInItemEvent", "wndMgr_SetOverInItemEvent", [ctypes.c_size_t, ctypes.c_uint32, ctypes.c_uint32], ctypes.c_bool),
     ("SetOverOutItemEvent", "wndMgr_SetOverOutItemEvent", [ctypes.c_size_t, ctypes.c_uint32, ctypes.c_uint32], ctypes.c_bool),
     ("SetSelectItemSlotEvent", "wndMgr_SetSelectItemSlotEvent", [ctypes.c_size_t, ctypes.c_uint32, ctypes.c_uint32], ctypes.c_bool),
+    ("SetScreenSize", "wndMgr_SetScreenSize", [ctypes.c_int32, ctypes.c_int32], None),
+    ("GetScreenWidth", "wndMgr_GetScreenWidth", [], ctypes.c_int32),
+    ("GetScreenHeight", "wndMgr_GetScreenHeight", [], ctypes.c_int32),
+    ("GetTextSize", "wndMgr_GetTextSize", [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)], None),
+    ("RegisterBar3D", "wndMgr_RegisterBar3D", [ctypes.c_size_t], ctypes.c_uint32),
 ]
 WndMgrModule = create_real_module('wndMgr', 'wndMgr', wndmgr_methods)
 setattr(WndMgrModule, 'SLOT_STYLE_NONE', 0)
@@ -373,9 +421,6 @@ setattr(WndMgrModule, 'VERTICAL_ALIGN_BOTTOM', 2)
 setattr(WndMgrModule, 'TEXT_HORIZONTAL_ALIGN_LEFT', 0)
 setattr(WndMgrModule, 'TEXT_HORIZONTAL_ALIGN_RIGHT', 1)
 setattr(WndMgrModule, 'TEXT_HORIZONTAL_ALIGN_CENTER', 2)
-setattr(WndMgrModule, 'SetScreenSize', staticmethod(lambda w, h: None))
-setattr(WndMgrModule, 'GetScreenWidth', staticmethod(lambda: 1024))
-setattr(WndMgrModule, 'GetScreenHeight', staticmethod(lambda: 768))
 sys.modules['wndMgr'] = WndMgrModule
 
 # Chat Module
