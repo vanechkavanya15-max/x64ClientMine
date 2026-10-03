@@ -475,3 +475,4 @@ pub mod granny_vertex_weights_extractor;
 pub mod full_map_stream_11;
 pub mod rodio_audio_device_init;
 pub mod audio_voice_pool_manager;
+pub mod input_mouse_rbutton_dispatcher;
