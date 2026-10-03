@@ -457,3 +457,4 @@ pub mod input_system_validator;
 
 
 pub mod map_property_parser;
+pub mod ui_rendertarget_texture_allocator;
