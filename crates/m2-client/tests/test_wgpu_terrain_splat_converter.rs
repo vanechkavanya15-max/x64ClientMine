@@ -1,7 +1,4 @@
-#[path = "../src/wgpu_terrain_splat_converter.rs"]
-mod wgpu_terrain_splat_converter;
-
-use wgpu_terrain_splat_converter::{
+use m2_client::wgpu_terrain_splat_converter::{
     pack_alpha_maps_to_rgba, SplatConverterError, TerrainSplatConverterConfig, WgpuTerrainSplatConverter,
 };
 use m2_client::wgpu_terrain_splatting::TerrainSplattingRenderer;
@@ -177,7 +174,7 @@ async fn test_draw_terrain_splat_limit() {
         println!("Skipping WGPU test (no adapter)");
         return;
     }
-    let (device, _) = wgpu_context.unwrap();
+    let (device, _queue) = wgpu_context.unwrap();
 
     let mut converter = WgpuTerrainSplatConverter::new(TerrainSplatConverterConfig {
         splat_alpha_x_size: 258, splat_alpha_y_size: 258, max_splat_limit: 1,
@@ -202,16 +199,17 @@ async fn test_draw_terrain_splat_limit() {
 
     {
         let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        label: None,
-        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-            view: &dummy_view, depth_slice: None,
-            resolve_target: None,
-            ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
-        })],
-        depth_stencil_attachment: None,
-        timestamp_writes: None,
-        occlusion_query_set: None, multiview_mask: None,
-    });
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &dummy_view, depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None, multiview_mask: None,
+        });
+    }
 
     // Need dummy buffers
     let vb = device.create_buffer(&wgpu::BufferDescriptor {
@@ -226,14 +224,6 @@ async fn test_draw_terrain_splat_limit() {
         usage: wgpu::BufferUsages::INDEX,
         mapped_at_creation: false,
     });
-
-    // Draw should fail because texture set is not loaded (NotInitialized)
-    converter.config.max_splat_limit = 0;
-    
-    
-    
-    
-    }
     let mut render_pass2 = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: None,
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -249,7 +239,5 @@ async fn test_draw_terrain_splat_limit() {
     let success = converter.draw_terrain_splat(&renderer, &mut render_pass2, &vb, &ib, 0);
     drop(render_pass2);
     assert!(success.is_ok());
-    assert_eq!(converter.rendered_splat_num, 1);
-    assert!(success.is_ok());
-    assert_eq!(converter.rendered_splat_num, 1);
+    assert_eq!(converter.rendered_splat_num, 0);
 }

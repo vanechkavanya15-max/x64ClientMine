@@ -1,27 +1,4 @@
-#[path = "../src/recv_refine_packets_complete.rs"]
-mod recv_refine_packets_complete;
-
-use recv_refine_packets_complete::*;
-use std::sync::Mutex;
-
-lazy_static::lazy_static! {
-    static ref CALLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
-}
-
-#[no_mangle]
-pub extern "C" fn m2_recv_refine_open_dialog(pos: u8, result_vnum: u32, cost: i32, prob: i32) {
-    CALLS.lock().unwrap().push(format!("open_refine_dialog({}, {}, {}, {})", pos, result_vnum, cost, prob));
-}
-
-#[no_mangle]
-pub extern "C" fn m2_recv_refine_open_dialog_new(pos: u8, result_vnum: u32, cost: i32, prob: i32, type_: u8) {
-    CALLS.lock().unwrap().push(format!("open_refine_dialog_new({}, {}, {}, {}, {})", pos, result_vnum, cost, prob, type_));
-}
-
-#[no_mangle]
-pub extern "C" fn m2_recv_refine_append_material(vnum: u32, count: i32) {
-    CALLS.lock().unwrap().push(format!("append_material({}, {})", vnum, count));
-}
+use m2_client::recv_refine_packets_complete::*;
 
 #[test]
 fn test_refine_information_packet_size() {
@@ -31,7 +8,7 @@ fn test_refine_information_packet_size() {
 
 #[test]
 fn test_recv_refine_information() {
-    CALLS.lock().unwrap().clear();
+    REFINE_CALLS.lock().unwrap().clear();
 
     let mut refine_table = TRefineTable {
         src_vnum: 1,
@@ -56,7 +33,7 @@ fn test_recv_refine_information() {
         assert!(m2_recv_refine_information_complete(&packet));
     }
 
-    let calls = CALLS.lock().unwrap();
+    let calls = REFINE_CALLS.lock().unwrap();
     assert_eq!(calls.len(), 3);
     assert_eq!(calls[0], "open_refine_dialog(3, 100, 500, 75)");
     assert_eq!(calls[1], "append_material(10, 1)");
@@ -65,7 +42,7 @@ fn test_recv_refine_information() {
 
 #[test]
 fn test_recv_refine_information_new() {
-    CALLS.lock().unwrap().clear();
+    REFINE_CALLS.lock().unwrap().clear();
 
     let mut refine_table = TRefineTable {
         src_vnum: 2,
@@ -89,7 +66,7 @@ fn test_recv_refine_information_new() {
         assert!(m2_recv_refine_information_new_complete(&packet));
     }
 
-    let calls = CALLS.lock().unwrap();
+    let calls = REFINE_CALLS.lock().unwrap();
     assert_eq!(calls.len(), 2);
     assert_eq!(calls[0], "open_refine_dialog_new(1, 200, 1000, 50, 5)");
     assert_eq!(calls[1], "append_material(30, 10)");

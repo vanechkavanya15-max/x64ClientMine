@@ -184,6 +184,15 @@ pub extern "C" fn m2_net_ClearPhaseWindow(phase: u32, po_handler: usize) {
     }
 }
 
+pub fn get_phase_window(phase: usize) -> usize {
+    if phase < PHASE_WINDOW_NUM {
+        if let Ok(state) = NETWORK_STREAM.lock() {
+            return state.phase_windows[phase];
+        }
+    }
+    0
+}
+
 #[no_mangle]
 pub extern "C" fn m2_net_SetAccountConnectorHandler(po_handler: usize) {
     if let Ok(mut state) = NETWORK_STREAM.lock() {
@@ -930,15 +939,256 @@ pub extern "C" fn m2_net_SendDestroyCharacterPacket(slot: u8, code: *const c_cha
 
 #[no_mangle]
 pub extern "C" fn m2_net_SendItemUsePacket(slot: u16) -> bool {
-    println!("[NET] SendItemUsePacket(slot={})", slot);
-    true
+    let packet = m2_client_bridge::net::cg::item_use::TPacketCGItemUse::new(1, slot);
+    let bytes = packet.to_bytes();
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut enc_buf = bytes.clone();
+            cipher.encrypt_in_place(&mut enc_buf);
+            let _ = stream.write_all(&enc_buf);
+        }
+    }
+    m2_client_bridge::net::send_queue::enqueue_outgoing_packet(bytes)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendItemDropPacket(slot: u16, count: u32) -> bool {
+    let mut out_buf = [0u8; 32];
+    let len = unsafe { crate::send_item_actions_packets::m2_net_send_item_drop_action(1, slot, count) };
+    len
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendItemMovePacket(src_slot: u16, dst_slot: u16, count: u8) -> bool {
+    unsafe { crate::send_item_actions_packets::m2_net_send_item_move_action(1, src_slot, 1, dst_slot, count) }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendItemPickUpPacket(vid: u32) -> bool {
+    unsafe { crate::send_item_actions_packets::m2_net_send_item_pickup_action(vid) }
 }
 
 #[no_mangle]
 pub extern "C" fn m2_net_SendExchangeStartPacket(vid: u32) -> bool {
-    println!("[NET] SendExchangeStartPacket(vid={})", vid);
-    true
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_exchange_v2::m2_send_exchange_start(vid, out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
 }
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendExchangeItemAddPacket(slot: u16, target_pos: u8) -> bool {
+    let mut out_buf = [0u8; 32];
+    let len = crate::send_shop_exchange_v2::m2_send_exchange_item_add(1, slot, target_pos, out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendExchangeElkAddPacket(elk: u32) -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_exchange_v2::m2_send_exchange_elk_add(elk, out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendExchangeAcceptPacket() -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_exchange_v2::m2_send_exchange_accept(out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendExchangeExitPacket() -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_exchange_v2::m2_send_exchange_exit(out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendShopBuyPacket(pos: u8, count: u8) -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_complete_packets::m2_send_shop_buy(pos, count, out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendShopSellPacket(pos: u8, count: u8) -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_complete_packets::m2_send_shop_sell_new(pos, count, out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendShopEndPacket() -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_complete_packets::m2_send_shop_end(out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendRefinePacket(slot: u16, refine_type: u8) -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = unsafe { crate::send_refine_packets_v2::m2_send_refine(slot, refine_type, out_buf.as_mut_ptr()) };
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendPartyInvitePacket(vid: u32) -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = unsafe { crate::send_party_guild_v2::m2_send_party_invite(vid, out_buf.as_mut_ptr()) };
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendPartyExitPacket() -> bool {
+    let mut out_buf = [0u8; 16];
+    let len = unsafe { crate::send_party_guild_v2::m2_send_party_remove(0, out_buf.as_mut_ptr()) };
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc_buf = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc_buf);
+                return stream.write_all(&enc_buf).is_ok();
+            }
+        }
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendQuestInputStringPacket(msg: *const c_char) -> bool {
+    if msg.is_null() {
+        return false;
+    }
+    crate::send_quickslot_quest_v2::m2_send_quest_input_string(msg)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendQuickSlotAddPacket(pos: u8, slot_type: u8, slot_pos: u32) -> bool {
+    crate::send_quickslot_quest_v2::SendQuickSlotAddPacket(pos, slot_type, slot_pos as u8)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendQuickSlotDelPacket(pos: u8) -> bool {
+    crate::send_quickslot_quest_v2::SendQuickSlotDelPacket(pos)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendQuickSlotMovePacket(pos: u8, change_pos: u8) -> bool {
+    crate::send_quickslot_quest_v2::SendQuickSlotMovePacket(pos, change_pos)
+}
+
 
 #[no_mangle]
 pub extern "C" fn m2_net_SendOnClickPacket(vid: u32) -> bool {

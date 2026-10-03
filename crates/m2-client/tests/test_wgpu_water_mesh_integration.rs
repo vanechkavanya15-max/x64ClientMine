@@ -1,8 +1,5 @@
-#[path = "../src/wgpu_water_mesh_integration.rs"]
-mod wgpu_water_mesh_integration;
-
 use m2_client::terrain_height_patch::{RawHeightMap, CELL_SIZE};
-use wgpu_water_mesh_integration::{
+use m2_client::wgpu_water_mesh_integration::{
     calculate_water_foam, calculate_water_fresnel, WaterMeshBuilder, WaterVertex,
 };
 

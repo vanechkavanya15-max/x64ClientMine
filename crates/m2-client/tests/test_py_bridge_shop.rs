@@ -1,6 +1,6 @@
 use serial_test::serial;
 use m2_client::py_bridge_shop::{
-    m2_py_shop_is_open, m2_py_shop_get_item_count, m2_py_shop_get_item_id, m2_py_shop_get_item_price, m2_py_shop_build_private_shop,
+    m2_py_shop_is_open, m2_py_shop_get_item_count, m2_py_shop_get_item_id, m2_py_shop_get_item_price, m2_py_shop_build_private_shop_legacy,
     HEADER_CG_MYSHOP, TPacketCGMyShop, TShopItemTable
 };
 use m2_client::recv_shop_logic_v2::SHOP_INSTANCE;
@@ -69,7 +69,7 @@ fn test_shop_get_item_price() {
 fn test_shop_build_private_shop_empty() {
     let mut out_buf = [0u8; 1024];
     
-    let size = m2_py_shop_build_private_shop(
+    let size = m2_py_shop_build_private_shop_legacy(
         std::ptr::null(),
         0,
         std::ptr::null(),
@@ -113,7 +113,7 @@ fn test_shop_build_private_shop_with_items() {
         },
     ];
     
-    let size = m2_py_shop_build_private_shop(
+    let size = m2_py_shop_build_private_shop_legacy(
         title_bytes.as_ptr(),
         title_bytes.len(),
         items.as_ptr(),

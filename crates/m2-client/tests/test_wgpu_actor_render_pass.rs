@@ -1,7 +1,4 @@
-#[path = "../src/wgpu_actor_render_pass.rs"]
-mod wgpu_actor_render_pass;
-
-use wgpu_actor_render_pass::{FfiActorRenderInfo, m2_actor_pass_get_info};
+use m2_client::wgpu_actor_render_pass::{FfiActorRenderInfo, m2_actor_pass_get_info};
 
 #[test]
 fn test_ffi_actor_pass_get_info_defaults() {

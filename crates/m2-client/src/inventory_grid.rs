@@ -15,6 +15,124 @@ pub struct ItemData {
     pub anti_flags: u32,
 }
 
+pub struct InventoryGrid {
+    slots: [bool; 180],
+    items: [Option<ItemData>; 180],
+}
+
+impl InventoryGrid {
+    pub fn new() -> Self {
+        Self {
+            slots: [false; 180],
+            items: [None; 180],
+        }
+    }
+
+    pub fn can_put_item(&self, slot: u16, size: u8) -> bool {
+        if size == 0 || size > 3 || slot >= 180 {
+            return false;
+        }
+
+        let row = (slot % 45) / 5;
+        if row + (size as u16) > 9 {
+            return false;
+        }
+
+        for i in 0..size {
+            let s = slot + (i as u16) * 5;
+            if s >= 180 || self.slots[s as usize] {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn put_item(&mut self, slot: u16, size: u8) -> Result<(), &'static str> {
+        if !self.can_put_item(slot, size) {
+            return Err("Cannot put item");
+        }
+
+        for i in 0..size {
+            let s = slot + (i as u16) * 5;
+            self.slots[s as usize] = true;
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_item(&mut self, slot: u16, size: u8) {
+        if size == 0 || size > 3 || slot >= 180 {
+            return;
+        }
+        for i in 0..size {
+            let s = (slot + (i as u16) * 5) as usize;
+            if s < 180 {
+                self.slots[s] = false;
+            }
+        }
+        self.items[slot as usize] = None;
+    }
+
+    pub fn find_free_slot(&self, size: u8) -> Option<u16> {
+        for slot in 0..180 {
+            if self.can_put_item(slot, size) {
+                return Some(slot);
+            }
+        }
+        None
+    }
+
+    pub fn set_item(&mut self, slot: u16, item: ItemData) -> bool {
+        if slot >= 180 {
+            return false;
+        }
+        self.items[slot as usize] = Some(item);
+        self.slots[slot as usize] = true;
+        true
+    }
+
+    pub fn get_item(&self, slot: u16) -> Option<&ItemData> {
+        if slot >= 180 {
+            return None;
+        }
+        self.items[slot as usize].as_ref()
+    }
+
+    pub fn swap_items(&mut self, slot_a: u16, slot_b: u16) -> bool {
+        if slot_a >= 180 || slot_b >= 180 {
+            return false;
+        }
+        let a = slot_a as usize;
+        let b = slot_b as usize;
+        self.items.swap(a, b);
+        self.slots.swap(a, b);
+        true
+    }
+
+    pub fn split_stack(&mut self, src_slot: u16, dst_slot: u16, count: u8) -> bool {
+        if src_slot >= 180 || dst_slot >= 180 || count == 0 {
+            return false;
+        }
+        if self.items[dst_slot as usize].is_some() {
+            return false;
+        }
+        let src_item = match self.items[src_slot as usize].as_mut() {
+            Some(it) => it,
+            None => return false,
+        };
+        if count >= src_item.count {
+            return false;
+        }
+        src_item.count -= count;
+        let mut new_item = *src_item;
+        new_item.count = count;
+        self.items[dst_slot as usize] = Some(new_item);
+        self.slots[dst_slot as usize] = true;
+        true
+    }
+}
+
 fn safe_ffi_call<F, R>(default_val: R, f: F) -> R
 where
     F: FnOnce() -> R,

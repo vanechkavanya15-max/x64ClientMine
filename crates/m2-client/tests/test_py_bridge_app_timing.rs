@@ -1,7 +1,4 @@
-#[path = "../src/py_bridge_app_timing.rs"]
-mod py_bridge_app_timing;
-
-use py_bridge_app_timing::*;
+use m2_client::py_bridge_app_timing::*;
 
 #[test]
 fn test_initial_fps() {

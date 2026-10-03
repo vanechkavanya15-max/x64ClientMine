@@ -97,31 +97,31 @@ fn test_attachment_bounds_checking() {
 #[tokio::test]
 async fn test_pipeline_creation() {
     let instance = wgpu::Instance::default();
-    let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
+    let adapter = match instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::default(),
         compatible_surface: None,
         force_fallback_adapter: false,
-    }).await;
-    
-    // Skip pipeline test in CI environments where no suitable adapter is found
-    if adapter.is_none() {
-        println!("Skipping wgpu test, no adapter found.");
-        return;
-    }
-    let adapter = adapter.unwrap();
+        ..Default::default()
+    }).await {
+        Ok(a) => a,
+        Err(_) => {
+            println!("Skipping wgpu test, no adapter found.");
+            return;
+        }
+    };
 
-    let device_req = adapter.request_device(&wgpu::DeviceDescriptor {
+    let (device, _queue) = match adapter.request_device(&wgpu::DeviceDescriptor {
         label: None,
         required_features: wgpu::Features::empty(),
         required_limits: wgpu::Limits::default(),
-    }, None).await;
-
-    if device_req.is_err() {
-        println!("Skipping wgpu test, device request failed.");
-        return;
-    }
-    
-    let (device, _queue) = device_req.unwrap();
+        ..Default::default()
+    }).await {
+        Ok(dq) => dq,
+        Err(_) => {
+            println!("Skipping wgpu test, device request failed.");
+            return;
+        }
+    };
 
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -132,11 +132,9 @@ async fn test_pipeline_creation() {
         alpha_mode: wgpu::CompositeAlphaMode::Auto,
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
+        color_space: wgpu::SurfaceColorSpace::Auto,
     };
 
-    let renderer = WgpuSkeletalMeshRenderer::new(&device, &config);
-    
-    // Just checking that we can read the global_id from the pipeline
-    // (will not fail since render pipeline was created successfully)
+    let _renderer = WgpuSkeletalMeshRenderer::new(&device, &config);
     assert!(true);
 }

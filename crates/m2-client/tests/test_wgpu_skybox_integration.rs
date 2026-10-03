@@ -1,7 +1,4 @@
-#[path = "../src/wgpu_skybox_integration.rs"]
-mod wgpu_skybox_integration;
-
-use wgpu_skybox_integration::{parse_environment_data, EnvironmentData};
+use m2_client::wgpu_skybox_integration::{parse_environment_data, EnvironmentData};
 
 #[test]
 fn test_parse_environment_data_empty() {

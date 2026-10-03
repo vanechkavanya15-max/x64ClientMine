@@ -1,7 +1,4 @@
-#[path = "../src/inventory_ffi.rs"]
-pub mod inventory_ffi;
-
-use inventory_ffi::{
+use m2_client::inventory_ffi::{
     m2_inv_get_item, m2_inv_move_item, m2_inv_use_item, m2_inv_get_gold,
     set_item_for_test, reset_inventory_for_test, set_gold_for_test,
 };

@@ -1,7 +1,4 @@
-#[path = "../src/py_bridge_chr_appearance.rs"]
-mod py_bridge_chr_appearance;
-
-use py_bridge_chr_appearance::*;
+use m2_client::py_bridge_chr_appearance::*;
 use m2_client::character_manager_core::get_character_manager;
 use m2_client::actor_appearance::PART_MAIN;
 
@@ -31,11 +28,11 @@ fn test_m2_py_chr_set_race() {
     let result = m2_py_chr_set_race(1);
     assert!(result);
     
-    let mgr = get_character_manager().read().unwrap();
-    let inst = mgr.get_instance(100).unwrap();
-    assert_eq!(inst.race, 1);
-    
-    clear_test_manager();
+    {
+        let mgr = get_character_manager().read().unwrap();
+        let inst = mgr.get_instance(100).unwrap();
+        assert_eq!(inst.race, 1);
+    }
 }
 
 #[test]
@@ -45,11 +42,11 @@ fn test_m2_py_chr_set_armor() {
     let result = m2_py_chr_set_armor(12010);
     assert!(result);
     
-    let mgr = get_character_manager().read().unwrap();
-    let inst = mgr.get_instance(100).unwrap();
-    assert_eq!(inst.appearance.armor_vnum, 12010);
-    
-    clear_test_manager();
+    {
+        let mgr = get_character_manager().read().unwrap();
+        let inst = mgr.get_instance(100).unwrap();
+        assert_eq!(inst.appearance.armor_vnum, 12010);
+    }
 }
 
 #[test]
@@ -59,11 +56,11 @@ fn test_m2_py_chr_change_shape() {
     let result = m2_py_chr_change_shape(11299);
     assert!(result);
     
-    let mgr = get_character_manager().read().unwrap();
-    let inst = mgr.get_instance(100).unwrap();
-    assert_eq!(inst.appearance.armor_vnum, 11299);
-    
-    clear_test_manager();
+    {
+        let mgr = get_character_manager().read().unwrap();
+        let inst = mgr.get_instance(100).unwrap();
+        assert_eq!(inst.appearance.armor_vnum, 11299);
+    }
 }
 
 #[test]
@@ -73,11 +70,11 @@ fn test_m2_py_chr_set_weapon() {
     let result = m2_py_chr_set_weapon(299);
     assert!(result);
     
-    let mgr = get_character_manager().read().unwrap();
-    let inst = mgr.get_instance(100).unwrap();
-    assert_eq!(inst.appearance.weapon_vnum, 299);
-    
-    clear_test_manager();
+    {
+        let mgr = get_character_manager().read().unwrap();
+        let inst = mgr.get_instance(100).unwrap();
+        assert_eq!(inst.appearance.weapon_vnum, 299);
+    }
 }
 
 #[test]
@@ -87,11 +84,11 @@ fn test_m2_py_chr_set_hair() {
     let result = m2_py_chr_set_hair(2010);
     assert!(result);
     
-    let mgr = get_character_manager().read().unwrap();
-    let inst = mgr.get_instance(100).unwrap();
-    assert_eq!(inst.appearance.hair_vnum, 2010);
-    
-    clear_test_manager();
+    {
+        let mgr = get_character_manager().read().unwrap();
+        let inst = mgr.get_instance(100).unwrap();
+        assert_eq!(inst.appearance.hair_vnum, 2010);
+    }
 }
 
 #[test]
@@ -101,11 +98,11 @@ fn test_m2_py_chr_change_hair() {
     let result = m2_py_chr_change_hair(2020);
     assert!(result);
     
-    let mgr = get_character_manager().read().unwrap();
-    let inst = mgr.get_instance(100).unwrap();
-    assert_eq!(inst.appearance.hair_vnum, 2020);
-    
-    clear_test_manager();
+    {
+        let mgr = get_character_manager().read().unwrap();
+        let inst = mgr.get_instance(100).unwrap();
+        assert_eq!(inst.appearance.hair_vnum, 2020);
+    }
 }
 
 #[test]
@@ -120,8 +117,6 @@ fn test_no_main_actor() {
     
     let result = m2_py_chr_set_race(2);
     assert!(!result);
-    
-    clear_test_manager();
 }
 
 #[test]
@@ -136,6 +131,4 @@ fn test_main_actor_not_found_in_instances() {
     
     let result = m2_py_chr_set_armor(12010);
     assert!(!result);
-    
-    clear_test_manager();
 }

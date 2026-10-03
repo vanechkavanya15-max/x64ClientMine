@@ -6,7 +6,7 @@ fn test_send_shop_buy() {
     let mut out_buf = [0u8; 128];
     let expected_len = size_of::<TPacketCGShop>() + 2;
     
-    let written = m2_send_shop_buy(5, 10, out_buf.as_mut_ptr());
+    let written = m2_send_shop_buy_v2(5, 10, out_buf.as_mut_ptr());
     assert_eq!(written, expected_len, "m2_send_shop_buy returned wrong length");
     
     let packet_slice = &out_buf[0..size_of::<TPacketCGShop>()];
@@ -22,7 +22,7 @@ fn test_send_shop_buy() {
 
 #[test]
 fn test_send_shop_buy_null() {
-    let written = m2_send_shop_buy(5, 10, std::ptr::null_mut());
+    let written = m2_send_shop_buy_v2(5, 10, std::ptr::null_mut());
     assert_eq!(written, 0, "m2_send_shop_buy with null out_buf should return 0");
 }
 

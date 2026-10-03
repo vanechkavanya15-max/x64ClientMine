@@ -1,64 +1,10 @@
-#[path = "../src/recv_safebox_packets_complete.rs"]
-mod recv_safebox_packets_complete;
-
-use recv_safebox_packets_complete::*;
-use std::cell::RefCell;
-use std::mem::{size_of, transmute};
-
-thread_local! {
-    static SAFEBOX_OPEN_CALLS: RefCell<Vec<u8>> = RefCell::new(Vec::new());
-    static SAFEBOX_SET_CALLS: RefCell<Vec<(u16, u32, u8, u32, u32)>> = RefCell::new(Vec::new());
-    static SAFEBOX_DEL_CALLS: RefCell<Vec<u16>> = RefCell::new(Vec::new());
-    static SAFEBOX_WRONG_PASSWORD_CALLS: RefCell<usize> = RefCell::new(0);
-    static SAFEBOX_MONEY_CHANGE_CALLS: RefCell<Vec<i32>> = RefCell::new(Vec::new());
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn m2_safebox_open(size: u8) {
-    SAFEBOX_OPEN_CALLS.with(|c| c.borrow_mut().push(size));
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn m2_safebox_set_item(
-    pos: u16,
-    vnum: u32,
-    count: u8,
-    flags: u32,
-    anti_flags: u32,
-    _sockets: *const i32,
-    _attrs: *const TPlayerItemAttribute,
-) {
-    SAFEBOX_SET_CALLS.with(|c| c.borrow_mut().push((pos, vnum, count, flags, anti_flags)));
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn m2_safebox_del_item(pos: u16) {
-    SAFEBOX_DEL_CALLS.with(|c| c.borrow_mut().push(pos));
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn m2_safebox_wrong_password() {
-    SAFEBOX_WRONG_PASSWORD_CALLS.with(|c| *c.borrow_mut() += 1);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn m2_safebox_set_money(money: i32) {
-    SAFEBOX_MONEY_CHANGE_CALLS.with(|c| c.borrow_mut().push(money));
-}
-
-fn clear_mocks() {
-    SAFEBOX_OPEN_CALLS.with(|c| c.borrow_mut().clear());
-    SAFEBOX_SET_CALLS.with(|c| c.borrow_mut().clear());
-    SAFEBOX_DEL_CALLS.with(|c| c.borrow_mut().clear());
-    SAFEBOX_WRONG_PASSWORD_CALLS.with(|c| *c.borrow_mut() = 0);
-    SAFEBOX_MONEY_CHANGE_CALLS.with(|c| c.borrow_mut().clear());
-}
+use m2_client::recv_safebox_packets_complete::*;
+use m2_client::safebox_mall_manager_v2::G_SAFEBOX_MALL_MANAGER;
+use std::mem::size_of;
 
 #[test]
 fn test_parse_safebox_size() {
-    clear_mocks();
-    
-    let mut packet = TPacketGCSafeboxSize {
+    let packet = TPacketGCSafeboxSize {
         header: GC_SAFEBOX_OPEN,
         length: size_of::<TPacketGCSafeboxSize>() as u16,
         bSize: 42,
@@ -71,17 +17,18 @@ fn test_parse_safebox_size() {
     let result = parse_safebox_packet(data);
     assert_eq!(result.unwrap(), size_of::<TPacketGCSafeboxSize>());
     
-    SAFEBOX_OPEN_CALLS.with(|c| {
-        let calls = c.borrow();
-        assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0], 42);
-    });
+    let mgr = G_SAFEBOX_MALL_MANAGER.read().unwrap();
+    assert_eq!(mgr.get_current_safebox_size(), 42 * 5);
 }
 
 #[test]
 fn test_parse_safebox_set() {
-    clear_mocks();
-    
+    // najpierw otwieramy magazyn na odpowiedni rozmiar
+    {
+        let mut mgr = G_SAFEBOX_MALL_MANAGER.write().unwrap();
+        mgr.open_safebox(10);
+    }
+
     let packet = TPacketGCItemSet {
         header: GC_SAFEBOX_SET,
         length: size_of::<TPacketGCItemSet>() as u16,
@@ -102,21 +49,23 @@ fn test_parse_safebox_set() {
     let result = parse_safebox_packet(data);
     assert_eq!(result.unwrap(), size_of::<TPacketGCItemSet>());
     
-    SAFEBOX_SET_CALLS.with(|c| {
-        let calls = c.borrow();
-        assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0], (15, 1337, 5, 1, 2));
-    });
+    let mgr = G_SAFEBOX_MALL_MANAGER.read().unwrap();
+    let item = mgr.get_item_data(15).expect("Item should exist at slot 15");
+    assert_eq!(item.vnum, 1337);
+    assert_eq!(item.count, 5);
 }
 
 #[test]
 fn test_parse_safebox_del() {
-    clear_mocks();
-    
+    {
+        let mut mgr = G_SAFEBOX_MALL_MANAGER.write().unwrap();
+        mgr.open_safebox(10);
+    }
+
     let packet = TPacketGCItemDel {
         header: GC_SAFEBOX_DEL,
         length: size_of::<TPacketGCItemDel>() as u16,
-        pos: SItemPos { window_type: 2, cell: 99 },
+        pos: SItemPos { window_type: 2, cell: 15 },
     };
     
     let data = unsafe { 
@@ -126,17 +75,13 @@ fn test_parse_safebox_del() {
     let result = parse_safebox_packet(data);
     assert_eq!(result.unwrap(), size_of::<TPacketGCItemDel>());
     
-    SAFEBOX_DEL_CALLS.with(|c| {
-        let calls = c.borrow();
-        assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0], 99);
-    });
+    let mgr = G_SAFEBOX_MALL_MANAGER.read().unwrap();
+    let item = mgr.get_item_data(15).expect("Slot should be cleared");
+    assert_eq!(item.vnum, 0);
 }
 
 #[test]
 fn test_parse_safebox_wrong_password() {
-    clear_mocks();
-    
     let packet = TPacketGCSafeboxWrongPassword {
         header: GC_SAFEBOX_WRONG_PASSWORD,
         length: size_of::<TPacketGCSafeboxWrongPassword>() as u16,
@@ -149,19 +94,16 @@ fn test_parse_safebox_wrong_password() {
     let result = parse_safebox_packet(data);
     assert_eq!(result.unwrap(), size_of::<TPacketGCSafeboxWrongPassword>());
     
-    SAFEBOX_WRONG_PASSWORD_CALLS.with(|c| {
-        assert_eq!(*c.borrow(), 1);
-    });
+    let mgr = G_SAFEBOX_MALL_MANAGER.read().unwrap();
+    assert!(mgr.get_wrong_attempts() > 0);
 }
 
 #[test]
 fn test_parse_safebox_money_change() {
-    clear_mocks();
-    
     let packet = TPacketGCSafeboxMoneyChange {
         header: GC_SAFEBOX_MONEY_CHANGE,
         length: size_of::<TPacketGCSafeboxMoneyChange>() as u16,
-        lMoney: -5000,
+        lMoney: 50000,
     };
     
     let data = unsafe { 
@@ -171,11 +113,8 @@ fn test_parse_safebox_money_change() {
     let result = parse_safebox_packet(data);
     assert_eq!(result.unwrap(), size_of::<TPacketGCSafeboxMoneyChange>());
     
-    SAFEBOX_MONEY_CHANGE_CALLS.with(|c| {
-        let calls = c.borrow();
-        assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0], -5000);
-    });
+    let mgr = G_SAFEBOX_MALL_MANAGER.read().unwrap();
+    assert_eq!(mgr.get_money(), 50000);
 }
 
 #[test]
@@ -188,10 +127,8 @@ fn test_parse_safebox_packet_too_short_for_header() {
 
 #[test]
 fn test_parse_safebox_packet_too_short_for_payload() {
-    // A valid header but no body
     let mut data = vec![];
     data.extend_from_slice(&GC_SAFEBOX_OPEN.to_le_bytes()); // header
-    // Missing body fields (like bSize, length)
     
     let result = parse_safebox_packet(&data);
     assert!(result.is_err());

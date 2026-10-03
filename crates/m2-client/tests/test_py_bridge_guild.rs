@@ -84,7 +84,7 @@ fn test_py_bridge_guild_all() {
     // --- test_py_guild_get_guild_level ---
     test_clear_guild_state();
     
-    assert_eq!(m2_py_guild_get_guild_level(), 0);
+    assert_eq!(m2_py_guild_get_guild_level_legacy(), 0);
     
     {
         let mut state = get_guild_state().lock().unwrap();
@@ -92,12 +92,12 @@ fn test_py_bridge_guild_all() {
         state.level = 20;
     }
     
-    assert_eq!(m2_py_guild_get_guild_level(), 20);
+    assert_eq!(m2_py_guild_get_guild_level_legacy(), 20);
 
     // --- test_py_guild_get_guild_experience ---
     test_clear_guild_state();
     
-    assert_eq!(m2_py_guild_get_guild_experience(), 0);
+    assert_eq!(m2_py_guild_get_guild_experience_legacy(), 0);
     
     {
         let mut state = get_guild_state().lock().unwrap();
@@ -105,7 +105,7 @@ fn test_py_bridge_guild_all() {
         state.exp = 999999;
     }
     
-    assert_eq!(m2_py_guild_get_guild_experience(), 999999);
+    assert_eq!(m2_py_guild_get_guild_experience_legacy(), 999999);
 
     // --- test_py_guild_get_member_count ---
     test_clear_guild_state();

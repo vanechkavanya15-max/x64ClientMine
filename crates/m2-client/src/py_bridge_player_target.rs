@@ -140,3 +140,29 @@ pub unsafe extern "C" fn m2_py_player_is_pvp_instance(vid: u32) -> bool {
         false
     })
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_set_target_vid(vid: u32) {
+    m2_py_player_set_target(vid);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_clear_target_vid() {
+    m2_py_player_clear_target();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_is_attack_target(vid: u32) -> bool {
+    safe_ffi_call(false, || {
+        let mgr = match get_character_manager().read() {
+            Ok(m) => m,
+            Err(_) => return false,
+        };
+        if let Some(actor) = mgr.alive_instances.get(&vid) {
+            actor.is_enemy()
+        } else {
+            false
+        }
+    })
+}
+

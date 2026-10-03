@@ -1,17 +1,5 @@
-pub use m2_client::*;
-use character_manager_core::get_character_manager;
-
-#[path = "../src/py_bridge_chr_lifecycle.rs"]
-mod py_bridge_chr_lifecycle;
-
-extern "C" {
-    fn m2_py_chr_create_instance(vid: u32) -> bool;
-    fn m2_py_chr_delete_instance(vid: u32) -> bool;
-    fn m2_py_chr_delete_instance_by_fade(vid: u32) -> bool;
-    fn m2_py_chr_select(vid: u32) -> bool;
-    fn m2_py_chr_unselect() -> bool;
-    fn m2_py_chr_destroy() -> bool;
-}
+use m2_client::character_manager_core::get_character_manager;
+use m2_client::py_bridge_chr_lifecycle::*;
 
 #[test]
 fn test_create_and_delete_instance() {

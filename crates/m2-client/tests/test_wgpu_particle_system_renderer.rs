@@ -6,6 +6,7 @@ fn test_particle_euler_integration() {
     let mut emitter_prop = MseEmitterProperty::default();
     emitter_prop.max_emission_count = 10;
     emitter_prop.cycle_loop_enable = false;
+    emitter_prop.cycle_length = 2.0;
     emitter_prop.time_event_emission_count_per_second.push(MseTimeEventFloat { time: 0.0, value: 100.0 });
     emitter_prop.time_event_life_time.push(MseTimeEventFloat { time: 0.0, value: 5.0 });
     

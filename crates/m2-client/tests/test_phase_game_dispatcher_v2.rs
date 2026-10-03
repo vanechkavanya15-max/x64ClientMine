@@ -4,7 +4,7 @@ use std::mem::size_of;
 #[test]
 fn test_packet_too_short() {
     let buf: [u8; 2] = [0, 0];
-    let res = m2_net_dispatch_game_packet(buf.as_ptr(), buf.len());
+    let res = m2_net_dispatch_game_packet_v2(buf.as_ptr(), buf.len());
     assert_eq!(res, 0);
 }
 
@@ -15,7 +15,7 @@ fn test_packet_invalid_length() {
         length: 2, // too small
     };
     let buf: *const u8 = &hdr as *const _ as *const u8;
-    let res = m2_net_dispatch_game_packet(buf, size_of::<TDynamicSizePacketHeader>());
+    let res = m2_net_dispatch_game_packet_v2(buf, size_of::<TDynamicSizePacketHeader>());
     assert_eq!(res, 0);
 }
 
@@ -35,7 +35,7 @@ fn test_valid_phase_packet() {
     };
     
     let buf: *const u8 = &data as *const _ as *const u8;
-    let res = m2_net_dispatch_game_packet(buf, size_of::<PhaseData>());
+    let res = m2_net_dispatch_game_packet_v2(buf, size_of::<PhaseData>());
     assert_eq!(res, gc::PHASE);
 }
 
@@ -56,7 +56,7 @@ fn test_incomplete_packet() {
     
     let buf: *const u8 = &data as *const _ as *const u8;
     // Pass len < length
-    let res = m2_net_dispatch_game_packet(buf, size_of::<TDynamicSizePacketHeader>());
+    let res = m2_net_dispatch_game_packet_v2(buf, size_of::<TDynamicSizePacketHeader>());
     assert_eq!(res, 0);
 }
 
@@ -76,6 +76,6 @@ fn test_unknown_packet() {
     };
     
     let buf: *const u8 = &data as *const _ as *const u8;
-    let res = m2_net_dispatch_game_packet(buf, size_of::<UnknownData>());
+    let res = m2_net_dispatch_game_packet_v2(buf, size_of::<UnknownData>());
     assert_eq!(res, 0xFFFF);
 }

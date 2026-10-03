@@ -130,7 +130,7 @@ fn update_rect_internal(wm: &mut std::sync::MutexGuard<'static, WindowManager>, 
         if let Some(pr) = parent_rect {
             match v_align {
                 VERTICAL_ALIGN_BOTTOM => {
-                    top = parent_h - height - top;
+                    top = parent_h - top;
                 }
                 VERTICAL_ALIGN_CENTER => {
                     top = (parent_h - height) / 2 + top;
@@ -143,7 +143,7 @@ fn update_rect_internal(wm: &mut std::sync::MutexGuard<'static, WindowManager>, 
             // for non-RTL flip in CWindow::UpdateRect
             match h_align {
                 HORIZONTAL_ALIGN_RIGHT => {
-                    left = parent_w.abs() - width - left;
+                    left = parent_w.abs() - left;
                 }
                 HORIZONTAL_ALIGN_CENTER => {
                     left = parent_w / 2 - width / 2 + left;

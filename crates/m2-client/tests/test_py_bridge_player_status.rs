@@ -1,30 +1,13 @@
-#[path = "../src/py_bridge_player_status.rs"]
-mod py_bridge_player_status;
-#[path = "../src/character_manager_core.rs"]
-mod character_manager_core;
-#[path = "../src/actor_appearance.rs"]
-mod actor_appearance;
-#[path = "../src/actor_motion_queue.rs"]
-mod actor_motion_queue;
-#[path = "../src/actor_picking.rs"]
-mod actor_picking;
-#[path = "../src/actor_polymorph_v2.rs"]
-mod actor_polymorph_v2;
-#[path = "../src/network_actor_mgr.rs"]
-mod network_actor_mgr;
-#[path = "../src/game_state_unified.rs"]
-mod game_state_unified;
-
-use py_bridge_player_status::*;
+use m2_client::py_bridge_player_status::*;
 use m2_client_bridge::state::game_state::{GLOBAL_GAME_STATE, POINT_GOLD};
-use character_manager_core::get_character_manager;
+use m2_client::character_manager_core::get_character_manager;
+use std::sync::Mutex;
 
-extern "C" {
-    fn free(p: *mut std::ffi::c_void);
-}
+static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_get_exp() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     unsafe {
         m2_client_bridge::state::game_state::m2_game_state_reset();
         
@@ -40,6 +23,7 @@ fn test_get_exp() {
 
 #[test]
 fn test_get_money() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     unsafe {
         m2_client_bridge::state::game_state::m2_game_state_reset();
         
@@ -58,6 +42,7 @@ fn test_get_money() {
 
 #[test]
 fn test_get_play_time() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     unsafe {
         m2_client_bridge::state::game_state::m2_game_state_reset();
         
@@ -73,6 +58,7 @@ fn test_get_play_time() {
 
 #[test]
 fn test_get_job_and_race() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     unsafe {
         // Clear manager
         {
@@ -92,6 +78,7 @@ fn test_get_job_and_race() {
 
 #[test]
 fn test_get_name() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     unsafe {
         m2_client_bridge::state::game_state::m2_game_state_reset();
         {
@@ -111,13 +98,12 @@ fn test_get_name() {
         
         let c_str = std::ffi::CStr::from_ptr(c_name_ptr);
         assert_eq!(c_str.to_str().unwrap(), "PlayerNameTest");
-        
-        free(c_name_ptr as *mut std::ffi::c_void);
     }
 }
 
 #[test]
 fn test_get_character_distance() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     unsafe {
         m2_client_bridge::state::game_state::m2_game_state_reset();
         

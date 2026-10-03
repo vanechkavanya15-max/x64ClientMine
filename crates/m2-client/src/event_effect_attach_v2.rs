@@ -29,8 +29,8 @@ pub struct ActorEffectState {
 }
 
 pub struct EffectSystemManager {
-    actors: HashMap<u32, ActorEffectState>,
-    bone_map: HashMap<String, i32>,
+    pub actors: HashMap<u32, ActorEffectState>,
+    pub bone_map: HashMap<String, i32>,
 }
 
 impl EffectSystemManager {

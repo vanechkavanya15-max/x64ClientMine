@@ -559,7 +559,7 @@ pub struct TPacketGCWhisper {
 
 
 #[no_mangle]
-pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16 {
+pub extern "C" fn m2_net_dispatch_game_packet_v2(buf: *const u8, len: usize) -> u16 {
     if len < size_of::<TDynamicSizePacketHeader>() {
         return 0; // Not enough data for header
     }

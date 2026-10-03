@@ -1,13 +1,9 @@
-// Dolaczamy modul przez path, poniewaz nie modyfikujemy lib.rs jak bylo zakazane
-#[path = "../src/actor_ffi.rs"]
-mod actor_ffi;
-
-use std::sync::Mutex;
-
-use actor_ffi::{
+use m2_client::actor_ffi::{
     m2_chr_create, m2_chr_delete, m2_chr_get_count, m2_chr_update, test_clear_actors,
     test_get_actor,
 };
+
+use std::sync::Mutex;
 
 static TEST_MUTEX: Mutex<()> = Mutex::new(());
 

@@ -185,3 +185,16 @@ pub extern "C" fn m2_chat_append_line(chat_type: u8, text: *const std::ffi::c_ch
     let mut buffer = get_chat_buffer().lock().unwrap();
     buffer.append_line(chat_type, text_str, timestamp)
 }
+
+pub fn append_whisper(from: &str, text: &str) -> bool {
+    let mut buffer = match get_chat_buffer().lock() {
+        Ok(b) => b,
+        Err(_) => return false,
+    };
+    let formatted = format!("{} : {}", from, text);
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u32;
+    buffer.append_line(CHAT_TYPE_WHISPER, &formatted, timestamp)
+}

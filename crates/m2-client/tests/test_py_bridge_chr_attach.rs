@@ -1,24 +1,25 @@
 use std::ffi::CString;
 
-#[path = "../src/py_bridge_chr_attach.rs"]
-mod py_bridge_chr_attach;
+use m2_client::py_bridge_chr_attach::*;
+use m2_client::character_manager_core::get_character_manager;
+use m2_client::event_effect_attach_v2::get_effect_manager;
+use m2_client::py_bridge_item_nonplayer_runtime::get_nonplayer_manager_runtime;
+use m2_client::mob_proto_binary_loader::TMobTable;
+use m2_client::nonplayer_data::{TYPE_NPC, TYPE_MONSTER};
+use m2_client::network_actor_mgr::{NetworkActorData, AffectFlagContainer};
 
-use py_bridge_chr_attach::*;
-use crate::character_manager_core::get_character_manager;
-use crate::event_effect_attach_v2::get_effect_manager;
-use crate::py_bridge_item_nonplayer_runtime::get_nonplayer_manager_runtime;
-use crate::mob_proto_binary_loader::TMobTable;
-use crate::nonplayer_data::{TYPE_NPC, TYPE_MONSTER};
-use crate::network_actor_mgr::{NetworkActorData, AffectFlagContainer};
+static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-fn setup_test_environment() {
+fn setup_test_environment() -> std::sync::MutexGuard<'static, ()> {
+    let guard = TEST_MUTEX.lock().unwrap();
     let mut mgr = get_character_manager().write().unwrap();
     mgr.clear();
+    guard
 }
 
 #[test]
 fn test_attach_effect_by_id() {
-    setup_test_environment();
+    let _guard = setup_test_environment();
     
     // Create an instance and select it
     {
@@ -52,7 +53,7 @@ fn test_attach_effect_by_id() {
 
 #[test]
 fn test_attach_effect_by_name() {
-    setup_test_environment();
+    let _guard = setup_test_environment();
     
     {
         let mut mgr = get_character_manager().write().unwrap();
@@ -79,7 +80,7 @@ fn test_attach_effect_by_name() {
 
 #[test]
 fn test_mount_dismount_horse() {
-    setup_test_environment();
+    let _guard = setup_test_environment();
     
     {
         let mut mgr = get_character_manager().write().unwrap();
@@ -92,7 +93,7 @@ fn test_mount_dismount_horse() {
     {
         let mgr = get_character_manager().read().unwrap();
         let inst = mgr.get_instance(300).unwrap();
-        assert_eq!(inst.appearance.get_motion_mode() != crate::actor_appearance::MODE_HORSE && inst.appearance.get_motion_mode() != crate::actor_appearance::MODE_GENERAL, false);
+        assert_eq!(inst.appearance.get_motion_mode() != m2_client::actor_appearance::MODE_HORSE && inst.appearance.get_motion_mode() != m2_client::actor_appearance::MODE_GENERAL, false);
     }
     
     assert!(m2_py_chr_dismount_horse());
@@ -101,7 +102,7 @@ fn test_mount_dismount_horse() {
 
 #[test]
 fn test_is_enemy() {
-    setup_test_environment();
+    let _guard = setup_test_environment();
     
     {
         let mut mgr = get_character_manager().write().unwrap();
@@ -122,7 +123,7 @@ fn test_is_enemy() {
 
 #[test]
 fn test_is_npc() {
-    setup_test_environment();
+    let _guard = setup_test_environment();
     
     {
         let mut mgr = get_character_manager().write().unwrap();
@@ -143,7 +144,7 @@ fn test_is_npc() {
 
 #[test]
 fn test_is_game_master() {
-    setup_test_environment();
+    let _guard = setup_test_environment();
     
     {
         let mut mgr = get_character_manager().write().unwrap();
@@ -151,23 +152,9 @@ fn test_is_game_master() {
         
         let inst = mgr.get_instance_mut(600).unwrap();
         
-        let mut net_data = NetworkActorData {
-            name: "Admin".to_string(),
-            affect_flags: AffectFlagContainer::new(),
-            b_type: 0,
-            vid: 600,
-            state_flags: 0,
-            empire_id: 0,
-            race: 0,
-            mov_spd: 0,
-            atk_spd: 0,
-            rot: 0.0,
-            cur_x: 0,
-            cur_y: 0,
-            cur_z: 0,
-            src_x: 0,
-            src_y: 0,
-        };
+        let mut net_data = NetworkActorData::new();
+        net_data.name = "Admin".to_string();
+        net_data.vid = 600;
         // Set AFFECT_YMIR bit (bit 0)
         net_data.affect_flags.flags[0] |= 1 << 0;
         

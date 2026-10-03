@@ -54,6 +54,16 @@ impl InstanceBase {
             unified_data: None,
         }
     }
+
+    pub fn is_enemy(&self) -> bool {
+        if self.is_dead {
+            return false;
+        }
+        if let Some(net) = &self.network_data {
+            return net.b_type == 0 || net.b_type == 1;
+        }
+        self.race >= 101
+    }
 }
 
 

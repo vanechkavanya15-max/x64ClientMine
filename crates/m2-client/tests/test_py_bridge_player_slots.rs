@@ -1,7 +1,4 @@
-#[path = "../src/py_bridge_player_slots.rs"]
-mod py_bridge_player_slots;
-
-use py_bridge_player_slots::*;
+use m2_client::py_bridge_player_slots::*;
 use m2_client_bridge::state::game_state::GLOBAL_GAME_STATE;
 
 #[test]

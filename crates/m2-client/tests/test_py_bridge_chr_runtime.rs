@@ -3,13 +3,16 @@ use m2_client::py_bridge_chr_runtime::*;
 use std::ffi::CString;
 use std::os::raw::c_char;
 
+static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn test_create_and_select_instance() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     GLOBAL_GAME_STATE.write().unwrap().reset();
 
     unsafe {
         // Create instance
-        let created = m2_py_chr_create_instance(42);
+        let created = m2_py_chr_create_instance_legacy(42);
         assert!(created);
 
         // Verify it exists
@@ -29,13 +32,14 @@ fn test_create_and_select_instance() {
 
 #[test]
 fn test_delete_instance() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     GLOBAL_GAME_STATE.write().unwrap().reset();
 
     unsafe {
-        m2_py_chr_create_instance(99);
+        m2_py_chr_create_instance_legacy(99);
         assert!(GLOBAL_GAME_STATE.read().unwrap().get_actor(99).is_some());
 
-        let deleted = m2_py_chr_delete_instance(99);
+        let deleted = m2_py_chr_delete_instance_legacy(99);
         assert!(deleted);
         
         assert!(GLOBAL_GAME_STATE.read().unwrap().get_actor(99).is_none());
@@ -44,16 +48,17 @@ fn test_delete_instance() {
 
 #[test]
 fn test_set_properties() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     GLOBAL_GAME_STATE.write().unwrap().reset();
 
     unsafe {
-        m2_py_chr_create_instance(123);
+        m2_py_chr_create_instance_legacy(123);
         m2_py_chr_select_instance(123);
 
         m2_py_chr_set_instance_type(3); // NPC
         m2_py_chr_rt_set_pixel_position(100, 200, 300);
         m2_py_chr_rt_set_rotation(90.0);
-        m2_py_chr_set_motion_mode(2);
+        m2_py_chr_set_motion_mode_legacy(2);
         m2_py_chr_rt_push_once_motion(5);
 
         let state = GLOBAL_GAME_STATE.read().unwrap();
@@ -71,10 +76,11 @@ fn test_set_properties() {
 
 #[test]
 fn test_get_name_and_is_dead() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     GLOBAL_GAME_STATE.write().unwrap().reset();
 
     unsafe {
-        m2_py_chr_create_instance(777);
+        m2_py_chr_create_instance_legacy(777);
         m2_py_chr_select_instance(777);
 
         // Default name is empty
@@ -101,11 +107,12 @@ fn test_get_name_and_is_dead() {
 
 #[test]
 fn test_chrmgr_get_vid_by_name() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     GLOBAL_GAME_STATE.write().unwrap().reset();
 
     unsafe {
-        m2_py_chr_create_instance(111);
-        m2_py_chr_create_instance(222);
+        m2_py_chr_create_instance_legacy(111);
+        m2_py_chr_create_instance_legacy(222);
 
         {
             let mut state = GLOBAL_GAME_STATE.write().unwrap();

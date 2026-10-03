@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 static SELECTED_VID: AtomicU32 = AtomicU32::new(0);
 
 #[no_mangle]
-pub unsafe extern "C" fn m2_py_chr_create_instance(vid: u32) -> bool {
+pub unsafe extern "C" fn m2_py_chr_create_instance_legacy(vid: u32) -> bool {
     safe_ffi_call(false, || {
         let mut state = GLOBAL_GAME_STATE.write().unwrap();
         let mut actor = Actor::default();
@@ -27,7 +27,7 @@ pub unsafe extern "C" fn m2_py_chr_select_instance(vid: u32) -> bool {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn m2_py_chr_delete_instance(vid: u32) -> bool {
+pub unsafe extern "C" fn m2_py_chr_delete_instance_legacy(vid: u32) -> bool {
     safe_ffi_call(false, || {
         let mut state = GLOBAL_GAME_STATE.write().unwrap();
         state.remove_actor(vid);
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn m2_py_chr_rt_set_rotation(angle: f32) -> bool {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn m2_py_chr_set_motion_mode(mode: i32) -> bool {
+pub unsafe extern "C" fn m2_py_chr_set_motion_mode_legacy(mode: i32) -> bool {
     safe_ffi_call(false, || {
         let vid = SELECTED_VID.load(Ordering::SeqCst);
         let mut state = GLOBAL_GAME_STATE.write().unwrap();
@@ -167,3 +167,42 @@ pub unsafe extern "C" fn m2_py_chrmgr_is_selected_vid(vid: u32) -> bool {
         SELECTED_VID.load(Ordering::SeqCst) == vid
     })
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_chr_get_instance_type(vid: u32) -> u32 {
+    safe_ffi_call(0, || {
+        let target_vid = if vid != 0 { vid } else { SELECTED_VID.load(Ordering::SeqCst) };
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        if let Some(actor) = state.get_actor(target_vid) {
+            actor.b_type as u32
+        } else {
+            0
+        }
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_chr_get_name_by_vid(vid: u32) -> *const c_char {
+    safe_ffi_call(std::ptr::null(), || {
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        if let Some(actor) = state.get_actor(vid) {
+            let mut name_bytes = actor.name.as_bytes().to_vec();
+            name_bytes.push(0);
+            LAST_NAME = name_bytes;
+            return LAST_NAME.as_ptr() as *const c_char;
+        }
+        LAST_NAME = vec![b'N', b'o', b'n', b'e', 0];
+        LAST_NAME.as_ptr() as *const c_char
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_chr_get_pixel_position(
+    vid: u32,
+    out_x: *mut f32,
+    out_y: *mut f32,
+    out_z: *mut f32,
+) -> bool {
+    crate::py_bridge_chr::m2_chr_get_pixel_position(vid, out_x, out_y, out_z)
+}
+

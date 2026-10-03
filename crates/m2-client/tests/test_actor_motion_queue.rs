@@ -1,7 +1,4 @@
-#[path = "../src/actor_motion_queue.rs"]
-mod actor_motion_queue;
-
-use actor_motion_queue::*;
+use m2_client::actor_motion_queue::*;
 
 #[test]
 fn test_looping_animations() {
@@ -141,6 +138,9 @@ fn test_ffi_functions() {
     assert_eq!(m2_motion_get_state(vid), MOTION_WAIT);
     assert!(!m2_motion_is_dead(vid));
     
+    // Tworzymy instancje w CharacterManager
+    m2_client::character_manager_core::get_character_manager().write().unwrap().create_instance(vid, 1, 0.0, 0.0, 0.0);
+
     // Ustawiamy MOTION_RUN
     let success = m2_motion_set_state(vid, MOTION_RUN);
     assert!(success);

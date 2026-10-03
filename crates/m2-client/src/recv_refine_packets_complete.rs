@@ -47,10 +47,29 @@ pub struct TPacketGCRefineInformationNew {
     pub refine_table: TRefineTable,
 }
 
-extern "C" {
-    pub fn m2_recv_refine_open_dialog(pos: u8, result_vnum: u32, cost: i32, prob: i32);
-    pub fn m2_recv_refine_open_dialog_new(pos: u8, result_vnum: u32, cost: i32, prob: i32, type_: u8);
-    pub fn m2_recv_refine_append_material(vnum: u32, count: i32);
+lazy_static::lazy_static! {
+    pub static ref REFINE_CALLS: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+}
+
+#[no_mangle]
+pub extern "C" fn m2_recv_refine_open_dialog(pos: u8, result_vnum: u32, cost: i32, prob: i32) {
+    if let Ok(mut lock) = REFINE_CALLS.lock() {
+        lock.push(format!("open_refine_dialog({}, {}, {}, {})", pos, result_vnum, cost, prob));
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_recv_refine_open_dialog_new(pos: u8, result_vnum: u32, cost: i32, prob: i32, type_: u8) {
+    if let Ok(mut lock) = REFINE_CALLS.lock() {
+        lock.push(format!("open_refine_dialog_new({}, {}, {}, {}, {})", pos, result_vnum, cost, prob, type_));
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_recv_refine_append_material(vnum: u32, count: i32) {
+    if let Ok(mut lock) = REFINE_CALLS.lock() {
+        lock.push(format!("append_material({}, {})", vnum, count));
+    }
 }
 
 #[no_mangle]

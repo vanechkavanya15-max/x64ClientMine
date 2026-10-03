@@ -107,13 +107,19 @@ fn test_refine_info() {
         let state = get_refine_state().read().unwrap();
         assert_eq!(state.type_, 1);
         assert_eq!(state.pos, 5);
-        let info = state.info.as_ref().unwrap();
-        assert_eq!(info.src_vnum, 10);
-        assert_eq!(info.result_vnum, 11);
-        assert_eq!(info.cost, 1000);
-        assert_eq!(info.prob, 80);
-        assert_eq!(info.materials[0].vnum, 123);
-        assert_eq!(info.materials[0].count, 2);
+        let info = *state.info.as_ref().unwrap();
+        let src_vnum = info.src_vnum;
+        let result_vnum = info.result_vnum;
+        let cost = info.cost;
+        let prob = info.prob;
+        let mat_vnum = info.materials[0].vnum;
+        let mat_count = info.materials[0].count;
+        assert_eq!(src_vnum, 10);
+        assert_eq!(result_vnum, 11);
+        assert_eq!(cost, 1000);
+        assert_eq!(prob, 80);
+        assert_eq!(mat_vnum, 123);
+        assert_eq!(mat_count, 2);
     }
 }
 

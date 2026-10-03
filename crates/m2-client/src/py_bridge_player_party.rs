@@ -97,3 +97,20 @@ pub unsafe extern "C" fn m2_py_player_exit_party() {
         party_mgr.clear();
     });
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_party_member_hp(pid: u32) -> i32 {
+    m2_py_player_get_party_member_hp_percentage(pid)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_is_party_member(vid: u32) -> bool {
+    safe_ffi_call(false, || {
+        let party_mgr = match m2_client_bridge::state::party::PARTY_MANAGER.read() {
+            Ok(m) => m,
+            Err(_) => return false,
+        };
+        party_mgr.get_member_by_vid(vid).is_some()
+    })
+}
+

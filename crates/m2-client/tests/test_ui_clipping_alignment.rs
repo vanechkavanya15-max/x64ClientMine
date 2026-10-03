@@ -1,7 +1,4 @@
-#[path = "../src/ui_clipping_alignment.rs"]
-mod ui_clipping_alignment;
-
-use crate::ui_clipping_alignment::*;
+use m2_client::ui_clipping_alignment::*;
 use m2_client::ui_window_core::*;
 use m2_client::ui_window_mgr::*;
 
@@ -59,6 +56,8 @@ fn test_update_rect() {
     let mut wm = get_window_manager();
     
     let mut parent = Window::new(parent_handle, WindowType::Normal);
+    parent.local_x = 50;
+    parent.local_y = 50;
     parent.width = 100;
     parent.height = 100;
     parent.rendering_rect = [50.0, 50.0, 150.0, 150.0];

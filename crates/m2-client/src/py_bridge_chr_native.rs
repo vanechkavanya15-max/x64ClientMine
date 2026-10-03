@@ -56,7 +56,7 @@ pub extern "C" fn m2_py_chrmgr_is_instance(vid: u32) -> bool {
 // --- chr module methods ---
 
 #[no_mangle]
-pub extern "C" fn m2_py_chr_set_race(race: u16) -> bool {
+pub extern "C" fn m2_py_chr_set_race_native(race: u16) -> bool {
     safe_ffi_call(false, || {
         let mut mgr = match get_character_manager().write() {
             Ok(lock) => lock,
@@ -73,7 +73,7 @@ pub extern "C" fn m2_py_chr_set_race(race: u16) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_chr_set_armor(vnum: u32) -> bool {
+pub extern "C" fn m2_py_chr_set_armor_native(vnum: u32) -> bool {
     safe_ffi_call(false, || {
         let mut mgr = match get_character_manager().write() {
             Ok(lock) => lock,
@@ -90,7 +90,7 @@ pub extern "C" fn m2_py_chr_set_armor(vnum: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_chr_set_weapon(vnum: u32) -> bool {
+pub extern "C" fn m2_py_chr_set_weapon_native(vnum: u32) -> bool {
     safe_ffi_call(false, || {
         let mut mgr = match get_character_manager().write() {
             Ok(lock) => lock,
@@ -107,7 +107,7 @@ pub extern "C" fn m2_py_chr_set_weapon(vnum: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_chr_set_hair(vnum: u32) -> bool {
+pub extern "C" fn m2_py_chr_set_hair_native(vnum: u32) -> bool {
     safe_ffi_call(false, || {
         let mut mgr = match get_character_manager().write() {
             Ok(lock) => lock,
@@ -177,7 +177,7 @@ pub extern "C" fn m2_py_chr_set_motion(motion_id: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_chr_push_once_motion(motion_id: u32) -> bool {
+pub extern "C" fn m2_py_chr_push_once_motion_native(motion_id: u32) -> bool {
     safe_ffi_call(false, || {
         let mut mgr = match get_character_manager().write() {
             Ok(lock) => lock,

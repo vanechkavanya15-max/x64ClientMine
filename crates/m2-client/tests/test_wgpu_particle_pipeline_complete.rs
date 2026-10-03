@@ -1,7 +1,4 @@
-#[path = "../src/wgpu_particle_pipeline_complete.rs"]
-mod wgpu_particle_pipeline_complete;
-
-use wgpu_particle_pipeline_complete::*;
+use m2_client::wgpu_particle_pipeline_complete::*;
 use std::mem;
 
 fn setup_device() -> (wgpu::Device, wgpu::Queue) {
@@ -21,6 +18,7 @@ fn setup_device() -> (wgpu::Device, wgpu::Queue) {
             required_features: wgpu::Features::empty(),
             required_limits: wgpu::Limits::downlevel_defaults(),
             memory_hints: wgpu::MemoryHints::Performance,
+            ..Default::default()
         }
     ))
     .expect("Failed to create wgpu device")

@@ -75,7 +75,7 @@ pub extern "C" fn m2_py_guild_get_master_name(out_buf: *mut u8, max_len: usize) 
 /// Python `guild.GetGuildLevel()`
 /// Returns the current guild level, or 0 if not enabled.
 #[no_mangle]
-pub extern "C" fn m2_py_guild_get_guild_level() -> u8 {
+pub extern "C" fn m2_py_guild_get_guild_level_legacy() -> u8 {
     safe_ffi_call(0, || {
         let state = get_guild_state().lock().unwrap();
         if !state.is_enabled {
@@ -88,7 +88,7 @@ pub extern "C" fn m2_py_guild_get_guild_level() -> u8 {
 /// Python `guild.GetGuildExperience()`
 /// Returns the current guild experience, or 0 if not enabled.
 #[no_mangle]
-pub extern "C" fn m2_py_guild_get_guild_experience() -> u32 {
+pub extern "C" fn m2_py_guild_get_guild_experience_legacy() -> u32 {
     safe_ffi_call(0, || {
         let state = get_guild_state().lock().unwrap();
         if !state.is_enabled {

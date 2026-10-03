@@ -612,4 +612,181 @@ pub fn call_python_object_method1_str(py_obj: usize, method: &str, s: &str) -> b
         true
     }
 }
+
+pub fn call_python_object_method3_i32(py_obj: usize, method: &str, a: i32, b: i32, c: i32) -> bool {
+    if py_obj == 0 {
+        return false;
+    }
+    if is_mock_mode() {
+        let log_entry = format!("obj_{}.{}({}, {}, {})", py_obj, method, a, b, c);
+        CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().push(log_entry);
+        return true;
+    }
+
+    unsafe {
+        let py_buildvalue = get_py_func("Py_BuildValue");
+        let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
+        let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
+        let py_object_callobject = get_py_func("PyObject_CallObject");
+        let py_decref = get_py_func("Py_DecRef");
+
+        if py_buildvalue.is_null() || py_object_hasattrstring.is_null() || py_object_getattrstring.is_null() || py_object_callobject.is_null() {
+            return false;
+        }
+
+        let obj_ptr = py_obj as *mut PyObject;
+        let c_method = match CString::new(method) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+
+        let hasattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> i32 = std::mem::transmute(py_object_hasattrstring);
+        if hasattr_fn(obj_ptr, c_method.as_ptr()) == 0 {
+            return false;
+        }
+
+        let getattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> *mut PyObject = std::mem::transmute(py_object_getattrstring);
+        let method_obj = getattr_fn(obj_ptr, c_method.as_ptr());
+        if method_obj.is_null() {
+            return false;
+        }
+
+        let py_buildvalue_fn: extern "C" fn(*const c_char, i32, i32, i32) -> *mut PyObject = std::mem::transmute(py_buildvalue);
+        let format = CString::new("(iii)").unwrap();
+        let py_args = py_buildvalue_fn(format.as_ptr(), a, b, c);
+
+        let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
+        let result = call_fn(method_obj, py_args);
+
+        if !py_decref.is_null() {
+            let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
+            decref_fn(method_obj);
+            if !py_args.is_null() {
+                decref_fn(py_args);
+            }
+            if !result.is_null() {
+                decref_fn(result);
+            }
+        }
+        true
+    }
+}
+
+pub fn call_python_object_method4_i32(py_obj: usize, method: &str, a: i32, b: i32, c: i32, d: i32) -> bool {
+    if py_obj == 0 {
+        return false;
+    }
+    if is_mock_mode() {
+        let log_entry = format!("obj_{}.{}({}, {}, {}, {})", py_obj, method, a, b, c, d);
+        CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().push(log_entry);
+        return true;
+    }
+
+    unsafe {
+        let py_buildvalue = get_py_func("Py_BuildValue");
+        let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
+        let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
+        let py_object_callobject = get_py_func("PyObject_CallObject");
+        let py_decref = get_py_func("Py_DecRef");
+
+        if py_buildvalue.is_null() || py_object_hasattrstring.is_null() || py_object_getattrstring.is_null() || py_object_callobject.is_null() {
+            return false;
+        }
+
+        let obj_ptr = py_obj as *mut PyObject;
+        let c_method = match CString::new(method) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+
+        let hasattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> i32 = std::mem::transmute(py_object_hasattrstring);
+        if hasattr_fn(obj_ptr, c_method.as_ptr()) == 0 {
+            return false;
+        }
+
+        let getattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> *mut PyObject = std::mem::transmute(py_object_getattrstring);
+        let method_obj = getattr_fn(obj_ptr, c_method.as_ptr());
+        if method_obj.is_null() {
+            return false;
+        }
+
+        let py_buildvalue_fn: extern "C" fn(*const c_char, i32, i32, i32, i32) -> *mut PyObject = std::mem::transmute(py_buildvalue);
+        let format = CString::new("(iiii)").unwrap();
+        let py_args = py_buildvalue_fn(format.as_ptr(), a, b, c, d);
+
+        let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
+        let result = call_fn(method_obj, py_args);
+
+        if !py_decref.is_null() {
+            let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
+            decref_fn(method_obj);
+            if !py_args.is_null() {
+                decref_fn(py_args);
+            }
+            if !result.is_null() {
+                decref_fn(result);
+            }
+        }
+        true
+    }
+}
+
+pub fn call_python_object_method5_i32(py_obj: usize, method: &str, a: i32, b: i32, c: i32, d: i32, e: i32) -> bool {
+    if py_obj == 0 {
+        return false;
+    }
+    if is_mock_mode() {
+        let log_entry = format!("obj_{}.{}({}, {}, {}, {}, {})", py_obj, method, a, b, c, d, e);
+        CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().push(log_entry);
+        return true;
+    }
+
+    unsafe {
+        let py_buildvalue = get_py_func("Py_BuildValue");
+        let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
+        let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
+        let py_object_callobject = get_py_func("PyObject_CallObject");
+        let py_decref = get_py_func("Py_DecRef");
+
+        if py_buildvalue.is_null() || py_object_hasattrstring.is_null() || py_object_getattrstring.is_null() || py_object_callobject.is_null() {
+            return false;
+        }
+
+        let obj_ptr = py_obj as *mut PyObject;
+        let c_method = match CString::new(method) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+
+        let hasattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> i32 = std::mem::transmute(py_object_hasattrstring);
+        if hasattr_fn(obj_ptr, c_method.as_ptr()) == 0 {
+            return false;
+        }
+
+        let getattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> *mut PyObject = std::mem::transmute(py_object_getattrstring);
+        let method_obj = getattr_fn(obj_ptr, c_method.as_ptr());
+        if method_obj.is_null() {
+            return false;
+        }
+
+        let py_buildvalue_fn: extern "C" fn(*const c_char, i32, i32, i32, i32, i32) -> *mut PyObject = std::mem::transmute(py_buildvalue);
+        let format = CString::new("(iiiii)").unwrap();
+        let py_args = py_buildvalue_fn(format.as_ptr(), a, b, c, d, e);
+
+        let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
+        let result = call_fn(method_obj, py_args);
+
+        if !py_decref.is_null() {
+            let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
+            decref_fn(method_obj);
+            if !py_args.is_null() {
+                decref_fn(py_args);
+            }
+            if !result.is_null() {
+                decref_fn(result);
+            }
+        }
+        true
+    }
+}
 

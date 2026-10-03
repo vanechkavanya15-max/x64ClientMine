@@ -394,15 +394,34 @@ pub extern "C" fn m2_net_recv_refine_info(buf: *const u8, len: usize) -> bool {
         return false;
     }
     let packet = unsafe { &*(buf as *const TPacketGCRefineInformation) };
+    let refine_table = { packet.refine_table };
+    let pos = { packet.pos };
+    let type_ = { packet.type_ };
     if let Ok(mut state) = get_refine_state().write() {
-        let refine_table = { packet.refine_table };
         state.info = Some(refine_table);
-        state.type_ = { packet.type_ };
-        state.pos = { packet.pos };
-        true
-    } else {
-        false
+        state.type_ = type_;
+        state.pos = pos;
     }
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        crate::py_event_dispatcher::call_python_object_method4_i32(
+            game_wnd,
+            "OpenRefineDialog",
+            pos as i32,
+            refine_table.result_vnum as i32,
+            refine_table.cost,
+            refine_table.prob,
+        );
+        for i in 0..(refine_table.material_count as usize).min(REFINE_MATERIAL_MAX_NUM) {
+            crate::py_event_dispatcher::call_python_object_method2_i32(
+                game_wnd,
+                "AppendMaterialToRefineDialog",
+                refine_table.materials[i].vnum as i32,
+                refine_table.materials[i].count,
+            );
+        }
+    }
+    true
 }
 
 #[no_mangle]
@@ -411,13 +430,33 @@ pub extern "C" fn m2_net_recv_refine_info_new(buf: *const u8, len: usize) -> boo
         return false;
     }
     let packet = unsafe { &*(buf as *const TPacketGCRefineInformationNew) };
+    let refine_table = { packet.refine_table };
+    let pos = { packet.pos };
+    let type_ = { packet.type_ };
     if let Ok(mut state) = get_refine_state().write() {
-        let refine_table = { packet.refine_table };
         state.info = Some(refine_table);
-        state.type_ = { packet.type_ };
-        state.pos = { packet.pos };
-        true
-    } else {
-        false
+        state.type_ = type_;
+        state.pos = pos;
     }
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        crate::py_event_dispatcher::call_python_object_method5_i32(
+            game_wnd,
+            "OpenRefineDialog",
+            pos as i32,
+            refine_table.result_vnum as i32,
+            refine_table.cost,
+            refine_table.prob,
+            type_ as i32,
+        );
+        for i in 0..(refine_table.material_count as usize).min(REFINE_MATERIAL_MAX_NUM) {
+            crate::py_event_dispatcher::call_python_object_method2_i32(
+                game_wnd,
+                "AppendMaterialToRefineDialog",
+                refine_table.materials[i].vnum as i32,
+                refine_table.materials[i].count,
+            );
+        }
+    }
+    true
 }

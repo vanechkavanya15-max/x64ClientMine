@@ -69,21 +69,95 @@ pub struct TPacketGCSafeboxMoneyChange {
     pub lMoney: i32,
 }
 
-// C-FFI callbacks that will be implemented in C++ (mocked in tests)
-extern "C" {
-    pub fn m2_safebox_open(size: u8);
-    pub fn m2_safebox_set_item(
-        pos: u16, // using cell only, assuming window_type is SAFEBOX implicitly handled by UI or we pass full struct
-        vnum: u32,
-        count: u8,
-        flags: u32,
-        anti_flags: u32,
-        sockets: *const i32,
-        attrs: *const TPlayerItemAttribute,
-    );
-    pub fn m2_safebox_del_item(pos: u16);
-    pub fn m2_safebox_wrong_password();
-    pub fn m2_safebox_set_money(money: i32);
+use crate::safebox_mall_manager_v2::{G_SAFEBOX_MALL_MANAGER, TItemData, TPlayerItemAttribute as SafeBoxAttr};
+
+#[no_mangle]
+pub extern "C" fn m2_safebox_recv_open(size: u8) {
+    if let Ok(mut mgr) = G_SAFEBOX_MALL_MANAGER.write() {
+        mgr.open_safebox(size as usize);
+    }
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "OpenSafeboxWindow", size as i32);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_safebox_set_item(
+    pos: u16,
+    vnum: u32,
+    count: u8,
+    flags: u32,
+    anti_flags: u32,
+    sockets: *const i32,
+    attrs: *const TPlayerItemAttribute,
+) {
+    if let Ok(mut mgr) = G_SAFEBOX_MALL_MANAGER.write() {
+        let mut item = TItemData {
+            vnum,
+            count,
+            flags,
+            anti_flags,
+            alSockets: [0; 3],
+            aAttr: [SafeBoxAttr::default(); 7],
+        };
+        if !sockets.is_null() {
+            unsafe {
+                for i in 0..3 {
+                    item.alSockets[i] = *sockets.add(i);
+                }
+            }
+        }
+        if !attrs.is_null() {
+            unsafe {
+                for i in 0..7 {
+                    let a = &*attrs.add(i);
+                    item.aAttr[i] = SafeBoxAttr {
+                        bType: a.bType,
+                        sValue: a.sValue,
+                    };
+                }
+            }
+        }
+        mgr.set_item_data(pos as usize, item);
+    }
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        crate::py_event_dispatcher::call_python_object_method0(game_wnd, "RefreshSafebox");
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_safebox_del_item(pos: u16) {
+    if let Ok(mut mgr) = G_SAFEBOX_MALL_MANAGER.write() {
+        mgr.del_item_data(pos as usize);
+    }
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        crate::py_event_dispatcher::call_python_object_method0(game_wnd, "RefreshSafebox");
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_safebox_wrong_password() {
+    if let Ok(mut mgr) = G_SAFEBOX_MALL_MANAGER.write() {
+        mgr.try_open_with_password("");
+    }
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        crate::py_event_dispatcher::call_python_object_method0(game_wnd, "OnSafeBoxError");
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_safebox_set_money(money: i32) {
+    if let Ok(mut mgr) = G_SAFEBOX_MALL_MANAGER.write() {
+        mgr.set_money(money.max(0) as u32);
+    }
+    let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+    if game_wnd != 0 {
+        crate::py_event_dispatcher::call_python_object_method0(game_wnd, "RefreshSafeboxMoney");
+    }
 }
 
 pub const GC_SAFEBOX_OPEN: u16 = 0x0830;
@@ -108,7 +182,7 @@ pub fn parse_safebox_packet(data: &[u8]) -> Result<usize, &'static str> {
             let packet = unsafe { &*(data.as_ptr() as *const TPacketGCSafeboxSize) };
             
             unsafe {
-                m2_safebox_open(packet.bSize);
+                m2_safebox_recv_open(packet.bSize);
             }
             Ok(size_of::<TPacketGCSafeboxSize>())
         }
@@ -159,7 +233,7 @@ pub fn parse_safebox_packet(data: &[u8]) -> Result<usize, &'static str> {
             let packet = unsafe { &*(data.as_ptr() as *const TPacketGCSafeboxSize) };
             
             unsafe {
-                m2_safebox_open(packet.bSize);
+                m2_safebox_recv_open(packet.bSize);
             }
             Ok(size_of::<TPacketGCSafeboxSize>())
         }

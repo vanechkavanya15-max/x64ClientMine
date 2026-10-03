@@ -69,7 +69,7 @@ fn send_packet(bytes: &[u8]) {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_send_shop_buy(pos: u8, count: u8, out_buf: *mut u8) -> usize {
+pub extern "C" fn m2_send_shop_buy_v2(pos: u8, count: u8, out_buf: *mut u8) -> usize {
     safe_ffi_call(0, || {
         let packet = TPacketCGShop {
             header: HEADER_CG_SHOP,

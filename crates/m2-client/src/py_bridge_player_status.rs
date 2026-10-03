@@ -6,9 +6,7 @@ use std::ffi::CString;
 pub const POINT_EXP: u8 = 3;
 pub const POINT_PLAYTIME: u8 = 31;
 
-extern "C" {
-    fn strdup(s: *const std::ffi::c_char) -> *mut std::ffi::c_char;
-}
+static LAST_PLAYER_NAME: std::sync::Mutex<Vec<u8>> = std::sync::Mutex::new(Vec::new());
 
 #[no_mangle]
 pub unsafe extern "C" fn m2_py_player_get_exp() -> i64 {
@@ -94,8 +92,11 @@ pub unsafe extern "C" fn m2_py_player_get_name() -> *mut std::ffi::c_char {
             name = actor.name.clone();
         }
 
-        let c_str = CString::new(name).unwrap_or_else(|_| CString::new("").unwrap());
-        strdup(c_str.as_ptr())
+        let mut name_bytes = name.into_bytes();
+        name_bytes.push(0);
+        let mut cache = LAST_PLAYER_NAME.lock().unwrap();
+        *cache = name_bytes;
+        cache.as_mut_ptr() as *mut std::ffi::c_char
     })
 }
 
@@ -106,3 +107,17 @@ pub unsafe extern "C" fn m2_py_player_get_character_distance(vid: u32) -> f32 {
         state.actor_distance(vid)
     })
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_main_character_index() -> u32 {
+    safe_ffi_call(0, || {
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        state.get_player_vid()
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_main_character_name() -> *mut std::ffi::c_char {
+    m2_py_player_get_name()
+}
+

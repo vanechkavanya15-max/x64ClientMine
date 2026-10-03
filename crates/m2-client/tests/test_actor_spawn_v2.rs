@@ -10,15 +10,16 @@ fn test_global_to_local() {
 
 #[test]
 fn test_actor_spawn_packet_size() {
-    assert_eq!(size_of::<TPacketGCCharacterAdd>(), 35);
-    assert_eq!(size_of::<TPacketGCCharacterAdd2>(), 68);
-    assert_eq!(size_of::<TPacketGCCharacterAdditionalInfo>(), 54);
+    assert_eq!(size_of::<TPacketGCCharacterAdd>(), 38);
+    assert_eq!(size_of::<TPacketGCCharacterAdd2>(), 71);
+    assert_eq!(size_of::<TPacketGCCharacterAdditionalInfo>(), 57);
 }
 
 #[test]
 fn test_parse_character_add_success() {
     let packet = TPacketGCCharacterAdd {
         header: HEADER_GC_CHARACTER_ADD,
+        length: size_of::<TPacketGCCharacterAdd>() as u16,
         dwVID: 111,
         angle: 45.0,
         x: 1000,
@@ -48,6 +49,7 @@ fn test_parse_character_add_success() {
 fn test_parse_character_add2_success() {
     let mut packet = TPacketGCCharacterAdd2 {
         header: HEADER_GC_CHARACTER_ADD2,
+        length: size_of::<TPacketGCCharacterAdd2>() as u16,
         dwVID: 12345,
         name: [0; 25],
         angle: 45.0,
@@ -84,6 +86,7 @@ fn test_parse_character_add2_success() {
 fn test_parse_character_additional_info_success() {
     let mut packet = TPacketGCCharacterAdditionalInfo {
         header: HEADER_GC_CHARACTER_ADDITIONAL_INFO,
+        length: size_of::<TPacketGCCharacterAdditionalInfo>() as u16,
         dwVID: 999,
         name: [0; 25],
         awPart: [1, 2, 3, 4],
@@ -123,6 +126,7 @@ fn test_parse_character_add_v2_short_buffer() {
 fn test_m2_actor_spawn_full_ffi() {
     let packet = TPacketGCCharacterAdd {
         header: HEADER_GC_CHARACTER_ADD,
+        length: size_of::<TPacketGCCharacterAdd>() as u16,
         dwVID: 54321,
         angle: 90.0,
         x: 0,

@@ -72,10 +72,12 @@ fn test_m2_net_send_attack_packet() {
     assert_eq!(size, std::mem::size_of::<m2_client::send_combat_packets_v2::TPacketCGAttack>());
     
     let header = u16::from_le_bytes([buf[0], buf[1]]);
-    let b_type = buf[2];
-    let victim_vid = u32::from_le_bytes([buf[3], buf[4], buf[5], buf[6]]);
+    let length = u16::from_le_bytes([buf[2], buf[3]]);
+    let b_type = buf[4];
+    let victim_vid = u32::from_le_bytes([buf[5], buf[6], buf[7], buf[8]]);
     
     assert_eq!(header, HEADER_CG_ATTACK);
+    assert_eq!(length as usize, size);
     assert_eq!(b_type, attack_type);
     assert_eq!(victim_vid, target_vid);
 }
@@ -90,10 +92,12 @@ fn test_m2_net_send_use_skill_packet() {
     assert_eq!(size, std::mem::size_of::<m2_client::send_combat_packets_v2::TPacketCGUseSkill>());
     
     let header = u16::from_le_bytes([buf[0], buf[1]]);
-    let vnum = u32::from_le_bytes([buf[2], buf[3], buf[4], buf[5]]);
-    let vid = u32::from_le_bytes([buf[6], buf[7], buf[8], buf[9]]);
+    let length = u16::from_le_bytes([buf[2], buf[3]]);
+    let vnum = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
+    let vid = u32::from_le_bytes([buf[8], buf[9], buf[10], buf[11]]);
     
     assert_eq!(header, HEADER_CG_USE_SKILL);
+    assert_eq!(length as usize, size);
     assert_eq!(vnum, skill_id);
     assert_eq!(vid, target_vid);
 }

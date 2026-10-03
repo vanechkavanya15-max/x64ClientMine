@@ -91,12 +91,17 @@ impl Default for CameraControllerComplete {
 
 impl CameraControllerComplete {
     pub fn new() -> Self {
+        let pitch: f32 = 30.0;
+        let distance: f32 = 1500.0;
+        let pitch_rad = pitch.to_radians();
+        let eye = Vec3::new(0.0, -distance * pitch_rad.cos(), distance * pitch_rad.sin());
+
         let mut camera = Self {
-            distance: 1500.0,
-            pitch: 30.0,
+            distance,
+            pitch,
             roll: 0.0,
 
-            eye: Vec3::new(0.0, -1500.0, 150.0),
+            eye,
             target: Vec3::ZERO,
             up: Vec3::new(0.0, 0.0, 1.0),
             view: Vec3::new(0.0, 1.0, 0.0),
@@ -131,7 +136,11 @@ impl CameraControllerComplete {
     }
 
     pub fn set_distance(&mut self, dist: f32) {
-        self.distance = dist;
+        if self.distance > 0.0 {
+            self.zoom(dist / self.distance);
+        } else {
+            self.distance = dist;
+        }
     }
 
     pub fn zoom(&mut self, ratio: f32) {

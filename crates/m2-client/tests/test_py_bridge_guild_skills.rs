@@ -1,10 +1,6 @@
-#[path = "../src/py_bridge_guild_skills.rs"]
-mod py_bridge_guild_skills;
-
-use py_bridge_guild_skills::*;
-use m2_client_bridge::state::game_state::GLOBAL_GAME_STATE;
-use crate::recv_guild_logic_v2::{get_guild_state, GuildGradeData, GuildMemberData};
-use crate::game_state_unified::ActorInstanceData;
+use m2_client::py_bridge_guild_skills::*;
+use m2_client_bridge::state::game_state::{GLOBAL_GAME_STATE, Actor};
+use m2_client::recv_guild_logic_v2::{get_guild_state, GuildGradeData, GuildMemberData};
 use serial_test::serial;
 
 fn setup_test_state() {
@@ -31,20 +27,12 @@ fn setup_test_state() {
         name: "Officer".to_string(),
     });
 
-    let game = GLOBAL_GAME_STATE.write().unwrap();
-    // Simulate player selection
+    let mut game = GLOBAL_GAME_STATE.write().unwrap();
     game.set_player_vid(1001);
-    
-    let mut game_write = GLOBAL_GAME_STATE.write().unwrap();
-    let mut actors = game_write.actors.write().unwrap();
-    actors.insert(1001, ActorInstanceData {
-        vid: 1001,
-        name: "TestPlayer".to_string(),
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
-        rotation: 0.0,
-    });
+    let mut actor = Actor::default();
+    actor.vid = 1001;
+    actor.name = "TestPlayer".to_string();
+    game.add_or_update_actor(actor);
 }
 
 fn clear_test_state() {
@@ -56,9 +44,8 @@ fn clear_test_state() {
     guild.members.clear();
     guild.grades.clear();
     
-    let game_write = GLOBAL_GAME_STATE.write().unwrap();
-    let mut actors = game_write.actors.write().unwrap();
-    actors.clear();
+    let mut game = GLOBAL_GAME_STATE.write().unwrap();
+    game.reset();
 }
 
 #[test]

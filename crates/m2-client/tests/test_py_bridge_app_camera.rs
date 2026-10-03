@@ -2,14 +2,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-#[path = "../src/py_bridge_app.rs"]
-mod py_bridge_app_internal;
-
-#[path = "../src/py_bridge_app_camera.rs"]
-mod py_bridge_app_camera;
-
-use py_bridge_app_camera::*;
-use py_bridge_app_internal::{app_lock, CAMERA_MAX_DISTANCE};
+use m2_client::py_bridge_app_camera::*;
+use m2_client::py_bridge_app::{app_lock, CAMERA_MAX_DISTANCE};
 
 #[test]
 fn test_camera_pitch_speed() {

@@ -51,6 +51,7 @@ fn test_engine_load_config() {
         windowed: true,
         connect_ip: None,
         connect_port: None,
+        max_frames: None,
     };
     
     engine.load_config(config.clone());

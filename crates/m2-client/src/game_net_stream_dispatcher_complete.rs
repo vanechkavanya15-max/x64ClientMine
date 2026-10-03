@@ -166,21 +166,47 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
             return gc::CHARACTER_ADD;
         },
         gc::CHAR_ADDITIONAL_INFO => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                let _ = crate::recv_character_lifecycle_complete::parse_character_additional_info(buf_slice, &mut mgr);
+            }
             return gc::CHAR_ADDITIONAL_INFO;
         },
         gc::CHARACTER_ADD2 => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                let _ = crate::recv_character_lifecycle_complete::parse_character_add2(buf_slice, &mut mgr);
+            }
             return gc::CHARACTER_ADD2;
         },
         gc::CHARACTER_UPDATE => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                let _ = crate::recv_character_lifecycle_complete::parse_character_update(buf_slice, &mut mgr);
+            }
             return gc::CHARACTER_UPDATE;
         },
         gc::CHARACTER_UPDATE2 => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                let _ = crate::recv_character_lifecycle_complete::parse_character_update2(buf_slice, &mut mgr);
+            }
             return gc::CHARACTER_UPDATE2;
         },
         gc::CHARACTER_DEL => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                let _ = crate::recv_character_lifecycle_complete::parse_character_delete(buf_slice, &mut mgr);
+            }
             return gc::CHARACTER_DEL;
         },
         gc::CHAT => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Some((chat_type, text)) = crate::recv_chat::parse_chat(buf_slice) {
+                if let Ok(mut chat_buf) = crate::chat_buffer_v2::get_chat_buffer().lock() {
+                    chat_buf.append_line(chat_type, &text, crate::app_timing_clock::m2_get_time() as u32);
+                }
+            }
             return gc::CHAT;
         },
         gc::SYNC_POSITION => {
@@ -190,18 +216,32 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
             return gc::OWNERSHIP;
         },
         gc::WHISPER => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Some((from, text)) = crate::recv_chat::parse_whisper(buf_slice) {
+                crate::chat_buffer_v2::append_whisper(&from, &text);
+            }
             return gc::WHISPER;
         },
         gc::MOVE => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            crate::recv_movement::m2_net_recv_move(buf_slice.as_ptr(), buf_slice.len());
             return gc::MOVE;
         },
         gc::CHARACTER_POSITION => {
             return gc::CHARACTER_POSITION;
         },
         gc::STUN => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                let _ = crate::recv_character_lifecycle_complete::parse_stun(buf_slice, &mut mgr);
+            }
             return gc::STUN;
         },
         gc::DEAD => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                let _ = crate::recv_character_lifecycle_complete::parse_dead(buf_slice, &mut mgr);
+            }
             return gc::DEAD;
         },
         gc::PLAYER_POINT_CHANGE => {
@@ -249,12 +289,15 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
             return gc::ITEM_OWNERSHIP;
         },
         gc::QUICKSLOT_ADD => {
+            crate::recv_quickslot_sync_v2::process_quickslot_add(buf);
             return gc::QUICKSLOT_ADD;
         },
         gc::QUICKSLOT_DEL => {
+            crate::recv_quickslot_sync_v2::process_quickslot_del(buf);
             return gc::QUICKSLOT_DEL;
         },
         gc::QUICKSLOT_SWAP => {
+            crate::recv_quickslot_sync_v2::process_quickslot_swap(buf);
             return gc::QUICKSLOT_SWAP;
         },
         gc::MOTION => {
@@ -288,15 +331,23 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
             return gc::SCRIPT;
         },
         gc::QUEST_CONFIRM => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            let _ = crate::recv_social_quest_complete::parse_quest_confirm(buf_slice);
             return gc::QUEST_CONFIRM;
         },
         gc::TARGET => {
+            if packet_len >= std::mem::size_of::<crate::recv_target_info_v2::TPacketGCTarget>() {
+                let pkt = unsafe { std::ptr::read_unaligned(buf as *const crate::recv_target_info_v2::TPacketGCTarget) };
+                crate::recv_target_info_v2::parse_target_packet(&pkt);
+            }
             return gc::TARGET;
         },
         gc::MOUNT => {
             return gc::MOUNT;
         },
         gc::PLAYER_POINTS => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            let _ = crate::recv_actors::parse_points(buf_slice);
             return gc::PLAYER_POINTS;
         },
         gc::CREATE_FLY => {
@@ -332,52 +383,68 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
             crate::recv_messenger_friends_v2::m2_client_parse_messenger(buf_slice.as_ptr(), buf_slice.len());
             return gc::MESSENGER;
         },
-        gc::GUILD => {
-            return gc::GUILD;
+        gc::GUILD | 0x0730 => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            let _ = crate::recv_guild_packets_complete::parse_guild_packet(buf_slice);
+            return header_val;
         },
         gc::MARK_UPDATE => {
             return gc::MARK_UPDATE;
         },
-        gc::PARTY_INVITE => {
-            return gc::PARTY_INVITE;
+        gc::PARTY_INVITE | 0x0710 => {
+            return header_val;
         },
-        gc::PARTY_ADD => {
-            return gc::PARTY_ADD;
+        gc::PARTY_ADD | 0x0711 => {
+            if packet_len >= std::mem::size_of::<crate::recv_party_logic_v2::TPacketGCPartyAdd>() {
+                let pkt = unsafe { std::ptr::read_unaligned(buf as *const crate::recv_party_logic_v2::TPacketGCPartyAdd) };
+                let _ = crate::recv_party_logic_v2::PARTY_MANAGER.handle_party_add(&pkt);
+            }
+            return header_val;
         },
-        gc::PARTY_UPDATE => {
-            return gc::PARTY_UPDATE;
+        gc::PARTY_UPDATE | 0x0712 => {
+            if packet_len >= std::mem::size_of::<crate::recv_party_logic_v2::TPacketGCPartyUpdate>() {
+                let pkt = unsafe { std::ptr::read_unaligned(buf as *const crate::recv_party_logic_v2::TPacketGCPartyUpdate) };
+                let _ = crate::recv_party_logic_v2::PARTY_MANAGER.handle_party_update(&pkt);
+            }
+            return header_val;
         },
-        gc::PARTY_REMOVE => {
-            return gc::PARTY_REMOVE;
+        gc::PARTY_REMOVE | 0x0713 => {
+            if packet_len >= std::mem::size_of::<crate::recv_party_logic_v2::TPacketGCPartyRemove>() {
+                let pkt = unsafe { std::ptr::read_unaligned(buf as *const crate::recv_party_logic_v2::TPacketGCPartyRemove) };
+                let _ = crate::recv_party_logic_v2::PARTY_MANAGER.handle_party_remove(&pkt);
+            }
+            return header_val;
         },
-        gc::PARTY_LINK => {
-            return gc::PARTY_LINK;
+        gc::PARTY_LINK | 0x0714 => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            let _ = crate::recv_party_packets_complete::parse_packet_link(buf_slice);
+            return header_val;
         },
-        gc::PARTY_UNLINK => {
-            return gc::PARTY_UNLINK;
+        gc::PARTY_UNLINK | 0x0715 => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            let _ = crate::recv_party_packets_complete::parse_packet_unlink(buf_slice);
+            return header_val;
         },
-        gc::PARTY_PARAMETER => {
-            return gc::PARTY_PARAMETER;
+        gc::PARTY_PARAMETER | 0x0716 => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            let _ = crate::recv_party_packets_complete::parse_packet_parameter(buf_slice);
+            return header_val;
         },
-        gc::SAFEBOX_SET => {
-            return gc::SAFEBOX_SET;
-        },
-        gc::SAFEBOX_DEL => {
-            return gc::SAFEBOX_DEL;
-        },
-        gc::SAFEBOX_WRONG_PASSWORD => {
-            return gc::SAFEBOX_WRONG_PASSWORD;
-        },
-        gc::SAFEBOX_SIZE => {
-            return gc::SAFEBOX_SIZE;
-        },
-        gc::SAFEBOX_MONEY_CHANGE => {
-            return gc::SAFEBOX_MONEY_CHANGE;
+        gc::SAFEBOX_SET | gc::SAFEBOX_DEL | gc::SAFEBOX_WRONG_PASSWORD | gc::SAFEBOX_SIZE | gc::SAFEBOX_MONEY_CHANGE | 0x0830 | 0x0831 | 0x0832 | 0x0833 | 0x0834 => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            let _ = crate::recv_safebox_packets_complete::parse_safebox_packet(buf_slice);
+            return header_val;
         },
         gc::FISHING => {
+            if packet_len >= std::mem::size_of::<crate::recv_fishing_system_v2::TPacketGCFishing>() {
+                let pkt = unsafe { std::ptr::read_unaligned(buf as *const crate::recv_fishing_system_v2::TPacketGCFishing) };
+                crate::recv_fishing_system_v2::handle_fishing_packet(&pkt);
+            }
             return gc::FISHING;
         },
         gc::DUNGEON => {
+            let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+            let _ = crate::recv_dungeon_info_v2::parse_dungeon_packet(buf_slice);
             return gc::DUNGEON;
         },
         gc::TIME => {
@@ -417,13 +484,15 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         gc::LAND_LIST => {
             return gc::LAND_LIST;
         },
-        gc::TARGET_CREATE_NEW => {
-            return gc::TARGET_CREATE_NEW;
-        },
-        gc::TARGET_UPDATE => {
-            return gc::TARGET_UPDATE;
+        gc::TARGET_CREATE_NEW | gc::TARGET_UPDATE => {
+            if packet_len >= std::mem::size_of::<crate::recv_target_info_v2::TPacketGCTarget>() {
+                let pkt = unsafe { std::ptr::read_unaligned(buf as *const crate::recv_target_info_v2::TPacketGCTarget) };
+                crate::recv_target_info_v2::parse_target_packet(&pkt);
+            }
+            return header_val;
         },
         gc::TARGET_DELETE => {
+            crate::recv_target_info_v2::clear_target();
             return gc::TARGET_DELETE;
         },
         gc::AFFECT_ADD => {

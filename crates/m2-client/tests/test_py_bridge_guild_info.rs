@@ -1,5 +1,4 @@
-#[path = "../src/py_bridge_guild_info.rs"]
-mod py_bridge_guild_info;
+use m2_client::py_bridge_guild_info;
 
 use m2_client::recv_guild_logic_v2::{get_guild_state, test_clear_guild_state, GuildMemberData, GuildGradeData};
 use std::ffi::CStr;

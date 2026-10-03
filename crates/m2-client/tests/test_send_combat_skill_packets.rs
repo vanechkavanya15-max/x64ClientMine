@@ -5,14 +5,15 @@ use std::time::Duration;
 
 #[test]
 fn test_packet_attack_layout_and_size() {
-    assert_eq!(size_of::<TPacketCGAttack>(), 13);
+    assert_eq!(size_of::<TPacketCGAttack>(), 11);
     
     let packet = TPacketCGAttack {
         header: HEADER_CG_ATTACK,
-        length: 13,
+        length: 11,
         b_type: 5,
         dw_victim_vid: 12345,
-        dw_crc_hash: 0xDEADBEEF,
+        b_crc_magic_cube_proc_piece: 0xDE,
+        b_crc_magic_cube_file_piece: 0xAD,
     };
     
     // Convert to bytes manually to verify memory layout (little endian)
@@ -21,10 +22,11 @@ fn test_packet_attack_layout_and_size() {
     };
     
     assert_eq!(bytes[0..2], HEADER_CG_ATTACK.to_le_bytes());
-    assert_eq!(bytes[2..4], 13u16.to_le_bytes());
+    assert_eq!(bytes[2..4], 11u16.to_le_bytes());
     assert_eq!(bytes[4], 5u8);
     assert_eq!(bytes[5..9], 12345u32.to_le_bytes());
-    assert_eq!(bytes[9..13], 0xDEADBEEFu32.to_le_bytes());
+    assert_eq!(bytes[9], 0xDEu8);
+    assert_eq!(bytes[10], 0xADu8);
 }
 
 #[test]
@@ -74,12 +76,13 @@ fn test_ffi_send_attack() {
     let mut buf = [0u8; 128];
     let size = m2_combat_skill_send_attack(7, 4444, 0xABCDEF01, buf.as_mut_ptr());
     
-    assert_eq!(size, 13);
+    assert_eq!(size, 11);
     assert_eq!(u16::from_le_bytes([buf[0], buf[1]]), HEADER_CG_ATTACK);
-    assert_eq!(u16::from_le_bytes([buf[2], buf[3]]), 13);
+    assert_eq!(u16::from_le_bytes([buf[2], buf[3]]), 11);
     assert_eq!(buf[4], 7);
     assert_eq!(u32::from_le_bytes([buf[5], buf[6], buf[7], buf[8]]), 4444);
-    assert_eq!(u32::from_le_bytes([buf[9], buf[10], buf[11], buf[12]]), 0xABCDEF01);
+    assert_eq!(buf[9], (0xABCDEF01u32 & 0xFF) as u8);
+    assert_eq!(buf[10], ((0xABCDEF01u32 >> 8) & 0xFF) as u8);
 }
 
 #[test]

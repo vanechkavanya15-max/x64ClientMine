@@ -77,8 +77,8 @@ mod tests {
 
         assert_eq!(size, 11);
 
-        // Header (2 bytes, 0x0503)
-        assert_eq!(buf[0], 0x03);
+        // Header (2 bytes, 0x0504)
+        assert_eq!(buf[0], 0x04);
         assert_eq!(buf[1], 0x05);
 
         // Length (2 bytes, 11)
@@ -106,8 +106,8 @@ mod tests {
 
         assert_eq!(size, 12);
 
-        // Header (2 bytes, 0x0504)
-        assert_eq!(buf[0], 0x04);
+        // Header (2 bytes, 0x0503)
+        assert_eq!(buf[0], 0x03);
         assert_eq!(buf[1], 0x05);
 
         // Length (2 bytes, 12)

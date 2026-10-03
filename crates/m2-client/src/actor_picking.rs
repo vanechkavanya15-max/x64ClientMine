@@ -20,15 +20,21 @@ use crate::character_manager_core::get_character_manager;
 pub fn add_picking_actor(actor: PickingActor) {
     let mut mgr = get_character_manager().write().unwrap();
     if let Some(inst) = mgr.get_instance_mut(actor.vid) {
+        inst.x = actor.x;
+        inst.y = actor.y;
+        inst.z = actor.z;
         inst.picking = Some(actor);
+    } else {
+        mgr.create_instance(actor.vid, 0, actor.x, actor.y, actor.z);
+        if let Some(inst) = mgr.get_instance_mut(actor.vid) {
+            inst.picking = Some(actor);
+        }
     }
 }
 
 pub fn clear_picking_actors() {
     let mut mgr = get_character_manager().write().unwrap();
-    for inst in mgr.alive_instances.values_mut() {
-        inst.picking = None;
-    }
+    mgr.clear();
 }
 
 pub fn find_nearest_target(main_vid: u32, max_dist: f32, target_type: u8) -> Option<u32> {

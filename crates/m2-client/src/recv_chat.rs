@@ -123,3 +123,34 @@ pub extern "C" fn m2_net_parse_damage_info(
         false
     }
 }
+
+pub const CHARACTER_NAME_MAX_LEN: usize = 24;
+
+#[repr(C, packed)]
+pub struct TPacketGCWhisper {
+    pub header: u16,
+    pub length: u16,
+    pub whisper_type: u8,
+    pub sz_name_from: [u8; CHARACTER_NAME_MAX_LEN + 1],
+}
+
+pub fn parse_whisper(data: &[u8]) -> Option<(String, String)> {
+    let header_size = std::mem::size_of::<TPacketGCWhisper>();
+    if data.len() < header_size {
+        return None;
+    }
+    let ptr = data.as_ptr() as *const TPacketGCWhisper;
+    let packet = unsafe { &*ptr };
+    let length = u16::from_le(packet.length) as usize;
+    if data.len() < length || length < header_size {
+        return None;
+    }
+    let name_slice = &packet.sz_name_from;
+    let name_len = name_slice.iter().position(|&b| b == 0).unwrap_or(name_slice.len());
+    let from_name = String::from_utf8_lossy(&name_slice[..name_len]).into_owned();
+    let text_data = &data[header_size..length];
+    let text = String::from_utf8_lossy(text_data).into_owned();
+    let text = text.trim_end_matches('\0');
+    let text = sanitize_chat_text(text);
+    Some((from_name, text))
+}

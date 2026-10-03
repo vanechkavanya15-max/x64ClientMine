@@ -1,7 +1,4 @@
-#[path = "../src/character_manager_core.rs"]
-mod character_manager_core;
-
-use character_manager_core::CharacterManagerCore;
+use m2_client::character_manager_core::CharacterManagerCore;
 
 #[test]
 fn test_create_instance_success() {
@@ -133,7 +130,7 @@ fn test_thousand_instances() {
 
 #[test]
 fn test_ffi_exports() {
-    use character_manager_core::{m2_chr_mgr_create_instance, m2_chr_mgr_delete_instance, m2_chr_mgr_get_count, get_character_manager};
+    use m2_client::character_manager_core::{m2_chr_mgr_create_instance, m2_chr_mgr_delete_instance, m2_chr_mgr_get_count, get_character_manager};
     
     // Zapewniamy, ze stan poczatkowy jest pusty
     get_character_manager().write().unwrap().clear();

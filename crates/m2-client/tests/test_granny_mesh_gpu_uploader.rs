@@ -1,13 +1,7 @@
-#[path = "../src/wgpu_granny_actor_renderer.rs"]
-mod wgpu_granny_actor_renderer;
-
-#[path = "../src/granny_mesh_gpu_uploader.rs"]
-mod granny_mesh_gpu_uploader;
-
 use std::mem;
-use wgpu_granny_actor_renderer::GrannyActorVertex;
-use granny_mesh_gpu_uploader::{GrannyMeshGpuUploader, GrannyPnt332Vertex, GrannyPwnt3432Vertex};
-use wgpu::util::DeviceExt;
+use m2_client::wgpu_granny_actor_renderer::GrannyActorVertex;
+use m2_client::granny_mesh_gpu_uploader::{GrannyMeshGpuUploader, GrannyPnt332Vertex, GrannyPwnt3432Vertex};
+use m2_client::wgpu_engine_context::WgpuEngineContext;
 
 #[test]
 fn test_vertex_layouts_size() {
@@ -64,34 +58,11 @@ fn test_convert_pwnt3432_to_actor() {
     assert_eq!(v.bone_weights[3], 0.0);
 }
 
-// We'll mock the WGPU Device tests if possible, or use the real headless context
-
-#[path = "../src/wgpu_engine_context.rs"]
-mod wgpu_engine_context;
-
-#[path = "../src/window_event_loop.rs"]
-mod window_event_loop;
-
-#[path = "../src/win32_window.rs"]
-mod win32_window;
-
-#[path = "../src/win32_message_dispatcher.rs"]
-mod win32_message_dispatcher;
-
-#[path = "../src/win32_keyboard_hooks.rs"]
-mod win32_keyboard_hooks;
-
-#[path = "../src/win32_mouse_raw.rs"]
-mod win32_mouse_raw;
-
-#[path = "../src/win32_cursor_manager.rs"]
-mod win32_cursor_manager;
-
 #[test]
 fn test_upload_mesh_empty_and_valid() {
-    let ctx = wgpu_engine_context::WgpuEngineContext::new(0, 800, 600).expect("Headless ctx");
+    let ctx = WgpuEngineContext::new(0, 800, 600).expect("Headless ctx");
     
-    let res = GrannyMeshGpuUploader::upload_mesh(ctx.get_device(), &[], &[], None);
+    let res = GrannyMeshGpuUploader::upload_mesh(&ctx.device, &[], &[], None);
     assert!(res.is_err(), "Should return error for empty slices");
 
     let vertices = vec![
@@ -105,8 +76,7 @@ fn test_upload_mesh_empty_and_valid() {
     ];
     let indices = vec![0, 0, 0];
 
-    let buffers = GrannyMeshGpuUploader::upload_mesh(ctx.get_device(), &vertices, &indices, Some("test_mesh")).unwrap();
+    let buffers = GrannyMeshGpuUploader::upload_mesh(&ctx.device, &vertices, &indices, Some("test_mesh")).unwrap();
     assert_eq!(buffers.vertex_count, 1);
     assert_eq!(buffers.index_count, 3);
 }
-

@@ -150,6 +150,23 @@ app_methods = [
     ("SetCamera", "m2_app_set_camera", [ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_float], None),
     ("IsPressed", "m2_app_is_pressed", [ctypes.c_uint32], ctypes.c_bool),
     ("EnableSpecialCameraMode", "m2_app_enable_special_camera_mode", [], None),
+    ("PitchCamera", "m2_py_app_pitch_camera", [ctypes.c_int32], None),
+    ("RotateCamera", "m2_py_app_rotate_camera", [ctypes.c_int32], None),
+    ("ZoomCamera", "m2_py_app_zoom_camera", [ctypes.c_int32], None),
+    ("GetCameraPitch", "m2_py_app_get_camera_pitch", [], ctypes.c_float),
+    ("GetCameraRotation", "m2_py_app_get_camera_rotation", [], ctypes.c_float),
+    ("LoadCameraSetting", "m2_py_app_load_camera_setting", [ctypes.c_char_p], ctypes.c_bool),
+    ("SaveCameraSetting", "m2_py_app_save_camera_setting", [ctypes.c_char_p], None),
+    ("SetCursor", "m2_py_app_set_cursor", [ctypes.c_int32], ctypes.c_bool),
+    ("ShowCursor", "m2_py_app_show_cursor", [], None),
+    ("HideCursor", "m2_py_app_hide_cursor", [], None),
+    ("SetFPS", "m2_py_app_set_fps", [ctypes.c_uint32], None),
+    ("GetRenderFPS", "m2_py_app_get_render_fps", [], ctypes.c_uint32),
+    ("GetUpdateFPS", "m2_py_app_get_update_fps", [], ctypes.c_uint32),
+    ("SetMinFog", "m2_py_app_set_min_fog", [ctypes.c_float], None),
+    ("SetSightRange", "m2_py_app_set_sight_range", [ctypes.c_int32], None),
+    ("SetSpecularSpeed", "m2_py_app_set_specular_speed", [ctypes.c_float], None),
+    ("LoadLocaleData", "m2_py_app_load_locale_data", [ctypes.c_char_p], ctypes.c_int32),
 ]
 sys.modules['app'] = create_real_module('app', 'app', app_methods)
 
@@ -219,7 +236,24 @@ net_methods = [
     ("SendCreateCharacterPacket", "m2_net_SendCreateCharacterPacket", [ctypes.c_uint8, ctypes.c_char_p, ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
     ("SendDestroyCharacterPacket", "m2_net_SendDestroyCharacterPacket", [ctypes.c_uint8, ctypes.c_char_p], ctypes.c_bool),
     ("SendItemUsePacket", "m2_net_SendItemUsePacket", [ctypes.c_uint16], ctypes.c_bool),
+    ("SendItemDropPacket", "m2_net_SendItemDropPacket", [ctypes.c_uint16, ctypes.c_uint32], ctypes.c_bool),
+    ("SendItemMovePacket", "m2_net_SendItemMovePacket", [ctypes.c_uint16, ctypes.c_uint16, ctypes.c_uint8], ctypes.c_bool),
+    ("SendItemPickUpPacket", "m2_net_SendItemPickUpPacket", [ctypes.c_uint32], ctypes.c_bool),
     ("SendExchangeStartPacket", "m2_net_SendExchangeStartPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendExchangeItemAddPacket", "m2_net_SendExchangeItemAddPacket", [ctypes.c_uint16, ctypes.c_uint8], ctypes.c_bool),
+    ("SendExchangeElkAddPacket", "m2_net_SendExchangeElkAddPacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendExchangeAcceptPacket", "m2_net_SendExchangeAcceptPacket", [], ctypes.c_bool),
+    ("SendExchangeExitPacket", "m2_net_SendExchangeExitPacket", [], ctypes.c_bool),
+    ("SendShopBuyPacket", "m2_net_SendShopBuyPacket", [ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
+    ("SendShopSellPacket", "m2_net_SendShopSellPacket", [ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
+    ("SendShopEndPacket", "m2_net_SendShopEndPacket", [], ctypes.c_bool),
+    ("SendRefinePacket", "m2_net_SendRefinePacket", [ctypes.c_uint16, ctypes.c_uint8], ctypes.c_bool),
+    ("SendPartyInvitePacket", "m2_net_SendPartyInvitePacket", [ctypes.c_uint32], ctypes.c_bool),
+    ("SendPartyExitPacket", "m2_net_SendPartyExitPacket", [], ctypes.c_bool),
+    ("SendQuestInputStringPacket", "m2_net_SendQuestInputStringPacket", [ctypes.c_char_p], ctypes.c_bool),
+    ("SendQuickSlotAddPacket", "m2_net_SendQuickSlotAddPacket", [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint32], ctypes.c_bool),
+    ("SendQuickSlotDelPacket", "m2_net_SendQuickSlotDelPacket", [ctypes.c_uint8], ctypes.c_bool),
+    ("SendQuickSlotMovePacket", "m2_net_SendQuickSlotMovePacket", [ctypes.c_uint8, ctypes.c_uint8], ctypes.c_bool),
     ("SendOnClickPacket", "m2_net_SendOnClickPacket", [ctypes.c_uint32], ctypes.c_bool),
 ]
 NetModule = create_real_module('net', 'net', net_methods)
@@ -293,6 +327,33 @@ player_methods = [
     ("SetTargetVID", "m2_py_player_set_target_vid", [ctypes.c_uint32], None),
     ("ClearTargetVID", "m2_py_player_clear_target_vid", [], None),
     ("IsAttackTarget", "m2_py_player_is_attack_target", [ctypes.c_uint32], ctypes.c_bool),
+    ("GetEXP", "m2_py_player_get_exp", [], ctypes.c_int64),
+    ("GetExp", "m2_py_player_get_exp", [], ctypes.c_int64),
+    ("GetMoney", "m2_py_player_get_money", [], ctypes.c_int64),
+    ("GetElk", "m2_py_player_get_elk", [], ctypes.c_int64),
+    ("GetPlayTime", "m2_py_player_get_play_time", [], ctypes.c_int64),
+    ("GetJob", "m2_py_player_get_job", [], ctypes.c_uint32),
+    ("GetRace", "m2_py_player_get_race", [], ctypes.c_uint32),
+    ("GetName", "m2_py_player_get_name", [], ctypes.c_char_p),
+    ("GetCharacterDistance", "m2_py_player_get_character_distance", [ctypes.c_uint32], ctypes.c_float),
+    ("GetSkillGrade", "m2_py_player_get_skill_grade", [ctypes.c_int32], ctypes.c_int32),
+    ("GetSkillIndex", "m2_py_player_get_skill_index", [ctypes.c_int32], ctypes.c_int32),
+    ("GetSkillSlotIndex", "m2_py_player_get_skill_slot_index", [ctypes.c_int32], ctypes.c_int32),
+    ("GetSkillCurrentEfficientPercentage", "m2_py_player_get_skill_current_efficient_percentage", [ctypes.c_int32], ctypes.c_float),
+    ("GetSkillNextEfficientPercentage", "m2_py_player_get_skill_next_efficient_percentage", [ctypes.c_int32], ctypes.c_float),
+    ("IsSkillActive", "m2_py_player_is_skill_active", [ctypes.c_int32], ctypes.c_int32),
+    ("IsSkillCoolTime", "m2_py_player_is_skill_cool_time", [ctypes.c_int32], ctypes.c_int32),
+    ("GetPartyMemberHPPercentage", "m2_py_player_get_party_member_hp_percentage", [ctypes.c_uint32], ctypes.c_int32),
+    ("GetPartyMemberState", "m2_py_player_get_party_member_state", [ctypes.c_uint32], ctypes.c_int32),
+    ("GetPartyMemberAffects", "m2_py_player_get_party_member_affects", [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32)], ctypes.c_bool),
+    ("IsPartyLeader", "m2_py_player_is_party_leader", [ctypes.c_uint32], ctypes.c_bool),
+    ("IsPartyLeaderByPID", "m2_py_player_is_party_leader_by_pid", [ctypes.c_uint32], ctypes.c_bool),
+    ("ExitParty", "m2_py_player_exit_party", [], None),
+    ("GetPKMode", "m2_py_player_get_pk_mode", [], ctypes.c_uint8),
+    ("IsSameEmpire", "m2_py_player_is_same_empire", [ctypes.c_uint32], ctypes.c_bool),
+    ("IsInSafeArea", "m2_py_player_is_in_safe_area", [], ctypes.c_bool),
+    ("IsPVPInstance", "m2_py_player_is_pvp_instance", [ctypes.c_uint32], ctypes.c_bool),
+    ("CanDetach", "m2_py_player_can_detach", [ctypes.c_uint32, ctypes.c_uint8, ctypes.c_uint16], ctypes.c_int32),
 ]
 sys.modules['player'] = create_real_module('player', 'player', player_methods)
 
@@ -326,6 +387,16 @@ chr_methods = [
     ("SetLoopMotion", "m2_py_chr_set_loop_motion", [ctypes.c_uint32], ctypes.c_bool),
     ("SetMotionMode", "m2_py_chr_set_motion_mode", [ctypes.c_uint32], ctypes.c_bool),
     ("AttachEffectByID", "m2_py_chr_attach_effect_by_id", [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32], ctypes.c_uint32),
+    ("AttachEffectByName", "m2_py_chr_attach_effect_by_name", [ctypes.c_int32, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int32], ctypes.c_bool),
+    ("MountHorse", "m2_py_chr_mount_horse", [], ctypes.c_bool),
+    ("DismountHorse", "m2_py_chr_dismount_horse", [], ctypes.c_bool),
+    ("IsEnemy", "m2_py_chr_is_enemy", [ctypes.c_uint32], ctypes.c_bool),
+    ("IsNPC", "m2_py_chr_is_npc", [ctypes.c_uint32], ctypes.c_bool),
+    ("IsGameMaster", "m2_py_chr_is_game_master", [ctypes.c_uint32], ctypes.c_bool),
+    ("SetRotation", "m2_py_chr_set_rotation", [ctypes.c_float], ctypes.c_bool),
+    ("SetPixelPosition", "m2_py_chr_set_pixel_position", [ctypes.c_float, ctypes.c_float, ctypes.c_float], ctypes.c_bool),
+    ("GetVIDByName", "m2_py_chrmgr_get_vid_by_name", [ctypes.c_char_p], ctypes.c_uint32),
+    ("IsSelectedVID", "m2_py_chrmgr_is_selected_vid", [ctypes.c_uint32], ctypes.c_bool),
 ]
 sys.modules['chr'] = create_real_module('chr', 'chr', chr_methods)
 sys.modules['chrmgr'] = sys.modules['chr']
@@ -352,12 +423,12 @@ item_methods = [
     ("GetSocket", "m2_py_item_get_socket", [ctypes.c_uint32], ctypes.c_int32),
     ("GetValue", "m2_py_item_get_value", [ctypes.c_uint32], ctypes.c_int32),
     ("GetItemSize", "m2_py_item_get_item_size", [], ctypes.c_uint8),
+    ("IsFlag", "m2_py_item_is_flag", [ctypes.c_uint32, ctypes.c_uint32], ctypes.c_int32),
+    ("SetTwoHandedDecreaseValue", "m2_py_item_set_twohanded_decrease_value", [ctypes.c_int32], None),
+    ("GetIconImageFileName", "m2_py_item_get_icon_image_file_name", [ctypes.c_char_p, ctypes.c_size_t], ctypes.c_bool),
 ]
 sys.modules['item'] = create_real_module('item', 'item', item_methods)
-setattr(sys.modules['item'], 'GetItemDescription', staticmethod(lambda: "Item Description"))
 setattr(sys.modules['item'], 'GetItemIcon', staticmethod(lambda: "icon/item/00010.tga"))
-
-setattr(sys.modules['player'], 'GetMainCharacterName', staticmethod(lambda: "Player"))
 
 # WndMgr Module
 wndmgr_methods = [
@@ -407,6 +478,38 @@ wndmgr_methods = [
     ("GetScreenHeight", "wndMgr_GetScreenHeight", [], ctypes.c_int32),
     ("GetTextSize", "wndMgr_GetTextSize", [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)], None),
     ("RegisterBar3D", "wndMgr_RegisterBar3D", [ctypes.c_size_t], ctypes.c_uint32),
+    ("RegisterSlotWindow", "wndMgr_RegisterSlotWindow", [ctypes.c_size_t], ctypes.c_uint32),
+    ("RegisterGridSlotWindow", "wndMgr_RegisterGridSlotWindow", [ctypes.c_size_t], ctypes.c_uint32),
+    ("RegisterMarkBox", "wndMgr_RegisterMarkBox", [ctypes.c_size_t], ctypes.c_uint32),
+    ("RegisterAniImageBox", "wndMgr_RegisterAniImageBox", [ctypes.c_size_t], ctypes.c_uint32),
+    ("RegisterRadioButton", "wndMgr_RegisterRadioButton", [ctypes.c_size_t], ctypes.c_uint32),
+    ("RegisterToggleButton", "wndMgr_RegisterToggleButton", [ctypes.c_size_t], ctypes.c_uint32),
+    ("RegisterDragButton", "wndMgr_RegisterDragButton", [ctypes.c_size_t], ctypes.c_uint32),
+    ("SetMouseHandler", "wndMgr_SetMouseHandler", [ctypes.c_size_t], None),
+    ("SetWindowPosition", "wndMgr_SetWindowPosition", [ctypes.c_uint32, ctypes.c_int32, ctypes.c_int32], ctypes.c_bool),
+    ("SetWindowSize", "wndMgr_SetWindowSize", [ctypes.c_uint32, ctypes.c_int32, ctypes.c_int32], ctypes.c_bool),
+    ("GetWindowWidth", "wndMgr_GetWindowWidth", [ctypes.c_uint32], ctypes.c_int32),
+    ("GetWindowHeight", "wndMgr_GetWindowHeight", [ctypes.c_uint32], ctypes.c_int32),
+    ("GetWindowLocalPosition", "wndMgr_GetWindowLocalPosition", [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)], None),
+    ("GetWindowGlobalPosition", "wndMgr_GetWindowGlobalPosition", [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)], None),
+    ("GetMouseLocalPosition", "wndMgr_GetMouseLocalPosition", [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)], None),
+    ("GetWindowRect", "wndMgr_GetWindowRect", [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)], None),
+    ("SetWindowHorizontalAlign", "wndMgr_SetWindowHorizontalAlign", [ctypes.c_uint32, ctypes.c_uint8], ctypes.c_bool),
+    ("SetWindowVerticalAlign", "wndMgr_SetWindowVerticalAlign", [ctypes.c_uint32, ctypes.c_uint8], ctypes.c_bool),
+    ("SetPickAlways", "wndMgr_SetPickAlways", [ctypes.c_uint32], None),
+    ("AddFlag", "wndMgr_AddFlag", [ctypes.c_uint32, ctypes.c_uint32], None),
+    ("IsRTL", "wndMgr_IsRTL", [ctypes.c_uint32], ctypes.c_bool),
+    ("SetName", "wndMgr_SetName", [ctypes.c_uint32, ctypes.c_char_p], None),
+    ("SetFocus", "wndMgr_SetFocus", [ctypes.c_uint32], None),
+    ("KillFocus", "wndMgr_KillFocus", [ctypes.c_uint32], None),
+    ("IsFocus", "wndMgr_IsFocus", [ctypes.c_uint32], ctypes.c_bool),
+    ("Lock", "wndMgr_Lock", [ctypes.c_uint32], None),
+    ("Unlock", "wndMgr_Unlock", [ctypes.c_uint32], None),
+    ("SetSlotBaseImage", "wndMgr_SetSlotBaseImage", [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_float], ctypes.c_bool),
+    ("ShowSlotBaseImage", "wndMgr_ShowSlotBaseImage", [ctypes.c_uint32, ctypes.c_uint32], ctypes.c_bool),
+    ("HideSlotBaseImage", "wndMgr_HideSlotBaseImage", [ctypes.c_uint32, ctypes.c_uint32], ctypes.c_bool),
+    ("SetSlotStyle", "wndMgr_SetSlotStyle", [ctypes.c_uint32, ctypes.c_uint32], ctypes.c_bool),
+    ("ArrangeSlot", "wndMgr_ArrangeSlot", [ctypes.c_uint32], ctypes.c_bool),
 ]
 WndMgrModule = create_real_module('wndMgr', 'wndMgr', wndmgr_methods)
 setattr(WndMgrModule, 'SLOT_STYLE_NONE', 0)
@@ -447,6 +550,13 @@ minimap_methods = [
     ("ClearWaypoints", "m2_py_minimap_clear_waypoints", [], ctypes.c_bool),
     ("GetCompassRotation", "m2_minimap_get_compass_rotation", [ctypes.c_float], ctypes.c_float),
     ("GetWaypointCompassScreenPos", "m2_minimap_get_waypoint_compass_screen_pos", [ctypes.c_size_t, ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)], ctypes.c_bool),
+    ("OpenAtlasWindow", "m2_minimap_open_atlas_window", [], ctypes.c_bool),
+    ("CloseAtlasWindow", "m2_minimap_close_atlas_window", [], ctypes.c_bool),
+    ("IsAtlasOpen", "m2_minimap_is_atlas_open", [], ctypes.c_bool),
+    ("IsVisible", "m2_minimap_is_visible", [], ctypes.c_bool),
+    ("GetScale", "m2_minimap_get_scale", [], ctypes.c_float),
+    ("Show", "m2_minimap_show_minimap", [], ctypes.c_bool),
+    ("Hide", "m2_minimap_hide_minimap", [], ctypes.c_bool),
 ]
 sys.modules['miniMap'] = create_real_module('miniMap', 'minimap', minimap_methods)
 
@@ -458,10 +568,18 @@ guild_methods = [
     ("GetMemberByIndex", "m2_py_guild_get_member_by_index", [ctypes.c_uint32], ctypes.c_char_p),
     ("GetGuildMoney", "m2_py_guild_get_guild_money", [], ctypes.c_uint32),
     ("IsMainMaster", "m2_py_guild_is_main_master", [], ctypes.c_bool),
+    ("GetGuildLevel", "m2_py_guild_get_guild_level", [], ctypes.c_int32),
+    ("GetGuildExperience", "m2_py_guild_get_guild_experience", [ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)], ctypes.c_bool),
+    ("GetMemberData", "m2_py_guild_get_member_data", [ctypes.c_int32, ctypes.POINTER(ctypes.c_int32), ctypes.c_char_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)], ctypes.c_bool),
+    ("GetGradeData", "m2_py_guild_get_grade_data", [ctypes.c_int32, ctypes.c_char_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_int32)], ctypes.c_bool),
+    ("GetGradeName", "m2_py_guild_get_grade_name", [ctypes.c_int32, ctypes.c_char_p, ctypes.c_size_t], ctypes.c_bool),
+    ("GetSkillLevel", "m2_py_guild_get_guild_skill_level", [ctypes.c_uint32], ctypes.c_int32),
+    ("GetSkillPoint", "m2_py_guild_get_guild_skill_point", [], ctypes.c_int32),
+    ("MainPlayerHasAuthority", "m2_py_guild_main_player_has_authority", [ctypes.c_uint8], ctypes.c_bool),
+    ("HasGuildLand", "m2_py_guild_has_guild_land", [], ctypes.c_bool),
+    ("GetMasterName", "m2_py_guild_get_master_name", [ctypes.c_char_p, ctypes.c_size_t], ctypes.c_bool),
 ]
 sys.modules['guild'] = create_real_module('guild', 'guild', guild_methods)
-setattr(sys.modules['guild'], 'GetGuildName', staticmethod(lambda: "Guild"))
-setattr(sys.modules['guild'], 'GetMemberByIndex', staticmethod(lambda idx: "Member"))
 
 # Shop Module
 shop_methods = [
@@ -472,6 +590,15 @@ shop_methods = [
     ("Close", "m2_py_shop_close", [], None),
     ("Buy", "m2_py_shop_buy", [ctypes.c_uint32], None),
     ("Sell", "m2_py_shop_sell", [ctypes.c_uint32, ctypes.c_uint32], None),
+    ("IsOpen", "m2_py_shop_is_open", [], ctypes.c_bool),
+    ("SetPrivateShop", "m2_py_shop_set_private_shop", [ctypes.c_bool, ctypes.c_bool], None),
+    ("IsPrivateShop", "m2_py_shop_is_private_shop", [], ctypes.c_bool),
+    ("IsMainPlayerPrivateShop", "m2_py_shop_is_main_player_private_shop", [], ctypes.c_bool),
+    ("ClearPrivateShopStock", "m2_py_shop_clear_private_shop_stock", [], None),
+    ("AddPrivateShopItemStock", "m2_py_shop_add_private_shop_item_stock", [ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8, ctypes.c_uint32], None),
+    ("DelPrivateShopItemStock", "m2_py_shop_del_private_shop_item_stock", [ctypes.c_uint8, ctypes.c_uint16], None),
+    ("GetPrivateShopItemPrice", "m2_py_shop_get_private_shop_item_price", [ctypes.c_uint8, ctypes.c_uint16], ctypes.c_uint32),
+    ("BuildPrivateShop", "m2_py_shop_build_private_shop", [ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p], ctypes.c_size_t),
 ]
 sys.modules['shop'] = create_real_module('shop', 'shop', shop_methods)
 
@@ -482,13 +609,27 @@ skill_methods = [
     ("GetSkillCoolTime", "m2_py_skill_get_cool_time", [ctypes.c_uint32], ctypes.c_float),
     ("GetSkillMaxLevel", "m2_py_skill_get_max_level", [ctypes.c_uint32], ctypes.c_uint32),
     ("CanUseSkill", "m2_py_skill_can_use_skill", [ctypes.c_uint32], ctypes.c_bool),
+    ("GetSkillType", "m2_py_skill_get_type", [ctypes.c_uint32], ctypes.c_uint8),
+    ("GetGradeName", "m2_py_skill_get_grade_name", [ctypes.c_uint8], ctypes.c_char_p),
+    ("GetSkillDescription", "m2_py_skill_get_description", [ctypes.c_uint32], ctypes.c_char_p),
+    ("GetSkillNeedSP", "m2_py_skill_get_skill_need_sp", [ctypes.c_uint32, ctypes.c_float], ctypes.c_uint32),
+    ("GetSkillLevelUpPoint", "m2_py_skill_get_skill_level_up_point", [ctypes.c_uint32], ctypes.c_uint32),
+    ("IsToggleSkill", "m2_py_skill_is_toggle_skill", [ctypes.c_uint32], ctypes.c_bool),
+    ("IsStandingSkill", "m2_py_skill_is_standing_skill", [ctypes.c_uint32], ctypes.c_bool),
 ]
 sys.modules['skill'] = create_real_module('skill', 'skill', skill_methods)
-setattr(sys.modules['skill'], 'GetSkillName', staticmethod(lambda skill_vnum: "Skill"))
-setattr(sys.modules['chr'], 'GetNameByVID', staticmethod(lambda vid: "Target"))
 
 # Exchange Module
 exchange_methods = [
+    ("GetItemVnumFromSelf", "m2_py_ui_exchange_get_item_vnum_from_self", [ctypes.c_size_t], ctypes.c_uint32),
+    ("GetItemVnumFromTarget", "m2_py_ui_exchange_get_item_vnum_from_target", [ctypes.c_size_t], ctypes.c_uint32),
+    ("GetElkFromSelf", "m2_py_ui_exchange_get_elk_from_self", [], ctypes.c_uint32),
+    ("GetElkFromTarget", "m2_py_ui_exchange_get_elk_from_target", [], ctypes.c_uint32),
+    ("isAcceptFromSelf", "m2_py_ui_exchange_is_accepted_from_self", [], ctypes.c_bool),
+    ("isAcceptFromTarget", "m2_py_ui_exchange_is_accepted_from_target", [], ctypes.c_bool),
+    ("InitTrading", "m2_py_exchange_init_trading", [], ctypes.c_bool),
+    ("GetItemCountFromTarget", "m2_py_exchange_get_item_count_from_target", [ctypes.c_uint8], ctypes.c_uint8),
+    ("GetAcceptFromTarget", "m2_py_exchange_get_accept_from_target", [], ctypes.c_bool),
 ]
 sys.modules['exchange'] = create_real_module('exchange', 'exchange', exchange_methods)
 
@@ -496,8 +637,25 @@ sys.modules['exchange'] = create_real_module('exchange', 'exchange', exchange_me
 quest_methods = [
     ("GetQuestCount", "m2_py_quest_get_quest_count", [], ctypes.c_uint32),
     ("GetQuestName", "m2_py_quest_get_quest_name", [ctypes.c_uint32], ctypes.c_char_p),
+    ("Clear", "m2_py_quest_clear", [], None),
+    ("SetSkin", "m2_py_quest_set_skin", [ctypes.c_uint8], None),
+    ("SetTitle", "m2_py_quest_set_title", [ctypes.c_char_p], None),
+    ("SetClockTitle", "m2_py_quest_set_clock_title", [ctypes.c_char_p], None),
+    ("SetClockValue", "m2_py_quest_set_clock_value", [ctypes.c_uint32], None),
+    ("SetCounterName", "m2_py_quest_set_counter_name", [ctypes.c_char_p], None),
+    ("SetCounterValue", "m2_py_quest_set_counter_value", [ctypes.c_uint32], None),
 ]
 sys.modules['quest'] = create_real_module('quest', 'quest', quest_methods)
+
+# Pack Module
+pack_methods = [
+    ("Mount", "m2_py_pack_mount", [ctypes.c_char_p], ctypes.c_bool),
+    ("Exist", "m2_py_pack_exist", [ctypes.c_char_p], ctypes.c_bool),
+    ("GetSize", "m2_py_pack_get_size", [ctypes.c_char_p], ctypes.c_size_t),
+    ("ReadData", "m2_py_pack_read_data", [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t], ctypes.c_size_t),
+]
+sys.modules['pack'] = create_real_module('pack', 'pack', pack_methods)
+sys.modules['Pack'] = sys.modules['pack']
 
 # Grp Module
 grp_methods = [
@@ -543,18 +701,26 @@ def make_dummy_module(name):
     class Dummy(metaclass=DummyMeta): pass
     return Dummy
 
-sys.modules['safebox'] = make_dummy_module('safebox')
+safebox_methods = [
+    ("GetItemID", "m2_py_ui_safebox_get_item_id", [ctypes.c_size_t], ctypes.c_uint32),
+    ("GetItemCount", "m2_py_ui_safebox_get_item_count", [ctypes.c_size_t], ctypes.c_uint8),
+    ("GetMoney", "m2_py_ui_safebox_get_money", [], ctypes.c_uint32),
+    ("GetCurrentSafeboxSize", "m2_py_ui_safebox_get_size", [], ctypes.c_size_t),
+]
+sys.modules['safebox'] = create_real_module('safebox', 'safebox', safebox_methods)
+sys.modules['Safebox'] = sys.modules['safebox']
+
 nonplayer_methods = [
     ("GetMonsterName", "m2_py_nonplayer_get_monster_name", [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t], ctypes.c_bool),
     ("GetMonsterLevel", "m2_py_nonplayer_get_monster_level", [ctypes.c_uint32], ctypes.c_uint32),
+    ("GetMonsterMaxHP", "m2_py_nonplayer_get_monster_max_hp", [ctypes.c_uint32], ctypes.c_uint32),
+    ("GetMonsterGrade", "m2_py_nonplayer_get_grade_by_name", [ctypes.c_uint32], ctypes.c_uint8),
 ]
 sys.modules['nonplayer'] = create_real_module('nonplayer', 'nonplayer', nonplayer_methods)
-setattr(sys.modules['nonplayer'], 'GetMonsterName', staticmethod(lambda vnum: "Monster"))
-setattr(sys.modules['quest'], 'GetQuestName', staticmethod(lambda idx: "Quest"))
 
 for m in [
     'Player', 'Item', 'Guild', 'NonPlayer', 'Quest',
-    'Safebox', 'Shop', 'Skill', 'target', 'Target', 'event', 'Event', 'ime', 'IME',
+    'Shop', 'Skill', 'target', 'Target', 'event', 'Event', 'ime', 'IME',
     'MiniMap', 'profiler', 'Profiler', 'background', 'Background', 'trade', 'Trade', 'Chat',
     'effect', 'Effect', 'fly', 'Fly', 'eventmgr', 'EventMgr', 'messenger', 'Messenger',
     'serverStateChecker', 'ServerStateChecker'

@@ -1,7 +1,4 @@
-#[path = "../src/send_shop_complete_packets.rs"]
-mod send_shop_complete_packets;
-
-use send_shop_complete_packets::*;
+use m2_client::send_shop_complete_packets::*;
 use std::mem::size_of;
 use std::sync::OnceLock;
 use std::sync::Mutex;

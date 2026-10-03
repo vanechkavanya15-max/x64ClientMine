@@ -125,3 +125,43 @@ impl MovementManager {
         }
     }
 }
+
+#[repr(C, packed)]
+pub struct TPacketGCMove {
+    pub header: u16,
+    pub length: u16,
+    pub func: u8,
+    pub arg: u8,
+    pub rot: u8,
+    pub vid: u32,
+    pub x: i32,
+    pub y: i32,
+    pub time: u32,
+    pub duration: u32,
+}
+
+pub static MOVEMENT_MANAGER: std::sync::LazyLock<std::sync::RwLock<MovementManager>> = std::sync::LazyLock::new(|| {
+    std::sync::RwLock::new(MovementManager::new())
+});
+
+#[no_mangle]
+pub extern "C" fn m2_net_recv_move(buf: *const u8, len: usize) -> bool {
+    if buf.is_null() || len < std::mem::size_of::<TPacketGCMove>() {
+        return false;
+    }
+    let pkt = unsafe { std::ptr::read_unaligned(buf as *const TPacketGCMove) };
+    let move_data = CharacterMoveData {
+        vid: { pkt.vid },
+        func: { pkt.func },
+        arg: { pkt.arg },
+        rot: { pkt.rot },
+        x: { pkt.x },
+        y: { pkt.y },
+        time: { pkt.time },
+        duration: { pkt.duration },
+    };
+    if let Ok(mut mgr) = MOVEMENT_MANAGER.write() {
+        let _ = mgr.handle_move_packet(&move_data);
+    }
+    true
+}

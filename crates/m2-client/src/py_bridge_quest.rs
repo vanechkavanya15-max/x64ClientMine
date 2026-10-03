@@ -78,3 +78,16 @@ pub extern "C" fn m2_py_quest_set_counter_value(val: u32) {
         }
     });
 }
+
+#[no_mangle]
+pub extern "C" fn m2_py_quest_get_quest_count() -> u32 {
+    0
+}
+
+static QUEST_NAME: &[u8] = b"Quest\0";
+
+#[no_mangle]
+pub extern "C" fn m2_py_quest_get_quest_name(_idx: u32) -> *const c_char {
+    QUEST_NAME.as_ptr() as *const c_char
+}
+

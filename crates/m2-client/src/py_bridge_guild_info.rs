@@ -216,3 +216,29 @@ pub extern "C" fn m2_py_guild_get_grade_name(
         false
     })
 }
+
+#[no_mangle]
+pub extern "C" fn m2_py_guild_get_guild_money() -> u32 {
+    safe_ffi_call(0, || {
+        let state = get_guild_state().lock().unwrap();
+        (state.gold & 0xFFFFFFFF) as u32
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_guild_is_main_master() -> bool {
+    safe_ffi_call(false, || {
+        let state = get_guild_state().lock().unwrap();
+        let my_vid = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read().unwrap().get_player_vid();
+        state.master_pid != 0 && state.master_pid == my_vid
+    })
+}
+
+static GUILD_MEMBER_NAME: &[u8] = b"Member\0";
+
+#[no_mangle]
+pub extern "C" fn m2_py_guild_get_member_by_index(_index: u32) -> *const std::os::raw::c_char {
+    GUILD_MEMBER_NAME.as_ptr() as *const std::os::raw::c_char
+}
+
+

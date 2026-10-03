@@ -1,7 +1,4 @@
-#[path = "../src/ui_widget_bar3d.rs"]
-mod ui_widget_bar3d;
-
-use ui_widget_bar3d::{Bar3D, D3dxColor, RenderCommand, project_world_to_screen, wndMgr_RegisterBar3D_Mock, wndMgr_SetColorBar3D_Mock};
+use m2_client::ui_widget_bar3d::{Bar3D, D3dxColor, RenderCommand, project_world_to_screen, wndMgr_RegisterBar3D_Widget, wndMgr_SetColorBar3D_Mock};
 
 #[test]
 fn test_bar3d_initialization() {
@@ -47,7 +44,7 @@ fn test_bar3d_on_render_commands() {
     bar.set_rect(10.0, 20.0, 110.0, 30.0);
     
     let commands = bar.on_render();
-    assert_eq!(commands.len(), 7);
+    assert_eq!(commands.len(), 8);
     
     // Check Center Fill
     assert_eq!(commands[0], RenderCommand::SetColor(center));
@@ -61,8 +58,7 @@ fn test_bar3d_on_render_commands() {
     // Check Right Border
     assert_eq!(commands[5], RenderCommand::SetColor(right));
     assert_eq!(commands[6], RenderCommand::RenderLine2d { x1: 10.0, y1: 30.0, x2: 110.0, y2: 30.0 });
-    // Note: C++ has RenderLine2d(right, top, right, bottom)
-    // Commands should match exactly 1:1
+    assert_eq!(commands[7], RenderCommand::RenderLine2d { x1: 110.0, y1: 20.0, x2: 110.0, y2: 30.0 });
 }
 
 #[test]
@@ -103,7 +99,7 @@ fn test_bar3d_world_to_screen_behind_camera() {
 
 #[test]
 fn test_bar3d_ffi_mocks() {
-    let handle = wndMgr_RegisterBar3D_Mock(12345);
+    let handle = wndMgr_RegisterBar3D_Widget(12345);
     assert_eq!(handle, 999);
     
     let success = wndMgr_SetColorBar3D_Mock(

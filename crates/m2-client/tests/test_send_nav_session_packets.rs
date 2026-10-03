@@ -1,7 +1,4 @@
-#[path = "../src/send_nav_session_packets.rs"]
-mod send_nav_session_packets;
-
-use send_nav_session_packets::*;
+use m2_client::send_nav_session_packets::*;
 use std::mem::size_of;
 
 #[test]
@@ -72,14 +69,14 @@ fn test_build_character_position_packet() {
 #[test]
 fn test_packet_layouts() {
     let warp = TPacketCGWarp { header: HEADER_CG_WARP, length: 4 };
-    assert_eq!(warp.header, HEADER_CG_WARP);
+    assert_eq!({ warp.header }, HEADER_CG_WARP);
     
     let logout = TPacketCGLogout { header: HEADER_CG_LOGOUT, length: 4 };
-    assert_eq!(logout.header, HEADER_CG_LOGOUT);
+    assert_eq!({ logout.header }, HEADER_CG_LOGOUT);
     
     let exit = TPacketCGExitGame { header: HEADER_CG_EXIT_GAME, length: 4 };
-    assert_eq!(exit.header, HEADER_CG_EXIT_GAME);
+    assert_eq!({ exit.header }, HEADER_CG_EXIT_GAME);
     
     let position = TPacketCGPosition { header: HEADER_CG_CHARACTER_POSITION, length: 5, position: 2 };
-    assert_eq!(position.position, 2);
+    assert_eq!({ position.position }, 2);
 }

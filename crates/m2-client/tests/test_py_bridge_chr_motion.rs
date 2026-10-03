@@ -1,10 +1,12 @@
 use m2_client::character_manager_core::get_character_manager;
+use m2_client::py_bridge_chr_motion;
+use std::sync::Mutex;
 
-#[path = "../src/py_bridge_chr_motion.rs"]
-mod py_bridge_chr_motion;
+static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_push_loop_motion_success() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     let mut mgr = get_character_manager().write().unwrap();
     mgr.clear();
     let vid = 100;
@@ -25,6 +27,7 @@ fn test_push_loop_motion_success() {
 
 #[test]
 fn test_push_once_motion_success() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     let mut mgr = get_character_manager().write().unwrap();
     mgr.clear();
     let vid = 101;
@@ -45,6 +48,7 @@ fn test_push_once_motion_success() {
 
 #[test]
 fn test_set_loop_motion_success() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     let mut mgr = get_character_manager().write().unwrap();
     mgr.clear();
     let vid = 102;
@@ -65,6 +69,7 @@ fn test_set_loop_motion_success() {
 
 #[test]
 fn test_set_motion_mode_success() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     let mut mgr = get_character_manager().write().unwrap();
     mgr.clear();
     let vid = 103;
@@ -78,6 +83,7 @@ fn test_set_motion_mode_success() {
 
 #[test]
 fn test_functions_fail_without_selected_instance() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     let mut mgr = get_character_manager().write().unwrap();
     mgr.clear();
     drop(mgr);

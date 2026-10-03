@@ -1,7 +1,4 @@
-#[path = "../src/inventory_grid.rs"]
-mod inventory_grid;
-
-use inventory_grid::{InventoryGrid, ItemSize, ItemData};
+use m2_client::inventory_grid::{InventoryGrid, ItemSize, ItemData};
 
 #[test]
 fn test_can_put_item_1x1() {

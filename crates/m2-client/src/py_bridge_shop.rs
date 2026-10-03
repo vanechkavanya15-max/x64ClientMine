@@ -67,7 +67,7 @@ pub extern "C" fn m2_py_shop_get_item_price(slot: usize) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_shop_build_private_shop(
+pub extern "C" fn m2_py_shop_build_private_shop_legacy(
     title_ptr: *const u8,
     title_len: usize,
     item_stock_ptr: *const TShopItemTable,
@@ -114,3 +114,50 @@ pub extern "C" fn m2_py_shop_build_private_shop(
 
     offset
 }
+
+#[no_mangle]
+pub extern "C" fn m2_py_shop_open() {
+    if let Ok(mut shop) = SHOP_INSTANCE.write() {
+        shop.is_open = true;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_shop_close() {
+    if let Ok(mut shop) = SHOP_INSTANCE.write() {
+        shop.is_open = false;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_shop_buy(pos: u32) {
+    use std::io::Write;
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_complete_packets::m2_send_shop_buy(pos as u8, 1, out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc);
+                let _ = stream.write_all(&enc);
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_shop_sell(pos: u32, count: u32) {
+    use std::io::Write;
+    let mut out_buf = [0u8; 16];
+    let len = crate::send_shop_complete_packets::m2_send_shop_sell_new(pos as u8, count as u8, out_buf.as_mut_ptr());
+    if len > 0 {
+        if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+            if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                let mut enc = out_buf[..len].to_vec();
+                cipher.encrypt_in_place(&mut enc);
+                let _ = stream.write_all(&enc);
+            }
+        }
+    }
+}
+

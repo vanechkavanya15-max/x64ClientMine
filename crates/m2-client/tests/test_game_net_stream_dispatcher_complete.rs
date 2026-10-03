@@ -1,5 +1,4 @@
-#[path = "../src/game_net_stream_dispatcher_complete.rs"]
-mod game_net_stream_dispatcher_complete;
+use m2_client::game_net_stream_dispatcher_complete;
 
 #[test]
 fn test_game_dispatcher_too_short() {

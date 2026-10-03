@@ -16,8 +16,10 @@ fn test_parse_magic_valid() {
     let result = parse_magic(&data);
     assert!(result.is_ok());
     let magic = result.unwrap();
-    assert_eq!(magic.magic, magic_bytes);
-    assert_eq!(magic.header_size, 32);
+    let m = magic.magic;
+    assert_eq!(m, magic_bytes);
+    let hs = magic.header_size;
+    assert_eq!(hs, 32);
 }
 
 #[test]
@@ -36,7 +38,7 @@ fn test_parse_magic_buffer_too_small() {
 
 #[test]
 fn test_parse_header_valid() {
-    let mut data = vec![0u8; 100];
+    let mut data = vec![0u8; 128];
     
     // Header size = 32
     let mut magic = GrnFileMagicValue::default();
@@ -49,12 +51,13 @@ fn test_parse_header_valid() {
     let result = parse_header(&data, &magic);
     assert!(result.is_ok());
     let header = result.unwrap();
-    assert_eq!(header.version, 7);
+    let v = header.version;
+    assert_eq!(v, 7);
 }
 
 #[test]
 fn test_parse_header_invalid_version() {
-    let mut data = vec![0u8; 100];
+    let mut data = vec![0u8; 128];
     
     let mut magic = GrnFileMagicValue::default();
     magic.header_size = 32;
@@ -81,7 +84,8 @@ fn test_parse_sections() {
     assert!(result.is_ok());
     let sections = result.unwrap();
     assert_eq!(sections.len(), 1);
-    assert_eq!(sections[0].format, 1);
+    let fmt = sections[0].format;
+    assert_eq!(fmt, 1);
 }
 
 #[test]

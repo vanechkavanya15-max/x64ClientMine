@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use std::sync::Mutex;
 
 #[cfg(windows)]
+#[link(name = "user32")]
 extern "system" {
     fn ShowCursor(bShow: i32) -> i32;
     fn SetCursor(hCursor: *mut std::ffi::c_void) -> *mut std::ffi::c_void;

@@ -1,7 +1,6 @@
 use m2_client::terrain_height_patch::RawHeightMap;
 
-#[path = "../src/wgpu_terrain_mesh_wire.rs"]
-mod wgpu_terrain_mesh_wire;
+use m2_client::wgpu_terrain_mesh_wire;
 
 #[test]
 fn test_calculate_normal_metin2_flat() {

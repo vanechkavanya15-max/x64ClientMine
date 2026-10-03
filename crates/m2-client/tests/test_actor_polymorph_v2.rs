@@ -1,12 +1,19 @@
 use std::sync::{Mutex, OnceLock};
 
-#[path = "../src/actor_polymorph_v2.rs"]
-mod actor_polymorph_v2;
+use m2_client::actor_polymorph_v2;
+use m2_client::character_manager_core::get_character_manager;
 
 static TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 fn get_test_lock() -> std::sync::MutexGuard<'static, ()> {
-    TEST_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    TEST_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner())
+}
+
+fn ensure_instance(vid: u32) {
+    let mut mgr = get_character_manager().write().unwrap();
+    if mgr.get_instance(vid).is_none() {
+        mgr.create_instance(vid, 0, 0.0, 0.0, 0.0);
+    }
 }
 
 #[test]
@@ -14,6 +21,7 @@ fn test_polymorph_apply_successful() {
     let _lock = get_test_lock();
     let vid = 1001;
     let mob_vnum = 101; // Wild Dog
+    ensure_instance(vid);
     
     // Apply polymorph
     let result = actor_polymorph_v2::m2_poly_apply(vid, mob_vnum, 1.5, 1.5, 1.5);
@@ -39,6 +47,7 @@ fn test_polymorph_apply_successful() {
 fn test_polymorph_disable() {
     let _lock = get_test_lock();
     let vid = 1002;
+    ensure_instance(vid);
     
     // Setup polymorph
     actor_polymorph_v2::m2_poly_apply(vid, 101, 1.0, 1.0, 1.0);
@@ -63,6 +72,7 @@ fn test_polymorph_disable() {
 fn test_polymorph_reapply() {
     let _lock = get_test_lock();
     let vid = 1003;
+    ensure_instance(vid);
     
     // Apply first time
     actor_polymorph_v2::m2_poly_apply(vid, 101, 1.0, 1.0, 1.0);
@@ -100,6 +110,7 @@ fn test_polymorph_non_existent_vid() {
 fn test_polymorph_null_pointers() {
     let _lock = get_test_lock();
     let vid = 1004;
+    ensure_instance(vid);
     
     actor_polymorph_v2::m2_poly_apply(vid, 101, 1.0, 1.0, 1.0);
     
@@ -111,6 +122,7 @@ fn test_polymorph_null_pointers() {
 fn test_polymorph_equipment_hidden() {
     let _lock = get_test_lock();
     let vid = 1005;
+    ensure_instance(vid);
     
     // Normal state
     assert!(!actor_polymorph_v2::m2_poly_is_equipment_hidden(vid));
@@ -128,6 +140,7 @@ fn test_polymorph_equipment_hidden() {
 fn test_polymorph_partial_null_pointers() {
     let _lock = get_test_lock();
     let vid = 1006;
+    ensure_instance(vid);
     
     actor_polymorph_v2::m2_poly_apply(vid, 101, 1.0, 1.0, 1.0);
     

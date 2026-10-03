@@ -124,3 +124,19 @@ pub extern "C" fn m2_py_skill_get_grade_name(grade_id: u8) -> *const c_char {
 pub extern "C" fn m2_py_skill_get_description(skill_id: u32) -> *const c_char {
     get_bridge().get_skill_description(skill_id)
 }
+
+#[no_mangle]
+pub extern "C" fn m2_py_skill_can_use_skill(skill_id: u32) -> bool {
+    crate::py_bridge_ui_subsystems::m2_py_ui_skill_can_use_skill(skill_id)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_skill_get_cool_time(skill_id: u32) -> f32 {
+    crate::skill_data_cache_v2::m2_skill_get_cooldown_pct(skill_id, crate::app_timing_clock::m2_get_time() as u32)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_skill_get_level(skill_id: u32) -> u32 {
+    crate::py_bridge_player_skills::m2_py_player_get_skill_level(skill_id)
+}
+

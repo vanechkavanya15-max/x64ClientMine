@@ -1,6 +1,4 @@
-#[path = "../src/actor_appearance.rs"] 
-mod actor_appearance;
-use actor_appearance::*;
+use m2_client::actor_appearance::*;
 
 struct MockItemManager;
 
@@ -61,9 +59,17 @@ fn test_methods_attach_weapon_change_armor_set_hair() {
     assert_eq!(app.get_part_vnum(PART_HAIR), 250);
 }
 
+static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn test_ffi_functions() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     let vid = 999;
+    {
+        let mut mgr = m2_client::character_manager_core::get_character_manager().write().unwrap();
+        mgr.clear();
+        mgr.create_instance(vid, 0, 0.0, 0.0, 0.0);
+    }
     
     assert_eq!(m2_actor_get_weapon(vid), 0);
     assert_eq!(m2_actor_get_armor(vid), 0);

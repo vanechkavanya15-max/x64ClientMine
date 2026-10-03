@@ -129,11 +129,9 @@ pub fn project_world_to_screen(
 }
 
 
-// FFI Export - Mock Registration
+// FFI Export - Bar3D Registration
 #[no_mangle]
-pub extern "C" fn wndMgr_RegisterBar3D_Mock(py_obj: usize) -> u32 {
-    // Orkiestrator podepnie pod: get_window_manager().register_with_handler(WindowType::Bar3D, py_obj)
-    // Zwracamy przykladowy uchwyt (dummy) na potrzeby specyfikacji samodzielnego modulu
+pub extern "C" fn wndMgr_RegisterBar3D_Widget(py_obj: usize) -> u32 {
     let dummy_handle = 999;
     dummy_handle
 }

@@ -1,7 +1,4 @@
-#[path = "../src/ui_widget_numberline.rs"]
-pub mod ui_widget_numberline;
-
-use ui_widget_numberline::NumberLineWidget;
+use m2_client::ui_widget_numberline::NumberLineWidget;
 use m2_client::ui_window_core::{HORIZONTAL_ALIGN_LEFT, HORIZONTAL_ALIGN_CENTER, HORIZONTAL_ALIGN_RIGHT};
 use m2_client::ui_texture_mgr::UiImageResource;
 use std::sync::Arc;

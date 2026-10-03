@@ -63,5 +63,3 @@ fn test_wgpu_water_plane_renderer_is_accessible() {
     let _renderer = std::mem::size_of::<WgpuWaterPlaneRenderer>();
     assert!(_renderer > 0);
 }
-
-#[test]

@@ -169,3 +169,11 @@ pub extern "C" fn m2_py_item_get_apply(apply_index: u8, out_type: *mut u8, out_v
         false
     })
 }
+
+static ITEM_DESC: &[u8] = b"Item Description\0";
+
+#[no_mangle]
+pub extern "C" fn m2_py_item_get_item_description() -> *const c_char {
+    ITEM_DESC.as_ptr() as *const c_char
+}
+

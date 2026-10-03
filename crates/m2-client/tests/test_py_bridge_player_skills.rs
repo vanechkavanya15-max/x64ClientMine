@@ -1,7 +1,4 @@
-#[path = "../src/py_bridge_player_skills.rs"]
-mod py_bridge_player_skills;
-
-use py_bridge_player_skills::{
+use m2_client::py_bridge_player_skills::{
     m2_py_player_get_skill_current_efficient_percentage, m2_py_player_get_skill_grade,
     m2_py_player_get_skill_index, m2_py_player_get_skill_next_efficient_percentage,
     m2_py_player_get_skill_slot_index, m2_py_player_is_skill_active,

@@ -59,6 +59,11 @@ pub extern "C" fn wndMgr_RegisterSlotWindow(py_obj: usize) -> u32 {
 }
 
 #[no_mangle]
+pub extern "C" fn wndMgr_RegisterBar3D(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::Bar, py_obj)
+}
+
+#[no_mangle]
 pub extern "C" fn wndMgr_RegisterGridSlotWindow(py_obj: usize) -> u32 {
     get_window_manager().register_with_handler(WindowType::SlotWindow, py_obj)
 }
@@ -361,8 +366,7 @@ pub extern "C" fn wndMgr_Lock(_handle: u32) {}
 #[no_mangle]
 pub extern "C" fn wndMgr_Unlock(_handle: u32) {}
 
-#[no_mangle]
-pub extern "C" fn wndMgr_UpdateRect(_handle: u32) {}
+// (replaced by real implementation in specialized module)
 
 
 
@@ -383,30 +387,18 @@ pub extern "C" fn wndMgr_SetSlotStyle(_handle: u32, _style: u32) -> bool { true 
 #[no_mangle]
 pub extern "C" fn wndMgr_ArrangeSlot(_handle: u32) -> bool { true }
 
-#[no_mangle]
-pub extern "C" fn wndMgr_SetMax(handle: u32, max: i32) {
-    if let Some(win) = get_window_manager().windows.get_mut(&handle) {
-        win.width = win.width.max(max * 8);
-    }
-}
+// (replaced by real implementation in specialized module)
+// (replaced by real implementation in specialized module)
 
-#[no_mangle]
-pub extern "C" fn wndMgr_SetLimitWidth(_handle: u32, _width: f32) {}
+// (replaced by real implementation in specialized module)
 
-#[no_mangle]
-pub extern "C" fn wndMgr_SetMultiLine(_handle: u32, _enable: bool) {}
+// (replaced by real implementation in specialized module)
 
-#[no_mangle]
-pub extern "C" fn wndMgr_SetSecret(_handle: u32, _enable: bool) {}
+// (replaced by real implementation in specialized module)
 
-#[no_mangle]
-pub extern "C" fn wndMgr_SetOutline(_handle: u32, _enable: bool) {}
+// (replaced by real implementation in specialized module)
 
-#[no_mangle]
-pub extern "C" fn wndMgr_SetFeather(_handle: u32, _enable: bool) {}
-
-#[no_mangle]
-pub extern "C" fn wndMgr_SetFontName(_handle: u32, _name: *const c_char) {}
+// (replaced by real implementation in specialized module)
 
 #[no_mangle]
 pub extern "C" fn wndMgr_GetTextSize(handle: u32, out_w: *mut i32, out_h: *mut i32) {

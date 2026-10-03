@@ -1,7 +1,4 @@
-#[path = "../src/send_exchange_complete_packets.rs"]
-mod send_exchange_complete_packets;
-
-use send_exchange_complete_packets::*;
+use m2_client::send_exchange_complete_packets::*;
 
 #[test]
 fn test_packet_size_and_layout() {

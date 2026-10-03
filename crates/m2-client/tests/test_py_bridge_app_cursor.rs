@@ -1,9 +1,6 @@
 use serial_test::serial;
 
-#[path = "../src/py_bridge_app_cursor.rs"]
-mod py_bridge_app_cursor;
-
-use py_bridge_app_cursor::*;
+use m2_client::py_bridge_app_cursor::*;
 use std::ptr;
 
 #[test]

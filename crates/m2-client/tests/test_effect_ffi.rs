@@ -1,13 +1,8 @@
 use std::sync::{Mutex, OnceLock};
 use std::ptr;
 
-// Wymaga dostępu do modułu, więc go ładujemy lokalnie.
-#[path = "../src/actor_ffi.rs"]
-mod actor_ffi;
-#[path = "../src/effect_ffi.rs"]
-mod effect_ffi;
-
-use effect_ffi::{m2_effect_create, m2_effect_update, m2_effect_destroy, m2_flying_spawn, m2_flying_update};
+use m2_client::actor_ffi;
+use m2_client::effect_ffi::{m2_effect_create, m2_effect_update, m2_effect_destroy, m2_flying_spawn, m2_flying_update};
 
 static TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 

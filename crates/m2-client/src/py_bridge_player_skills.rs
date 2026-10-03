@@ -92,3 +92,26 @@ pub extern "C" fn m2_py_player_is_skill_cool_time(slot_index: i32) -> i32 {
     }
     0
 }
+
+#[no_mangle]
+pub extern "C" fn m2_py_player_get_skill_level(slot_index: u32) -> u32 {
+    if (slot_index as usize) >= SKILL_MAX_NUM {
+        return 0;
+    }
+    if let Ok(skills) = PLAYER_SKILLS.read() {
+        return skills[slot_index as usize].iLevel as u32;
+    }
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_player_get_skill_cool_time(slot_index: u32) -> f32 {
+    if (slot_index as usize) >= SKILL_MAX_NUM {
+        return 0.0;
+    }
+    if let Ok(skills) = PLAYER_SKILLS.read() {
+        return skills[slot_index as usize].fCoolTime;
+    }
+    0.0
+}
+

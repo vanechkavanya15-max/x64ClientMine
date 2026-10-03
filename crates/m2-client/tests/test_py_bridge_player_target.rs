@@ -1,14 +1,15 @@
-#[path = "../src/py_bridge_player_target.rs"]
-mod py_bridge_player_target;
+use m2_client::py_bridge_player_target::*;
+use m2_client::character_manager_core::{get_character_manager, InstanceBase};
+use m2_client::network_actor_mgr::NetworkActorData;
+use m2_client::terrain_attr_map::TerrainAttrMap;
+use m2_client::terrain_ffi::get_terrain_ctx;
+use std::sync::Mutex;
 
-use crate::py_bridge_player_target::*;
-use crate::character_manager_core::{get_character_manager, CharacterManagerCore, InstanceBase};
-use crate::network_actor_mgr::NetworkActorData;
-use crate::terrain_attr_map::TerrainAttrMap;
-use crate::terrain_ffi::get_terrain_ctx;
+static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_player_target_set_clear_get() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     unsafe {
         assert!(m2_py_player_set_target(100));
         assert_eq!(m2_py_player_get_target_vid(), 100);
@@ -20,6 +21,7 @@ fn test_player_target_set_clear_get() {
 
 #[test]
 fn test_player_get_pk_mode() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     let mut mgr = get_character_manager().write().unwrap();
     mgr.alive_instances.clear();
     mgr.main_actor_vid = Some(1);
@@ -39,6 +41,7 @@ fn test_player_get_pk_mode() {
 
 #[test]
 fn test_player_is_same_empire() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     let mut mgr = get_character_manager().write().unwrap();
     mgr.alive_instances.clear();
     mgr.main_actor_vid = Some(1);
@@ -80,6 +83,7 @@ fn test_player_is_same_empire() {
 
 #[test]
 fn test_player_is_in_safe_area() {
+    let _guard = TEST_MUTEX.lock().unwrap();
     // Setup character
     let mut mgr = get_character_manager().write().unwrap();
     mgr.alive_instances.clear();
@@ -89,29 +93,13 @@ fn test_player_is_in_safe_area() {
     mgr.alive_instances.insert(1, main_actor);
     drop(mgr);
     
-    // Setup terrain map mock manually through get_terrain_ctx
+    // Setup terrain map mock through get_terrain_ctx
     let mut terrain_ctx = get_terrain_ctx().write().unwrap();
     let mut map_data = vec![0u8; 256 * 256];
     // Coordinate 10,10 has ATTR_BANPK (4)
-    map_data[10 * 256 + 10] = 4;
+    map_data[10 * 256 + 10] = m2_client::terrain_attr_map::ATTR_BANPK;
     
-    // Format header and append data to simulate a proper AttrMap bytes
-    let mut full_data = vec![0u8; 6];
-    full_data[0..2].copy_from_slice(&2634u16.to_le_bytes()); // ATTRMAP_MAGIC
-    full_data[2..4].copy_from_slice(&256u16.to_le_bytes()); // WIDTH
-    full_data[4..6].copy_from_slice(&256u16.to_le_bytes()); // HEIGHT
-    full_data.extend(map_data);
-    
-    let attr_map = crate::terrain_attr_parser::AttrMap::from_bytes(&full_data).unwrap();
-    
-    // For m2_terrain_is_attr from bridge to work, we need to adapt map to the TerrainAttrMap which uses map.is_safe_zone
-    // Currently, our terrain_attr_parser.rs implements is_safe_zone, but wait... terrain_ffi_bridge_v2 relies on get_terrain_ctx().attr_map.
-    terrain_ctx.attr_map = Some(TerrainAttrMap::new(256, 256));
-    // Manually set attribute in TerrainAttrMap
-    if let Some(ref mut attr_map) = terrain_ctx.attr_map {
-        attr_map.set_attr(10, 10, crate::terrain_attr_map::ATTR_BANPK);
-    }
-    
+    terrain_ctx.attr_map = Some(TerrainAttrMap::new(256, 256, map_data).unwrap());
     drop(terrain_ctx);
     
     unsafe {
@@ -133,6 +121,11 @@ fn test_player_is_in_safe_area() {
 
 #[test]
 fn test_player_is_pvp_instance() {
+    let _guard = TEST_MUTEX.lock().unwrap();
+    {
+        let mut pvp_mgr = m2_client::pvp_gvg_manager_v2::get_pvp_gvg_manager().write().unwrap();
+        pvp_mgr.clear_pvp_key_system();
+    }
     let mut mgr = get_character_manager().write().unwrap();
     mgr.alive_instances.clear();
     mgr.main_actor_vid = Some(1);
@@ -157,17 +150,26 @@ fn test_player_is_pvp_instance() {
     }
     
     // Enable guild war
-    crate::pvp_gvg_manager_v2::PvpGvgManager::declare_guild_war(100, 200);
+    {
+        let mut pvp_mgr = m2_client::pvp_gvg_manager_v2::get_pvp_gvg_manager().write().unwrap();
+        pvp_mgr.insert_gvg_key(100, 200);
+    }
     
     unsafe {
         assert!(m2_py_player_is_pvp_instance(2));
     }
     
     // End guild war
-    crate::pvp_gvg_manager_v2::PvpGvgManager::end_guild_war(100, 200);
+    {
+        let mut pvp_mgr = m2_client::pvp_gvg_manager_v2::get_pvp_gvg_manager().write().unwrap();
+        pvp_mgr.remove_gvg_key(100, 200);
+    }
     
     // Enable duel
-    crate::pvp_gvg_manager_v2::PvpGvgManager::add_duel(1, 2);
+    {
+        let mut pvp_mgr = m2_client::pvp_gvg_manager_v2::get_pvp_gvg_manager().write().unwrap();
+        pvp_mgr.insert_duel_key(1, 2);
+    }
     
     unsafe {
         assert!(m2_py_player_is_pvp_instance(2));

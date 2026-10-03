@@ -1,7 +1,4 @@
-#[path = "../src/py_bridge_item_details.rs"]
-mod py_bridge_item_details;
-
-use py_bridge_item_details::*;
+use m2_client::py_bridge_item_details::*;
 use m2_client::item_proto_binary_loader::{
     TItemTable, TItemApply, TItemLimit, ITEM_NAME_MAX_LEN, ITEM_LIMIT_MAX_NUM,
     ITEM_APPLY_MAX_NUM, ITEM_VALUES_MAX_NUM, ITEM_SOCKET_MAX_NUM

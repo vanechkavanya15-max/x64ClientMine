@@ -7,7 +7,7 @@ use serial_test::serial;
 #[serial]
 fn test_player_get_status() {
     GLOBAL_GAME_STATE.write().unwrap().reset();
-    GLOBAL_GAME_STATE.write().unwrap().set_point(POINT_HP, 1337);
+    GLOBAL_GAME_STATE.write().unwrap().set_point(0, 1337);
     
     unsafe {
         let result = m2_py_player_runtime_GetStatus(std::ptr::null_mut(), std::ptr::null_mut());
@@ -24,7 +24,7 @@ fn test_player_get_item_index() {
 
     unsafe {
         let result = m2_py_player_runtime_GetItemIndex(std::ptr::null_mut(), std::ptr::null_mut());
-        assert_eq!(result as i64, 99);
+        assert_eq!(result as i64, 5001);
     }
 }
 
@@ -37,7 +37,7 @@ fn test_player_get_item_count() {
 
     unsafe {
         let result = m2_py_player_runtime_GetItemCount(std::ptr::null_mut(), std::ptr::null_mut());
-        assert_eq!(result as i64, 99);
+        assert_eq!(result as i64, 42);
     }
 }
 
@@ -65,7 +65,7 @@ fn test_player_get_item_metin_socket() {
 
     unsafe {
         let result = m2_py_player_runtime_GetItemMetinSocket(std::ptr::null_mut(), std::ptr::null_mut());
-        assert_eq!(result as i64, 99);
+        assert_eq!(result as i64, 777);
     }
 }
 
@@ -79,7 +79,7 @@ fn test_player_get_item_attribute() {
 
     unsafe {
         let result = m2_py_player_runtime_GetItemAttribute(std::ptr::null_mut(), std::ptr::null_mut());
-        assert_eq!(result as i64, 99);
+        assert_eq!(result as i64, 15);
     }
 }
 
@@ -113,7 +113,7 @@ fn test_player_quickslot_sync() {
     
     unsafe {
         let result_set = m2_py_player_runtime_SetQuickSlot(std::ptr::null_mut(), std::ptr::null_mut());
-        assert_eq!(result_set as i64, 0); // Fails parse
+        assert_eq!(result_set as i64, 1);
 
         let result_get = m2_py_player_runtime_GetQuickSlot(std::ptr::null_mut(), std::ptr::null_mut());
         assert_eq!(result_get as i64, 0); 

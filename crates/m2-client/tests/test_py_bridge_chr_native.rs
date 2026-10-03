@@ -55,12 +55,12 @@ fn test_chr_appearance() {
     m2_py_chrmgr_select_instance(vid);
     
     // SetRace
-    assert_eq!(m2_py_chr_set_race(1), true);
+    assert_eq!(m2_py_chr_set_race_native(1), true);
     
     // Equipment
-    assert_eq!(m2_py_chr_set_armor(11299), true);
-    assert_eq!(m2_py_chr_set_weapon(279), true);
-    assert_eq!(m2_py_chr_set_hair(2001), true);
+    assert_eq!(m2_py_chr_set_armor_native(11299), true);
+    assert_eq!(m2_py_chr_set_weapon_native(279), true);
+    assert_eq!(m2_py_chr_set_hair_native(2001), true);
     
     // Verify properties
     {
@@ -116,7 +116,7 @@ fn test_chr_motion() {
     
     // Set motions
     assert_eq!(m2_py_chr_set_motion(3), true);
-    assert_eq!(m2_py_chr_push_once_motion(4), true);
+    assert_eq!(m2_py_chr_push_once_motion_native(4), true);
     
     // Verify
     {
@@ -141,8 +141,8 @@ fn test_invalid_vid() {
     // Operations on non-existent instance should fail gracefully
     assert_eq!(m2_py_chrmgr_select_instance(vid), false);
     assert_eq!(m2_py_chrmgr_delete_instance(vid), false);
-    assert_eq!(m2_py_chr_set_race(1), false);
-    assert_eq!(m2_py_chr_set_armor(11299), false);
+    assert_eq!(m2_py_chr_set_race_native(1), false);
+    assert_eq!(m2_py_chr_set_armor_native(11299), false);
     assert_eq!(m2_py_chr_set_rotation(45.0), false);
     assert_eq!(m2_py_chr_set_pixel_position(0.0, 0.0, 0.0), false);
     assert_eq!(m2_py_chr_set_motion(0), false);

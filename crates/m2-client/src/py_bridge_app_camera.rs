@@ -4,12 +4,7 @@ use std::sync::Mutex;
 use lazy_static::lazy_static;
 use std::path::Path;
 
-// Import PyBridgeApp types since we can't edit lib.rs directly to export them globally easily.
-// The user explicitly stated: "KATEGORYCZNY ZAKAZ edytowania pliku crates/m2-client/src/lib.rs ani zadnych innych istniejacych plikow wspoldzielonych!"
-// But we still need to interact with PY_APP from `py_bridge_app.rs` somehow.
-#[path = "py_bridge_app.rs"]
-mod py_bridge_app_internal;
-use py_bridge_app_internal::{app_lock, CAMERA_MAX_DISTANCE};
+use crate::py_bridge_app::{app_lock, CAMERA_MAX_DISTANCE};
 
 const CAMERA_ROTATE_SPEED: f32 = 1.5;
 const CAMERA_PITCH_SPEED: f32 = 1.5;

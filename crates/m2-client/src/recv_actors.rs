@@ -126,3 +126,27 @@ pub extern "C" fn m2_client_parse_point_change(buf: *const u8, len: usize) -> bo
     let slice = unsafe { std::slice::from_raw_parts(buf, len) };
     parse_point_change(slice).is_ok()
 }
+
+pub fn parse_points(data: &[u8]) -> Result<(), &'static str> {
+    if data.len() < size_of::<TPacketGCPoints>() {
+        return Err("Buffer too short");
+    }
+    let pkt = unsafe { std::ptr::read_unaligned(data.as_ptr() as *const TPacketGCPoints) };
+    let points = pkt.points;
+    if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
+        for (i, &pt) in points.iter().enumerate() {
+            state.set_point(i as u8, pt as i64);
+        }
+    }
+    Ok(())
+}
+
+#[no_mangle]
+pub extern "C" fn m2_client_parse_points(buf: *const u8, len: usize) -> bool {
+    if buf.is_null() || len == 0 {
+        return false;
+    }
+    let slice = unsafe { std::slice::from_raw_parts(buf, len) };
+    parse_points(slice).is_ok()
+}
+
