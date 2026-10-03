@@ -1,2 +1,2 @@
 #!/bin/bash
-cat src/PRTerrainLib/Terrain.h | grep -E "TERRAIN_SIZE|HEIGHTMAP_RAW_XSIZE|CELLSCALE"
+cargo test --package m2-client --test test_full-3d-pipe_13 --target x86_64-unknown-linux-gnu
