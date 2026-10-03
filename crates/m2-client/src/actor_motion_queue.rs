@@ -83,30 +83,27 @@ impl ActorMotionQueue {
     }
 }
 
-static ACTOR_MOTIONS: OnceLock<RwLock<HashMap<u32, ActorMotionQueue>>> = OnceLock::new();
-
-fn get_actor_motions() -> &'static RwLock<HashMap<u32, ActorMotionQueue>> {
-    ACTOR_MOTIONS.get_or_init(|| RwLock::new(HashMap::new()))
-}
+use crate::character_manager_core::get_character_manager;
 
 #[no_mangle]
 pub extern "C" fn m2_motion_set_state(vid: u32, motion_type: u8) -> bool {
     catch_unwind(AssertUnwindSafe(|| {
-        let mut motions = get_actor_motions().write().unwrap();
-        let queue = motions.entry(vid).or_insert_with(|| ActorMotionQueue::new());
-        // For testing/default behavior we set some arbitrary duration for states.
-        // Usually, the real client has an animation length from Granny/metadata.
-        let duration = if motion_type == MOTION_DEAD { 2000 } else { 1000 };
-        queue.set_motion(motion_type, duration, false)
+        let mut mgr = get_character_manager().write().unwrap();
+        if let Some(inst) = mgr.get_instance_mut(vid) {
+            let duration = if motion_type == MOTION_DEAD { 2000 } else { 1000 };
+            inst.motion_queue.set_motion(motion_type, duration, false)
+        } else {
+            false
+        }
     })).unwrap_or(false)
 }
 
 #[no_mangle]
 pub extern "C" fn m2_motion_get_state(vid: u32) -> u8 {
     catch_unwind(AssertUnwindSafe(|| {
-        let motions = get_actor_motions().read().unwrap();
-        if let Some(queue) = motions.get(&vid) {
-            queue.cur_motion_id
+        let mgr = get_character_manager().read().unwrap();
+        if let Some(inst) = mgr.get_instance(vid) {
+            inst.motion_queue.cur_motion_id
         } else {
             MOTION_WAIT
         }
@@ -116,9 +113,9 @@ pub extern "C" fn m2_motion_get_state(vid: u32) -> u8 {
 #[no_mangle]
 pub extern "C" fn m2_motion_is_dead(vid: u32) -> bool {
     catch_unwind(AssertUnwindSafe(|| {
-        let motions = get_actor_motions().read().unwrap();
-        if let Some(queue) = motions.get(&vid) {
-            queue.cur_motion_id == MOTION_DEAD
+        let mgr = get_character_manager().read().unwrap();
+        if let Some(inst) = mgr.get_instance(vid) {
+            inst.motion_queue.cur_motion_id == MOTION_DEAD
         } else {
             false
         }

@@ -274,8 +274,7 @@ pub fn parse_stun(data: &[u8], actor_mgr: &mut NetworkActorMgr) -> Result<(), &'
     }
     let packet = unsafe { &*(data.as_ptr() as *const TPacketGCStun) };
     if let Some(actor) = actor_mgr.get_actor_mut(packet.vid) {
-        // Implement Stun flag Logic. In actor state_flags? Let's just set the stun bit, or just track it.
-        // There is no explicit STUN flag in the structure except POINT_STUN_PCT or similar. We will just ensure parsing succeeds for now.
+        actor.is_stunned = true;
     }
     Ok(())
 }
@@ -286,7 +285,7 @@ pub fn parse_dead(data: &[u8], actor_mgr: &mut NetworkActorMgr) -> Result<(), &'
     }
     let packet = unsafe { &*(data.as_ptr() as *const TPacketGCDead) };
     if let Some(actor) = actor_mgr.get_actor_mut(packet.vid) {
-        // ADD_CHARACTER_STATE_DEAD
+        actor.is_dead = true;
     }
     Ok(())
 }

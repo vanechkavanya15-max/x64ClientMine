@@ -1,4 +1,6 @@
 use m2_client_bridge::ffi_guard::safe_ffi_call;
+use crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET;
+use std::io::Write;
 
 pub const HEADER_CG_SHOP: u16 = 0x0801;
 pub const HEADER_CG_EXCHANGE: u16 = 0x0508;
@@ -56,46 +58,60 @@ impl TPacketCGExchange {
     }
 }
 
+fn send_packet(bytes: &[u8]) {
+    if let Ok(mut guard) = ACTIVE_GAME_SOCKET.lock() {
+        if let Some((stream, cipher)) = guard.as_mut() {
+            let mut encrypted_bytes = bytes.to_vec();
+            cipher.encrypt_in_place(&mut encrypted_bytes);
+            let _ = stream.write_all(&encrypted_bytes);
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn m2_send_shop_buy(pos: u8, count: u8, out_buf: *mut u8) -> usize {
     safe_ffi_call(0, || {
-        if out_buf.is_null() {
-            return 0;
-        }
-
         let packet = TPacketCGShop {
             header: HEADER_CG_SHOP,
             length: (std::mem::size_of::<TPacketCGShop>() + 2) as u16,
             subheader: SHOP_SUB_BUY,
         };
 
+        let mut bytes = Vec::new();
+        let packet_bytes: [u8; std::mem::size_of::<TPacketCGShop>()] = unsafe { std::mem::transmute(packet) };
+        bytes.extend_from_slice(&packet_bytes);
+        bytes.push(count);
+        bytes.push(pos);
+        
+        send_packet(&bytes);
+
+        if out_buf.is_null() {
+            return 0;
+        }
+
         unsafe {
             std::ptr::copy_nonoverlapping(
-                &packet as *const _ as *const u8,
+                bytes.as_ptr(),
                 out_buf,
-                std::mem::size_of::<TPacketCGShop>(),
+                bytes.len(),
             );
-            
-            let mut offset = std::mem::size_of::<TPacketCGShop>();
-            *out_buf.add(offset) = count;
-            offset += 1;
-            *out_buf.add(offset) = pos;
-            offset += 1;
-
-            offset
         }
+        bytes.len()
     })
 }
 
 #[no_mangle]
 pub extern "C" fn m2_send_exchange_start(vid: u32, out_buf: *mut u8) -> usize {
     safe_ffi_call(0, || {
+        let mut packet = TPacketCGExchange::new(EXCHANGE_SUB_START);
+        packet.arg1 = vid;
+
+        let packet_bytes: [u8; std::mem::size_of::<TPacketCGExchange>()] = unsafe { std::mem::transmute(packet) };
+        send_packet(&packet_bytes);
+
         if out_buf.is_null() {
             return 0;
         }
-
-        let mut packet = TPacketCGExchange::new(EXCHANGE_SUB_START);
-        packet.arg1 = vid;
 
         unsafe {
             std::ptr::copy_nonoverlapping(
@@ -111,12 +127,15 @@ pub extern "C" fn m2_send_exchange_start(vid: u32, out_buf: *mut u8) -> usize {
 #[no_mangle]
 pub extern "C" fn m2_send_exchange_elk_add(elk: u32, out_buf: *mut u8) -> usize {
     safe_ffi_call(0, || {
+        let mut packet = TPacketCGExchange::new(EXCHANGE_SUB_ELK_ADD);
+        packet.arg1 = elk;
+
+        let packet_bytes: [u8; std::mem::size_of::<TPacketCGExchange>()] = unsafe { std::mem::transmute(packet) };
+        send_packet(&packet_bytes);
+
         if out_buf.is_null() {
             return 0;
         }
-
-        let mut packet = TPacketCGExchange::new(EXCHANGE_SUB_ELK_ADD);
-        packet.arg1 = elk;
 
         unsafe {
             std::ptr::copy_nonoverlapping(
@@ -132,13 +151,16 @@ pub extern "C" fn m2_send_exchange_elk_add(elk: u32, out_buf: *mut u8) -> usize 
 #[no_mangle]
 pub extern "C" fn m2_send_exchange_item_add(window_type: u8, cell: u16, display_pos: u8, out_buf: *mut u8) -> usize {
     safe_ffi_call(0, || {
-        if out_buf.is_null() {
-            return 0;
-        }
-
         let mut packet = TPacketCGExchange::new(EXCHANGE_SUB_ITEM_ADD);
         packet.pos = TItemPos { window_type, cell };
         packet.arg2 = display_pos;
+
+        let packet_bytes: [u8; std::mem::size_of::<TPacketCGExchange>()] = unsafe { std::mem::transmute(packet) };
+        send_packet(&packet_bytes);
+
+        if out_buf.is_null() {
+            return 0;
+        }
 
         unsafe {
             std::ptr::copy_nonoverlapping(
@@ -154,12 +176,15 @@ pub extern "C" fn m2_send_exchange_item_add(window_type: u8, cell: u16, display_
 #[no_mangle]
 pub extern "C" fn m2_send_exchange_item_del(pos: u8, out_buf: *mut u8) -> usize {
     safe_ffi_call(0, || {
+        let mut packet = TPacketCGExchange::new(EXCHANGE_SUB_ITEM_DEL);
+        packet.arg1 = pos as u32;
+
+        let packet_bytes: [u8; std::mem::size_of::<TPacketCGExchange>()] = unsafe { std::mem::transmute(packet) };
+        send_packet(&packet_bytes);
+
         if out_buf.is_null() {
             return 0;
         }
-
-        let mut packet = TPacketCGExchange::new(EXCHANGE_SUB_ITEM_DEL);
-        packet.arg1 = pos as u32;
 
         unsafe {
             std::ptr::copy_nonoverlapping(
@@ -175,11 +200,14 @@ pub extern "C" fn m2_send_exchange_item_del(pos: u8, out_buf: *mut u8) -> usize 
 #[no_mangle]
 pub extern "C" fn m2_send_exchange_accept(out_buf: *mut u8) -> usize {
     safe_ffi_call(0, || {
+        let packet = TPacketCGExchange::new(EXCHANGE_SUB_ACCEPT);
+
+        let packet_bytes: [u8; std::mem::size_of::<TPacketCGExchange>()] = unsafe { std::mem::transmute(packet) };
+        send_packet(&packet_bytes);
+
         if out_buf.is_null() {
             return 0;
         }
-
-        let packet = TPacketCGExchange::new(EXCHANGE_SUB_ACCEPT);
 
         unsafe {
             std::ptr::copy_nonoverlapping(
@@ -195,11 +223,14 @@ pub extern "C" fn m2_send_exchange_accept(out_buf: *mut u8) -> usize {
 #[no_mangle]
 pub extern "C" fn m2_send_exchange_exit(out_buf: *mut u8) -> usize {
     safe_ffi_call(0, || {
+        let packet = TPacketCGExchange::new(EXCHANGE_SUB_CANCEL);
+
+        let packet_bytes: [u8; std::mem::size_of::<TPacketCGExchange>()] = unsafe { std::mem::transmute(packet) };
+        send_packet(&packet_bytes);
+
         if out_buf.is_null() {
             return 0;
         }
-
-        let packet = TPacketCGExchange::new(EXCHANGE_SUB_CANCEL);
 
         unsafe {
             std::ptr::copy_nonoverlapping(

@@ -2,10 +2,12 @@
 
 use std::mem::size_of;
 use std::ptr;
+use crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET;
+use std::io::Write;
 
 pub const HEADER_CG_ITEM_USE: u16 = 0x0501;
-pub const HEADER_CG_ITEM_MOVE: u16 = 0x0503;
-pub const HEADER_CG_ITEM_DROP: u16 = 0x0504;
+pub const HEADER_CG_ITEM_MOVE: u16 = 0x0504;
+pub const HEADER_CG_ITEM_DROP: u16 = 0x0503;
 pub const HEADER_CG_ITEM_PICKUP: u16 = 0x0505;
 pub const HEADER_CG_SAFEBOX_CHECKOUT: u16 = 0x0821;
 pub const HEADER_CG_SAFEBOX_CHECKIN: u16 = 0x0820;
@@ -71,16 +73,22 @@ pub struct TPacketCGSafeboxCheckin {
     pub ItemPos: TItemPos,
 }
 
+fn send_packet(bytes: &[u8]) {
+    if let Ok(mut guard) = ACTIVE_GAME_SOCKET.lock() {
+        if let Some((stream, cipher)) = guard.as_mut() {
+            let mut encrypted_bytes = bytes.to_vec();
+            cipher.encrypt_in_place(&mut encrypted_bytes);
+            let _ = stream.write_all(&encrypted_bytes);
+        }
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn m2_net_send_use_item_v2(
     window_type: u8,
     cell: u16,
     out_buf: *mut u8,
 ) -> usize {
-    if out_buf.is_null() {
-        return 0;
-    }
-
     let packet = TPacketCGItemUse {
         header: HEADER_CG_ITEM_USE,
         length: size_of::<TPacketCGItemUse>() as u16,
@@ -89,6 +97,13 @@ pub unsafe extern "C" fn m2_net_send_use_item_v2(
             cell,
         },
     };
+
+    let packet_bytes: [u8; std::mem::size_of::<TPacketCGItemUse>()] = std::mem::transmute(packet);
+    send_packet(&packet_bytes);
+
+    if out_buf.is_null() {
+        return 0;
+    }
 
     ptr::copy_nonoverlapping(
         &packet as *const _ as *const u8,
@@ -108,10 +123,6 @@ pub unsafe extern "C" fn m2_net_send_item_move_v2(
     count: u8,
     out_buf: *mut u8,
 ) -> usize {
-    if out_buf.is_null() {
-        return 0;
-    }
-
     let packet = TPacketCGItemMove {
         header: HEADER_CG_ITEM_MOVE,
         length: size_of::<TPacketCGItemMove>() as u16,
@@ -125,6 +136,13 @@ pub unsafe extern "C" fn m2_net_send_item_move_v2(
         },
         num: count,
     };
+
+    let packet_bytes: [u8; std::mem::size_of::<TPacketCGItemMove>()] = std::mem::transmute(packet);
+    send_packet(&packet_bytes);
+
+    if out_buf.is_null() {
+        return 0;
+    }
 
     ptr::copy_nonoverlapping(
         &packet as *const _ as *const u8,
@@ -143,10 +161,6 @@ pub unsafe extern "C" fn m2_net_send_item_drop_v2(
     count: u8,
     out_buf: *mut u8,
 ) -> usize {
-    if out_buf.is_null() {
-        return 0;
-    }
-
     let packet = TPacketCGItemDrop {
         header: HEADER_CG_ITEM_DROP,
         length: size_of::<TPacketCGItemDrop>() as u16,
@@ -157,6 +171,13 @@ pub unsafe extern "C" fn m2_net_send_item_drop_v2(
         gold,
         count,
     };
+
+    let packet_bytes: [u8; std::mem::size_of::<TPacketCGItemDrop>()] = std::mem::transmute(packet);
+    send_packet(&packet_bytes);
+
+    if out_buf.is_null() {
+        return 0;
+    }
 
     ptr::copy_nonoverlapping(
         &packet as *const _ as *const u8,
@@ -172,15 +193,18 @@ pub unsafe extern "C" fn m2_net_send_pickup_v2(
     vid: u32,
     out_buf: *mut u8,
 ) -> usize {
-    if out_buf.is_null() {
-        return 0;
-    }
-
     let packet = TPacketCGItemPickUp {
         header: HEADER_CG_ITEM_PICKUP,
         length: size_of::<TPacketCGItemPickUp>() as u16,
         vid,
     };
+
+    let packet_bytes: [u8; std::mem::size_of::<TPacketCGItemPickUp>()] = std::mem::transmute(packet);
+    send_packet(&packet_bytes);
+
+    if out_buf.is_null() {
+        return 0;
+    }
 
     ptr::copy_nonoverlapping(
         &packet as *const _ as *const u8,
@@ -198,10 +222,6 @@ pub unsafe extern "C" fn m2_net_send_safebox_checkout(
     inven_cell: u16,
     out_buf: *mut u8,
 ) -> usize {
-    if out_buf.is_null() {
-        return 0;
-    }
-
     let packet = TPacketCGSafeboxCheckout {
         header: HEADER_CG_SAFEBOX_CHECKOUT,
         length: size_of::<TPacketCGSafeboxCheckout>() as u16,
@@ -211,6 +231,13 @@ pub unsafe extern "C" fn m2_net_send_safebox_checkout(
             cell: inven_cell,
         },
     };
+
+    let packet_bytes: [u8; std::mem::size_of::<TPacketCGSafeboxCheckout>()] = std::mem::transmute(packet);
+    send_packet(&packet_bytes);
+
+    if out_buf.is_null() {
+        return 0;
+    }
 
     ptr::copy_nonoverlapping(
         &packet as *const _ as *const u8,
@@ -228,10 +255,6 @@ pub unsafe extern "C" fn m2_net_send_safebox_checkin(
     inven_cell: u16,
     out_buf: *mut u8,
 ) -> usize {
-    if out_buf.is_null() {
-        return 0;
-    }
-
     let packet = TPacketCGSafeboxCheckin {
         header: HEADER_CG_SAFEBOX_CHECKIN,
         length: size_of::<TPacketCGSafeboxCheckin>() as u16,
@@ -241,6 +264,13 @@ pub unsafe extern "C" fn m2_net_send_safebox_checkin(
             cell: inven_cell,
         },
     };
+
+    let packet_bytes: [u8; std::mem::size_of::<TPacketCGSafeboxCheckin>()] = std::mem::transmute(packet);
+    send_packet(&packet_bytes);
+
+    if out_buf.is_null() {
+        return 0;
+    }
 
     ptr::copy_nonoverlapping(
         &packet as *const _ as *const u8,

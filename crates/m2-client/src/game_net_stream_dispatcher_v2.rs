@@ -179,8 +179,38 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
         }
         0x0214 | 0x0215 => { // PLAYER_POINTS, PLAYER_POINT_CHANGE
             if header == 0x0214 {
-                // PLAYER_POINTS
-                return true; // We don't have direct access to GlobalGameState's instance in recv_points outside of a RwLock/OnceLock if it exists, or we just parse it. Let's use handle_points_packet if available, but it requires instance. We fallback to true.
+                if data.len() >= 8 {
+                    let num_points = (data.len() - 4) / 4;
+                    let mut points = Vec::with_capacity(num_points);
+                    for i in 0..num_points.min(255) {
+                        let off = 4 + i * 4;
+                        if off + 4 <= data.len() {
+                            points.push(i32::from_le_bytes(data[off..off+4].try_into().unwrap_or_default()));
+                        }
+                    }
+                    
+                    let level = points.get(0).copied().unwrap_or(0);
+                    let hp = points.get(5).copied().unwrap_or(0);
+                    let max_hp = points.get(6).copied().unwrap_or(0);
+                    let sp = points.get(7).copied().unwrap_or(0);
+                    let max_sp = points.get(8).copied().unwrap_or(0);
+                    let gold = points.get(14).copied().unwrap_or(0);
+
+                    let mut wm = crate::ui_window_mgr::get_window_manager();
+                    if let Some(hp_win) = wm.windows.values_mut().find(|w| w.name == "HudHpText") {
+                        hp_win.text = format!("{}/{}", hp, max_hp);
+                    }
+                    if let Some(sp_win) = wm.windows.values_mut().find(|w| w.name == "HudSpText") {
+                        sp_win.text = format!("{}/{}", sp, max_sp);
+                    }
+                    if let Some(lv_win) = wm.windows.values_mut().find(|w| w.name == "HudLevelText") {
+                        lv_win.text = format!("Lv. {}", level);
+                    }
+                    if let Some(gold_win) = wm.windows.values_mut().find(|w| w.name == "HudGoldText") {
+                        gold_win.text = format!("{}", gold);
+                    }
+                }
+                return true;
             } else {
                 if crate::recv_actors::parse_point_change(data).is_ok() {
                     return true;
@@ -231,11 +261,25 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
         }
         0x0603 => { // CHAT
             if let Some((ctype, chat)) = crate::recv_chat::parse_chat(data) {
+                let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u32;
+                crate::chat_buffer_v2::get_chat_buffer().lock().unwrap().append_line(ctype, &chat, timestamp);
+                crate::py_event_dispatcher::dispatch_gc_chat(ctype as i32, &chat);
                 return true;
             }
         }
         0x0604 => { // WHISPER
-            // Whisper parsing is handled similar to chat, we consider it handled.
+            if data.len() >= 30 {
+                let name_end = data[5..30].iter().position(|&b| b == 0).unwrap_or(25);
+                let name = String::from_utf8_lossy(&data[5..5 + name_end]).to_string();
+                let text_data = &data[30..];
+                let text_end = text_data.iter().position(|&b| b == 0).unwrap_or(text_data.len());
+                let text = String::from_utf8_lossy(&text_data[..text_end]).to_string();
+                let full_msg = format!("{} : {}", name, text);
+                
+                let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u32;
+                crate::chat_buffer_v2::get_chat_buffer().lock().unwrap().append_line(crate::chat_buffer_v2::CHAT_TYPE_WHISPER, &full_msg, timestamp);
+                crate::py_event_dispatcher::dispatch_gc_chat(crate::chat_buffer_v2::CHAT_TYPE_WHISPER as i32, &full_msg);
+            }
             return true;
         }
         0x0711 | 0x0713 => { // PARTY_ADD, PARTY_REMOVE

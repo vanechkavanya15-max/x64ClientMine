@@ -125,14 +125,14 @@ pub fn pack_exist(filename: &str) -> bool {
 }
 
 pub fn pack_get(filename: &str) -> Option<Vec<u8>> {
+    if let Ok(data) = std::fs::read(filename) {
+        return Some(data);
+    }
     let packs = get_mounted_packs().lock().unwrap();
     for archive in packs.values() {
         if let Some(data) = crate::vfs_pck_memory_mapped::read_file_from_archive(archive, filename) {
             return Some(data);
         }
-    }
-    if let Ok(data) = std::fs::read(filename) {
-        return Some(data);
     }
     None
 }

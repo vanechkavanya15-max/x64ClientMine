@@ -15,26 +15,31 @@ pub struct PickingActor {
     pub actor_type: u8,
 }
 
-static PICKING_ACTORS: OnceLock<RwLock<HashMap<u32, PickingActor>>> = OnceLock::new();
-
-fn get_picking_actors() -> &'static RwLock<HashMap<u32, PickingActor>> {
-    PICKING_ACTORS.get_or_init(|| RwLock::new(HashMap::new()))
-}
+use crate::character_manager_core::get_character_manager;
 
 pub fn add_picking_actor(actor: PickingActor) {
-    let mut actors = get_picking_actors().write().unwrap();
-    actors.insert(actor.vid, actor);
+    let mut mgr = get_character_manager().write().unwrap();
+    if let Some(inst) = mgr.get_instance_mut(actor.vid) {
+        inst.picking = Some(actor);
+    }
 }
 
 pub fn clear_picking_actors() {
-    let mut actors = get_picking_actors().write().unwrap();
-    actors.clear();
+    let mut mgr = get_character_manager().write().unwrap();
+    for inst in mgr.alive_instances.values_mut() {
+        inst.picking = None;
+    }
 }
 
 pub fn find_nearest_target(main_vid: u32, max_dist: f32, target_type: u8) -> Option<u32> {
-    let actors = get_picking_actors().read().unwrap();
+    let mgr = get_character_manager().read().unwrap();
     
-    let main_actor = match actors.get(&main_vid) {
+    let main_inst = match mgr.get_instance(main_vid) {
+        Some(a) => a,
+        None => return None,
+    };
+    
+    let main_actor = match main_inst.picking.as_ref() {
         Some(a) => a,
         None => return None,
     };
@@ -45,18 +50,20 @@ pub fn find_nearest_target(main_vid: u32, max_dist: f32, target_type: u8) -> Opt
     let mut closest_vid = None;
     let mut min_dist_sq = max_dist * max_dist;
     
-    for (&vid, actor) in actors.iter() {
+    for (&vid, inst) in mgr.alive_instances.iter() {
         if vid == main_vid { continue; }
-        if actor.hp <= 0 { continue; }
-        if actor.actor_type != target_type { continue; }
-        
-        let dx = actor.x - mx;
-        let dy = actor.y - my;
-        let dist_sq = dx * dx + dy * dy;
-        
-        if dist_sq < min_dist_sq {
-            min_dist_sq = dist_sq;
-            closest_vid = Some(vid);
+        if let Some(actor) = inst.picking.as_ref() {
+            if actor.hp <= 0 { continue; }
+            if actor.actor_type != target_type { continue; }
+            
+            let dx = actor.x - mx;
+            let dy = actor.y - my;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq < min_dist_sq {
+                min_dist_sq = dist_sq;
+                closest_vid = Some(vid);
+            }
         }
     }
     
@@ -153,24 +160,26 @@ pub extern "C" fn m2_chr_mgr_find_nearest_target(main_vid: u32, max_dist: f32, t
 #[no_mangle]
 pub extern "C" fn m2_actor_ray_pick(ray_x: f32, ray_y: f32, ray_z: f32, dir_x: f32, dir_y: f32, dir_z: f32) -> u32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let actors = get_picking_actors().read().unwrap();
+        let mgr = get_character_manager().read().unwrap();
         let ray_orig = (ray_x, ray_y, ray_z);
         let ray_dir = (dir_x, dir_y, dir_z);
         
         let mut closest_vid = 0;
         let mut min_t = f32::MAX;
         
-        for (&vid, actor) in actors.iter() {
-            if let Some(t) = ray_intersect_cylinder(
-                ray_orig,
-                ray_dir,
-                (actor.x, actor.y, actor.z),
-                actor.radius,
-                actor.height
-            ) {
-                if t < min_t {
-                    min_t = t;
-                    closest_vid = vid;
+        for (&vid, inst) in mgr.alive_instances.iter() {
+            if let Some(actor) = inst.picking.as_ref() {
+                if let Some(t) = ray_intersect_cylinder(
+                    ray_orig,
+                    ray_dir,
+                    (actor.x, actor.y, actor.z),
+                    actor.radius,
+                    actor.height
+                ) {
+                    if t < min_t {
+                        min_t = t;
+                        closest_vid = vid;
+                    }
                 }
             }
         }

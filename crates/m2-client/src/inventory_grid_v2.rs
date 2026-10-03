@@ -176,6 +176,7 @@ impl WindowGrid {
 pub struct InventorySystem {
     windows: HashMap<WindowType, WindowGrid>,
     item_sizes: HashMap<u32, u8>,
+    pub gold: i64,
 }
 
 impl InventorySystem {
@@ -191,6 +192,7 @@ impl InventorySystem {
         Self {
             windows,
             item_sizes: HashMap::new(),
+            gold: 0,
         }
     }
 

@@ -210,6 +210,10 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         }
         WM_KEYDOWN => {
             let vk = msg.wparam as u32;
+            {
+                let mut wm = crate::ui_window_mgr::get_window_manager();
+                wm.handle_key_down(vk);
+            }
             let phase = crate::ui_bridge_ffi::CURRENT_PHASE.lock().unwrap().clone();
             match vk {
                 0x1B => { // VK_ESCAPE
@@ -265,6 +269,26 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
                 }
                 _ => {}
             }
+            true
+        }
+        WM_KEYUP => {
+            let vk = msg.wparam as u32;
+            let mut wm = crate::ui_window_mgr::get_window_manager();
+            wm.handle_key_up(vk);
+            true
+        }
+        WM_RBUTTONDOWN => {
+            let mx = (msg.lparam & 0xFFFF) as i16 as i32;
+            let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
+            let mut wm = crate::ui_window_mgr::get_window_manager();
+            wm.handle_mouse_right_down(mx, my, 1024, 768);
+            true
+        }
+        WM_RBUTTONUP => {
+            let mx = (msg.lparam & 0xFFFF) as i16 as i32;
+            let my = ((msg.lparam >> 16) & 0xFFFF) as i16 as i32;
+            let mut wm = crate::ui_window_mgr::get_window_manager();
+            wm.handle_mouse_right_up(mx, my, 1024, 768);
             true
         }
         WM_CHAR => {

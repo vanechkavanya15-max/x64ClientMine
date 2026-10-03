@@ -19,6 +19,13 @@ pub struct InstanceBase {
     pub hair_vnum: u32,
     pub rot_deg: f32,
     pub active_once_motion: Option<u32>,
+    pub time_alive_ms: u32,
+    pub appearance: crate::actor_appearance::ActorAppearance,
+    pub motion_queue: crate::actor_motion_queue::ActorMotionQueue,
+    pub picking: Option<crate::actor_picking::PickingActor>,
+    pub polymorph: Option<crate::actor_polymorph_v2::PolymorphState>,
+    pub network_data: Option<crate::network_actor_mgr::NetworkActorData>,
+    pub unified_data: Option<crate::game_state_unified::ActorInstanceData>,
 }
 
 impl InstanceBase {
@@ -38,6 +45,13 @@ impl InstanceBase {
             hair_vnum: 0,
             rot_deg: 0.0,
             active_once_motion: None,
+            time_alive_ms: 0,
+            appearance: crate::actor_appearance::ActorAppearance::new(),
+            motion_queue: crate::actor_motion_queue::ActorMotionQueue::new(),
+            picking: None,
+            polymorph: None,
+            network_data: None,
+            unified_data: None,
         }
     }
 }

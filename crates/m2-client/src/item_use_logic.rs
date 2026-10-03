@@ -1,3 +1,6 @@
+use m2_client_bridge::net::send_queue::enqueue_outgoing_packet;
+use m2_client_bridge::ffi_guard::safe_ffi_call;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ItemType {
     RedPotion(u32), // Heal amount
@@ -26,12 +29,44 @@ pub struct ItemUseLogic {
     pub last_use_time: u64,
 }
 
+#[repr(C, packed)]
+pub struct TItemPos {
+    pub window_type: u8,
+    pub cell: u16,
+}
+
+#[repr(C, packed)]
+pub struct TPacketCGItemUse {
+    pub header: u16,
+    pub pos: TItemPos,
+}
+
+impl TPacketCGItemUse {
+    pub const HEADER_CG_ITEM_USE: u16 = 0x0501;
+    pub const SIZE: u16 = std::mem::size_of::<Self>() as u16;
+
+    pub fn new(window_type: u8, cell: u16) -> Self {
+        Self {
+            header: Self::HEADER_CG_ITEM_USE,
+            pos: TItemPos { window_type, cell },
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(Self::SIZE as usize);
+        buf.extend_from_slice(&self.header.to_le_bytes());
+        buf.push(self.pos.window_type);
+        buf.extend_from_slice(&self.pos.cell.to_le_bytes());
+        buf
+    }
+}
+
 impl ItemUseLogic {
     pub fn new() -> Self {
         Self { last_use_time: 0 }
     }
     
-    pub fn use_item(&mut self, item: &mut Item, player: &mut PlayerState, current_time: u64) -> Result<(), &'static str> {
+    pub fn use_item(&mut self, item: &mut Item, window_type: u8, cell: u16, current_time: u64) -> Result<(), &'static str> {
         if current_time < self.last_use_time + 200 {
             return Err("Cooldown not ready");
         }
@@ -40,28 +75,10 @@ impl ItemUseLogic {
             return Err("Item empty");
         }
         
-        match item.item_type {
-            ItemType::RedPotion(amount) => {
-                player.hp = std::cmp::min(player.max_hp, player.hp.saturating_add(amount));
-            }
-            ItemType::BluePotion(amount) => {
-                player.sp = std::cmp::min(player.max_sp, player.sp.saturating_add(amount));
-            }
-            ItemType::GreenPotion(_) => {
-                // Apply green potion effect
-            }
-            ItemType::PurplePotion(_) => {
-                // Apply purple potion effect
-            }
-            ItemType::TeleportScroll => {
-                // Apply teleport scroll effect
-            }
-            ItemType::TreasureChest => {
-                // Open chest
-            }
-        }
+        // Construct and send network packet
+        let packet = TPacketCGItemUse::new(window_type, cell);
+        enqueue_outgoing_packet(packet.to_bytes());
         
-        item.count -= 1;
         self.last_use_time = current_time;
         
         Ok(())

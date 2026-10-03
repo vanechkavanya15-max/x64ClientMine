@@ -7,6 +7,8 @@ pub enum WindowType {
     ExpandedImageBox,
     TextLine,
     Button,
+    RadioButton,
+    ToggleButton,
     Bar,
     Line,
     Bar3D,
@@ -64,6 +66,9 @@ pub struct Window {
     pub is_pressed: bool,
     pub is_hover: bool,
     pub slot_window: Option<crate::ui_widget_slotwindow::SlotWindow>,
+    pub py_handler: usize,
+    pub is_flag_pick_always: bool,
+    pub flags: u32,
 }
 
 impl Window {
@@ -95,6 +100,9 @@ impl Window {
             is_pressed: false,
             is_hover: false,
             slot_window: None,
+            py_handler: 0,
+            is_flag_pick_always: false,
+            flags: 0,
         }
     }
 

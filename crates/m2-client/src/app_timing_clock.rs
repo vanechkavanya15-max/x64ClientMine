@@ -198,10 +198,10 @@ impl AppTimingClock {
 }
 
 /// Zwraca aktualny globalny czas silnika w milisekundach (zgodny z get_dword_time() w C++).
+static START_INSTANT: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+
 pub fn m2_get_time() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64
+    let start = START_INSTANT.get_or_init(std::time::Instant::now);
+    start.elapsed().as_millis() as u64
 }
 

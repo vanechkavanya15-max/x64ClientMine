@@ -83,7 +83,8 @@ pub const CHR_EQUIPPART_NUM: usize = 4;
 #[derive(Debug, Clone, Copy)]
 #[allow(non_snake_case)]
 pub struct TPacketGCCharacterAdd {
-    pub header: u8,
+    pub header: u16,
+    pub length: u16,
     pub dwVID: u32,
     pub angle: f32,
     pub x: i32,
@@ -101,7 +102,8 @@ pub struct TPacketGCCharacterAdd {
 #[derive(Debug, Clone, Copy)]
 #[allow(non_snake_case)]
 pub struct TPacketGCCharacterAdd2 {
-    pub header: u8,
+    pub header: u16,
+    pub length: u16,
     pub dwVID: u32,
     pub name: [u8; CHARACTER_NAME_MAX_LEN + 1],
     pub angle: f32,
@@ -121,7 +123,8 @@ pub struct TPacketGCCharacterAdd2 {
 #[derive(Debug, Clone, Copy)]
 #[allow(non_snake_case)]
 pub struct TPacketGCCharacterAdditionalInfo {
-    pub header: u8,
+    pub header: u16,
+    pub length: u16,
     pub dwVID: u32,
     pub name: [u8; CHARACTER_NAME_MAX_LEN + 1],
     pub awPart: [u16; CHR_EQUIPPART_NUM],
@@ -133,20 +136,20 @@ pub struct TPacketGCCharacterAdditionalInfo {
     pub dwMountVnum: u32,
 }
 
-pub const HEADER_GC_CHARACTER_ADD: u8 = 5;
-pub const HEADER_GC_CHARACTER_ADD2: u8 = 6;
-pub const HEADER_GC_CHARACTER_ADDITIONAL_INFO: u8 = 7;
+pub const HEADER_GC_CHARACTER_ADD: u16 = 0x0205;
+pub const HEADER_GC_CHARACTER_ADD2: u16 = 0x0206;
+pub const HEADER_GC_CHARACTER_ADDITIONAL_INFO: u16 = 0x0207;
 
 pub fn parse_character_add_v2(
     data: &[u8],
     map_base_x: i32,
     map_base_y: i32,
 ) -> Result<NetworkActorDataV2, &'static str> {
-    if data.len() < 1 {
+    if data.len() < 2 {
         return Err("Buffer too short for header");
     }
 
-    let header = data[0];
+    let header = unsafe { *(data.as_ptr() as *const u16) };
     let mut actor = NetworkActorDataV2::new();
 
     if header == HEADER_GC_CHARACTER_ADD {
@@ -239,7 +242,7 @@ pub fn parse_character_add_v2(
     Ok(actor)
 }
 
-fn get_network_actor_mgr() -> &'static RwLock<NetworkActorMgr> {
+pub fn get_network_actor_mgr() -> &'static RwLock<NetworkActorMgr> {
     static MGR: OnceLock<RwLock<NetworkActorMgr>> = OnceLock::new();
     MGR.get_or_init(|| RwLock::new(NetworkActorMgr::new()))
 }
@@ -288,7 +291,8 @@ pub extern "C" fn m2_actor_spawn_full(
         actor.hair = v2.parts[3];
 
         if let Ok(mut mgr) = get_network_actor_mgr().write() {
-            if slice[0] == HEADER_GC_CHARACTER_ADDITIONAL_INFO {
+            let header = unsafe { *(slice.as_ptr() as *const u16) };
+            if header == HEADER_GC_CHARACTER_ADDITIONAL_INFO {
                 if let Some(existing) = mgr.get_actor_data(v2.vid) {
                     actor.cur_x = existing.cur_x;
                     actor.cur_y = existing.cur_y;

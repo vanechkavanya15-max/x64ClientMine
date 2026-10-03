@@ -518,11 +518,11 @@ pub extern "C" fn m2_ui_setup_default_login_ui(screen_w: u32, screen_h: u32) {
     });
 }
 
-static ACTIVE_EDIT: std::sync::Mutex<&'static str> = std::sync::Mutex::new("IdEditLine");
-static REAL_ID: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
-static REAL_PASSWORD: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
-static PWD_FIRST_INPUT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-static ID_FIRST_INPUT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub static ACTIVE_EDIT: std::sync::Mutex<&'static str> = std::sync::Mutex::new("IdEditLine");
+pub static REAL_ID: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+pub static REAL_PASSWORD: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+pub static PWD_FIRST_INPUT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub static ID_FIRST_INPUT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[derive(Debug, Clone, Default)]
 pub struct CharacterSlot {

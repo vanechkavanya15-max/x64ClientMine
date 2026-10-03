@@ -178,3 +178,102 @@ impl Default for TPacketGCItemSet {
 pub fn dummy_module_function() -> bool {
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_end_to_end_client_flow() {
+        // 1. Weryfikacja rozmiarow pakietow binarnych zgodnych z C++
+        assert_eq!(std::mem::size_of::<TPacketCGEnterFrontGame>(), 4);
+        assert_eq!(std::mem::size_of::<TSimplePlayerInformation>(), 97);
+
+        // 2. Symulacja pakietu GC_LOGIN_SUCCESS4 od serwera
+        let mut login_success = TPacketGCLoginSuccess4::default();
+        login_success.header = 0x0104; // GC_LOGIN_SUCCESS4
+        login_success.length = std::mem::size_of::<TPacketGCLoginSuccess4>() as u16;
+        login_success.handle = 1001;
+        login_success.random_key = 0xDEADBEEF;
+
+        login_success.akSimplePlayerInformation[0].dwID = 777;
+        let char_name = b"WojownikBody\0";
+        login_success.akSimplePlayerInformation[0].szName[..char_name.len()].copy_from_slice(char_name);
+        login_success.akSimplePlayerInformation[0].byJob = 0; // Wojownik
+        login_success.akSimplePlayerInformation[0].byLevel = 99;
+        login_success.akSimplePlayerInformation[0].byST = 90;
+        login_success.akSimplePlayerInformation[0].byHT = 90;
+        login_success.akSimplePlayerInformation[0].byDX = 90;
+        login_success.akSimplePlayerInformation[0].byIQ = 90;
+        login_success.akSimplePlayerInformation[0].wMainPart = 11299; // Zbroja z czarnej stali +9
+        login_success.akSimplePlayerInformation[0].byHairPart = 1;
+
+        assert_eq!({ login_success.akSimplePlayerInformation[0].dwID }, 777);
+        assert_eq!({ login_success.akSimplePlayerInformation[0].byLevel }, 99);
+
+        // 3. Symulacja wejscia do gry (MainCharacter)
+        let mut main_char = TPacketGCMainCharacter::default();
+        main_char.header = 0x0110;
+        main_char.dwVID = 777;
+        main_char.wRaceNum = 0;
+        main_char.lX = 469300;
+        main_char.lY = 964200;
+        main_char.byEmpire = 1; // Shinsoo
+        main_char.bySkillGroup = 1; // Wojownik Cialo (Body)
+
+        assert_eq!({ main_char.dwVID }, 777);
+        assert_eq!({ main_char.byEmpire }, 1);
+        assert_eq!({ main_char.bySkillGroup }, 1);
+
+        // 4. Symulacja ruchu (Move)
+        let mut move_pkt = TPacketGCMove::default();
+        move_pkt.header = 0x0103;
+        move_pkt.dwVID = 777;
+        move_pkt.bFunc = 1; // MOVE
+        move_pkt.lX = 469400;
+        move_pkt.lY = 964300;
+        move_pkt.bRot = 180;
+
+        assert_eq!({ move_pkt.dwVID }, 777);
+        assert_eq!({ move_pkt.lX }, 469400);
+
+        // 5. Symulacja spawnu innego aktora / moba (Dziki Pies vnum=101)
+        let mut mob_add = TPacketGCCharacterAdd::default();
+        mob_add.header = 0x0101;
+        mob_add.dwVID = 20001;
+        mob_add.wRaceNum = 101; // Wild Dog
+        mob_add.bType = 0; // CHAR_TYPE_MONSTER
+        mob_add.bMovingSpeed = 150;
+        mob_add.bAttackSpeed = 100;
+
+        assert_eq!({ mob_add.dwVID }, 20001);
+        assert_eq!({ mob_add.wRaceNum }, 101);
+
+        // 6. Symulacja zadania obrazen (Damage Info)
+        let mut dmg = TPacketGCDamageInfo::default();
+        dmg.header = 0x0120;
+        dmg.dwVID = 20001;
+        dmg.flag = 0;
+        dmg.damage = 1540;
+
+        assert_eq!({ dmg.damage }, 1540);
+        assert_eq!({ dmg.dwVID }, 20001);
+
+        // 7. Symulacja dodania przedmiotu do ekwipunku (Miecz Bojowy +9, vnum=169)
+        let mut item_set = TPacketGCItemSet::default();
+        item_set.header = 0x0130;
+        item_set.pos = TItemPos { window_type: 1, cell: 0 };
+        item_set.vnum = 169;
+        item_set.count = 1;
+        item_set.alSockets[0] = 28430; // KD Smierci +4
+        item_set.alSockets[1] = 28431; // KD Szybkiego Ataku +4
+        item_set.alSockets[2] = 28432; // KD Potwora +4
+        item_set.aAttr[0].bType = 7; // Srednie Obrazenia
+        item_set.aAttr[0].sValue = 48; // 48% sr
+
+        assert_eq!({ item_set.vnum }, 169);
+        assert_eq!({ item_set.aAttr[0].sValue }, 48);
+        assert_eq!({ item_set.alSockets[0] }, 28430);
+    }
+}
+

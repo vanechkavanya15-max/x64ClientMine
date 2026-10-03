@@ -6,8 +6,11 @@ use std::mem::size_of;
 #[derive(Copy, Clone)]
 pub struct TPacketCGAttack {
     pub header: u16,
+    pub length: u16,
     pub b_type: u8,
     pub dw_victim_vid: u32,
+    pub b_crc_magic_cube_proc_piece: u8,
+    pub b_crc_magic_cube_file_piece: u8,
 }
 
 /// Struktura pakietu strzalu z luku (HEADER_CG_SHOOT = 0x0403)
@@ -15,6 +18,7 @@ pub struct TPacketCGAttack {
 #[derive(Copy, Clone)]
 pub struct TPacketCGShoot {
     pub header: u16,
+    pub length: u16,
     pub b_type: u8,
 }
 
@@ -23,6 +27,7 @@ pub struct TPacketCGShoot {
 #[derive(Copy, Clone)]
 pub struct TPacketCGUseSkill {
     pub header: u16,
+    pub length: u16,
     pub dw_vnum: u32,
     pub dw_target_vid: u32,
 }
@@ -40,8 +45,11 @@ pub extern "C" fn m2_send_attack(b_type: u8, vid: u32, out_buf: *mut u8) -> usiz
     
     let packet = TPacketCGAttack {
         header: HEADER_CG_ATTACK,
+        length: size_of::<TPacketCGAttack>() as u16,
         b_type,
         dw_victim_vid: vid,
+        b_crc_magic_cube_proc_piece: 0,
+        b_crc_magic_cube_file_piece: 0,
     };
     
     let packet_size = size_of::<TPacketCGAttack>();
@@ -64,6 +72,7 @@ pub extern "C" fn m2_send_shoot(b_type: u8, out_buf: *mut u8) -> usize {
     
     let packet = TPacketCGShoot {
         header: HEADER_CG_SHOOT,
+        length: size_of::<TPacketCGShoot>() as u16,
         b_type,
     };
     
@@ -87,6 +96,7 @@ pub extern "C" fn m2_send_use_skill(skill_index: u32, target_vid: u32, out_buf: 
     
     let packet = TPacketCGUseSkill {
         header: HEADER_CG_USE_SKILL,
+        length: size_of::<TPacketCGUseSkill>() as u16,
         dw_vnum: skill_index,
         dw_target_vid: target_vid,
     };

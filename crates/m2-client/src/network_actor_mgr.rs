@@ -48,6 +48,8 @@ pub struct NetworkActorData {
     pub mount_vnum: u32,
     pub guild_id: u32,
     pub level: u32,
+    pub is_stunned: bool,
+    pub is_dead: bool,
 }
 
 impl NetworkActorData {
@@ -84,6 +86,8 @@ impl NetworkActorData {
             mount_vnum: 0,
             guild_id: 0,
             level: 0,
+            is_stunned: false,
+            is_dead: false,
         }
     }
 
@@ -231,6 +235,9 @@ impl NetworkActorMgr {
             // C++ also does __RemoveCharacterManagerActor here
             self.net_actor_dict.remove(&vid);
             self.spawn_queue.retain(|&x| x != vid);
+            if let Ok(mut char_mgr) = crate::character_manager_core::get_character_manager().write() {
+                char_mgr.delete_instance(vid);
+            }
         }
     }
 
@@ -293,6 +300,27 @@ impl NetworkActorMgr {
             if let Some(actor_data) = self.net_actor_dict.get(&vid) {
                 // In C++ this is where __IsVisibleActor comes into play.
                 // We'll assume the characters are ready to be instantiated.
+                if let Ok(mut char_mgr) = crate::character_manager_core::get_character_manager().write() {
+                    let mut inst = crate::character_manager_core::InstanceBase::new(
+                        actor_data.vid,
+                        actor_data.race as u16,
+                        actor_data.cur_x as f32,
+                        actor_data.cur_y as f32,
+                        actor_data.cur_z as f32,
+                    );
+                    inst.name = actor_data.name.clone();
+                    inst.rot_deg = actor_data.rot;
+                    inst.armor_vnum = actor_data.armor;
+                    inst.weapon_vnum = actor_data.weapon;
+                    inst.hair_vnum = actor_data.hair;
+                    inst.is_dead = actor_data.is_dead;
+                    inst.is_stunned = actor_data.is_stunned;
+                    inst.appearance.attach_weapon(actor_data.weapon);
+                    inst.appearance.change_armor(actor_data.armor);
+                    inst.appearance.set_hair(actor_data.hair);
+                    inst.network_data = Some(actor_data.clone());
+                    char_mgr.alive_instances.insert(vid, inst);
+                }
                 ready_to_spawn.push(actor_data.clone());
                 count += 1;
                 

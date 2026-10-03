@@ -37,7 +37,7 @@ pub const MODE_HORSE_FAN: u8 = 14;
 pub const MODE_HORSE_BELL: u8 = 15;
 pub const MODE_WEDDING_DRESS: u8 = 16;
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ActorAppearance {
     parts: [u32; PART_MAX_NUM as usize],
     pub weapon_vnum: u32,
@@ -182,42 +182,41 @@ impl ActorAppearance {
     }
 }
 
-use std::collections::HashMap;
-use std::sync::{OnceLock, RwLock};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-
-static ACTOR_APPEARANCES: OnceLock<RwLock<HashMap<u32, ActorAppearance>>> = OnceLock::new();
-
-fn get_actor_appearances() -> &'static RwLock<HashMap<u32, ActorAppearance>> {
-    ACTOR_APPEARANCES.get_or_init(|| RwLock::new(HashMap::new()))
-}
+use crate::character_manager_core::get_character_manager;
 
 #[no_mangle]
 pub extern "C" fn m2_actor_attach_weapon(vid: u32, weapon_vnum: u32) -> bool {
     catch_unwind(AssertUnwindSafe(|| {
-        let mut appearances = get_actor_appearances().write().unwrap();
-        let app = appearances.entry(vid).or_insert_with(ActorAppearance::new);
-        app.attach_weapon(weapon_vnum);
-        true
+        let mut mgr = get_character_manager().write().unwrap();
+        if let Some(inst) = mgr.get_instance_mut(vid) {
+            inst.appearance.attach_weapon(weapon_vnum);
+            true
+        } else {
+            false
+        }
     })).unwrap_or(false)
 }
 
 #[no_mangle]
 pub extern "C" fn m2_actor_change_armor(vid: u32, armor_vnum: u32) -> bool {
     catch_unwind(AssertUnwindSafe(|| {
-        let mut appearances = get_actor_appearances().write().unwrap();
-        let app = appearances.entry(vid).or_insert_with(ActorAppearance::new);
-        app.change_armor(armor_vnum);
-        true
+        let mut mgr = get_character_manager().write().unwrap();
+        if let Some(inst) = mgr.get_instance_mut(vid) {
+            inst.appearance.change_armor(armor_vnum);
+            true
+        } else {
+            false
+        }
     })).unwrap_or(false)
 }
 
 #[no_mangle]
 pub extern "C" fn m2_actor_get_weapon(vid: u32) -> u32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let appearances = get_actor_appearances().read().unwrap();
-        if let Some(app) = appearances.get(&vid) {
-            app.weapon_vnum
+        let mgr = get_character_manager().read().unwrap();
+        if let Some(inst) = mgr.get_instance(vid) {
+            inst.appearance.weapon_vnum
         } else {
             0
         }
@@ -227,9 +226,9 @@ pub extern "C" fn m2_actor_get_weapon(vid: u32) -> u32 {
 #[no_mangle]
 pub extern "C" fn m2_actor_get_armor(vid: u32) -> u32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let appearances = get_actor_appearances().read().unwrap();
-        if let Some(app) = appearances.get(&vid) {
-            app.armor_vnum
+        let mgr = get_character_manager().read().unwrap();
+        if let Some(inst) = mgr.get_instance(vid) {
+            inst.appearance.armor_vnum
         } else {
             0
         }

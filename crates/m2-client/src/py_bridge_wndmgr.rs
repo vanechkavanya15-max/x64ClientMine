@@ -12,43 +12,78 @@ fn cstr_to_str<'a>(ptr: *const c_char) -> &'a str {
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_Register(_py_obj: usize) -> u32 {
-    get_window_manager().register(WindowType::Normal)
+pub extern "C" fn wndMgr_Register(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::Normal, py_obj)
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_RegisterImageBox(_py_obj: usize) -> u32 {
-    get_window_manager().register(WindowType::ImageBox)
+pub extern "C" fn wndMgr_RegisterImageBox(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::ImageBox, py_obj)
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_RegisterExpandedImageBox(_py_obj: usize) -> u32 {
-    get_window_manager().register(WindowType::ExpandedImageBox)
+pub extern "C" fn wndMgr_RegisterExpandedImageBox(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::ExpandedImageBox, py_obj)
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_RegisterTextLine(_py_obj: usize) -> u32 {
-    get_window_manager().register(WindowType::TextLine)
+pub extern "C" fn wndMgr_RegisterTextLine(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::TextLine, py_obj)
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_RegisterButton(_py_obj: usize) -> u32 {
-    get_window_manager().register(WindowType::Button)
+pub extern "C" fn wndMgr_RegisterButton(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::Button, py_obj)
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_RegisterBar(_py_obj: usize) -> u32 {
-    get_window_manager().register(WindowType::Bar)
+pub extern "C" fn wndMgr_RegisterBar(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::Bar, py_obj)
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_RegisterLine(_py_obj: usize) -> u32 {
-    get_window_manager().register(WindowType::Line)
+pub extern "C" fn wndMgr_RegisterLine(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::Line, py_obj)
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_RegisterBox(_py_obj: usize) -> u32 {
-    get_window_manager().register(WindowType::Box)
+pub extern "C" fn wndMgr_RegisterBox(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::Box, py_obj)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_RegisterSlotWindow(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::SlotWindow, py_obj)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_RegisterGridSlotWindow(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::SlotWindow, py_obj)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_RegisterMarkBox(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::ImageBox, py_obj)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_RegisterAniImageBox(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::ExpandedImageBox, py_obj)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_RegisterRadioButton(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::RadioButton, py_obj)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_RegisterToggleButton(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::ToggleButton, py_obj)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_RegisterDragButton(py_obj: usize) -> u32 {
+    get_window_manager().register_with_handler(WindowType::Button, py_obj)
 }
 
 #[no_mangle]
@@ -186,3 +221,219 @@ pub extern "C" fn wndMgr_GetLocalPosition(handle: u32, out_x: *mut i32, out_y: *
         }
     }
 }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetMouseHandler(po_handler: usize) {
+    get_window_manager().mouse_handler = po_handler;
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetScreenSize(_w: i32, _h: i32) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetScreenWidth() -> i32 { 1024 }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetScreenHeight() -> i32 { 768 }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetWindowPosition(handle: u32, x: i32, y: i32) -> bool {
+    get_window_manager().set_position(handle, x, y)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetWindowSize(handle: u32, w: i32, h: i32) -> bool {
+    get_window_manager().set_size(handle, w, h)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetWindowWidth(handle: u32) -> i32 {
+    get_window_manager().windows.get(&handle).map(|w| w.width).unwrap_or(0)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetWindowHeight(handle: u32) -> i32 {
+    get_window_manager().windows.get(&handle).map(|w| w.height).unwrap_or(0)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetWindowLocalPosition(handle: u32, out_x: *mut i32, out_y: *mut i32) {
+    wndMgr_GetLocalPosition(handle, out_x, out_y);
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetWindowGlobalPosition(handle: u32, out_x: *mut i32, out_y: *mut i32) {
+    let wm = get_window_manager();
+    if let Some(win) = wm.windows.get(&handle) {
+        let rect = win.calc_global_rect(None, 1024, 768);
+        unsafe {
+            if !out_x.is_null() { *out_x = rect[0]; }
+            if !out_y.is_null() { *out_y = rect[1]; }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetMouseLocalPosition(handle: u32, out_x: *mut i32, out_y: *mut i32) {
+    let wm = get_window_manager();
+    if let Some(win) = wm.windows.get(&handle) {
+        let rect = win.calc_global_rect(None, 1024, 768);
+        unsafe {
+            if !out_x.is_null() { *out_x = 0 - rect[0]; }
+            if !out_y.is_null() { *out_y = 0 - rect[1]; }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetWindowRect(handle: u32, out_l: *mut i32, out_t: *mut i32, out_r: *mut i32, out_b: *mut i32) {
+    let wm = get_window_manager();
+    if let Some(win) = wm.windows.get(&handle) {
+        let rect = win.calc_global_rect(None, 1024, 768);
+        unsafe {
+            if !out_l.is_null() { *out_l = rect[0]; }
+            if !out_t.is_null() { *out_t = rect[1]; }
+            if !out_r.is_null() { *out_r = rect[0] + rect[2]; }
+            if !out_b.is_null() { *out_b = rect[1] + rect[3]; }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetWindowHorizontalAlign(handle: u32, align: u8) -> bool {
+    get_window_manager().set_align(handle, align, 0)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetWindowVerticalAlign(handle: u32, align: u8) -> bool {
+    get_window_manager().set_align(handle, 0, align)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetPickAlways(handle: u32) {
+    if let Some(win) = get_window_manager().windows.get_mut(&handle) {
+        win.is_flag_pick_always = true;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_AddFlag(handle: u32, flag: u32) {
+    if let Some(win) = get_window_manager().windows.get_mut(&handle) {
+        win.flags |= flag;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_IsRTL(_handle: u32) -> bool { false }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetName(handle: u32, name: *const c_char) {
+    let s = cstr_to_str(name);
+    get_window_manager().set_name(handle, s);
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetFocus(handle: u32) {
+    get_window_manager().set_focus(handle);
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_KillFocus(handle: u32) {
+    get_window_manager().kill_focus(handle);
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_IsFocus(handle: u32) -> bool {
+    get_window_manager().is_focus(handle)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_Lock(_handle: u32) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_Unlock(_handle: u32) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_UpdateRect(_handle: u32) {}
+
+
+
+
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetSlotBaseImage(_handle: u32, _path: *const c_char, _r: f32, _g: f32, _b: f32, _a: f32) -> bool { true }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_ShowSlotBaseImage(_handle: u32, _slot: u32) -> bool { true }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_HideSlotBaseImage(_handle: u32, _slot: u32) -> bool { true }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetSlotStyle(_handle: u32, _style: u32) -> bool { true }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_ArrangeSlot(_handle: u32) -> bool { true }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetMax(handle: u32, max: i32) {
+    if let Some(win) = get_window_manager().windows.get_mut(&handle) {
+        win.width = win.width.max(max * 8);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetLimitWidth(_handle: u32, _width: f32) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetMultiLine(_handle: u32, _enable: bool) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetSecret(_handle: u32, _enable: bool) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetOutline(_handle: u32, _enable: bool) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetFeather(_handle: u32, _enable: bool) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetFontName(_handle: u32, _name: *const c_char) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetTextSize(handle: u32, out_w: *mut i32, out_h: *mut i32) {
+    if let Some(win) = get_window_manager().windows.get(&handle) {
+        unsafe {
+            if !out_w.is_null() { *out_w = (win.text.len() * 7) as i32; }
+            if !out_h.is_null() { *out_h = 16; }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetText(handle: u32, out_buf: *mut c_char, max_len: usize) -> usize {
+    if out_buf.is_null() || max_len == 0 {
+        return 0;
+    }
+    if let Some(win) = get_window_manager().windows.get(&handle) {
+        let text_to_return = if win.name == "PwdEditLine" || win.name == "Password_EditLine" {
+            let pwd = crate::ui_bridge_ffi::REAL_PASSWORD.lock().unwrap();
+            pwd.clone()
+        } else {
+            win.text.clone()
+        };
+        let bytes = text_to_return.as_bytes();
+        let copy_len = bytes.len().min(max_len - 1);
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), out_buf as *mut u8, copy_len);
+            *out_buf.add(copy_len) = 0;
+        }
+        copy_len
+    } else {
+        0
+    }
+}
+
+
+
+

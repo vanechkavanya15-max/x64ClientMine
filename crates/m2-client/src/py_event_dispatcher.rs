@@ -66,6 +66,15 @@ pub fn is_mock_mode() -> bool {
 }
 
 pub fn call_python_method(module: &str, method: &str, args: &[*mut PyObject]) -> bool {
+    let ptr = GLOBAL_PY_MOD_DISPATCHER_0.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() && args.is_empty() {
+        let cb: PyModCallback0 = unsafe { std::mem::transmute(ptr) };
+        if let (Ok(c_mod), Ok(c_method)) = (CString::new(module), CString::new(method)) {
+            cb(c_mod.as_ptr(), c_method.as_ptr());
+            return true;
+        }
+    }
+
     if is_mock_mode() {
         let log_entry = format!("{}.{}", module, method);
         CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().push(log_entry);
@@ -162,6 +171,15 @@ pub fn dispatch_gc_item_set_or_del() {
 }
 
 pub fn dispatch_gc_command(cmd: &str) {
+    let ptr = GLOBAL_PY_MOD_DISPATCHER_1_STR.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() {
+        let cb: PyModCallback1Str = unsafe { std::mem::transmute(ptr) };
+        if let (Ok(c_mod), Ok(c_method), Ok(c_cmd)) = (CString::new("game"), CString::new("BINARY_OnServerCommand"), CString::new(cmd)) {
+            cb(c_mod.as_ptr(), c_method.as_ptr(), c_cmd.as_ptr());
+            return;
+        }
+    }
+
     if is_mock_mode() {
         unsafe { mock_py_build_value("(s)", cmd); }
         call_python_method("game", "BINARY_OnServerCommand", &[]);
@@ -245,6 +263,15 @@ pub fn dispatch_gc_shop_open(vid: i32) {
 }
 
 pub fn dispatch_gc_chat(chat_type: i32, msg: &str) {
+    let ptr = GLOBAL_PY_MOD_DISPATCHER_1_STR.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() {
+        let cb: PyModCallback1Str = unsafe { std::mem::transmute(ptr) };
+        if let (Ok(c_mod), Ok(c_method), Ok(c_msg)) = (CString::new("chat"), CString::new("AppendChat"), CString::new(msg)) {
+            cb(c_mod.as_ptr(), c_method.as_ptr(), c_msg.as_ptr());
+            return;
+        }
+    }
+
     if is_mock_mode() {
         unsafe { mock_py_build_value("(is)", &format!("{}, {}", chat_type, msg)); }
         call_python_method("chat", "AppendChat", &[]);
@@ -274,3 +301,315 @@ pub fn dispatch_gc_chat(chat_type: i32, msg: &str) {
         }
     }
 }
+
+pub type PyEventCallback0 = extern "C" fn(handle: usize, method: *const c_char);
+pub type PyEventCallback1Str = extern "C" fn(handle: usize, method: *const c_char, arg: *const c_char);
+pub type PyEventCallback1I32 = extern "C" fn(handle: usize, method: *const c_char, arg: i32);
+pub type PyEventCallback2I32 = extern "C" fn(handle: usize, method: *const c_char, x: i32, y: i32);
+
+pub type PyModCallback0 = extern "C" fn(module: *const c_char, method: *const c_char);
+pub type PyModCallback1Str = extern "C" fn(module: *const c_char, method: *const c_char, arg: *const c_char);
+
+static GLOBAL_PY_DISPATCHER_0: std::sync::atomic::AtomicPtr<()> = std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+static GLOBAL_PY_DISPATCHER_1_STR: std::sync::atomic::AtomicPtr<()> = std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+static GLOBAL_PY_DISPATCHER_1_I32: std::sync::atomic::AtomicPtr<()> = std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+static GLOBAL_PY_DISPATCHER_2_I32: std::sync::atomic::AtomicPtr<()> = std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+
+static GLOBAL_PY_MOD_DISPATCHER_0: std::sync::atomic::AtomicPtr<()> = std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+static GLOBAL_PY_MOD_DISPATCHER_1_STR: std::sync::atomic::AtomicPtr<()> = std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+
+#[no_mangle]
+pub extern "C" fn m2_set_py_event_dispatcher_0(cb: PyEventCallback0) {
+    GLOBAL_PY_DISPATCHER_0.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
+}
+
+#[no_mangle]
+pub extern "C" fn m2_set_py_event_dispatcher_1_str(cb: PyEventCallback1Str) {
+    GLOBAL_PY_DISPATCHER_1_STR.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
+}
+
+#[no_mangle]
+pub extern "C" fn m2_set_py_event_dispatcher_1_i32(cb: PyEventCallback1I32) {
+    GLOBAL_PY_DISPATCHER_1_I32.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
+}
+
+#[no_mangle]
+pub extern "C" fn m2_set_py_event_dispatcher_2_i32(cb: PyEventCallback2I32) {
+    GLOBAL_PY_DISPATCHER_2_I32.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
+}
+
+#[no_mangle]
+pub extern "C" fn m2_set_py_mod_dispatcher_0(cb: PyModCallback0) {
+    GLOBAL_PY_MOD_DISPATCHER_0.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
+}
+
+#[no_mangle]
+pub extern "C" fn m2_set_py_mod_dispatcher_1_str(cb: PyModCallback1Str) {
+    GLOBAL_PY_MOD_DISPATCHER_1_STR.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
+}
+
+pub fn call_python_object_method0(py_obj: usize, method: &str) -> bool {
+    if py_obj == 0 {
+        return false;
+    }
+    let ptr = GLOBAL_PY_DISPATCHER_0.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() {
+        let cb: PyEventCallback0 = unsafe { std::mem::transmute(ptr) };
+        if let Ok(c_method) = CString::new(method) {
+            cb(py_obj, c_method.as_ptr());
+            return true;
+        }
+    }
+    if is_mock_mode() {
+        let log_entry = format!("obj_{}.{}", py_obj, method);
+        CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().push(log_entry);
+        return true;
+    }
+
+    unsafe {
+        let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
+        let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
+        let py_object_callobject = get_py_func("PyObject_CallObject");
+        let py_decref = get_py_func("Py_DecRef");
+
+        if py_object_hasattrstring.is_null() || py_object_getattrstring.is_null() || py_object_callobject.is_null() {
+            return false;
+        }
+
+        let obj_ptr = py_obj as *mut PyObject;
+        let c_method = match CString::new(method) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+
+        let hasattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> i32 = std::mem::transmute(py_object_hasattrstring);
+        if hasattr_fn(obj_ptr, c_method.as_ptr()) == 0 {
+            return false;
+        }
+
+        let getattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> *mut PyObject = std::mem::transmute(py_object_getattrstring);
+        let method_obj = getattr_fn(obj_ptr, c_method.as_ptr());
+        if method_obj.is_null() {
+            return false;
+        }
+
+        let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
+        let result = call_fn(method_obj, std::ptr::null_mut());
+
+        if !py_decref.is_null() {
+            let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
+            decref_fn(method_obj);
+            if !result.is_null() {
+                decref_fn(result);
+            }
+        }
+        true
+    }
+}
+
+pub fn call_python_object_method1_i32(py_obj: usize, method: &str, val: i32) -> bool {
+    if py_obj == 0 {
+        return false;
+    }
+    let ptr = GLOBAL_PY_DISPATCHER_1_I32.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() {
+        let cb: PyEventCallback1I32 = unsafe { std::mem::transmute(ptr) };
+        if let Ok(c_method) = CString::new(method) {
+            cb(py_obj, c_method.as_ptr(), val);
+            return true;
+        }
+    }
+    if is_mock_mode() {
+        let log_entry = format!("obj_{}.{}({})", py_obj, method, val);
+        CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().push(log_entry);
+        return true;
+    }
+
+    unsafe {
+        let py_buildvalue = get_py_func("Py_BuildValue");
+        let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
+        let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
+        let py_object_callobject = get_py_func("PyObject_CallObject");
+        let py_decref = get_py_func("Py_DecRef");
+
+        if py_buildvalue.is_null() || py_object_hasattrstring.is_null() || py_object_getattrstring.is_null() || py_object_callobject.is_null() {
+            return false;
+        }
+
+        let obj_ptr = py_obj as *mut PyObject;
+        let c_method = match CString::new(method) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+
+        let hasattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> i32 = std::mem::transmute(py_object_hasattrstring);
+        if hasattr_fn(obj_ptr, c_method.as_ptr()) == 0 {
+            return false;
+        }
+
+        let getattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> *mut PyObject = std::mem::transmute(py_object_getattrstring);
+        let method_obj = getattr_fn(obj_ptr, c_method.as_ptr());
+        if method_obj.is_null() {
+            return false;
+        }
+
+        let py_buildvalue_fn: extern "C" fn(*const c_char, i32) -> *mut PyObject = std::mem::transmute(py_buildvalue);
+        let format = CString::new("(i)").unwrap();
+        let py_args = py_buildvalue_fn(format.as_ptr(), val);
+
+        let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
+        let result = call_fn(method_obj, py_args);
+
+        if !py_decref.is_null() {
+            let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
+            decref_fn(method_obj);
+            if !py_args.is_null() {
+                decref_fn(py_args);
+            }
+            if !result.is_null() {
+                decref_fn(result);
+            }
+        }
+        true
+    }
+}
+
+pub fn call_python_object_method2_i32(py_obj: usize, method: &str, x: i32, y: i32) -> bool {
+    if py_obj == 0 {
+        return false;
+    }
+    let ptr = GLOBAL_PY_DISPATCHER_2_I32.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() {
+        let cb: PyEventCallback2I32 = unsafe { std::mem::transmute(ptr) };
+        if let Ok(c_method) = CString::new(method) {
+            cb(py_obj, c_method.as_ptr(), x, y);
+            return true;
+        }
+    }
+    if is_mock_mode() {
+        let log_entry = format!("obj_{}.{}({}, {})", py_obj, method, x, y);
+        CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().push(log_entry);
+        return true;
+    }
+
+    unsafe {
+        let py_buildvalue = get_py_func("Py_BuildValue");
+        let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
+        let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
+        let py_object_callobject = get_py_func("PyObject_CallObject");
+        let py_decref = get_py_func("Py_DecRef");
+
+        if py_buildvalue.is_null() || py_object_hasattrstring.is_null() || py_object_getattrstring.is_null() || py_object_callobject.is_null() {
+            return false;
+        }
+
+        let obj_ptr = py_obj as *mut PyObject;
+        let c_method = match CString::new(method) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+
+        let hasattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> i32 = std::mem::transmute(py_object_hasattrstring);
+        if hasattr_fn(obj_ptr, c_method.as_ptr()) == 0 {
+            return false;
+        }
+
+        let getattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> *mut PyObject = std::mem::transmute(py_object_getattrstring);
+        let method_obj = getattr_fn(obj_ptr, c_method.as_ptr());
+        if method_obj.is_null() {
+            return false;
+        }
+
+        let py_buildvalue_fn: extern "C" fn(*const c_char, i32, i32) -> *mut PyObject = std::mem::transmute(py_buildvalue);
+        let format = CString::new("(ii)").unwrap();
+        let py_args = py_buildvalue_fn(format.as_ptr(), x, y);
+
+        let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
+        let result = call_fn(method_obj, py_args);
+
+        if !py_decref.is_null() {
+            let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
+            decref_fn(method_obj);
+            if !py_args.is_null() {
+                decref_fn(py_args);
+            }
+            if !result.is_null() {
+                decref_fn(result);
+            }
+        }
+        true
+    }
+}
+
+pub fn call_python_object_method1_str(py_obj: usize, method: &str, s: &str) -> bool {
+    if py_obj == 0 {
+        return false;
+    }
+    let ptr = GLOBAL_PY_DISPATCHER_1_STR.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() {
+        let cb: PyEventCallback1Str = unsafe { std::mem::transmute(ptr) };
+        if let (Ok(c_method), Ok(c_s)) = (CString::new(method), CString::new(s)) {
+            cb(py_obj, c_method.as_ptr(), c_s.as_ptr());
+            return true;
+        }
+    }
+    if is_mock_mode() {
+        let log_entry = format!("obj_{}.{}(\"{}\")", py_obj, method, s);
+        CALL_LOG.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().push(log_entry);
+        return true;
+    }
+
+    unsafe {
+        let py_buildvalue = get_py_func("Py_BuildValue");
+        let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
+        let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
+        let py_object_callobject = get_py_func("PyObject_CallObject");
+        let py_decref = get_py_func("Py_DecRef");
+
+        if py_buildvalue.is_null() || py_object_hasattrstring.is_null() || py_object_getattrstring.is_null() || py_object_callobject.is_null() {
+            return false;
+        }
+
+        let obj_ptr = py_obj as *mut PyObject;
+        let c_method = match CString::new(method) {
+            Ok(m) => m,
+            Err(_) => return false,
+        };
+
+        let hasattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> i32 = std::mem::transmute(py_object_hasattrstring);
+        if hasattr_fn(obj_ptr, c_method.as_ptr()) == 0 {
+            return false;
+        }
+
+        let getattr_fn: extern "C" fn(*mut PyObject, *const c_char) -> *mut PyObject = std::mem::transmute(py_object_getattrstring);
+        let method_obj = getattr_fn(obj_ptr, c_method.as_ptr());
+        if method_obj.is_null() {
+            return false;
+        }
+
+        let c_val = match CString::new(s) {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+
+        let py_buildvalue_fn: extern "C" fn(*const c_char, *const c_char) -> *mut PyObject = std::mem::transmute(py_buildvalue);
+        let format = CString::new("(s)").unwrap();
+        let py_args = py_buildvalue_fn(format.as_ptr(), c_val.as_ptr());
+
+        let call_fn: extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject = std::mem::transmute(py_object_callobject);
+        let result = call_fn(method_obj, py_args);
+
+        if !py_decref.is_null() {
+            let decref_fn: extern "C" fn(*mut PyObject) = std::mem::transmute(py_decref);
+            decref_fn(method_obj);
+            if !py_args.is_null() {
+                decref_fn(py_args);
+            }
+            if !result.is_null() {
+                decref_fn(result);
+            }
+        }
+        true
+    }
+}
+

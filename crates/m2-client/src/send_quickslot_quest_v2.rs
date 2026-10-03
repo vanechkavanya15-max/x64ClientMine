@@ -139,6 +139,56 @@ pub unsafe extern "C" fn m2_send_script_answer(idx: u8, out_buf: *mut u8) -> usi
     })
 }
 
+pub const HEADER_CG_QUEST_INPUT_STRING: u16 = 0x0904;
+
+#[repr(C, packed)]
+pub struct TPacketCGQuestInputString {
+    pub header: u16,
+    pub length: u16,
+    pub msg: [u8; 65],
+}
+
+impl TPacketCGQuestInputString {
+    pub const HEADER: u16 = HEADER_CG_QUEST_INPUT_STRING;
+    pub const SIZE: u16 = std::mem::size_of::<Self>() as u16;
+
+    pub fn new(msg: &str) -> Self {
+        let mut msg_arr = [0u8; 65];
+        let bytes = msg.as_bytes();
+        let len = std::cmp::min(bytes.len(), 64);
+        msg_arr[..len].copy_from_slice(&bytes[..len]);
+        
+        Self {
+            header: Self::HEADER,
+            length: Self::SIZE,
+            msg: msg_arr,
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(Self::SIZE as usize);
+        buf.extend_from_slice(&self.header.to_le_bytes());
+        buf.extend_from_slice(&self.length.to_le_bytes());
+        buf.extend_from_slice(&self.msg);
+        buf
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_send_quest_input_string(msg_ptr: *const std::os::raw::c_char) -> bool {
+    safe_ffi_call(false, || {
+        if msg_ptr.is_null() {
+            return false;
+        }
+        let c_str = unsafe { std::ffi::CStr::from_ptr(msg_ptr) };
+        if let Ok(msg) = c_str.to_str() {
+            let packet = TPacketCGQuestInputString::new(msg);
+            return enqueue_outgoing_packet(packet.to_bytes());
+        }
+        false
+    })
+}
+
 /// Zastepuje CPythonNetworkStream::SendQuickSlotDelPacket.
 #[no_mangle]
 pub extern "C" fn SendQuickSlotDelPacket(pos: u8) -> bool {

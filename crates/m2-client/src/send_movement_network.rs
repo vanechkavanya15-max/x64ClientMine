@@ -14,28 +14,24 @@ pub struct TPacketCGMove {
     pub b_func: u8,
     pub b_arg: u8,
     pub b_rot: u8,
-    pub dw_vid: u32,
     pub l_x: i32,
     pub l_y: i32,
     pub dw_time: u32,
-    pub dw_duration: u32,
 }
 
 impl TPacketCGMove {
     pub const SIZE: usize = std::mem::size_of::<Self>();
 
-    pub fn to_bytes(&self) -> [u8; 27] {
-        let mut buf = [0u8; 27];
+    pub fn to_bytes(&self) -> [u8; 19] {
+        let mut buf = [0u8; 19];
         buf[0..2].copy_from_slice(&self.header.to_le_bytes());
         buf[2..4].copy_from_slice(&self.length.to_le_bytes());
         buf[4] = self.b_func;
         buf[5] = self.b_arg;
         buf[6] = self.b_rot;
-        buf[7..11].copy_from_slice(&self.dw_vid.to_le_bytes());
-        buf[11..15].copy_from_slice(&self.l_x.to_le_bytes());
-        buf[15..19].copy_from_slice(&self.l_y.to_le_bytes());
-        buf[19..23].copy_from_slice(&self.dw_time.to_le_bytes());
-        buf[23..27].copy_from_slice(&self.dw_duration.to_le_bytes());
+        buf[7..11].copy_from_slice(&self.l_x.to_le_bytes());
+        buf[11..15].copy_from_slice(&self.l_y.to_le_bytes());
+        buf[15..19].copy_from_slice(&self.dw_time.to_le_bytes());
         buf
     }
 }
@@ -43,13 +39,6 @@ impl TPacketCGMove {
 // Globalny stan dławienia (throttlingu) wysyłania pakietów
 lazy_static::lazy_static! {
     static ref LAST_MOVE_PACKET_TIME: Mutex<Option<Instant>> = Mutex::new(None);
-}
-
-// Globalny stan (mock dla vid)
-pub fn get_my_vid() -> u32 {
-    // W prawdziwym środowisku pobrałoby to VID gracza.
-    // Używamy zera dla bezpieczeństwa, jeśli nie mamy konkretnego.
-    0
 }
 
 /// Resetuje throttling (np. używane w testach).
@@ -66,7 +55,7 @@ pub fn send_move_packet(
     rot: f32,
     x: i32,
     y: i32,
-    duration: u32,
+    _duration: u32,
 ) -> Result<(), String> {
     let now = Instant::now();
 
@@ -98,19 +87,16 @@ pub fn send_move_packet(
     let rot_u8 = ((rot_norm / 360.0) * 255.0).round() as u8;
 
     let time = crate::app_timing_clock::m2_get_time() as u32;
-    let vid = get_my_vid(); // Powinno w normalnych warunkach pobierać dwVID gracza, uzywamy 0 (lub pobierz wlasny vid).
 
     let packet = TPacketCGMove {
         header: 0x0301,
-        length: 27,
+        length: 19,
         b_func: func,
         b_arg: arg,
         b_rot: rot_u8,
-        dw_vid: vid,
         l_x: x,
         l_y: y,
         dw_time: time,
-        dw_duration: duration,
     };
 
     let bytes = packet.to_bytes();

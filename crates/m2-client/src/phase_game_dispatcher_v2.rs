@@ -629,6 +629,10 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::CHARACTER_ADD => {
             if packet_len >= size_of::<TPacketGCCharacterAdd>() {
+                if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                    let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+                    let _ = crate::recv_character_lifecycle_complete::parse_character_add(buf_slice, &mut mgr);
+                }
                 return gc::CHARACTER_ADD;
             }
         },
@@ -654,11 +658,21 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::CHARACTER_DEL => {
             if packet_len >= size_of::<TPacketGCCharacterDelete>() {
+                if let Ok(mut mgr) = crate::actor_spawn_v2::get_network_actor_mgr().write() {
+                    let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+                    let _ = crate::recv_character_lifecycle_complete::parse_character_delete(buf_slice, &mut mgr);
+                }
                 return gc::CHARACTER_DEL;
             }
         },
         gc::CHAT => {
             if packet_len >= size_of::<TPacketGCChat>() {
+                let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+                if let Some((chat_type, text)) = crate::recv_chat::parse_chat(buf_slice) {
+                    if let Ok(mut chat_buf) = crate::chat_buffer_v2::get_chat_buffer().lock() {
+                        chat_buf.append_line(chat_type, &text, crate::app_timing_clock::m2_get_time() as u32);
+                    }
+                }
                 return gc::CHAT;
             }
         },
@@ -679,6 +693,7 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::MOVE => {
             if packet_len >= size_of::<TPacketGCMove>() {
+                // MOVE -> recv_movement.rs
                 return gc::MOVE;
             }
         },
@@ -699,21 +714,28 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::PLAYER_POINT_CHANGE => {
             if packet_len >= size_of::<TPacketGCPointChange>() {
+                // PLAYER_POINT_CHANGE -> recv_points.rs (requires PointManager instance)
                 return gc::PLAYER_POINT_CHANGE;
             }
         },
         gc::DAMAGE_INFO => {
             if packet_len >= size_of::<TPacketGCDamageInfo>() {
+                let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+                let _ = crate::recv_combat_skills_complete::process_damage_info(buf_slice);
                 return gc::DAMAGE_INFO;
             }
         },
         gc::ITEM_DEL => {
             if packet_len >= size_of::<TPacketGCItemDel>() {
+                let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+                let _ = crate::recv_items_payload::handle_item_del(buf_slice);
                 return gc::ITEM_DEL;
             }
         },
         gc::ITEM_SET => {
             if packet_len >= size_of::<TPacketGCItemSet>() {
+                let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+                let _ = crate::recv_items_payload::handle_item_set(buf_slice);
                 return gc::ITEM_SET;
             }
         },
@@ -774,6 +796,7 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::SHOP => {
             if packet_len >= size_of::<TPacketGCShop>() {
+                // SHOP -> recv_shop_logic_v2.rs
                 return gc::SHOP;
             }
         },
@@ -784,6 +807,10 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::EXCHANGE => {
             if packet_len >= size_of::<TPacketGCExchange>() {
+                let packet = unsafe { &*(buf as *const crate::recv_exchange_logic_v2::TPacketGCExchange) };
+                if let Ok(mut logic) = crate::recv_exchange_logic_v2::get_exchange_logic().write() {
+                    logic.handle_packet(packet);
+                }
                 return gc::EXCHANGE;
             }
         },
@@ -799,6 +826,10 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::SCRIPT => {
             if packet_len >= size_of::<TPacketGCScript>() {
+                let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+                if let Some((skin, script)) = crate::recv_quest_dialog_v2::parse_script_packet(buf_slice) {
+                    let _ = crate::recv_quest_dialog_v2::parse_quest_script(skin, &script);
+                }
                 return gc::SCRIPT;
             }
         },
@@ -819,6 +850,7 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::PLAYER_POINTS => {
             if packet_len >= size_of::<TPacketGCPoints>() {
+                // PLAYER_POINTS -> recv_points.rs (requires PointManager instance)
                 return gc::PLAYER_POINTS;
             }
         },
@@ -859,6 +891,8 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::GUILD => {
             if packet_len >= size_of::<TPacketGCGuild>() {
+                let buf_slice = unsafe { std::slice::from_raw_parts(buf, packet_len) };
+                let _ = crate::recv_guild_logic_v2::parse_guild_packet(buf_slice);
                 return gc::GUILD;
             }
         },
@@ -874,6 +908,7 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::PARTY_ADD => {
             if packet_len >= size_of::<TPacketGCPartyAdd>() {
+                // PARTY_ADD -> recv_party_logic_v2.rs (requires PartyLogic instance)
                 return gc::PARTY_ADD;
             }
         },
@@ -884,6 +919,7 @@ pub extern "C" fn m2_net_dispatch_game_packet(buf: *const u8, len: usize) -> u16
         },
         gc::PARTY_REMOVE => {
             if packet_len >= size_of::<TPacketGCPartyRemove>() {
+                // PARTY_REMOVE -> recv_party_logic_v2.rs (requires PartyLogic instance)
                 return gc::PARTY_REMOVE;
             }
         },

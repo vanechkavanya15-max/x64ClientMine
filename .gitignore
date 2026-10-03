@@ -47,6 +47,7 @@ target/
 .pytest_cache/
 __pycache__/
 *.pyc
+*.dll
 
 # Backup files
 *.orig

@@ -12,6 +12,10 @@ pub struct WindowManager {
     pub next_handle: u32,
     pub root_windows: Vec<u32>,
     pub top_window: Option<u32>,
+    pub point_window: Option<u32>,
+    pub capture_window: Option<u32>,
+    pub active_window: Option<u32>,
+    pub mouse_handler: usize,
     pub is_attaching: bool,
     pub attaching_type: u32,
     pub attaching_index: u32,
@@ -19,6 +23,8 @@ pub struct WindowManager {
     pub attaching_icon_width: u8,
     pub attaching_icon_height: u8,
     pub white_dummy_tex: Option<Arc<GpuTexture>>,
+    pub render_dirty: bool,
+    pub cached_batches: Vec<(Arc<GpuTexture>, Vec<Quad2D>)>,
 }
 
 impl WindowManager {
@@ -28,6 +34,10 @@ impl WindowManager {
             next_handle: 100,
             root_windows: Vec::new(),
             top_window: None,
+            point_window: None,
+            capture_window: None,
+            active_window: None,
+            mouse_handler: 0,
             is_attaching: false,
             attaching_type: 0,
             attaching_index: 0,
@@ -35,13 +45,20 @@ impl WindowManager {
             attaching_icon_width: 0,
             attaching_icon_height: 0,
             white_dummy_tex: None,
+            render_dirty: true,
+            cached_batches: Vec::new(),
         }
     }
 
     pub fn register(&mut self, wtype: WindowType) -> u32 {
+        self.register_with_handler(wtype, 0)
+    }
+
+    pub fn register_with_handler(&mut self, wtype: WindowType, py_handler: usize) -> u32 {
         let handle = self.next_handle;
         self.next_handle += 1;
-        let win = Window::new(handle, wtype);
+        let mut win = Window::new(handle, wtype);
+        win.py_handler = py_handler;
         self.windows.insert(handle, win);
         self.root_windows.push(handle);
         handle
@@ -75,6 +92,7 @@ impl WindowManager {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.local_x = x;
             win.local_y = y;
+            self.render_dirty = true;
             true
         } else {
             false
@@ -85,6 +103,7 @@ impl WindowManager {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.width = w;
             win.height = h;
+            self.render_dirty = true;
             true
         } else {
             false
@@ -94,6 +113,7 @@ impl WindowManager {
     pub fn show(&mut self, handle: u32) -> bool {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.is_show = true;
+            self.render_dirty = true;
             true
         } else {
             false
@@ -103,6 +123,7 @@ impl WindowManager {
     pub fn hide(&mut self, handle: u32) -> bool {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.is_show = false;
+            self.render_dirty = true;
             true
         } else {
             false
@@ -143,6 +164,7 @@ impl WindowManager {
     pub fn set_text(&mut self, handle: u32, text: &str) -> bool {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.text = text.to_string();
+            self.render_dirty = true;
             true
         } else {
             false
@@ -152,6 +174,7 @@ impl WindowManager {
     pub fn set_color(&mut self, handle: u32, color: [f32; 4]) -> bool {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.color = color;
+            self.render_dirty = true;
             true
         } else {
             false
@@ -246,12 +269,56 @@ impl WindowManager {
                 win.is_hover = is_h;
             }
         }
+
+        // Dwukierunkowe wywolanie callbackow Pythona (OnMouseOverIn / OnMouseOverOut)
+        if self.point_window != hovered {
+            if let Some(old) = self.point_window {
+                if let Some(win) = self.windows.get(&old) {
+                    if win.py_handler != 0 {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnMouseOverOut");
+                    }
+                }
+            }
+            if let Some(new_h) = hovered {
+                if let Some(win) = self.windows.get(&new_h) {
+                    if win.py_handler != 0 {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnMouseOverIn");
+                    }
+                }
+            }
+            self.point_window = hovered;
+        }
+
+        if let Some(cap) = self.capture_window {
+            if let Some(win) = self.windows.get(&cap) {
+                if win.py_handler != 0 {
+                    crate::py_event_dispatcher::call_python_object_method2_i32(win.py_handler, "OnMouseDrag", mx, my);
+                }
+            }
+        }
     }
 
     pub fn handle_mouse_down(&mut self, mx: i32, my: i32, screen_w: i32, screen_h: i32) -> Option<u32> {
         let hit = self.pick_window(mx, my, screen_w, screen_h)?;
+        self.capture_window = Some(hit);
+        self.active_window = Some(hit);
         if let Some(win) = self.windows.get_mut(&hit) {
             win.is_pressed = true;
+            if win.py_handler != 0 {
+                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnMouseLeftButtonDown");
+                match win.window_type {
+                    WindowType::Button => {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "DownEvent");
+                    }
+                    WindowType::RadioButton => {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "CallEvent");
+                    }
+                    WindowType::ToggleButton => {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnToggleDown");
+                    }
+                    _ => {}
+                }
+            }
         }
         Some(hit)
     }
@@ -261,7 +328,93 @@ impl WindowManager {
         for win in self.windows.values_mut() {
             win.is_pressed = false;
         }
-        hit
+        let target = self.capture_window.or(hit);
+        if let Some(t) = target {
+            if let Some(win) = self.windows.get(&t) {
+                if win.py_handler != 0 {
+                    crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnMouseLeftButtonUp");
+                    if win.window_type == WindowType::Button {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "CallEvent");
+                    }
+                }
+            }
+        }
+        self.capture_window = None;
+        target
+    }
+
+    pub fn handle_mouse_right_down(&mut self, mx: i32, my: i32, screen_w: i32, screen_h: i32) -> Option<u32> {
+        let hit = self.pick_window(mx, my, screen_w, screen_h)?;
+        if let Some(win) = self.windows.get(&hit) {
+            if win.py_handler != 0 {
+                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnMouseRightButtonDown");
+            }
+        }
+        Some(hit)
+    }
+
+    pub fn handle_mouse_right_up(&mut self, mx: i32, my: i32, screen_w: i32, screen_h: i32) -> Option<u32> {
+        let hit = self.pick_window(mx, my, screen_w, screen_h)?;
+        if let Some(win) = self.windows.get(&hit) {
+            if win.py_handler != 0 {
+                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnMouseRightButtonUp");
+            }
+        }
+        Some(hit)
+    }
+
+    pub fn handle_key_down(&mut self, vkey: u32) {
+        if let Some(act) = self.active_window {
+            if let Some(win) = self.windows.get(&act) {
+                if win.py_handler != 0 {
+                    crate::py_event_dispatcher::call_python_object_method1_i32(win.py_handler, "OnKeyDown", vkey as i32);
+                }
+            }
+        }
+    }
+
+    pub fn handle_key_up(&mut self, vkey: u32) {
+        if let Some(act) = self.active_window {
+            if let Some(win) = self.windows.get(&act) {
+                if win.py_handler != 0 {
+                    crate::py_event_dispatcher::call_python_object_method1_i32(win.py_handler, "OnKeyUp", vkey as i32);
+                }
+            }
+        }
+    }
+
+    pub fn update_all_windows(&mut self) {
+        let handlers: Vec<usize> = self.windows.values()
+            .filter(|w| w.is_show && w.py_handler != 0 && w.parent.is_none())
+            .map(|w| w.py_handler)
+            .collect();
+        for h in handlers {
+            crate::py_event_dispatcher::call_python_object_method0(h, "OnUpdate");
+        }
+    }
+
+    pub fn set_focus(&mut self, handle: u32) {
+        self.active_window = Some(handle);
+        if let Some(win) = self.windows.get(&handle) {
+            if win.py_handler != 0 {
+                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnSetFocus");
+            }
+        }
+    }
+
+    pub fn kill_focus(&mut self, handle: u32) {
+        if self.active_window == Some(handle) {
+            self.active_window = None;
+        }
+        if let Some(win) = self.windows.get(&handle) {
+            if win.py_handler != 0 {
+                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnKillFocus");
+            }
+        }
+    }
+
+    pub fn is_focus(&self, handle: u32) -> bool {
+        self.active_window == Some(handle)
     }
 
     pub fn destroy_window(&mut self, handle: u32) {
@@ -312,6 +465,13 @@ pub fn get_window_manager() -> std::sync::MutexGuard<'static, WindowManager> {
 /// Zbiera partie quadow do wyrenderowania z calego drzewa widocznych okien UI
 pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTexture>, Vec<Quad2D>)> {
     let mut wm = get_window_manager();
+    
+    // Return cached batches if nothing changed since last collect
+    if !wm.render_dirty {
+        return wm.cached_batches.clone();
+    }
+    wm.render_dirty = false;
+    
     let white_tex = wm.get_or_create_white_texture();
 
     // Upewnij sie, ze atlas czcionki jest gotowy
@@ -394,7 +554,7 @@ pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTe
                     }
                 }
             }
-            WindowType::Button => {
+            WindowType::Button | WindowType::RadioButton | WindowType::ToggleButton => {
                 let visual_path = if win.is_pressed && !win.down_visual.is_empty() {
                     &win.down_visual
                 } else if win.is_hover && !win.over_visual.is_empty() {
@@ -478,6 +638,7 @@ pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTe
         visit_window(root_h, None, &mut wm, &white_tex, &mut texture_batches, sw, sh);
     }
 
+    wm.cached_batches = texture_batches.clone();
     texture_batches
 }
 

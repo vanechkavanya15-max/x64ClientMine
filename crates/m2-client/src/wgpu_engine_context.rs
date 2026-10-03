@@ -851,6 +851,17 @@ pub fn set_global_thinboard(tex: GpuTexture) {
     *mutex.lock().unwrap() = Some(tex);
 }
 
+static REQUEST_EXIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static MAX_FRAMES_LIMIT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub fn request_game_loop_exit() {
+    REQUEST_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
+pub fn set_max_frames_limit(limit: u64) {
+    MAX_FRAMES_LIMIT.store(limit, std::sync::atomic::Ordering::SeqCst);
+}
+
 /// Natywna petla gry dla silnika Pure Rust - wywolywana bezposrednio lub z poziomu app.Loop()
 #[no_mangle]
 pub extern "C" fn m2_run_game_loop() -> i32 {
@@ -863,14 +874,62 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
     let mut pipeline_mgr: Option<crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager> = None;
 
     loop {
+        if REQUEST_EXIT.load(std::sync::atomic::Ordering::SeqCst) {
+            println!("[+] Przerwanie petli gry na zadanie (request_game_loop_exit).");
+            break;
+        }
+        let limit = MAX_FRAMES_LIMIT.load(std::sync::atomic::Ordering::SeqCst);
+        if limit > 0 && frame_count >= limit {
+            println!("[+] Osiagnieto zadany limit klatek ({}), bezpieczne wyjscie z petli.", limit);
+            break;
+        }
+
         let status = crate::win32_message_dispatcher::poll_window_messages();
         if let crate::win32_message_dispatcher::MsgQueueStatus::Quit(code) = status {
             println!("[+] Okno zamkniete przez uzytkownika (exit_code={})", code);
             break;
         }
 
+        // 0. Wywolanie klatki OnUpdate dla wszystkich aktywnych okien UI Pythona (throttled to 20Hz)
+        let t_update_start = std::time::Instant::now();
+        {
+            static LAST_UPDATE: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+            let now = std::time::Instant::now();
+            let should_update = if let Ok(mut last) = LAST_UPDATE.lock() {
+                match *last {
+                    Some(t) if now.duration_since(t).as_millis() < 50 => false,
+                    _ => { *last = Some(now); true }
+                }
+            } else { true };
+            if should_update {
+                crate::ui_window_mgr::get_window_manager().update_all_windows();
+            }
+        }
+        let t_update_ms = t_update_start.elapsed().as_millis();
+
+        // 0.1 Wysylanie pakietow z kolejki OUTGOING_PACKETS
+        let outgoing = m2_client_bridge::net::send_queue::drain_outgoing_packets();
+        if !outgoing.is_empty() {
+            if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+                if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+                    for mut pkt in outgoing {
+                        cipher.encrypt_in_place(&mut pkt);
+                        let _ = std::io::Write::write_all(stream, &pkt);
+                    }
+                }
+            }
+        }
+
+        // 0.2 Przetwarzanie zdarzen (drain_events)
+        let events = crate::game_net_receiver::drain_events();
+        for _event in events {
+            // Przetwarzanie zdarzen w glownej petli (na razie glowne operacje dzieja sie bezposrednio w receiverze)
+        }
+
         // 1. Zbieranie partii drzewa okien UI poza blokada kontekstu GPU (eliminuje deadlock)
+        let t_collect_start = std::time::Instant::now();
         let ui_batches = crate::ui_window_mgr::collect_ui_render_batches(1024, 768);
+        let t_collect_ms = t_collect_start.elapsed().as_millis();
 
         if let Some(guard) = GLOBAL_WGPU_CONTEXT.get() {
             if let Ok(mut ctx_opt) = guard.lock() {
@@ -943,7 +1002,7 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
             frame_count = 0;
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(16));
+        std::thread::sleep(std::time::Duration::from_millis(1));
     }
 
     println!("[+] m2_run_game_loop zakonczona sukcesem.");

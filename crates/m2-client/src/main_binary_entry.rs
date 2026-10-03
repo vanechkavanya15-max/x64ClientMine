@@ -54,6 +54,7 @@ pub struct AppConfig {
     pub windowed: bool,
     pub connect_ip: Option<String>,
     pub connect_port: Option<u16>,
+    pub max_frames: Option<u64>,
 }
 
 impl AppConfig {
@@ -73,6 +74,12 @@ impl AppConfig {
                 }
             } else if s == "--windowed" {
                 config.windowed = true;
+            } else if s == "--frames" {
+                if let Some(val) = iter.next() {
+                    if let Ok(f) = val.as_ref().parse::<u64>() {
+                        config.max_frames = Some(f);
+                    }
+                }
             } else if s == "--connect" {
                 if let Some(ip) = iter.next() {
                     config.connect_ip = Some(ip.as_ref().to_string());
@@ -136,6 +143,9 @@ impl Metin2Engine {
     }
     
     pub fn load_config(&mut self, config: AppConfig) {
+        if let Some(f) = config.max_frames {
+            crate::wgpu_engine_context::set_max_frames_limit(f);
+        }
         self.config = config;
         self.state = EngineState::ConfigLoaded;
     }
@@ -394,14 +404,19 @@ impl Metin2Engine {
 
             let py_code = CString::new(r#"
 import sys, types, ctypes, os
+try:
+    os.add_dll_directory(os.getcwd())
+except Exception:
+    pass
 
 dll = None
 dll_candidates = [
-    "m2_client.dll",
-    "./m2_client.dll",
+    os.path.abspath("m2_client.dll"),
     os.path.join(os.getcwd(), "m2_client.dll"),
+    "E:/SourceCodeClient/target/x86_64-pc-windows-msvc/release/m2_client.dll",
+    "E:/SourceCodeClient/target/x86_64-pc-windows-msvc/debug/m2_client.dll",
     "E:/m2dev-client-src-main/m2dev-client-main/m2_client.dll",
-    "E:/SourceCodeClient/target/release/m2_client.dll",
+    "E:/SourceCodeClient/crates/m2-client/m2_client.dll",
 ]
 for c in dll_candidates:
     if os.path.exists(c):
@@ -413,7 +428,8 @@ for c in dll_candidates:
 
 if not dll:
     try:
-        dll = ctypes.CDLL("m2_client.dll")
+        h = ctypes.windll.kernel32.GetModuleHandleW(None)
+        dll = ctypes.CDLL('', handle=h)
     except Exception:
         dll = None
 
@@ -459,16 +475,19 @@ sys.modules['pack'] = PackModule
 class DbgModule:
     @staticmethod
     def Trace(msg):
-        pass
+        sys.__stdout__.write(str(msg))
+        sys.__stdout__.flush()
     @staticmethod
     def TraceError(msg):
-        print(f"[DBG ERROR] {msg}")
+        sys.__stderr__.write(f"[DBG ERROR] {msg}\n")
+        sys.__stderr__.flush()
     @staticmethod
     def RegisterExceptionString(msg):
         pass
     @staticmethod
     def LogBox(msg, title="Error"):
-        print(f"[LOGBOX {title}] {msg}")
+        sys.__stderr__.write(f"[LOGBOX {title}] {msg}\n")
+        sys.__stderr__.flush()
 
 sys.modules['dbg'] = DbgModule
 
@@ -536,6 +555,18 @@ class AppModule(metaclass=AppModuleMeta):
     def GetHeight():
         return 768
     @staticmethod
+    def GetRandom(a, b):
+        import random
+        return random.randint(int(a), int(b))
+    @staticmethod
+    def SetMouseHandler(*args): pass
+    @staticmethod
+    def SetHairColorEnable(*args): pass
+    @staticmethod
+    def SetArmorSpecularEnable(*args): pass
+    @staticmethod
+    def SetWeaponSpecularEnable(*args): pass
+    @staticmethod
     def GetTime():
         import time
         return time.time()
@@ -553,13 +584,21 @@ class AppModule(metaclass=AppModuleMeta):
     @staticmethod
     def Loop():
         print("[+] [APP] Loop() wywolana -> uruchamianie natywnej petli renderowania GPU Pure Rust...")
-        dll.m2_run_game_loop()
+        if dll and hasattr(dll, 'm2_run_game_loop'):
+            dll.m2_run_game_loop()
     @staticmethod
     def GetLocaleName():
         return "en"
     @staticmethod
     def GetLocalePath():
         return "locale/en"
+    loggined = False
+    @staticmethod
+    def SetDefaultFontName(font_name): pass
+    @staticmethod
+    def SetGuildMarkPath(path): pass
+    @staticmethod
+    def SetGuildSymbolPath(path): pass
     @staticmethod
     def GetLocalePathCommon():
         return "locale/common"
@@ -568,6 +607,21 @@ class AppModule(metaclass=AppModuleMeta):
         return False
 
 sys.modules['app'] = AppModule
+
+class ServerStateCheckerModule:
+    @staticmethod
+    def Create(handler): pass
+    @staticmethod
+    def Initialize(handler=None): pass
+    @staticmethod
+    def Update(): pass
+    @staticmethod
+    def AddChannel(key, ip, udp_port): pass
+    @staticmethod
+    def Request(): pass
+
+sys.modules['ServerStateChecker'] = ServerStateCheckerModule
+sys.modules['serverStateChecker'] = ServerStateCheckerModule
 
 class SystemSettingModuleMeta(type):
     def __getattr__(cls, name):
@@ -599,16 +653,131 @@ class SystemSettingModule(metaclass=SystemSettingModuleMeta):
         return 1
 
 sys.modules['systemSetting'] = SystemSettingModule
-sys.modules['system'] = SystemSettingModule
 
-dll.wndMgr_Register.restype = ctypes.c_uint32
-dll.wndMgr_RegisterImageBox.restype = ctypes.c_uint32
-dll.wndMgr_RegisterExpandedImageBox.restype = ctypes.c_uint32
-dll.wndMgr_RegisterTextLine.restype = ctypes.c_uint32
-dll.wndMgr_RegisterButton.restype = ctypes.c_uint32
-dll.wndMgr_RegisterBar.restype = ctypes.c_uint32
-dll.wndMgr_RegisterLine.restype = ctypes.c_uint32
-dll.wndMgr_RegisterBox.restype = ctypes.c_uint32
+_py_windows = {}
+_window_texts = {}
+
+def _py_dispatcher_0(handle, method_bytes):
+    win = _py_windows.get(handle)
+    if win:
+        m = method_bytes.decode('utf-8', errors='ignore')
+        fn = getattr(win, m, None)
+        if fn:
+            try:
+                fn()
+            except Exception as e:
+                import traceback
+                print(f"[EVENT ERR 0] {m}: {e}")
+                traceback.print_exc()
+
+def _py_dispatcher_1_str(handle, method_bytes, arg_bytes):
+    win = _py_windows.get(handle)
+    if win:
+        m = method_bytes.decode('utf-8', errors='ignore')
+        a = arg_bytes.decode('utf-8', errors='ignore') if arg_bytes else ""
+        fn = getattr(win, m, None)
+        if fn:
+            try:
+                fn(a)
+            except Exception as e:
+                print(f"[EVENT ERR 1_str] {m}({a}): {e}")
+
+def _py_dispatcher_1_i32(handle, method_bytes, val):
+    win = _py_windows.get(handle)
+    if win:
+        m = method_bytes.decode('utf-8', errors='ignore')
+        fn = getattr(win, m, None)
+        if fn:
+            try:
+                fn(val)
+            except Exception as e:
+                print(f"[EVENT ERR 1_i32] {m}({val}): {e}")
+
+def _py_dispatcher_2_i32(handle, method_bytes, x, y):
+    win = _py_windows.get(handle)
+    if win:
+        m = method_bytes.decode('utf-8', errors='ignore')
+        fn = getattr(win, m, None)
+        if fn:
+            try:
+                fn(x, y)
+            except Exception as e:
+                print(f"[EVENT ERR 2_i32] {m}({x}, {y}): {e}")
+
+def _py_mod_dispatcher_0(mod_bytes, method_bytes):
+    mod_name = mod_bytes.decode('utf-8', errors='ignore')
+    mod = sys.modules.get(mod_name)
+    if mod:
+        m = method_bytes.decode('utf-8', errors='ignore')
+        fn = getattr(mod, m, None)
+        if fn:
+            try:
+                fn()
+            except Exception as e:
+                print(f"[MOD ERR 0] {mod_name}.{m}: {e}")
+
+def _py_mod_dispatcher_1_str(mod_bytes, method_bytes, arg_bytes):
+    mod_name = mod_bytes.decode('utf-8', errors='ignore')
+    mod = sys.modules.get(mod_name)
+    if mod:
+        m = method_bytes.decode('utf-8', errors='ignore')
+        a = arg_bytes.decode('utf-8', errors='ignore') if arg_bytes else ""
+        fn = getattr(mod, m, None)
+        if fn:
+            try:
+                fn(a)
+            except Exception as e:
+                print(f"[MOD ERR 1_str] {mod_name}.{m}({a}): {e}")
+
+_CB_0 = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_char_p)(_py_dispatcher_0)
+_CB_1_STR = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_char_p)(_py_dispatcher_1_str)
+_CB_1_I32 = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_int32)(_py_dispatcher_1_i32)
+_CB_2_I32 = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_int32, ctypes.c_int32)(_py_dispatcher_2_i32)
+_CB_MOD_0 = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p)(_py_mod_dispatcher_0)
+_CB_MOD_1_STR = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p)(_py_mod_dispatcher_1_str)
+
+if dll:
+    if hasattr(dll, 'm2_set_py_event_dispatcher_0'):
+        dll.m2_set_py_event_dispatcher_0(_CB_0)
+    if hasattr(dll, 'm2_set_py_event_dispatcher_1_str'):
+        dll.m2_set_py_event_dispatcher_1_str(_CB_1_STR)
+    if hasattr(dll, 'm2_set_py_event_dispatcher_1_i32'):
+        dll.m2_set_py_event_dispatcher_1_i32(_CB_1_I32)
+    if hasattr(dll, 'm2_set_py_event_dispatcher_2_i32'):
+        dll.m2_set_py_event_dispatcher_2_i32(_CB_2_I32)
+    if hasattr(dll, 'm2_set_py_mod_dispatcher_0'):
+        dll.m2_set_py_mod_dispatcher_0(_CB_MOD_0)
+    if hasattr(dll, 'm2_set_py_mod_dispatcher_1_str'):
+        dll.m2_set_py_mod_dispatcher_1_str(_CB_MOD_1_STR)
+
+    for reg in [
+        'wndMgr_Register', 'wndMgr_RegisterImageBox', 'wndMgr_RegisterExpandedImageBox',
+        'wndMgr_RegisterTextLine', 'wndMgr_RegisterButton', 'wndMgr_RegisterBar',
+        'wndMgr_RegisterLine', 'wndMgr_RegisterBox', 'wndMgr_RegisterSlotWindow',
+        'wndMgr_RegisterGridSlotWindow', 'wndMgr_RegisterMarkBox', 'wndMgr_RegisterAniImageBox',
+        'wndMgr_RegisterRadioButton', 'wndMgr_RegisterToggleButton', 'wndMgr_RegisterDragButton',
+        'wndMgr_SetMouseHandler',
+    ]:
+        if hasattr(dll, reg):
+            getattr(dll, reg).argtypes = [ctypes.c_size_t]
+            getattr(dll, reg).restype = ctypes.c_uint32
+
+    if hasattr(dll, 'wndMgr_GetText'):
+        dll.wndMgr_GetText.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t]
+        dll.wndMgr_GetText.restype = ctypes.c_size_t
+
+    if hasattr(dll, 'm2_net_SetPhaseWindow'):
+        dll.m2_net_SetPhaseWindow.argtypes = [ctypes.c_uint32, ctypes.c_size_t]
+    if hasattr(dll, 'm2_net_ClearPhaseWindow'):
+        dll.m2_net_ClearPhaseWindow.argtypes = [ctypes.c_uint32, ctypes.c_size_t]
+    if hasattr(dll, 'm2_net_SetAccountConnectorHandler'):
+        dll.m2_net_SetAccountConnectorHandler.argtypes = [ctypes.c_size_t]
+    if hasattr(dll, 'm2_net_SetHandler'):
+        dll.m2_net_SetHandler.argtypes = [ctypes.c_size_t]
+    if hasattr(dll, 'm2_net_SetTCPRecvBufferSize'):
+        dll.m2_net_SetTCPRecvBufferSize.argtypes = [ctypes.c_size_t]
+    if hasattr(dll, 'm2_net_SetTCPSendBufferSize'):
+        dll.m2_net_SetTCPSendBufferSize.argtypes = [ctypes.c_size_t]
 
 dll.wndMgr_SetParent.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
 dll.wndMgr_SetParent.restype = ctypes.c_bool
@@ -649,10 +818,24 @@ dll.wndMgr_GetWidth.restype = ctypes.c_int32
 dll.wndMgr_GetHeight.argtypes = [ctypes.c_uint32]
 dll.wndMgr_GetHeight.restype = ctypes.c_int32
 
+_next_handle = 1000
+def _alloc_handle():
+    global _next_handle
+    _next_handle += 1
+    return _next_handle
+
 class WndMgrModuleMeta(type):
     def __getattr__(cls, name):
         if name.isupper():
-            return 0
+            return 1
+        if 'Position' in name or 'Pos' in name:
+            return lambda *a, **k: (0, 0)
+        if 'Rect' in name:
+            return lambda *a, **k: (0, 0, 0, 0)
+        if 'Size' in name:
+            return lambda *a, **k: (0, 0)
+        if name.startswith('Register'):
+            return lambda *a, **k: _alloc_handle()
         return lambda *args, **kwargs: 0
 
 class WndMgrModule(metaclass=WndMgrModuleMeta):
@@ -678,31 +861,116 @@ class WndMgrModule(metaclass=WndMgrModuleMeta):
 
     @classmethod
     def Register(cls, win, layer="UI"):
-        return dll.wndMgr_Register(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_Register'):
+            return dll.wndMgr_Register(h)
+        return _alloc_handle()
     @classmethod
     def RegisterImageBox(cls, win, layer="UI"):
-        return dll.wndMgr_RegisterImageBox(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterImageBox'):
+            return dll.wndMgr_RegisterImageBox(h)
+        return _alloc_handle()
     @classmethod
     def RegisterExpandedImageBox(cls, win, layer="UI"):
-        return dll.wndMgr_RegisterExpandedImageBox(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterExpandedImageBox'):
+            return dll.wndMgr_RegisterExpandedImageBox(h)
+        return _alloc_handle()
     @classmethod
     def RegisterTextLine(cls, win, layer="UI"):
-        return dll.wndMgr_RegisterTextLine(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterTextLine'):
+            return dll.wndMgr_RegisterTextLine(h)
+        return _alloc_handle()
     @classmethod
     def RegisterButton(cls, win, layer="UI"):
-        return dll.wndMgr_RegisterButton(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterButton'):
+            return dll.wndMgr_RegisterButton(h)
+        return _alloc_handle()
     @classmethod
     def RegisterBar(cls, win, layer="UI"):
-        return dll.wndMgr_RegisterBar(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterBar'):
+            return dll.wndMgr_RegisterBar(h)
+        return _alloc_handle()
     @classmethod
     def RegisterLine(cls, win, layer="UI"):
-        return dll.wndMgr_RegisterLine(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterLine'):
+            return dll.wndMgr_RegisterLine(h)
+        return _alloc_handle()
     @classmethod
     def RegisterBox(cls, win, layer="UI"):
-        return dll.wndMgr_RegisterBox(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterBox'):
+            return dll.wndMgr_RegisterBox(h)
+        return _alloc_handle()
     @classmethod
     def RegisterWindow(cls, win, layer="UI"):
-        return dll.wndMgr_Register(0)
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_Register'):
+            return dll.wndMgr_Register(h)
+        return _alloc_handle()
+    @classmethod
+    def RegisterSlotWindow(cls, win, layer="UI"):
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterSlotWindow'):
+            return dll.wndMgr_RegisterSlotWindow(h)
+        return _alloc_handle()
+    @classmethod
+    def RegisterGridSlotWindow(cls, win, layer="UI"):
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterGridSlotWindow'):
+            return dll.wndMgr_RegisterGridSlotWindow(h)
+        return _alloc_handle()
+    @classmethod
+    def RegisterMarkBox(cls, win, layer="UI"):
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterMarkBox'):
+            return dll.wndMgr_RegisterMarkBox(h)
+        return _alloc_handle()
+    @classmethod
+    def RegisterAniImageBox(cls, win, layer="UI"):
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterAniImageBox'):
+            return dll.wndMgr_RegisterAniImageBox(h)
+        return _alloc_handle()
+    @classmethod
+    def RegisterRadioButton(cls, win, layer="UI"):
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterRadioButton'):
+            return dll.wndMgr_RegisterRadioButton(h)
+        return _alloc_handle()
+    @classmethod
+    def RegisterToggleButton(cls, win, layer="UI"):
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterToggleButton'):
+            return dll.wndMgr_RegisterToggleButton(h)
+        return _alloc_handle()
+    @classmethod
+    def RegisterDragButton(cls, win, layer="UI"):
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'wndMgr_RegisterDragButton'):
+            return dll.wndMgr_RegisterDragButton(h)
+        return _alloc_handle()
 
     @staticmethod
     def SetParent(child, parent):
@@ -745,7 +1013,46 @@ class WndMgrModule(metaclass=WndMgrModuleMeta):
         return dll.wndMgr_SetScale(int(handle), float(sx), float(sy))
     @staticmethod
     def SetText(handle, text):
+        _window_texts[int(handle)] = str(text)
         return dll.wndMgr_SetText(int(handle), str(text).encode('utf-8'))
+    @staticmethod
+    def GetText(handle):
+        if dll and hasattr(dll, 'wndMgr_GetText'):
+            buf = ctypes.create_string_buffer(512)
+            res = dll.wndMgr_GetText(int(handle), buf, 512)
+            if res > 0:
+                return buf.value.decode('utf-8', errors='ignore')
+        return _window_texts.get(int(handle), '')
+    @staticmethod
+    def GetLocalPosition(handle):
+        x = ctypes.c_int32(0)
+        y = ctypes.c_int32(0)
+        if dll and hasattr(dll, 'wndMgr_GetLocalPosition'):
+            try:
+                dll.wndMgr_GetLocalPosition(int(handle), ctypes.byref(x), ctypes.byref(y))
+                return (x.value, y.value)
+            except Exception: pass
+        return (0, 0)
+    @staticmethod
+    def GetWindowLocalPosition(handle):
+        return WndMgrModule.GetLocalPosition(handle)
+    @staticmethod
+    def GetWindowGlobalPosition(handle):
+        return WndMgrModule.GetLocalPosition(handle)
+    @staticmethod
+    def GetMousePosition(): return (0, 0)
+    @staticmethod
+    def GetMouseLocalPosition(handle): return (0, 0)
+    @staticmethod
+    def GetTextSize(handle): return (0, 0)
+    @staticmethod
+    def GetName(handle): return ''
+    @staticmethod
+    def IsFocus(handle): return False
+    @staticmethod
+    def IsDown(handle): return False
+    @staticmethod
+    def IsIn(handle): return False
     @staticmethod
     def SetColor(handle, color, *args):
         if isinstance(color, int):
@@ -846,14 +1153,211 @@ class NetModuleMeta(type):
         return lambda *args, **kwargs: 0
 
 class NetModule(metaclass=NetModuleMeta):
+    PHASE_WINDOW_LOGO = 0
+    PHASE_WINDOW_LOGIN = 1
+    PHASE_WINDOW_SELECT = 2
+    PHASE_WINDOW_CREATE = 3
+    PHASE_WINDOW_LOAD = 4
+    PHASE_WINDOW_GAME = 5
+    PHASE_WINDOW_EMPIRE = 6
+    ACCOUNT_CHARACTER_SLOT_ID = 0
+    ACCOUNT_CHARACTER_SLOT_NAME = 1
+    ACCOUNT_CHARACTER_SLOT_RACE = 2
+    ACCOUNT_CHARACTER_SLOT_LEVEL = 3
+    ACCOUNT_CHARACTER_SLOT_STR = 4
+    ACCOUNT_CHARACTER_SLOT_DEX = 5
+    ACCOUNT_CHARACTER_SLOT_HTH = 6
+    ACCOUNT_CHARACTER_SLOT_INT = 7
+    ACCOUNT_CHARACTER_SLOT_PLAYTIME = 8
+    ACCOUNT_CHARACTER_SLOT_FORM = 9
+    ACCOUNT_CHARACTER_SLOT_ADDR = 10
+    ACCOUNT_CHARACTER_SLOT_PORT = 11
+    ACCOUNT_CHARACTER_SLOT_GUILD_ID = 12
+    ACCOUNT_CHARACTER_SLOT_GUILD_NAME = 13
+    ACCOUNT_CHARACTER_SLOT_CHANGE_NAME_FLAG = 14
+    ACCOUNT_CHARACTER_SLOT_HAIR = 15
+    EMPIRE_A = 1
+    EMPIRE_B = 2
+    EMPIRE_C = 3
+    ERROR_NONE = 0
+
     @staticmethod
     def Connect(ip, port):
+        if dll and hasattr(dll, 'm2_net_Connect'):
+            return dll.m2_net_Connect(str(ip).encode('utf-8'), int(port))
         return True
     @staticmethod
     def SetPhaseWindow(phase, win):
-        print(f"[NET] Faza gry przelaczona na: {phase}")
+        h = id(win) if win else 0
+        if win and h: _py_windows[h] = win
+        if dll and hasattr(dll, 'm2_net_SetPhaseWindow'):
+            dll.m2_net_SetPhaseWindow(int(phase), h)
+    @staticmethod
+    def ClearPhaseWindow(phase, win):
+        h = id(win) if win else 0
+        if win and h: _py_windows.pop(h, None)
+        if dll and hasattr(dll, 'm2_net_ClearPhaseWindow'):
+            dll.m2_net_ClearPhaseWindow(int(phase), h)
+    @staticmethod
+    def SetAccountConnectorHandler(handler):
+        h = id(handler) if handler else 0
+        if handler and h: _py_windows[h] = handler
+        if dll and hasattr(dll, 'm2_net_SetAccountConnectorHandler'):
+            dll.m2_net_SetAccountConnectorHandler(h)
+    @staticmethod
+    def SetHandler(handler):
+        h = id(handler) if handler else 0
+        if handler and h: _py_windows[h] = handler
+        if dll and hasattr(dll, 'm2_net_SetHandler'):
+            dll.m2_net_SetHandler(h)
+    @staticmethod
+    def ConnectToAccountServer(addr, port, acc_addr, acc_port):
+        if dll and hasattr(dll, 'm2_net_ConnectToAccountServer'):
+            return dll.m2_net_ConnectToAccountServer(str(addr).encode('utf-8'), int(port), str(acc_addr).encode('utf-8'), int(acc_port))
+        return True
+    @staticmethod
+    def SetLoginInfo(name, pwd):
+        if dll and hasattr(dll, 'm2_net_SetLoginInfo'):
+            dll.m2_net_SetLoginInfo(str(name).encode('utf-8'), str(pwd).encode('utf-8'))
+    @staticmethod
+    def GetAccountCharacterSlotDataInteger(slot, data_type):
+        if dll and hasattr(dll, 'm2_net_GetAccountCharacterSlotDataInteger'):
+            return dll.m2_net_GetAccountCharacterSlotDataInteger(int(slot), int(data_type))
+        return 0
+    @staticmethod
+    def GetAccountCharacterSlotDataString(slot, data_type):
+        if dll and hasattr(dll, 'm2_net_GetAccountCharacterSlotDataString'):
+            buf = ctypes.create_string_buffer(256)
+            dll.m2_net_GetAccountCharacterSlotDataString(int(slot), int(data_type), buf, 256)
+            return buf.value.decode('utf-8', errors='ignore')
+        return ""
+    @staticmethod
+    def GetEmpireID():
+        if dll and hasattr(dll, 'm2_net_GetEmpireID'):
+            return dll.m2_net_GetEmpireID()
+        return 1
+    @staticmethod
+    def SetEmpireLanguageMode(m): pass
+    @staticmethod
+    def SetServerInfo(info): pass
+    @staticmethod
+    def SetMarkServer(addr, port): pass
+    @staticmethod
+    def ToggleGameDebugInfo(): pass
+    @staticmethod
+    def IsInsultIn(s): return False
 
 sys.modules['net'] = NetModule
+
+class IMEModuleMeta(type):
+    def __getattr__(cls, name):
+        if name.isupper():
+            return 1
+        return lambda *args, **kwargs: 0
+
+class IMEModule(metaclass=IMEModuleMeta):
+    _text = ""
+    _max = 30
+    _user_max = 30
+    _cursor = 0
+    _secret = False
+
+    @classmethod
+    def SetText(cls, text):
+        cls._text = str(text) if text else ""
+        cls._cursor = len(cls._text)
+    @classmethod
+    def GetText(cls, secret=False):
+        if secret or cls._secret:
+            return "*" * len(cls._text)
+        return cls._text
+    @classmethod
+    def GetCodePage(cls): return 1250
+    @classmethod
+    def SetMax(cls, m): cls._max = int(m)
+    @classmethod
+    def SetUserMax(cls, m): cls._user_max = int(m)
+    @classmethod
+    def SetCursorPosition(cls, pos):
+        if pos < 0: cls._cursor = len(cls._text)
+        else: cls._cursor = min(len(cls._text), max(0, int(pos)))
+    @classmethod
+    def SetNumberMode(cls): pass
+    @classmethod
+    def SetStringMode(cls): pass
+    @classmethod
+    def SetSecretMode(cls, flag): cls._secret = bool(flag)
+    @classmethod
+    def EnableCaptureInput(cls): pass
+    @classmethod
+    def DisableCaptureInput(cls): pass
+    @classmethod
+    def EnableIME(cls): pass
+    @classmethod
+    def DisableIME(cls): pass
+    @classmethod
+    def AddExceptKey(cls, key): pass
+    @classmethod
+    def ClearExceptKey(cls): pass
+    @classmethod
+    def MoveEnd(cls): cls._cursor = len(cls._text)
+    @classmethod
+    def MoveHome(cls): cls._cursor = 0
+    @classmethod
+    def MoveLeft(cls): cls._cursor = max(0, cls._cursor - 1)
+    @classmethod
+    def MoveRight(cls): cls._cursor = min(len(cls._text), cls._cursor + 1)
+    @classmethod
+    def GetReading(cls): return ""
+    @classmethod
+    def GetReadingError(cls): return 0
+    @classmethod
+    def GetCandidate(cls, idx): return ""
+    @classmethod
+    def GetCandidateCount(cls): return 0
+    @classmethod
+    def GetCandidateSelection(cls): return 0
+
+sys.modules['ime'] = IMEModule
+sys.modules['IME'] = IMEModule
+
+class SndModuleMeta(type):
+    def __getattr__(cls, name):
+        if name.isupper():
+            return 1
+        return lambda *args, **kwargs: 0
+
+class SndModule(metaclass=SndModuleMeta):
+    @staticmethod
+    def PlaySound(filename): return True
+    @staticmethod
+    def PlaySound3D(filename, x=0, y=0, z=0): return True
+    @staticmethod
+    def PlayBGM(filename): return True
+    @staticmethod
+    def StopBGM(): return True
+    @staticmethod
+    def SetSoundVolume(vol): pass
+    @staticmethod
+    def SetBGMVolume(vol): pass
+    @staticmethod
+    def SetMusicVolume(vol): pass
+    @staticmethod
+    def SetMasterVolume(vol): pass
+    @staticmethod
+    def FadeInMusic(filename): pass
+    @staticmethod
+    def FadeOutMusic(): pass
+    @staticmethod
+    def FadeOutAllMusic(): pass
+    @staticmethod
+    def FadeLimitOutMusic(): pass
+    @staticmethod
+    def StopAllSound(): pass
+
+sys.modules['snd'] = SndModule
+sys.modules['Snd'] = SndModule
+
 
 class DynamicModuleMeta(type):
     def __getattr__(cls, name):
@@ -867,10 +1371,10 @@ class DynamicModule(metaclass=DynamicModuleMeta):
     pass
 
 for m in [
-    'player', 'Player', 'item', 'Item', 'chr', 'chrmgr', 'snd', 'Snd',
+    'player', 'Player', 'item', 'Item', 'chr', 'chrmgr',
     'guild', 'Guild', 'nonplayer', 'NonPlayer', 'quest', 'Quest',
     'safebox', 'Safebox', 'shop', 'Shop', 'skill', 'Skill',
-    'target', 'Target', 'event', 'Event', 'ime', 'IME',
+    'target', 'Target', 'event', 'Event',
     'miniMap', 'MiniMap', 'profiler', 'Profiler',
     'background', 'Background', 'trade', 'Trade', 'chat', 'Chat',
     'textTail', 'TextTail', 'effect', 'Effect', 'fly', 'Fly',
@@ -894,8 +1398,21 @@ if system_py_data:
     print("[+] system.py wykonany pomyslnie!")
 "#).unwrap();
 
+            let py_err_sym = GetProcAddress(py_dll, CString::new("PyErr_Print").unwrap().as_ptr());
+            let py_err: Option<extern "C" fn()> = if !py_err_sym.is_null() {
+                Some(std::mem::transmute(py_err_sym))
+            } else {
+                None
+            };
+
             println!("[+] Mostek Pythona 3.14 zainicjalizowany, uruchamianie system.py...");
-            py_run(py_code.as_ptr());
+            let ret = py_run(py_code.as_ptr());
+            if ret != 0 {
+                println!("[-] Blad podczas wykonywania py_code (kod: {})", ret);
+                if let Some(err_fn) = py_err {
+                    err_fn();
+                }
+            }
 
             // Wstrzykujemy pelne, natywne moduly C-API Pythona (player, chr, net, item, ui itp.)
             if let Err(e) = crate::py_bootstrap_runtime_injector::inject_runtime_modules() {

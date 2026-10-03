@@ -14,11 +14,12 @@ pub struct TPacketCGAttack {
     pub length: u16,
     pub b_type: u8,
     pub dw_victim_vid: u32,
-    pub dw_crc_hash: u32,
+    pub b_crc_magic_cube_proc_piece: u8,
+    pub b_crc_magic_cube_file_piece: u8,
 }
 
-// Pakiet użycia skilla (według specyfikacji: header 0x0403)
-pub const HEADER_CG_USE_SKILL: u16 = 0x0403;
+// Pakiet użycia skilla (według specyfikacji: header 0x0402)
+pub const HEADER_CG_USE_SKILL: u16 = 0x0402;
 
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,8 +30,8 @@ pub struct TPacketCGUseSkill {
     pub dw_target_vid: u32,
 }
 
-// Pakiet strzału z luku (według specyfikacji: header 0x0405)
-pub const HEADER_CG_SHOOT: u16 = 0x0405;
+// Pakiet strzału z luku (według specyfikacji: header 0x0403)
+pub const HEADER_CG_SHOOT: u16 = 0x0403;
 
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,10 +67,11 @@ pub extern "C" fn m2_combat_skill_send_attack(
 
     let packet = TPacketCGAttack {
         header: HEADER_CG_ATTACK,
-        length: size_of::<TPacketCGAttack>() as u16, // = 13 bytes according to spec layout (2+2+1+4+4)
+        length: size_of::<TPacketCGAttack>() as u16, // = 11 bytes according to spec layout (2+2+1+4+1+1)
         b_type,
         dw_victim_vid: victim_vid,
-        dw_crc_hash: crc_hash,
+        b_crc_magic_cube_proc_piece: (crc_hash & 0xFF) as u8,
+        b_crc_magic_cube_file_piece: ((crc_hash >> 8) & 0xFF) as u8,
     };
 
     let packet_size = size_of::<TPacketCGAttack>();
