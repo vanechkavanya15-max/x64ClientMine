@@ -474,3 +474,4 @@ pub mod full_grn_anim_12;
 pub mod granny_vertex_weights_extractor;
 pub mod full_map_stream_11;
 pub mod rodio_audio_device_init;
+pub mod audio_voice_pool_manager;
