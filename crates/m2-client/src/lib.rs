@@ -489,3 +489,5 @@ pub mod engine_headless_simulator;
 pub mod full_3d_pipe_01;
 pub mod actor_vocal_sound_trigger;
 pub mod input_char_composition_handler;
+pub mod full_ui_adv_12;
+pub mod ui_item_tooltip_builder;
