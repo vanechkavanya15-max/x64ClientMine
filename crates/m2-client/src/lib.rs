@@ -467,3 +467,5 @@ pub mod ui_scissor_clip_rect;
 pub mod syslog_structured_logger;
 pub mod window_display_mode_switcher;
 pub mod weapon_trace_quad_generator;
+pub mod full_grn_anim_11;
+pub mod granny_bitknit_decompressor;
