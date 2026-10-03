@@ -60,6 +60,37 @@ pub unsafe fn get_py_func(name: &str) -> *mut c_void {
     }
 }
 
+pub struct GilGuard {
+    gstate: i32,
+    release_fn: Option<extern "C" fn(i32)>,
+}
+
+impl Drop for GilGuard {
+    fn drop(&mut self) {
+        if let Some(rf) = self.release_fn {
+            rf(self.gstate);
+        }
+    }
+}
+
+pub unsafe fn acquire_gil() -> GilGuard {
+    let py_gil_ensure = get_py_func("PyGILState_Ensure");
+    let py_gil_release = get_py_func("PyGILState_Release");
+    if !py_gil_ensure.is_null() && !py_gil_release.is_null() {
+        let ensure_fn: extern "C" fn() -> i32 = std::mem::transmute(py_gil_ensure);
+        let release_fn: extern "C" fn(i32) = std::mem::transmute(py_gil_release);
+        let gstate = ensure_fn();
+        GilGuard {
+            gstate,
+            release_fn: Some(release_fn),
+        }
+    } else {
+        GilGuard {
+            gstate: 0,
+            release_fn: None,
+        }
+    }
+}
 
 pub fn is_mock_mode() -> bool {
     unsafe { pyo3::ffi::Py_IsInitialized() == 0 }
@@ -349,7 +380,7 @@ pub extern "C" fn m2_set_py_mod_dispatcher_1_str(cb: PyModCallback1Str) {
 }
 
 pub fn call_python_object_method0(py_obj: usize, method: &str) -> bool {
-    if py_obj == 0 {
+    if py_obj < 0x10000 || py_obj % 8 != 0 {
         return false;
     }
     let ptr = GLOBAL_PY_DISPATCHER_0.load(std::sync::atomic::Ordering::SeqCst);
@@ -367,6 +398,7 @@ pub fn call_python_object_method0(py_obj: usize, method: &str) -> bool {
     }
 
     unsafe {
+        let _gil = acquire_gil();
         let py_object_hasattrstring = get_py_func("PyObject_HasAttrString");
         let py_object_getattrstring = get_py_func("PyObject_GetAttrString");
         let py_object_callobject = get_py_func("PyObject_CallObject");

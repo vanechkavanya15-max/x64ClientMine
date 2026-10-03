@@ -1,7 +1,7 @@
 // py_bridge_wndmgr.rs - Complete Python bridge for wndMgr module in Metin2 Pure Rust
 use crate::ui_window_core::WindowType;
 use crate::ui_window_mgr::get_window_manager;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use crate::py_bridge_app::{m2_app_set_resolution, m2_app_get_width, m2_app_get_height};
 use crate::ui_font_renderer::get_global_font_atlas;
@@ -365,6 +365,45 @@ pub extern "C" fn wndMgr_Lock(_handle: u32) {}
 
 #[no_mangle]
 pub extern "C" fn wndMgr_Unlock(_handle: u32) {}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetName(handle: u32) -> *const c_char {
+    static EMPTY: &[u8] = b"\0";
+    let wm = get_window_manager();
+    if let Some(win) = wm.windows.get(&handle) {
+        if let Ok(c) = CString::new(win.name.as_str()) {
+            return c.into_raw();
+        }
+    }
+    EMPTY.as_ptr() as *const c_char
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_GetChildCount(handle: u32) -> i32 {
+    let wm = get_window_manager();
+    if let Some(win) = wm.windows.get(&handle) {
+        win.children.len() as i32
+    } else {
+        0
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_IsIn(handle: u32) -> bool {
+    let wm = get_window_manager();
+    if let Some(win) = wm.windows.get(&handle) {
+        let rect = win.calc_global_rect(None, m2_app_get_width() as i32, m2_app_get_height() as i32);
+        let (mx, my) = (0, 0);
+        mx >= rect[0] && mx < rect[0] + rect[2] && my >= rect[1] && my < rect[1] + rect[3]
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_IsPickedWindow(_handle: u32) -> bool {
+    false
+}
 
 // (replaced by real implementation in specialized module)
 
