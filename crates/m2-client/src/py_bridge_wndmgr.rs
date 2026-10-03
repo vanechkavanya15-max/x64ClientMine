@@ -3,6 +3,8 @@ use crate::ui_window_core::WindowType;
 use crate::ui_window_mgr::get_window_manager;
 use std::ffi::CStr;
 use std::os::raw::c_char;
+use crate::py_bridge_app::{m2_app_set_resolution, m2_app_get_width, m2_app_get_height};
+use crate::ui_font_renderer::get_global_font_atlas;
 
 fn cstr_to_str<'a>(ptr: *const c_char) -> &'a str {
     if ptr.is_null() {
@@ -228,13 +230,19 @@ pub extern "C" fn wndMgr_SetMouseHandler(po_handler: usize) {
 }
 
 #[no_mangle]
-pub extern "C" fn wndMgr_SetScreenSize(_w: i32, _h: i32) {}
+pub extern "C" fn wndMgr_SetScreenSize(w: i32, h: i32) {
+    m2_app_set_resolution(w as u32, h as u32);
+}
 
 #[no_mangle]
-pub extern "C" fn wndMgr_GetScreenWidth() -> i32 { 1024 }
+pub extern "C" fn wndMgr_GetScreenWidth() -> i32 {
+    m2_app_get_width() as i32
+}
 
 #[no_mangle]
-pub extern "C" fn wndMgr_GetScreenHeight() -> i32 { 768 }
+pub extern "C" fn wndMgr_GetScreenHeight() -> i32 {
+    m2_app_get_height() as i32
+}
 
 #[no_mangle]
 pub extern "C" fn wndMgr_SetWindowPosition(handle: u32, x: i32, y: i32) -> bool {
@@ -265,7 +273,7 @@ pub extern "C" fn wndMgr_GetWindowLocalPosition(handle: u32, out_x: *mut i32, ou
 pub extern "C" fn wndMgr_GetWindowGlobalPosition(handle: u32, out_x: *mut i32, out_y: *mut i32) {
     let wm = get_window_manager();
     if let Some(win) = wm.windows.get(&handle) {
-        let rect = win.calc_global_rect(None, 1024, 768);
+        let rect = win.calc_global_rect(None, m2_app_get_width() as i32, m2_app_get_height() as i32);
         unsafe {
             if !out_x.is_null() { *out_x = rect[0]; }
             if !out_y.is_null() { *out_y = rect[1]; }
@@ -277,7 +285,7 @@ pub extern "C" fn wndMgr_GetWindowGlobalPosition(handle: u32, out_x: *mut i32, o
 pub extern "C" fn wndMgr_GetMouseLocalPosition(handle: u32, out_x: *mut i32, out_y: *mut i32) {
     let wm = get_window_manager();
     if let Some(win) = wm.windows.get(&handle) {
-        let rect = win.calc_global_rect(None, 1024, 768);
+        let rect = win.calc_global_rect(None, m2_app_get_width() as i32, m2_app_get_height() as i32);
         unsafe {
             if !out_x.is_null() { *out_x = 0 - rect[0]; }
             if !out_y.is_null() { *out_y = 0 - rect[1]; }
@@ -289,7 +297,7 @@ pub extern "C" fn wndMgr_GetMouseLocalPosition(handle: u32, out_x: *mut i32, out
 pub extern "C" fn wndMgr_GetWindowRect(handle: u32, out_l: *mut i32, out_t: *mut i32, out_r: *mut i32, out_b: *mut i32) {
     let wm = get_window_manager();
     if let Some(win) = wm.windows.get(&handle) {
-        let rect = win.calc_global_rect(None, 1024, 768);
+        let rect = win.calc_global_rect(None, m2_app_get_width() as i32, m2_app_get_height() as i32);
         unsafe {
             if !out_l.is_null() { *out_l = rect[0]; }
             if !out_t.is_null() { *out_t = rect[1]; }
@@ -403,9 +411,12 @@ pub extern "C" fn wndMgr_SetFontName(_handle: u32, _name: *const c_char) {}
 #[no_mangle]
 pub extern "C" fn wndMgr_GetTextSize(handle: u32, out_w: *mut i32, out_h: *mut i32) {
     if let Some(win) = get_window_manager().windows.get(&handle) {
+        let font = get_global_font_atlas();
+        let text_w = font.measure_text_width(&win.text) as i32;
+        let text_h = font.line_height as i32;
         unsafe {
-            if !out_w.is_null() { *out_w = (win.text.len() * 7) as i32; }
-            if !out_h.is_null() { *out_h = 16; }
+            if !out_w.is_null() { *out_w = text_w; }
+            if !out_h.is_null() { *out_h = text_h; }
         }
     }
 }

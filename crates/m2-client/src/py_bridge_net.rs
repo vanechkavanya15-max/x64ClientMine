@@ -12,6 +12,52 @@ use crate::send_movement_packets_v2::m2_send_move;
 use crate::secure_cipher::SecureCipher;
 use crate::py_event_dispatcher::{call_python_object_method0, call_python_object_method1_str};
 
+const CHARACTER_NAME_MAX_LEN: usize = 24;
+const PRIVATE_CODE_LENGTH: usize = 8;
+
+const CG_CHANGE_NAME: u16 = 0x010B;
+const CG_CHARACTER_CREATE: u16 = 0x0201;
+const CG_CHARACTER_DELETE: u16 = 0x0202;
+const CG_ON_CLICK: u16 = 0x0A02;
+
+#[repr(C, packed)]
+struct TPacketCGChangeName {
+    pub header: u16,
+    pub length: u16,
+    pub index: u8,
+    pub name: [u8; CHARACTER_NAME_MAX_LEN + 1],
+}
+
+#[repr(C, packed)]
+struct TPacketCGCreateCharacter {
+    pub header: u16,
+    pub length: u16,
+    pub index: u8,
+    pub name: [u8; CHARACTER_NAME_MAX_LEN + 1],
+    pub job: u16,
+    pub shape: u8,
+    pub con: u8,
+    pub int_: u8,
+    pub str_: u8,
+    pub dex: u8,
+}
+
+#[repr(C, packed)]
+struct TPacketCGDestroyCharacter {
+    pub header: u16,
+    pub length: u16,
+    pub index: u8,
+    pub sz_private_code: [u8; PRIVATE_CODE_LENGTH],
+}
+
+#[repr(C, packed)]
+struct TPacketCGOnClick {
+    pub header: u16,
+    pub length: u16,
+    pub vid: u32,
+}
+
+
 // ----------------------------------------------------------------------------
 // Stale faz okien (zgodne 1:1 z CPythonNetworkStream::PHASE_WINDOW_*)
 // ----------------------------------------------------------------------------
@@ -755,9 +801,38 @@ pub extern "C" fn m2_net_SendChangeNamePacket(slot: u8, name: *const c_char) -> 
     if name.is_null() {
         return false;
     }
-    let u_name = unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() };
-    println!("[NET] SendChangeNamePacket(slot={}, name='{}')", slot, u_name);
-    true
+    
+    let mut packet = TPacketCGChangeName {
+        header: CG_CHANGE_NAME,
+        length: std::mem::size_of::<TPacketCGChangeName>() as u16,
+        index: slot,
+        name: [0; CHARACTER_NAME_MAX_LEN + 1],
+    };
+    
+    let name_bytes = unsafe { CStr::from_ptr(name).to_bytes() };
+    if name_bytes.len() > CHARACTER_NAME_MAX_LEN {
+        return false;
+    }
+    let copy_len = std::cmp::min(name_bytes.len(), CHARACTER_NAME_MAX_LEN);
+    packet.name[..copy_len].copy_from_slice(&name_bytes[..copy_len]);
+
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut enc_buf = vec![0u8; std::mem::size_of::<TPacketCGChangeName>()];
+            let pkt_bytes = unsafe {
+                std::slice::from_raw_parts(
+                    &packet as *const _ as *const u8,
+                    std::mem::size_of::<TPacketCGChangeName>(),
+                )
+            };
+            enc_buf.copy_from_slice(pkt_bytes);
+            cipher.encrypt_in_place(&mut enc_buf);
+            if stream.write_all(&enc_buf).is_ok() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[no_mangle]
@@ -774,10 +849,44 @@ pub extern "C" fn m2_net_SendCreateCharacterPacket(
     if name.is_null() {
         return false;
     }
-    let u_name = unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() };
-    println!("[NET] SendCreateCharacterPacket(slot={}, name='{}', job={}, shape={}, con={}, int={}, str={}, dex={})",
-        slot, u_name, job, shape, con, int_, str_, dex);
-    true
+    
+    let mut packet = TPacketCGCreateCharacter {
+        header: CG_CHARACTER_CREATE,
+        length: std::mem::size_of::<TPacketCGCreateCharacter>() as u16,
+        index: slot,
+        name: [0; CHARACTER_NAME_MAX_LEN + 1],
+        job: job as u16,
+        shape,
+        con,
+        int_,
+        str_,
+        dex,
+    };
+    
+    let name_bytes = unsafe { CStr::from_ptr(name).to_bytes() };
+    if name_bytes.len() > CHARACTER_NAME_MAX_LEN {
+        return false;
+    }
+    let copy_len = std::cmp::min(name_bytes.len(), CHARACTER_NAME_MAX_LEN);
+    packet.name[..copy_len].copy_from_slice(&name_bytes[..copy_len]);
+
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut enc_buf = vec![0u8; std::mem::size_of::<TPacketCGCreateCharacter>()];
+            let pkt_bytes = unsafe {
+                std::slice::from_raw_parts(
+                    &packet as *const _ as *const u8,
+                    std::mem::size_of::<TPacketCGCreateCharacter>(),
+                )
+            };
+            enc_buf.copy_from_slice(pkt_bytes);
+            cipher.encrypt_in_place(&mut enc_buf);
+            if stream.write_all(&enc_buf).is_ok() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[no_mangle]
@@ -785,9 +894,38 @@ pub extern "C" fn m2_net_SendDestroyCharacterPacket(slot: u8, code: *const c_cha
     if code.is_null() {
         return false;
     }
-    let u_code = unsafe { CStr::from_ptr(code).to_string_lossy().into_owned() };
-    println!("[NET] SendDestroyCharacterPacket(slot={}, code='{}')", slot, u_code);
-    true
+    
+    let mut packet = TPacketCGDestroyCharacter {
+        header: CG_CHARACTER_DELETE,
+        length: std::mem::size_of::<TPacketCGDestroyCharacter>() as u16,
+        index: slot,
+        sz_private_code: [0; PRIVATE_CODE_LENGTH],
+    };
+    
+    let code_bytes = unsafe { CStr::from_ptr(code).to_bytes() };
+    if code_bytes.len() >= PRIVATE_CODE_LENGTH {
+        return false;
+    }
+    let copy_len = std::cmp::min(code_bytes.len(), PRIVATE_CODE_LENGTH - 1);
+    packet.sz_private_code[..copy_len].copy_from_slice(&code_bytes[..copy_len]);
+
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut enc_buf = vec![0u8; std::mem::size_of::<TPacketCGDestroyCharacter>()];
+            let pkt_bytes = unsafe {
+                std::slice::from_raw_parts(
+                    &packet as *const _ as *const u8,
+                    std::mem::size_of::<TPacketCGDestroyCharacter>(),
+                )
+            };
+            enc_buf.copy_from_slice(pkt_bytes);
+            cipher.encrypt_in_place(&mut enc_buf);
+            if stream.write_all(&enc_buf).is_ok() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[no_mangle]
@@ -804,8 +942,29 @@ pub extern "C" fn m2_net_SendExchangeStartPacket(vid: u32) -> bool {
 
 #[no_mangle]
 pub extern "C" fn m2_net_SendOnClickPacket(vid: u32) -> bool {
-    println!("[NET] SendOnClickPacket(vid={})", vid);
-    true
+    let packet = TPacketCGOnClick {
+        header: CG_ON_CLICK,
+        length: std::mem::size_of::<TPacketCGOnClick>() as u16,
+        vid,
+    };
+    
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut enc_buf = vec![0u8; std::mem::size_of::<TPacketCGOnClick>()];
+            let pkt_bytes = unsafe {
+                std::slice::from_raw_parts(
+                    &packet as *const _ as *const u8,
+                    std::mem::size_of::<TPacketCGOnClick>(),
+                )
+            };
+            enc_buf.copy_from_slice(pkt_bytes);
+            cipher.encrypt_in_place(&mut enc_buf);
+            if stream.write_all(&enc_buf).is_ok() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 // ----------------------------------------------------------------------------
