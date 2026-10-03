@@ -16,6 +16,8 @@ pub struct WindowManager {
     pub capture_window: Option<u32>,
     pub active_window: Option<u32>,
     pub mouse_handler: usize,
+    pub mouse_x: i32,
+    pub mouse_y: i32,
     pub is_attaching: bool,
     pub attaching_type: u32,
     pub attaching_index: u32,
@@ -38,6 +40,8 @@ impl WindowManager {
             capture_window: None,
             active_window: None,
             mouse_handler: 0,
+            mouse_x: 0,
+            mouse_y: 0,
             is_attaching: false,
             attaching_type: 0,
             attaching_index: 0,
@@ -262,6 +266,8 @@ impl WindowManager {
     }
 
     pub fn handle_mouse_move(&mut self, mx: i32, my: i32, screen_w: i32, screen_h: i32) {
+        self.mouse_x = mx;
+        self.mouse_y = my;
         let hovered = self.pick_window(mx, my, screen_w, screen_h);
         for win in self.windows.values_mut() {
             let is_h = hovered == Some(win.handle);
@@ -383,6 +389,69 @@ impl WindowManager {
         }
     }
 
+    pub fn handle_char(&mut self, c: char) {
+        if let Some(act) = self.active_window {
+            if let Some(win) = self.windows.get_mut(&act) {
+                if c == '\x08' {
+                    // Backspace
+                    win.text.pop();
+                    crate::py_event_dispatcher::dispatch_ime_backspace();
+                    if win.py_handler != 0 {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnIMEUpdate");
+                    }
+                } else if c == '\t' {
+                    if win.py_handler != 0 {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnIMETab");
+                    }
+                } else if c == '\r' || c == '\n' {
+                    if win.py_handler != 0 {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnIMEReturn");
+                    }
+                } else if c == '\x1b' {
+                    if win.py_handler != 0 {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnPressEscapeKey");
+                    }
+                } else if c >= ' ' {
+                    win.text.push(c);
+                    crate::py_event_dispatcher::dispatch_ime_char(c);
+                    if win.py_handler != 0 {
+                        crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnIMEUpdate");
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn handle_tab(&mut self) {
+        if let Some(act) = self.active_window {
+            if let Some(win) = self.windows.get(&act) {
+                if win.py_handler != 0 {
+                    crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnIMETab");
+                }
+            }
+        }
+    }
+
+    pub fn handle_return(&mut self) {
+        if let Some(act) = self.active_window {
+            if let Some(win) = self.windows.get(&act) {
+                if win.py_handler != 0 {
+                    crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnIMEReturn");
+                }
+            }
+        }
+    }
+
+    pub fn handle_escape(&mut self) {
+        if let Some(act) = self.active_window {
+            if let Some(win) = self.windows.get(&act) {
+                if win.py_handler != 0 {
+                    crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnPressEscapeKey");
+                }
+            }
+        }
+    }
+
     pub fn update_all_windows(&mut self) {
         let handlers: Vec<usize> = self.windows.values()
             .filter(|w| w.is_show && w.py_handler != 0 && w.parent.is_none())
@@ -394,6 +463,16 @@ impl WindowManager {
     }
 
     pub fn set_focus(&mut self, handle: u32) {
+        if self.active_window == Some(handle) {
+            return;
+        }
+        if let Some(old_h) = self.active_window {
+            if let Some(win) = self.windows.get(&old_h) {
+                if win.py_handler != 0 {
+                    crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnKillFocus");
+                }
+            }
+        }
         self.active_window = Some(handle);
         if let Some(win) = self.windows.get(&handle) {
             if win.py_handler != 0 {

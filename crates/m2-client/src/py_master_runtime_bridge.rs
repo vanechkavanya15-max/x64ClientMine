@@ -886,7 +886,88 @@ setattr(WndMgrModule, 'SetColor', staticmethod(_wrap_wndmgr_set_color))
 setattr(WndMgrModule, 'GetLocalPosition', staticmethod(lambda handle: (0, 0)))
 setattr(WndMgrModule, 'GetWindowLocalPosition', staticmethod(lambda handle: (0, 0)))
 setattr(WndMgrModule, 'GetWindowGlobalPosition', staticmethod(lambda handle: (0, 0)))
-setattr(WndMgrModule, 'GetMouseLocalPosition', staticmethod(lambda handle: (0, 0)))
+def _wrap_wndmgr_get_mouse_position():
+    fn = getattr(m2_lib, 'wndMgr_GetMousePosition', None)
+    if fn:
+        x = ctypes.c_int32(0)
+        y = ctypes.c_int32(0)
+        fn.argtypes = [ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)]
+        fn(ctypes.byref(x), ctypes.byref(y))
+        return (x.value, y.value)
+    return (0, 0)
+setattr(WndMgrModule, 'GetMousePosition', staticmethod(_wrap_wndmgr_get_mouse_position))
+
+def _wrap_wndmgr_get_mouse_local_position(handle):
+    fn = getattr(m2_lib, 'wndMgr_GetMouseLocalPosition', None)
+    if fn:
+        x = ctypes.c_int32(0)
+        y = ctypes.c_int32(0)
+        fn.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)]
+        fn(int(handle) if handle else 0, ctypes.byref(x), ctypes.byref(y))
+        return (x.value, y.value)
+    return (0, 0)
+setattr(WndMgrModule, 'GetMouseLocalPosition', staticmethod(_wrap_wndmgr_get_mouse_local_position))
+
+def _wrap_wndmgr_get_text(handle):
+    fn = getattr(m2_lib, 'wndMgr_GetText', None)
+    if fn:
+        buf = ctypes.create_string_buffer(1024)
+        fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t]
+        fn.restype = ctypes.c_size_t
+        fn(int(handle) if handle else 0, buf, 1024)
+        return buf.value.decode('utf-8', 'ignore')
+    return ""
+setattr(WndMgrModule, 'GetText', staticmethod(_wrap_wndmgr_get_text))
+
+def _wrap_wndmgr_get_text_size(handle):
+    fn = getattr(m2_lib, 'wndMgr_GetTextSize', None)
+    if fn:
+        w = ctypes.c_int32(0)
+        h = ctypes.c_int32(0)
+        fn.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)]
+        fn(int(handle) if handle else 0, ctypes.byref(w), ctypes.byref(h))
+        return (w.value, h.value)
+    return (0, 0)
+setattr(WndMgrModule, 'GetTextSize', staticmethod(_wrap_wndmgr_get_text_size))
+
+def _wrap_wndmgr_get_cursor_position(handle=0):
+    fn = getattr(m2_lib, 'wndMgr_GetCursorPosition', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint32]
+        fn.restype = ctypes.c_int32
+        return fn(int(handle) if handle else 0)
+    return 0
+setattr(WndMgrModule, 'GetCursorPosition', staticmethod(_wrap_wndmgr_get_cursor_position))
+
+setattr(WndMgrModule, 'ShowCursor', staticmethod(lambda *args: None))
+setattr(WndMgrModule, 'HideCursor', staticmethod(lambda *args: None))
+setattr(WndMgrModule, 'Enable', staticmethod(lambda handle: None))
+setattr(WndMgrModule, 'Disable', staticmethod(lambda handle: None))
+setattr(WndMgrModule, 'SetHorizontalAlign', staticmethod(lambda handle, align: getattr(WndMgrModule, 'SetWindowHorizontalAlign')(handle, align)))
+setattr(WndMgrModule, 'SetVerticalAlign', staticmethod(lambda handle, align: getattr(WndMgrModule, 'SetWindowVerticalAlign')(handle, align)))
+setattr(WndMgrModule, 'SetDiffuseColor', staticmethod(_wrap_wndmgr_set_color))
+setattr(WndMgrModule, 'SetNumber', staticmethod(lambda handle, num: getattr(WndMgrModule, 'SetText')(handle, str(num))))
+setattr(WndMgrModule, 'SetNumberHorizontalAlignCenter', staticmethod(lambda handle: None))
+setattr(WndMgrModule, 'SetNumberHorizontalAlignRight', staticmethod(lambda handle: None))
+setattr(WndMgrModule, 'RegisterNumberLine', staticmethod(lambda obj, layer=None: getattr(WndMgrModule, 'RegisterTextLine')(obj, layer)))
+setattr(WndMgrModule, 'IsDown', staticmethod(lambda handle: False))
+setattr(WndMgrModule, 'SetUp', staticmethod(lambda handle: None))
+setattr(WndMgrModule, 'Down', staticmethod(lambda handle: None))
+setattr(WndMgrModule, 'Flash', staticmethod(lambda handle: None))
+setattr(WndMgrModule, 'GetUpVisualFileName', staticmethod(lambda handle: ""))
+setattr(WndMgrModule, 'GetOverVisualFileName', staticmethod(lambda handle: ""))
+setattr(WndMgrModule, 'GetDownVisualFileName', staticmethod(lambda handle: ""))
+setattr(WndMgrModule, 'EnableScissorRect', staticmethod(lambda *args: None))
+setattr(WndMgrModule, 'DisableScissorRect', staticmethod(lambda *args: None))
+setattr(WndMgrModule, 'IsScissorRectEnabled', staticmethod(lambda handle: False))
+setattr(WndMgrModule, 'SetRestrictMovementArea', staticmethod(lambda *args: None))
+setattr(WndMgrModule, 'GetHyperlink', staticmethod(lambda: ""))
+setattr(WndMgrModule, 'RENDERING_MODE_MODULATE', 1)
+setattr(WndMgrModule, 'SetRenderingMode', staticmethod(lambda handle, mode: None))
+setattr(WndMgrModule, 'SetRotation', staticmethod(lambda handle, rot: None))
+setattr(WndMgrModule, 'SetOrigin', staticmethod(lambda handle, x, y: None))
+setattr(WndMgrModule, 'SetPath', staticmethod(lambda handle, path: None))
+setattr(WndMgrModule, 'SetDelay', staticmethod(lambda handle, delay: None))
 setattr(WndMgrModule, 'GetWindowRect', staticmethod(lambda handle: (0, 0, 1024, 768)))
 def _make_register_wrapper(orig_fn):
     def wrapper(obj, layer=None):
@@ -1248,7 +1329,21 @@ class IMEModule:
         cls._cursor = len(cls._text)
     @classmethod
     def GetText(cls, secret=False):
-        return ("*" * len(cls._text)) if (secret or cls._secret) else cls._text
+        return cls._text
+    @classmethod
+    def AppendChar(cls, ch):
+        if len(cls._text) < cls._max:
+            cls._text += str(ch)
+            cls._cursor = len(cls._text)
+    @classmethod
+    def Backspace(cls):
+        if cls._text:
+            cls._text = cls._text[:-1]
+            cls._cursor = len(cls._text)
+    @classmethod
+    def Delete(cls):
+        if cls._cursor < len(cls._text):
+            cls._text = cls._text[:cls._cursor] + cls._text[cls._cursor+1:]
     @classmethod
     def GetCodePage(cls): return 1250
     @classmethod
@@ -1297,6 +1392,40 @@ class IMEModule:
 
 sys.modules['ime'] = IMEModule
 sys.modules['IME'] = IMEModule
+
+IME_CHAR_CB = ctypes.CFUNCTYPE(None, ctypes.c_uint32)
+IME_BS_CB = ctypes.CFUNCTYPE(None)
+
+def _ime_append_cb(ch_code):
+    try:
+        IMEModule.AppendChar(chr(ch_code))
+    except Exception:
+        pass
+
+def _ime_bs_cb():
+    try:
+        IMEModule.Backspace()
+    except Exception:
+        pass
+
+_global_ime_char_cb = IME_CHAR_CB(_ime_append_cb)
+_global_ime_bs_cb = IME_BS_CB(_ime_bs_cb)
+
+fn_set_ime_char = getattr(m2_lib, 'm2_set_ime_char_dispatcher', None)
+if fn_set_ime_char:
+    try:
+        fn_set_ime_char.argtypes = [IME_CHAR_CB]
+        fn_set_ime_char(_global_ime_char_cb)
+    except Exception:
+        pass
+
+fn_set_ime_bs = getattr(m2_lib, 'm2_set_ime_backspace_dispatcher', None)
+if fn_set_ime_bs:
+    try:
+        fn_set_ime_bs.argtypes = [IME_BS_CB]
+        fn_set_ime_bs(_global_ime_bs_cb)
+    except Exception:
+        pass
 
 class ServerStateCheckerModule:
     @staticmethod

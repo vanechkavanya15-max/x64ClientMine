@@ -292,8 +292,13 @@ pub extern "C" fn wndMgr_GetMouseLocalPosition(handle: u32, out_x: *mut i32, out
     if let Some(win) = wm.windows.get(&handle) {
         let rect = win.calc_global_rect(None, m2_app_get_width() as i32, m2_app_get_height() as i32);
         unsafe {
-            if !out_x.is_null() { *out_x = 0 - rect[0]; }
-            if !out_y.is_null() { *out_y = 0 - rect[1]; }
+            if !out_x.is_null() { *out_x = wm.mouse_x - rect[0]; }
+            if !out_y.is_null() { *out_y = wm.mouse_y - rect[1]; }
+        }
+    } else {
+        unsafe {
+            if !out_x.is_null() { *out_x = 0; }
+            if !out_y.is_null() { *out_y = 0; }
         }
     }
 }
@@ -393,7 +398,7 @@ pub extern "C" fn wndMgr_IsIn(handle: u32) -> bool {
     let wm = get_window_manager();
     if let Some(win) = wm.windows.get(&handle) {
         let rect = win.calc_global_rect(None, m2_app_get_width() as i32, m2_app_get_height() as i32);
-        let (mx, my) = (0, 0);
+        let (mx, my) = (wm.mouse_x, wm.mouse_y);
         mx >= rect[0] && mx < rect[0] + rect[2] && my >= rect[1] && my < rect[1] + rect[3]
     } else {
         false
@@ -476,6 +481,28 @@ pub extern "C" fn wndMgr_GetText(handle: u32, out_buf: *mut c_char, max_len: usi
     }
 }
 
+#[no_mangle]
+pub extern "C" fn wndMgr_GetMousePosition(out_x: *mut i32, out_y: *mut i32) {
+    let wm = get_window_manager();
+    if !out_x.is_null() {
+        unsafe { *out_x = wm.mouse_x; }
+    }
+    if !out_y.is_null() {
+        unsafe { *out_y = wm.mouse_y; }
+    }
+}
 
+#[no_mangle]
+pub extern "C" fn wndMgr_GetCursorPosition(handle: u32) -> i32 {
+    if let Some(win) = get_window_manager().windows.get(&handle) {
+        win.text.len() as i32
+    } else {
+        0
+    }
+}
 
+#[no_mangle]
+pub extern "C" fn wndMgr_ShowCursor(_handle: u32) {}
 
+#[no_mangle]
+pub extern "C" fn wndMgr_HideCursor(_handle: u32) {}

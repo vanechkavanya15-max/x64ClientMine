@@ -379,6 +379,38 @@ pub extern "C" fn m2_set_py_mod_dispatcher_1_str(cb: PyModCallback1Str) {
     GLOBAL_PY_MOD_DISPATCHER_1_STR.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
 }
 
+pub type ImeCharCallback = extern "C" fn(u32);
+pub type ImeBsCallback = extern "C" fn();
+
+static GLOBAL_IME_CHAR_DISPATCHER: std::sync::atomic::AtomicPtr<()> = std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+static GLOBAL_IME_BS_DISPATCHER: std::sync::atomic::AtomicPtr<()> = std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+
+#[no_mangle]
+pub extern "C" fn m2_set_ime_char_dispatcher(cb: ImeCharCallback) {
+    GLOBAL_IME_CHAR_DISPATCHER.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
+}
+
+#[no_mangle]
+pub extern "C" fn m2_set_ime_backspace_dispatcher(cb: ImeBsCallback) {
+    GLOBAL_IME_BS_DISPATCHER.store(cb as *mut (), std::sync::atomic::Ordering::SeqCst);
+}
+
+pub fn dispatch_ime_char(c: char) {
+    let ptr = GLOBAL_IME_CHAR_DISPATCHER.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() {
+        let cb: ImeCharCallback = unsafe { std::mem::transmute(ptr) };
+        cb(c as u32);
+    }
+}
+
+pub fn dispatch_ime_backspace() {
+    let ptr = GLOBAL_IME_BS_DISPATCHER.load(std::sync::atomic::Ordering::SeqCst);
+    if !ptr.is_null() {
+        let cb: ImeBsCallback = unsafe { std::mem::transmute(ptr) };
+        cb();
+    }
+}
+
 pub fn call_python_object_method0(py_obj: usize, method: &str) -> bool {
     if py_obj < 0x10000 || py_obj % 8 != 0 {
         return false;

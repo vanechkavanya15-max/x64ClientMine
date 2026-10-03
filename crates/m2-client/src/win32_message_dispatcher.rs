@@ -216,6 +216,7 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
             match vk {
                 0x1B => { // VK_ESCAPE
                     let mut wm = crate::ui_window_mgr::get_window_manager();
+                    wm.handle_escape();
                     if phase == "GAME" {
                         crate::ui_bridge_ffi::handle_ui_click("HudBtnSystem", 0, &mut wm);
                     } else if phase == "SELECT" {
@@ -231,6 +232,7 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
                 }
                 0x0D => { // VK_RETURN
                     let mut wm = crate::ui_window_mgr::get_window_manager();
+                    wm.handle_return();
                     if phase == "SELECT" {
                         crate::ui_bridge_ffi::handle_ui_click("SelectStartButton", 0, &mut wm);
                     } else if phase == "GAME" {
@@ -245,6 +247,8 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
                     }
                 }
                 0x09 => { // VK_TAB
+                    let mut wm = crate::ui_window_mgr::get_window_manager();
+                    wm.handle_tab();
                     crate::ui_bridge_ffi::toggle_edit_focus();
                 }
                 0x49 => { // 'I' - Ekwipunek
@@ -292,6 +296,8 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
         WM_CHAR => {
             let ch = (msg.wparam & 0xFFFF) as u32;
             if let Some(c) = char::from_u32(ch) {
+                let mut wm = crate::ui_window_mgr::get_window_manager();
+                wm.handle_char(c);
                 crate::ui_bridge_ffi::handle_char_input(c);
             }
             true
