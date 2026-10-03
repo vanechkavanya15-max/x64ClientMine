@@ -488,3 +488,4 @@ pub mod full_cli_core_08;
 pub mod engine_headless_simulator;
 pub mod full_3d_pipe_01;
 pub mod actor_vocal_sound_trigger;
+pub mod input_char_composition_handler;
