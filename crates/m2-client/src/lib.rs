@@ -439,3 +439,13 @@ pub mod wgpu_terrain_mesh_wire;
 pub mod wgpu_terrain_splat_converter;
 pub mod wgpu_water_mesh_integration;
 
+// --- Parity Wave 2 Modules ---
+pub mod py_bridge_player_skills;
+pub mod py_bridge_player_target;
+pub mod py_bridge_chr_attach;
+pub mod py_bridge_guild_skills;
+pub mod send_nav_session_packets;
+pub mod recv_refine_packets_complete;
+pub mod ui_widget_bar3d;
+
+

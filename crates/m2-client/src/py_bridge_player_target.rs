@@ -128,13 +128,11 @@ pub unsafe extern "C" fn m2_py_player_is_pvp_instance(vid: u32) -> bool {
         let target_guild = target_actor.network_data.as_ref().map(|d| d.guild_id).unwrap_or(0);
 
         // Check if a duel is active
-        if crate::pvp_gvg_manager_v2::PvpGvgManager::is_duel_active(main_vid, vid) {
-            return true;
-        }
-        
-        // Check if there is an active guild war
-        if my_guild != 0 && target_guild != 0 {
-            if crate::pvp_gvg_manager_v2::PvpGvgManager::is_guild_war_active(my_guild, target_guild) {
+        if let Ok(mgr) = crate::pvp_gvg_manager_v2::get_pvp_gvg_manager().read() {
+            if mgr.has_duel_key(main_vid, vid) {
+                return true;
+            }
+            if my_guild != 0 && target_guild != 0 && mgr.has_gvg_key(my_guild, target_guild) {
                 return true;
             }
         }

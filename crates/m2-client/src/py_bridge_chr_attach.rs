@@ -86,7 +86,7 @@ pub extern "C" fn m2_py_chr_attach_effect_by_name(
 
         // In C++, effect name is hashed to an ID. We can simulate it by hashing it or just passing a dummy ID 0 if we don't have a hash map yet.
         // Let's generate a simple hash (crc32 or just sum)
-        let effect_id = effect_name.chars().fold(0, |acc, c| acc.wrapping_add(c as u32));
+        let effect_id = effect_name.chars().fold(0u32, |acc, c| acc.wrapping_add(c as u32));
 
         let mut mgr = get_effect_manager();
         mgr.process_event(
