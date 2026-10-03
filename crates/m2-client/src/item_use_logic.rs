@@ -74,6 +74,7 @@ impl ItemUseLogic {
         if item.count == 0 {
             return Err("Item empty");
         }
+        item.count -= 1;
         
         // Construct and send network packet
         let packet = TPacketCGItemUse::new(window_type, cell);

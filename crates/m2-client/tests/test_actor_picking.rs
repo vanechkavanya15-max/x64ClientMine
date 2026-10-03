@@ -1,7 +1,4 @@
-#[path = "../src/actor_picking.rs"]
-mod actor_picking;
-
-use actor_picking::{
+use m2_client::actor_picking::{
     Actor, ActorPicker, Ray, intersect_defending_sphere,
     find_nearest_target, ray_intersect_cylinder, PickingActor,
     add_picking_actor, clear_picking_actors,
