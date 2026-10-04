@@ -1,5 +1,5 @@
 use m2_client::wgpu_magic_effect_mesh_pipeline::{D3DBLEND_INVSRCALPHA, D3DBLEND_ONE, D3DBLEND_SRCALPHA};
-use m2_client::wgpu_screen_filter_postprocess::WgpuScreenFilter;
+use m2_client::wgpu_screen_filter_postprocess::{FilterState, WgpuScreenFilter};
 
 async fn get_test_device_and_queue() -> (wgpu::Device, wgpu::Queue) {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
@@ -39,6 +39,7 @@ async fn test_screen_filter_creation() {
     assert_eq!(filter.src_blend, D3DBLEND_SRCALPHA);
     assert_eq!(filter.dest_blend, D3DBLEND_INVSRCALPHA);
     assert_eq!(filter.color, [0.0, 0.0, 0.0, 0.0]);
+    assert_eq!(filter.state, FilterState::None);
 }
 
 #[tokio::test]
@@ -54,24 +55,70 @@ async fn test_screen_filter_enable_disable() {
 }
 
 #[tokio::test]
-async fn test_screen_filter_effects() {
+async fn test_screen_filter_stateful_effects() {
     let (device, _queue) = get_test_device_and_queue().await;
     let mut filter = WgpuScreenFilter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
 
-    // Flash effect
-    filter.flash(1.0, 1.0, 1.0);
-    assert_eq!(filter.color, [1.0, 1.0, 1.0, 1.0]);
+    // Initial configuration for testing Flash effect revert logic
+    filter.set_color(0.5, 0.5, 0.5, 0.5);
 
-    // Fade effect (simulate fade out over 2 steps)
-    filter.fade(1.0, 1.0, 1.0, 0.0, 0.5);
+    // Test Flash
+    filter.flash(1.0, 0.0, 0.0, 1.0);
+    assert_eq!(filter.state, FilterState::Flash);
+    assert_eq!(filter.enabled, true);
+    
+    // Halfway update
+    filter.update(0.5);
+    assert_eq!(filter.state, FilterState::Flash);
+    // Interpolates from [1.0, 0.0, 0.0, 1.0] (start_color) to [0.5, 0.5, 0.5, 0.5] (flash_revert_color)
+    // Over 0.5 out of 1.0 duration -> halfway interpolation
+    assert_eq!(filter.color, [0.75, 0.25, 0.25, 0.75]);
+    
+    // Finish update
+    filter.update(0.6);
+    assert_eq!(filter.state, FilterState::None);
+    assert_eq!(filter.color, [0.5, 0.5, 0.5, 0.5]); // Reverted to initial color
+
+    // Reset initial config for fade tests
+    filter.set_color(0.0, 0.0, 0.0, 0.0);
+
+    // Test Fade In (Starts fully opaque, fades to transparent)
+    filter.fade_in(0.0, 1.0, 0.0, 2.0);
+    assert_eq!(filter.state, FilterState::FadeIn);
+    assert_eq!(filter.color, [0.0, 1.0, 0.0, 1.0]);
+
+    // Halfway update
+    filter.update(1.0);
+    assert_eq!(filter.color[3], 0.5);
+
+    // Finish update
+    filter.update(1.1);
+    assert_eq!(filter.state, FilterState::None);
+    assert_eq!(filter.color[3], 0.0);
+    assert_eq!(filter.enabled, false); // Disabled when invisible
+
+    // Test Fade Out (Starts transparent, fades to opaque)
+    filter.fade_out(0.0, 0.0, 1.0, 1.0);
+    assert_eq!(filter.state, FilterState::FadeOut);
+    assert_eq!(filter.color, [0.0, 0.0, 1.0, 0.0]);
+
+    // Halfway update
+    filter.update(0.5);
+    assert_eq!(filter.color[3], 0.5);
+    
+    // Finish update
+    filter.update(0.6);
+    assert_eq!(filter.state, FilterState::None);
+    assert_eq!(filter.color[3], 1.0);
+    assert_eq!(filter.enabled, true);
+
+    // Test Tint
+    filter.tint(1.0, 1.0, 1.0, 0.5);
     assert_eq!(filter.color, [1.0, 1.0, 1.0, 0.5]);
+    assert_eq!(filter.enabled, true);
 
-    filter.fade(1.0, 1.0, 1.0, 0.0, 0.5);
-    assert_eq!(filter.color, [1.0, 1.0, 1.0, 0.25]); // current alpha is 0.5, target 0.0, diff is -0.5, progress 0.5 -> new alpha = 0.5 - 0.25 = 0.25
-
-    // Tint effect
-    filter.tint(0.2, 0.3, 0.4, 0.8);
-    assert_eq!(filter.color, [0.2, 0.3, 0.4, 0.8]);
+    filter.tint(1.0, 1.0, 1.0, 0.0);
+    assert_eq!(filter.enabled, false);
 }
 
 #[tokio::test]
@@ -82,6 +129,7 @@ async fn test_screen_filter_blend_modes() {
     assert_eq!(filter.src_blend, D3DBLEND_SRCALPHA);
     assert_eq!(filter.dest_blend, D3DBLEND_INVSRCALPHA);
 
+    // Test pipeline helper was invoked by checking state changes
     filter.set_blend_type(D3DBLEND_SRCALPHA, D3DBLEND_ONE, &device, wgpu::TextureFormat::Rgba8Unorm);
     
     assert_eq!(filter.src_blend, D3DBLEND_SRCALPHA);
