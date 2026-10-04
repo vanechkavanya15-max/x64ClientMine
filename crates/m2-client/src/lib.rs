@@ -551,6 +551,7 @@ pub mod net_alch_refine_packets;
 pub mod actor_combo_window_timing;
 pub mod actor_root_motion_calc;
 pub mod actor_horse_riding_sync;
+pub mod game_horse_mount_controller;
 pub mod actor_melee_hit_sampling;
 pub mod actor_splash_aoe_attacks;
 pub mod audio_mss_script_parser;
