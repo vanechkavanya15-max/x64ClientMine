@@ -71,6 +71,10 @@ fn test_cursor_movement_and_selection() {
     assert_eq!(edit_line.get_text(), "Metin2 is great");
     assert_eq!(edit_line.get_cursor_pos(), 6);
 
+    // Move to end
+    edit_line.move_cursor_end(false);
+    assert_eq!(edit_line.get_cursor_pos(), 15);
+
     // Select all and replace
     edit_line.select_all();
     edit_line.insert_text("Done");
@@ -132,4 +136,13 @@ fn test_max_length_and_blinking() {
     edit_line.set_max_length(3);
     assert_eq!(edit_line.get_text(), "123");
     assert_eq!(edit_line.get_cursor_pos(), 3);
+}
+
+// Add sequential test driver
+#[test]
+fn test_sequential() {
+    test_basic_insertion_and_deletion();
+    test_cursor_movement_and_selection();
+    test_clipboard_and_secret_mode();
+    test_max_length_and_blinking();
 }
