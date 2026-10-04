@@ -72,30 +72,33 @@ pub fn load_eix_index(eix_data: &[u8], eix_key: &SecurityKey) -> Result<HashMap<
     
     let decompressed_buffer: Vec<u8> = if encrypt_size > 0 {
         if 16 + encrypt_size > lzo_data.len() {
-             return Err("Invalid encrypt size".to_string());
+            return Err("Invalid encrypt size".to_string());
         }
         
+        // Decrypt the MCOZ block using TEA algorithm with the provided security key
         let mut decrypted_buffer = lzo_data[16..16 + encrypt_size].to_vec();
         decrypt_tea(&mut decrypted_buffer, eix_key);
         
         if decrypted_buffer.len() < 4 {
-             return Err("Decrypted buffer too small".to_string());
+            return Err("Decrypted buffer too small".to_string());
         }
         
         let dec_four_cc = u32::from_le_bytes(decrypted_buffer[0..4].try_into().unwrap());
         if dec_four_cc != MCOZ_FOURCC {
-            return Err("LZObject key incorrect".to_string());
+            return Err("LZObject key incorrect after TEA decryption".to_string());
         }
         
         if 4 + compressed_size > decrypted_buffer.len() {
             return Err("Invalid compressed size inside encrypted buffer".to_string());
         }
         
+        // Perform LZO decompression on the extracted payload
         decompress_lzo(&decrypted_buffer[4..4 + compressed_size], real_size)?
     } else {
         if 16 + compressed_size > lzo_data.len() {
             return Err("Invalid compressed size".to_string());
         }
+        // Unencrypted block, perform LZO decompression directly
         decompress_lzo(&lzo_data[16..16 + compressed_size], real_size)?
     };
     
@@ -108,13 +111,11 @@ pub fn load_eix_index(eix_data: &[u8], eix_key: &SecurityKey) -> Result<HashMap<
         return Err("Decompressed buffer size is not a multiple of TEterPackIndex size".to_string());
     }
     
-    let elements = decompressed_buffer.len() / stride;
     let mut map = HashMap::new();
-    let mut curr_pos = 0;
     
-    for _ in 0..elements {
+    // Extract metadata from the decompressed LZO payload: filename, CRC, offset in EPK, compressed and uncompressed sizes
+    for slice in decompressed_buffer.chunks_exact(stride) {
         let mut index: TEterPackIndex = unsafe { std::mem::zeroed() };
-        let slice = &decompressed_buffer[curr_pos..curr_pos + stride];
         unsafe {
             std::ptr::copy_nonoverlapping(
                 slice.as_ptr(),
@@ -123,18 +124,18 @@ pub fn load_eix_index(eix_data: &[u8], eix_key: &SecurityKey) -> Result<HashMap<
             );
         }
         
-        map.insert(index.get_filename(), index);
-        curr_pos += stride;
+        let filename = index.get_filename();
+        map.insert(filename, index);
     }
     
     Ok(map)
 }
 
 pub fn read_epk_file_data(epk_data: &[u8], index: &TEterPackIndex) -> Result<Vec<u8>, String> {
-    let start = unsafe { std::ptr::read_unaligned(std::ptr::addr_of!(index.data_position)) } as usize;
-    let real_data_size = unsafe { std::ptr::read_unaligned(std::ptr::addr_of!(index.real_data_size)) } as usize;
-    let data_size = unsafe { std::ptr::read_unaligned(std::ptr::addr_of!(index.data_size)) } as usize;
-    let compressed_type = unsafe { std::ptr::read_unaligned(std::ptr::addr_of!(index.compressed_type)) };
+    let start = { index.data_position } as usize;
+    let real_data_size = { index.real_data_size } as usize;
+    let data_size = { index.data_size } as usize;
+    let compressed_type = { index.compressed_type };
     
     let length = data_size;
     
@@ -152,7 +153,9 @@ pub fn read_epk_file_data(epk_data: &[u8], index: &TEterPackIndex) -> Result<Vec
             Ok(slice.to_vec())
         }
         COMPRESSED_TYPE_COMPRESS => {
-            decompress_lzo(slice, real_data_size)
+            // Apply LZO block decompression for EPK file data
+            let decompressed_payload = decompress_lzo(slice, real_data_size)?;
+            Ok(decompressed_payload)
         }
         _ => Err(format!("Unsupported compression type: {}", compressed_type)),
     }
