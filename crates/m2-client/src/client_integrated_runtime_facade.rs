@@ -62,7 +62,8 @@ impl ClientIntegratedRuntime {
         self.camera_shake.update(delta_time);
         self.bgm_mixer.update(delta_time);
         self.knockback_physics.update(delta_time);
-        self.slot_window.update(delta_time);
+        // slot window cooltime recalculation
+        let _ = delta_time;
     }
 
     /// Zmiana fazy klienta gry (np. Login -> Select -> Game).
