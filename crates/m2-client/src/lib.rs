@@ -552,3 +552,4 @@ pub mod wgpu_water_caustics_animator;
 pub mod motion_script_msa_parser;
 pub mod game_combat_knockback_physics_engine;
 pub mod audio_spatial_3d_sound_engine;
+pub mod audio_ui_sound_effects_dispatcher;
