@@ -104,3 +104,58 @@ fn test_raycast_line_segment() {
 fn test_attribute_water() {
     assert_eq!(ATTRIBUTE_WATER, 1 << 1);
 }
+
+extern "C" fn mock_check_water_cb(x: f32, y: f32) -> bool {
+    let expected_p = get_rotated_position(Position { x: 100.0, y: 100.0 }, FISHING_DISTANCE, 70.0);
+    (x - expected_p.x).abs() < 0.1 && (y - expected_p.y).abs() < 0.1
+}
+
+extern "C" fn mock_check_block_cb(x: f32, _y: f32) -> bool {
+    (x - 50.0).abs() < 1.0
+}
+
+#[test]
+fn test_ffi_get_rotation() {
+    let rot = game_fishing_water_detection::m2_fishing_get_rotation_ffi(
+        100.0,
+        100.0,
+        50.0,
+        mock_check_water_cb,
+    );
+    assert_eq!(rot, 70.0);
+}
+
+#[test]
+fn test_ffi_raycast_hit() {
+    let hit = game_fishing_water_detection::m2_fishing_raycast_hit_ffi(
+        0.0,
+        0.0,
+        100.0,
+        0.0,
+        5.0,
+        mock_check_block_cb,
+    );
+    assert!(hit);
+}
+
+#[test]
+fn test_ffi_minigame_lifecycle() {
+    unsafe {
+        let ptr = game_fishing_water_detection::m2_fishing_minigame_new_ffi(2, 5000);
+        assert!(!ptr.is_null());
+
+        assert!(game_fishing_water_detection::m2_fishing_minigame_is_active_ffi(ptr));
+        assert!(!game_fishing_water_detection::m2_fishing_minigame_is_success_ffi(ptr));
+
+        game_fishing_water_detection::m2_fishing_minigame_register_hit_ffi(ptr);
+        assert!(game_fishing_water_detection::m2_fishing_minigame_is_active_ffi(ptr));
+
+        game_fishing_water_detection::m2_fishing_minigame_update_ffi(ptr, 1000);
+        
+        game_fishing_water_detection::m2_fishing_minigame_register_hit_ffi(ptr);
+        assert!(!game_fishing_water_detection::m2_fishing_minigame_is_active_ffi(ptr));
+        assert!(game_fishing_water_detection::m2_fishing_minigame_is_success_ffi(ptr));
+
+        game_fishing_water_detection::m2_fishing_minigame_free_ffi(ptr);
+    }
+}
