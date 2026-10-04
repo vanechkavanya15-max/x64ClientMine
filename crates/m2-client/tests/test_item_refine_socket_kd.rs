@@ -1,12 +1,13 @@
 use std::sync::{Mutex, OnceLock};
 
 use m2_client::py_bridge_item_native::get_item_native_manager;
-use m2_client::inventory_grid_v2::{get_inventory_sys, WindowType, InventoryItem};
+use m2_client::inventory_grid_v2::{get_inventory_sys, WindowType, ItemData};
 use m2_client::item_proto_binary_loader::{TItemTable, TItemLimit, TItemApply};
+use m2_client::py_bridge_item::ItemApply;
 use m2_client::py_bridge_player_items::{
     ATTACH_METIN_CANT, ATTACH_METIN_OK, ATTACH_METIN_NOT_MATCHABLE_ITEM,
     ATTACH_METIN_NO_MATCHABLE_SOCKET, ATTACH_METIN_NOT_EXIST_GOLD_SOCKET,
-    ATTACH_METIN_CANT_ATTACH_TO_EQUIPMENT, ITEM_TYPE_ROD, ItemApply
+    ATTACH_METIN_CANT_ATTACH_TO_EQUIPMENT, ITEM_TYPE_ROD
 };
 use m2_client::game_item_refine_socket_kd_manager::{
     m2_py_player_can_attach_metin,
@@ -79,12 +80,11 @@ fn test_attach_metin_not_matchable_item() {
     drop(mgr);
     
     let mut inv = get_inventory_sys().lock().unwrap();
-    inv.set_item(WindowType::INVENTORY, 0, InventoryItem {
+    inv.set_item(WindowType::INVENTORY, 0, ItemData {
         vnum: 100,
         count: 1,
         sockets: [METIN_SOCKET_TYPE_SILVER, METIN_SOCKET_TYPE_NONE, METIN_SOCKET_TYPE_NONE],
-        flags: 0,
-        attrs: [ItemApply { bType: 0, sValue: 0 }; 7],
+        ..Default::default()
     });
     drop(inv);
 
@@ -103,12 +103,11 @@ fn test_attach_metin_cant_for_rod() {
     drop(mgr);
     
     let mut inv = get_inventory_sys().lock().unwrap();
-    inv.set_item(WindowType::INVENTORY, 0, InventoryItem {
+    inv.set_item(WindowType::INVENTORY, 0, ItemData {
         vnum: 100,
         count: 1,
         sockets: [METIN_SOCKET_TYPE_SILVER, METIN_SOCKET_TYPE_NONE, METIN_SOCKET_TYPE_NONE],
-        flags: 0,
-        attrs: [ItemApply { bType: 0, sValue: 0 }; 7],
+        ..Default::default()
     });
     drop(inv);
 
@@ -127,12 +126,11 @@ fn test_attach_metin_ok_normal() {
     drop(mgr);
     
     let mut inv = get_inventory_sys().lock().unwrap();
-    inv.set_item(WindowType::INVENTORY, 0, InventoryItem {
+    inv.set_item(WindowType::INVENTORY, 0, ItemData {
         vnum: 100,
         count: 1,
         sockets: [METIN_SOCKET_TYPE_SILVER, METIN_SOCKET_TYPE_NONE, METIN_SOCKET_TYPE_NONE],
-        flags: 0,
-        attrs: [ItemApply { bType: 0, sValue: 0 }; 7],
+        ..Default::default()
     });
     drop(inv);
 
@@ -151,12 +149,11 @@ fn test_attach_metin_ok_gold() {
     drop(mgr);
     
     let mut inv = get_inventory_sys().lock().unwrap();
-    inv.set_item(WindowType::INVENTORY, 0, InventoryItem {
+    inv.set_item(WindowType::INVENTORY, 0, ItemData {
         vnum: 100,
         count: 1,
         sockets: [METIN_SOCKET_TYPE_NONE, METIN_SOCKET_TYPE_GOLD, METIN_SOCKET_TYPE_NONE],
-        flags: 0,
-        attrs: [ItemApply { bType: 0, sValue: 0 }; 7],
+        ..Default::default()
     });
     drop(inv);
 
@@ -175,12 +172,11 @@ fn test_attach_metin_not_exist_gold_socket() {
     drop(mgr);
     
     let mut inv = get_inventory_sys().lock().unwrap();
-    inv.set_item(WindowType::INVENTORY, 0, InventoryItem {
+    inv.set_item(WindowType::INVENTORY, 0, ItemData {
         vnum: 100,
         count: 1,
         sockets: [METIN_SOCKET_TYPE_SILVER, METIN_SOCKET_TYPE_NONE, METIN_SOCKET_TYPE_NONE],
-        flags: 0,
-        attrs: [ItemApply { bType: 0, sValue: 0 }; 7],
+        ..Default::default()
     });
     drop(inv);
 
@@ -199,12 +195,11 @@ fn test_attach_metin_no_matchable_socket() {
     drop(mgr);
     
     let mut inv = get_inventory_sys().lock().unwrap();
-    inv.set_item(WindowType::INVENTORY, 0, InventoryItem {
+    inv.set_item(WindowType::INVENTORY, 0, ItemData {
         vnum: 100,
         count: 1,
         sockets: [METIN_SOCKET_TYPE_NONE, METIN_SOCKET_TYPE_NONE, METIN_SOCKET_TYPE_NONE],
-        flags: 0,
-        attrs: [ItemApply { bType: 0, sValue: 0 }; 7],
+        ..Default::default()
     });
     drop(inv);
 

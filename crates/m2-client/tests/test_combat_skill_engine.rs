@@ -13,7 +13,7 @@ fn test_state_machine_transitions() {
         dw_target_vid: 0,
     };
     
-    let can_use = m2_skill_can_use(engine_ptr, 1, 10, 0.0);
+    let can_use = m2_combat_skill_can_use(engine_ptr, 1, 10, 0.0);
     assert!(can_use);
     
     // Base cooldown 5.0, casting speed 0 (so spd=100) -> actual cooldown 10.0 (based on my revised calculate_cooldown)
@@ -28,7 +28,7 @@ fn test_state_machine_transitions() {
     let engine = unsafe { &mut *engine_ptr };
     assert_eq!(engine.current_sp, 90);
     
-    let can_use_now = m2_skill_can_use(engine_ptr, 1, 10, 0.5);
+    let can_use_now = m2_combat_skill_can_use(engine_ptr, 1, 10, 0.5);
     assert!(!can_use_now);
     
     // While casting (time < 1.0), remaining cooltime should return full actual cooldown
@@ -45,7 +45,7 @@ fn test_state_machine_transitions() {
     let rem_cool3 = m2_skill_get_remaining_cooltime(engine_ptr, 1, 11.1);
     assert_eq!(rem_cool3, 0.0);
     
-    let can_use_later = m2_skill_can_use(engine_ptr, 1, 10, 11.1);
+    let can_use_later = m2_combat_skill_can_use(engine_ptr, 1, 10, 11.1);
     assert!(can_use_later);
 
     m2_skill_engine_free(engine_ptr);
@@ -54,7 +54,7 @@ fn test_state_machine_transitions() {
 #[test]
 fn test_not_enough_sp() {
     let engine_ptr = m2_skill_engine_new(5, 0);
-    let can_use = m2_skill_can_use(engine_ptr, 1, 10, 0.0);
+    let can_use = m2_combat_skill_can_use(engine_ptr, 1, 10, 0.0);
     assert!(!can_use);
     m2_skill_engine_free(engine_ptr);
 }

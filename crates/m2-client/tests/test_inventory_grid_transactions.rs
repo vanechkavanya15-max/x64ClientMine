@@ -34,7 +34,8 @@ fn test_inventory_grid_move_1x3_sword() {
     let bad_move_res = grid.move_item(2, 40);
     assert!(bad_move_res.is_err());
     
-    // Try moving it to slot 1, where it will collide with the sword in slot 2
+    // Place an obstacle in cell 6 (row 1, col 1) so 1x3 sword at slot 1 collides
+    grid.set_item(6, Some(ItemData { vnum: 27001, count: 1, size: 1 }));
     assert!(!grid.can_place_item_ignore(1, sword.size, 2));
     let collision_move_res = grid.move_item(2, 1);
     assert!(collision_move_res.is_err());

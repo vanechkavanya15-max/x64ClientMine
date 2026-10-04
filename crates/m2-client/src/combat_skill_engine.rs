@@ -73,7 +73,7 @@ impl CombatSkillEngine {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_skill_can_use(
+pub extern "C" fn m2_combat_skill_can_use(
     engine: *mut CombatSkillEngine,
     vnum: u32,
     cost_sp: i32,
@@ -133,7 +133,7 @@ pub extern "C" fn m2_skill_trigger(
     }
     let engine = unsafe { &mut *engine };
     
-    if !m2_skill_can_use(engine as *mut _, vnum, cost_sp, current_time) {
+    if !m2_combat_skill_can_use(engine as *mut _, vnum, cost_sp, current_time) {
         return false;
     }
 
