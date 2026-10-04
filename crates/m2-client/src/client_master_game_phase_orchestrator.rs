@@ -25,15 +25,21 @@ pub enum PhaseWindow {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UiWindowManager {
-    pub active_windows: [usize; PhaseWindow::Num as usize],
+    pub active_windows: [Option<usize>; PhaseWindow::Num as usize],
     pub direct_enter_mode: bool,
     pub selected_empire: u32,
+}
+
+impl Default for UiWindowManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl UiWindowManager {
     pub fn new() -> Self {
         Self {
-            active_windows: [0; PhaseWindow::Num as usize],
+            active_windows: [None; PhaseWindow::Num as usize],
             direct_enter_mode: false,
             selected_empire: 0,
         }
@@ -41,18 +47,26 @@ impl UiWindowManager {
 
     pub fn set_phase_window(&mut self, window: PhaseWindow, handler: usize) {
         if (window as usize) < PhaseWindow::Num as usize {
-            self.active_windows[window as usize] = handler;
+            self.active_windows[window as usize] = Some(handler);
         }
     }
 
     pub fn clear_phase_window(&mut self, window: PhaseWindow) {
         if (window as usize) < PhaseWindow::Num as usize {
-            self.active_windows[window as usize] = 0;
+            self.active_windows[window as usize] = None;
         }
     }
 
     pub fn clear_all_windows(&mut self) {
-        self.active_windows = [0; PhaseWindow::Num as usize];
+        self.active_windows = [None; PhaseWindow::Num as usize];
+    }
+
+    pub fn is_window_active(&self, window: PhaseWindow) -> bool {
+        if (window as usize) < PhaseWindow::Num as usize {
+            self.active_windows[window as usize].is_some()
+        } else {
+            false
+        }
     }
 }
 
@@ -88,6 +102,7 @@ pub struct GamePhaseOrchestrator {
     pub changing_phase_time: u32,
     pub is_online: bool,
     pub phase_history: Vec<ClientPhase>,
+    pub main_actor_vid: Option<u32>,
 }
 
 impl GamePhaseOrchestrator {
@@ -99,6 +114,7 @@ impl GamePhaseOrchestrator {
             changing_phase_time: 0,
             is_online: false,
             phase_history: vec![ClientPhase::Offline],
+            main_actor_vid: None,
         }
     }
 
@@ -130,7 +146,7 @@ impl GamePhaseOrchestrator {
         
         if !self.ui_manager.direct_enter_mode {
             // C++: PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_LOGIN], "OnHandShake", Py_BuildValue("()"));
-            self.ui_manager.active_windows[PhaseWindow::Login as usize] = 1;
+            self.ui_manager.set_phase_window(PhaseWindow::Login, 1);
         }
     }
 
@@ -138,7 +154,7 @@ impl GamePhaseOrchestrator {
         self.transition_to(ClientPhase::Login);
         if !self.ui_manager.direct_enter_mode {
              // C++: PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_LOGIN], "OnLoginStart", Py_BuildValue("()"));
-             self.ui_manager.active_windows[PhaseWindow::Login as usize] = 1;
+             self.ui_manager.set_phase_window(PhaseWindow::Login, 1);
         }
     }
 
@@ -146,22 +162,23 @@ impl GamePhaseOrchestrator {
         self.transition_to(ClientPhase::Select);
         if !self.ui_manager.direct_enter_mode {
             if self.ui_manager.selected_empire > 0 {
-                self.ui_manager.active_windows[PhaseWindow::Select as usize] = 1;
+                self.ui_manager.set_phase_window(PhaseWindow::Select, 1);
             } else {
-                self.ui_manager.active_windows[PhaseWindow::Empire as usize] = 1;
+                self.ui_manager.set_phase_window(PhaseWindow::Empire, 1);
             }
         }
     }
 
     pub fn set_loading_phase(&mut self) {
         self.transition_to(ClientPhase::Loading);
-        self.ui_manager.active_windows[PhaseWindow::Load as usize] = 1;
+        self.main_actor_vid = None; // Resetuje gracza, odpowiednik CPythonPlayer::Instance().Clear()
+        self.ui_manager.set_phase_window(PhaseWindow::Load, 1);
     }
 
     pub fn set_game_phase(&mut self) {
         self.transition_to(ClientPhase::Game);
         self.wgpu_manager.initialize_game_pipelines();
-        self.ui_manager.active_windows[PhaseWindow::Game as usize] = 1;
+        self.ui_manager.set_phase_window(PhaseWindow::Game, 1);
     }
 
     pub fn close_phase(&mut self) {
