@@ -61,3 +61,47 @@ fn test_apply_root_motion_mut() {
     assert_eq!(actor_position, Vec3::new(5.0, -5.0, 2.0));
     assert_eq!(sync.accumulated_movement, Vec3::ZERO);
 }
+
+#[test]
+fn test_disabled_accumulation() {
+    let mut sync = RootMotionActorSync::new();
+    sync.set_enabled(false);
+    
+    let local_movement = Vec3::new(5.0, 0.0, 0.0);
+    sync.accumulate_movement(local_movement, 0.0);
+
+    // Accumulated movement should remain ZERO because sync is disabled
+    assert_eq!(sync.accumulated_movement, Vec3::ZERO);
+}
+
+#[test]
+fn test_disabled_application() {
+    let mut sync = RootMotionActorSync::new();
+    sync.accumulated_movement = Vec3::new(1.0, 2.0, 3.0);
+    sync.set_enabled(false);
+
+    let mut actor_position = Vec3::new(10.0, 10.0, 10.0);
+    sync.apply_root_motion(&mut actor_position);
+
+    // Actor position should not change because sync is disabled
+    assert_eq!(actor_position, Vec3::new(10.0, 10.0, 10.0));
+    // But the accumulator must be cleared regardless
+    assert_eq!(sync.accumulated_movement, Vec3::ZERO);
+
+    // Test apply_root_motion_and_clear as well
+    sync.accumulated_movement = Vec3::new(5.0, 5.0, 5.0);
+    let original_position = Vec3::new(20.0, 20.0, 20.0);
+    let new_position = sync.apply_root_motion_and_clear(original_position);
+
+    assert_eq!(new_position, original_position);
+    assert_eq!(sync.accumulated_movement, Vec3::ZERO);
+}
+
+#[test]
+fn test_clear_method() {
+    let mut sync = RootMotionActorSync::new();
+    sync.accumulated_movement = Vec3::new(1.0, 2.0, 3.0);
+    sync.clear();
+
+    assert_eq!(sync.accumulated_movement, Vec3::ZERO);
+}
