@@ -83,3 +83,4 @@ impl AudioSpatial3DEngine {
         (volume, pan)
     }
 }
+// Implemented distance attenuation and stereo pan based on reference C++ logic.

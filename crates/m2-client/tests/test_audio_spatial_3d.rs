@@ -116,3 +116,4 @@ fn test_distant_monster_volume_and_pan() {
     // Pan should be exactly 1.0 because it's perfectly on the Right axis
     assert!((pan - 1.0).abs() < 1e-4, "Pan should be fully right (1.0), got {}", pan);
 }
+// Tests for distance attenuation and stereo pan.
