@@ -109,10 +109,12 @@ impl ShadowTerrainIntegrator {
         );
     }
 
+    #[allow(dead_code)]
     pub fn get_light_view_proj_matrix(&self) -> Mat4 {
         self.light_proj_matrix * self.light_view_matrix
     }
 
+    #[allow(dead_code)]
     pub fn create_bind_group_layout(
         device: &wgpu::Device,
         binding_texture: u32,
@@ -141,6 +143,7 @@ impl ShadowTerrainIntegrator {
         })
     }
 
+    #[allow(dead_code)]
     pub fn create_bind_group(
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
