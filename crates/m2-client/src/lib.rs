@@ -558,3 +558,4 @@ pub mod audio_spatial_3d_sound_engine;
 pub mod audio_ui_sound_effects_dispatcher;
 pub mod ui_wndmgr_widget_expanded_image;
 pub mod ui_wndmgr_widget_thin_board;
+pub mod game_belt_inventory_manager;
