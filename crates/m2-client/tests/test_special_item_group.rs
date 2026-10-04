@@ -27,6 +27,32 @@ fn test_parse_moonlight_chest() {
 }
 
 #[test]
+fn test_parse_vnum_format() {
+    let content = r#"
+        Group Vnum 50011
+        {
+            Type drop
+            Vnum 50012 1 100
+            Vnum 27001 5 200
+            Vnum 27002 5 200
+        }
+    "#;
+
+    let mut reader = SpecialItemGroupReader::new();
+    let result = reader.parse_content(content);
+    assert!(result.is_ok());
+
+    let group = reader.get_group(50011).expect("Group 50011 should exist");
+    assert_eq!(group.vnum, 50011);
+    assert_eq!(group.group_type, "drop");
+    assert_eq!(group.items.len(), 3);
+
+    assert_eq!(group.items[0], SpecialItemDrop { vnum: 50012, count: 1, prob: 100 });
+    assert_eq!(group.items[1], SpecialItemDrop { vnum: 27001, count: 5, prob: 200 });
+    assert_eq!(group.items[2], SpecialItemDrop { vnum: 27002, count: 5, prob: 200 });
+}
+
+#[test]
 fn test_invalid_group_format() {
     let mut reader = SpecialItemGroupReader::new();
     
@@ -63,4 +89,31 @@ fn test_get_group() {
     assert!(reader.parse_content(content).is_ok());
     assert!(reader.get_group(1000).is_some());
     assert!(reader.get_group(9999).is_none());
+}
+
+#[test]
+fn test_is_valid_chest() {
+    let mut reader = SpecialItemGroupReader::new();
+    let content = r#"
+        Group 1000
+        {
+            Type drop
+            1 50012 1 100
+        }
+        Group 2000
+        {
+            Type drop
+        }
+    "#;
+    
+    assert!(reader.parse_content(content).is_ok());
+    
+    // Valid chest with items
+    assert!(reader.is_valid_chest(1000));
+    
+    // Invalid chest (no items)
+    assert!(!reader.is_valid_chest(2000));
+    
+    // Invalid chest (doesn't exist)
+    assert!(!reader.is_valid_chest(3000));
 }
