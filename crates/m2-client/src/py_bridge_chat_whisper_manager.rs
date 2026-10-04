@@ -9,6 +9,8 @@ pub struct WhisperLine {
     pub chat_type: u8,
     pub name: String,
     pub message: String,
+    pub sender: Option<String>,
+    pub display_text: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -26,37 +28,83 @@ pub fn get_whisper_manager() -> &'static Mutex<HashMap<String, WhisperConversati
 /// Helper function to parse an item hyperlink like `|cffffc700|Hitem:1234:0:0:0:0|h[Nazwa]|h|r`.
 /// Since we just need to ensure the system supports reading/validating hyperlinked items,
 /// we will parse it from the string if present, or just pass the string through.
-pub fn parse_hyperlinks(text: &str) -> Vec<String> {
-    let mut links = Vec::new();
-    let mut current_idx = 0;
 
-    while let Some(start_h) = text[current_idx..].find("|H") {
-        let abs_start = current_idx + start_h;
-        // Search for the *second* "|h" from the starting "|H" since links look like "|H...|h[...]|h"
-        // inner_start points after "|H"
-        let inner_start = abs_start + 2;
-        
-        // Find the first |h
-        if let Some(first_h) = text[inner_start..].find("|h") {
-            // Find the second |h after the first one
-            let after_first_h = inner_start + first_h + 2;
-            if let Some(second_h) = text[after_first_h..].find("|h") {
-                let inner_end = after_first_h + second_h;
-                // Capture from inner_start to inner_end (after the first |h, up to the second |h)
-                // Wait, the format is |Hitem:1234...|h[Name]|h
-                // The C++ client splits at the first |h to extract the link type and data, 
-                // and the text between the two |h as the visible text. 
-                // Let's capture exactly what's between |H and the first |h, then the [Name] part.
-                
-                // Let's just capture the whole payload to match the test: "item:1234:0:0:0:0|h[Nazwa]"
-                links.push(text[inner_start..inner_end].to_string());
-                current_idx = inner_end + 2;
-                continue;
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParsedHyperlink {
+    pub link_data: String,
+    pub display_text: String,
+}
+
+pub fn parse_message_tags(text: &str) -> (String, Vec<ParsedHyperlink>) {
+    let mut display_text = String::new();
+    let mut links = Vec::new();
+    let mut chars = text.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '|' {
+            if let Some(&next_c) = chars.peek() {
+                match next_c {
+                    'c' => {
+                        // Skip |c and the 8 color hex chars
+                        chars.next(); // consume 'c'
+                        for _ in 0..8 {
+                            chars.next();
+                        }
+                    }
+                    'r' => {
+                        // Skip |r
+                        chars.next();
+                    }
+                    'H' => {
+                        // Hyperlink parsing: |Hlink_data|h[display_name]|h
+                        chars.next(); // consume 'H'
+                        
+                        let mut link_data = String::new();
+                        while let Some(&inner_c) = chars.peek() {
+                            if inner_c == '|' {
+                                break;
+                            }
+                            link_data.push(inner_c);
+                            chars.next();
+                        }
+
+                        // Expecting |h
+                        if chars.next() == Some('|') && chars.next() == Some('h') {
+                            let mut link_display = String::new();
+                            while let Some(&inner_c) = chars.peek() {
+                                if inner_c == '|' {
+                                    break;
+                                }
+                                link_display.push(inner_c);
+                                chars.next();
+                            }
+                            // Expecting ending |h
+                            if chars.next() == Some('|') && chars.next() == Some('h') {
+                                display_text.push_str(&link_display);
+                                links.push(ParsedHyperlink {
+                                    link_data,
+                                    display_text: link_display,
+                                });
+                            }
+                        }
+                    }
+                    _ => {
+                        display_text.push(c);
+                    }
+                }
+            } else {
+                display_text.push(c);
             }
+        } else {
+            display_text.push(c);
         }
-        break;
     }
-    links
+
+    (display_text, links)
+}
+
+pub fn parse_hyperlinks(text: &str) -> Vec<String> {
+    parse_message_tags(text).1.into_iter().map(|l| format!("{}|h{}", l.link_data, l.display_text)).collect()
 }
 
 #[no_mangle]
@@ -105,8 +153,18 @@ pub extern "C" fn m2_py_chat_append_whisper(
             Err(_) => return false,
         };
 
-        // Ensure hyperlinks parse correctly to test compatibility.
-        let _links = parse_hyperlinks(&msg_str);
+        let mut sender = None;
+        let mut msg_text = msg_str.as_str();
+
+        // BiDi format handling: check if message starts with "name : message"
+        if let Some(idx) = msg_text.find(" : ") {
+            if idx > 0 {
+                sender = Some(msg_text[..idx].to_string());
+                msg_text = &msg_text[idx + 3..];
+            }
+        }
+
+        let (display_text, _links) = parse_message_tags(msg_text);
 
         let mut map = match get_whisper_manager().lock() {
             Ok(m) => m,
@@ -122,6 +180,8 @@ pub extern "C" fn m2_py_chat_append_whisper(
             chat_type,
             name: name_str,
             message: msg_str,
+            sender,
+            display_text,
         });
 
         true
