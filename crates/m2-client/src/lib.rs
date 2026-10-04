@@ -423,6 +423,7 @@ pub mod ui_in_game_hud_complete;
 // --- Auto-registered modules from Jules Swarm Pure Rust Production ---
 pub mod py_bridge_item_nonplayer_runtime;
 pub mod item_mob_proto_vfs_loader;
+pub mod speedtree_billboard_oscillator;
 
 // --- Pure Rust 1:1 Parity Modules from Jules Swarm ---
 pub mod actor_effect_system_wire;
