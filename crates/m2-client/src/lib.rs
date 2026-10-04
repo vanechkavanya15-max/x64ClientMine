@@ -584,3 +584,4 @@ pub mod game_warp_screen_fader;
 pub mod wgpu_screen_filter_postprocess;
 pub mod wgpu_bone_cloth_simple_physics;
 pub mod wgpu_mesh_tangent_normal_generator;
+pub mod game_special_item_group_reader;
