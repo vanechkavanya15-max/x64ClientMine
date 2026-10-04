@@ -40,6 +40,28 @@ fn test_lod_evaluator_billboard() {
 }
 
 #[test]
+fn test_from_tree_height() {
+    let height = 100.0;
+    let evaluator = SpeedTreeLodEvaluator::from_tree_height(height);
+    
+    assert_eq!(evaluator.near_distance, 100.0 * NEAR_LOD_FACTOR);
+    assert_eq!(evaluator.far_distance, 100.0 * FAR_LOD_FACTOR);
+}
+
+#[test]
+fn test_from_bounding_box() {
+    // bbox format is [min_x, min_y, min_z, max_x, max_y, max_z]
+    let bbox = [
+        -10.0, -10.0, 0.0, // min
+         10.0,  10.0, 50.0 // max
+    ];
+    let evaluator = SpeedTreeLodEvaluator::from_bounding_box(&bbox);
+    
+    assert_eq!(evaluator.near_distance, 50.0 * NEAR_LOD_FACTOR);
+    assert_eq!(evaluator.far_distance, 50.0 * FAR_LOD_FACTOR);
+}
+
+#[test]
 fn test_billboard_generator() {
     let generator = SpeedTreeBillboardGenerator::new(10.0, 20.0);
     let tree_pos = [100.0, 0.0, 0.0];

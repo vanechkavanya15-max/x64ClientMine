@@ -13,6 +13,9 @@ pub struct SpeedTreeLodState {
     pub billboard_alpha: f32,
 }
 
+pub const NEAR_LOD_FACTOR: f32 = 2.0;
+pub const FAR_LOD_FACTOR: f32 = 9.0;
+
 pub struct SpeedTreeLodEvaluator {
     pub near_distance: f32,
     pub far_distance: f32,
@@ -24,6 +27,18 @@ impl SpeedTreeLodEvaluator {
             near_distance,
             far_distance,
         }
+    }
+
+    pub fn from_tree_height(height: f32) -> Self {
+        Self {
+            near_distance: height * NEAR_LOD_FACTOR,
+            far_distance: height * FAR_LOD_FACTOR,
+        }
+    }
+
+    pub fn from_bounding_box(bbox: &[f32; 6]) -> Self {
+        let height = bbox[5] - bbox[2];
+        Self::from_tree_height(height)
     }
 
     fn calculate_distance(camera_pos: [f32; 3], tree_pos: [f32; 3]) -> f32 {
