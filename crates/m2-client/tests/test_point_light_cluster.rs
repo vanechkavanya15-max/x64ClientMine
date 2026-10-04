@@ -1,135 +1,166 @@
 #[path = "../src/wgpu_dynamic_point_light_cluster.rs"]
 mod wgpu_dynamic_point_light_cluster;
 
+use wgpu_dynamic_point_light_cluster::{DynamicPointLightCluster, PointLight, calculate_blinn_phong_lighting};
 use glam::Vec3;
-use wgpu_dynamic_point_light_cluster::{
-    calculate_blinn_phong_lighting, DynamicPointLightCluster, MAX_POINT_LIGHTS,
-};
 
 #[test]
-fn test_add_and_clear_lights() {
-    let mut cluster = DynamicPointLightCluster::new();
-    assert_eq!(cluster.uniforms.light_count, 0);
-
-    // Add a basic point light
-    let success = cluster.add_point_light(
-        Vec3::new(10.0, 20.0, 30.0),
-        Vec3::new(1.0, 0.0, 0.0),
-        2.0,
-        1.0,
-        0.1,
-        0.01,
-        500.0,
-    );
-
-    assert!(success);
-    assert_eq!(cluster.uniforms.light_count, 1);
+fn test_capacity_limits() {
+    let mut cluster = DynamicPointLightCluster::new(2);
     
-    let light = &cluster.uniforms.lights[0];
-    assert_eq!(light.position, [10.0, 20.0, 30.0, 1.0]);
-    assert_eq!(light.color, [1.0, 0.0, 0.0, 2.0]);
-    assert_eq!(light.attenuation, [1.0, 0.1, 0.01, 500.0]);
-
-    // Clear lights
-    cluster.clear();
-    assert_eq!(cluster.uniforms.light_count, 0);
-    assert_eq!(cluster.uniforms.lights[0].position[3], 0.0); // inactive
+    // Adding first two lights should succeed
+    assert!(cluster.add_light(PointLight::new(Vec3::ZERO, Vec3::ONE, 10.0, 1.0, 0.0, 0.0)).is_ok());
+    assert!(cluster.add_light(PointLight::new(Vec3::ZERO, Vec3::ONE, 10.0, 1.0, 0.0, 0.0)).is_ok());
+    
+    // Adding a third light should fail because max capacity is 2
+    assert!(cluster.add_light(PointLight::new(Vec3::ZERO, Vec3::ONE, 10.0, 1.0, 0.0, 0.0)).is_err());
+    
+    assert_eq!(cluster.get_lights().len(), 2);
+    
+    // Clearing should reset the count
+    cluster.clear_lights();
+    assert_eq!(cluster.get_lights().len(), 0);
 }
 
 #[test]
-fn test_max_point_lights_limit() {
-    let mut cluster = DynamicPointLightCluster::new();
-
-    // Fill up to max
-    for i in 0..MAX_POINT_LIGHTS {
-        let success = cluster.add_point_light(
-            Vec3::new(i as f32, 0.0, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,
-            1.0,
-            0.1,
-            0.01,
-            100.0,
-        );
-        assert!(success);
-    }
-
-    assert_eq!(cluster.uniforms.light_count, MAX_POINT_LIGHTS as u32);
-
-    // Try adding one more
-    let overflow_success = cluster.add_point_light(
-        Vec3::new(999.0, 0.0, 0.0),
-        Vec3::new(1.0, 1.0, 1.0),
-        1.0,
-        1.0,
-        0.1,
-        0.01,
-        100.0,
-    );
-    assert!(!overflow_success); // Should fail to add
-    assert_eq!(cluster.uniforms.light_count, MAX_POINT_LIGHTS as u32); // Count remains max
+fn test_dynamic_flare_behavior() {
+    let mut cluster = DynamicPointLightCluster::new(10);
+    
+    let base_radius = 100.0;
+    
+    // Add a light without dynamic flare
+    let static_light = PointLight::new(Vec3::new(10.0, 0.0, 0.0), Vec3::ONE, base_radius, 1.0, 0.0, 0.0);
+    cluster.add_light(static_light).unwrap();
+    
+    // Add a light with dynamic flare
+    let flare_light = PointLight::new(Vec3::new(-10.0, 0.0, 0.0), Vec3::ONE, base_radius, 1.0, 0.0, 0.0).with_dynamic_flare(true);
+    cluster.add_light(flare_light).unwrap();
+    
+    // Update flares with time = 1.0
+    cluster.update_dynamic_flares(1.0);
+    
+    let lights = cluster.get_lights();
+    
+    // Static light radius should remain unchanged
+    assert_eq!(lights[0].radius, base_radius);
+    
+    // Flare light radius should change due to flicker simulation
+    assert!(lights[1].radius != base_radius);
+    
+    // Update flares with time = 2.0 to ensure radius keeps changing
+    let radius_at_t1 = lights[1].radius;
+    cluster.update_dynamic_flares(2.0);
+    let lights = cluster.get_lights();
+    
+    assert!(lights[1].radius != radius_at_t1);
+    // Should still be close to base_radius
+    assert!(lights[1].radius > base_radius * 0.5);
+    assert!(lights[1].radius < base_radius * 1.5);
 }
 
 #[test]
-fn test_add_torch_and_magic_flash_presets() {
-    let mut cluster = DynamicPointLightCluster::new();
-
-    // Add torch light
-    cluster.add_torch_light(Vec3::new(100.0, 50.0, 10.0), 0.5); // +0.5 fluctuation
-    assert_eq!(cluster.uniforms.light_count, 1);
-    let torch = &cluster.uniforms.lights[0];
+fn test_torch_and_magic_presets() {
+    let mut cluster = DynamicPointLightCluster::new(10);
     
-    assert_eq!(torch.position, [100.0, 50.0, 10.0, 1.0]);
-    assert_eq!(torch.color, [1.0, 0.6, 0.2, 1.7]); // base 1.2 + 0.5
-    assert_eq!(torch.attenuation, [1.0, 0.09, 0.032, 600.0]);
-
-    // Add magic flash light
-    cluster.add_magic_flash_light(Vec3::new(200.0, 100.0, 20.0), Vec3::new(0.0, 1.0, 1.0));
-    assert_eq!(cluster.uniforms.light_count, 2);
-    let flash = &cluster.uniforms.lights[1];
-
-    assert_eq!(flash.position, [200.0, 100.0, 20.0, 1.0]);
-    assert_eq!(flash.color, [0.0, 1.0, 1.0, 5.0]); // color and fixed intensity 5.0
-    assert_eq!(flash.attenuation, [1.0, 0.045, 0.0075, 800.0]);
+    cluster.add_torch_light(Vec3::ZERO).unwrap();
+    cluster.add_magic_flash_light(Vec3::new(10.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)).unwrap();
+    
+    let lights = cluster.get_lights();
+    assert_eq!(lights.len(), 2);
+    
+    // Torch
+    assert_eq!(lights[0].color, Vec3::new(1.0, 0.6, 0.2));
+    assert!(lights[0].is_dynamic_flare);
+    assert_eq!(lights[0].attenuation0, 1.0);
+    assert_eq!(lights[0].attenuation1, 0.005);
+    assert_eq!(lights[0].attenuation2, 0.0001);
+    
+    // Magic
+    assert_eq!(lights[1].color, Vec3::new(0.0, 1.0, 0.0));
+    assert!(lights[1].is_dynamic_flare);
+    assert_eq!(lights[1].attenuation0, 1.0);
+    assert_eq!(lights[1].attenuation1, 0.01);
+    assert_eq!(lights[1].attenuation2, 0.0005);
 }
 
 #[test]
-fn test_calculate_blinn_phong_lighting() {
-    let mut cluster = DynamicPointLightCluster::new();
-    cluster.add_point_light(
-        Vec3::new(0.0, 10.0, 0.0), // light at y=10
-        Vec3::new(1.0, 1.0, 1.0),  // white light
-        1.0,                       // intensity 1.0
-        1.0,                       // constant
-        0.0,                       // linear (no linear falloff)
-        0.0,                       // quadratic (no quad falloff)
-        20.0,                      // radius 20
-    );
-
-    let light = &cluster.uniforms.lights[0];
+fn test_blinn_phong_calculations() {
+    let light = PointLight::new(Vec3::new(0.0, 10.0, 0.0), Vec3::new(1.0, 1.0, 1.0), 50.0, 1.0, 0.01, 0.0001);
+    let lights = vec![light];
     
-    // Fragment directly under the light
-    let frag_pos = Vec3::new(0.0, 0.0, 0.0);
-    let normal = Vec3::new(0.0, 1.0, 0.0); // pointing UP
-    let view_dir = Vec3::new(0.0, 1.0, 1.0).normalize(); // looking slightly from z
-
+    let frag_pos = Vec3::ZERO;
+    let normal = Vec3::new(0.0, 1.0, 0.0); // Facing straight up at the light
+    let view_pos = Vec3::new(10.0, 10.0, 0.0); // Viewer off to the side
+    
+    let ambient_color = Vec3::new(0.1, 0.1, 0.1);
+    let diffuse_color = Vec3::new(0.8, 0.8, 0.8);
+    let specular_color = Vec3::new(1.0, 1.0, 1.0);
     let shininess = 32.0;
 
-    let (diffuse, specular) = calculate_blinn_phong_lighting(light, frag_pos, normal, view_dir, shininess);
+    let result = calculate_blinn_phong_lighting(
+        view_pos,
+        frag_pos,
+        normal,
+        &lights,
+        ambient_color,
+        diffuse_color,
+        specular_color,
+        shininess,
+    );
 
-    // Diffuse should be strong since normal aligns perfectly with light direction
-    // Light is at distance 10, radius 20. Attenuation should be ~1.0 with some windowing reduction
-    assert!(diffuse.x > 0.5 && diffuse.x < 1.0);
-    assert_eq!(diffuse.x, diffuse.y); // White light
-    assert_eq!(diffuse.y, diffuse.z);
-
-    // Specular should be positive but smaller depending on halfway vector
-    assert!(specular.x > 0.0);
-
-    // Fragment outside radius
-    let frag_pos_far = Vec3::new(30.0, 0.0, 0.0); // distance ~31.6 > radius 20
-    let (diff_far, spec_far) = calculate_blinn_phong_lighting(light, frag_pos_far, normal, view_dir, shininess);
+    // Assert that the resulting color has light contribution (more than just ambient)
+    assert!(result.x > ambient_color.x);
+    assert!(result.y > ambient_color.y);
+    assert!(result.z > ambient_color.z);
     
-    assert_eq!(diff_far, Vec3::ZERO);
-    assert_eq!(spec_far, Vec3::ZERO);
+    // Assert that the result is clamped to maximum 1.0
+    assert!(result.x <= 1.0);
+    assert!(result.y <= 1.0);
+    assert!(result.z <= 1.0);
+}
+
+#[test]
+fn test_blinn_phong_out_of_range() {
+    // Light is very far away, beyond its radius
+    let light = PointLight::new(Vec3::new(0.0, 100.0, 0.0), Vec3::new(1.0, 1.0, 1.0), 10.0, 1.0, 0.0, 0.0);
+    let lights = vec![light];
+    
+    let frag_pos = Vec3::ZERO;
+    let normal = Vec3::new(0.0, 1.0, 0.0);
+    let view_pos = Vec3::new(10.0, 10.0, 0.0);
+    
+    let ambient_color = Vec3::new(0.1, 0.1, 0.1);
+    let diffuse_color = Vec3::new(0.8, 0.8, 0.8);
+    let specular_color = Vec3::new(1.0, 1.0, 1.0);
+    let shininess = 32.0;
+
+    let result = calculate_blinn_phong_lighting(
+        view_pos,
+        frag_pos,
+        normal,
+        &lights,
+        ambient_color,
+        diffuse_color,
+        specular_color,
+        shininess,
+    );
+
+    // Because the fragment is out of the light's radius, only ambient color should remain
+    assert_eq!(result, ambient_color);
+}
+
+#[test]
+fn test_get_uniform_data() {
+    let mut cluster = DynamicPointLightCluster::new(2);
+    let light = PointLight::new(Vec3::new(1.0, 2.0, 3.0), Vec3::new(0.5, 0.5, 0.5), 10.0, 1.0, 0.1, 0.01);
+    cluster.add_light(light).unwrap();
+
+    let uniforms = cluster.get_uniform_data();
+    assert_eq!(uniforms.light_count, 1);
+    assert_eq!(uniforms.lights[0].position, [1.0, 2.0, 3.0]);
+    assert_eq!(uniforms.lights[0].radius, 10.0);
+    assert_eq!(uniforms.lights[0].color, [0.5, 0.5, 0.5]);
+    assert_eq!(uniforms.lights[0].attenuation0, 1.0);
+    assert_eq!(uniforms.lights[0].attenuation1, 0.1);
+    assert_eq!(uniforms.lights[0].attenuation2, 0.01);
 }
