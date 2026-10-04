@@ -621,3 +621,18 @@ pub mod game_character_stat_calculator;
 pub mod game_offline_shop_search_engine;
 pub mod game_pet_evolution_system;
 pub mod game_equipment_gem_socket_engine;
+
+pub mod wgpu_lod_dither_crossfade;
+pub mod binary_proto_mob_reader;
+pub mod race_manager_data_registry;
+pub mod game_item_blend_potion_calculator;
+pub mod net_mark_server_protocol_handler;
+pub mod game_combat_sphere_collision_system;
+pub mod py_bridge_app_camera_complete;
+pub mod py_bridge_player_skills_eval;
+pub mod py_bridge_item_flags_complete;
+pub mod binary_proto_item_reader;
+pub mod binary_skill_table_loader;
+pub mod ui_drag_drop_global_manager;
+pub mod game_messenger_friends_manager;
+pub mod game_party_group_manager;
