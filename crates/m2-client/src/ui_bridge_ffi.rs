@@ -928,6 +928,7 @@ pub fn m2_ui_setup_game_hud(
     wm.set_position(hp_fg, 0, 0);
     wm.set_size(hp_fg, 180, 14);
     wm.set_color(hp_fg, [0.85, 0.12, 0.12, 1.0]);
+    wm.set_name(hp_fg, "HudHpBarFg");
 
     let hp_lbl = wm.register(WindowType::TextLine);
     wm.set_parent(hp_lbl, hp_bg);
@@ -948,6 +949,7 @@ pub fn m2_ui_setup_game_hud(
     wm.set_position(sp_fg, 0, 0);
     wm.set_size(sp_fg, 180, 14);
     wm.set_color(sp_fg, [0.15, 0.45, 0.95, 1.0]);
+    wm.set_name(sp_fg, "HudSpBarFg");
 
     let sp_lbl = wm.register(WindowType::TextLine);
     wm.set_parent(sp_lbl, sp_bg);
@@ -1053,6 +1055,7 @@ pub fn m2_ui_setup_game_hud(
     wm.set_position(mm_dot, 70, 50);
     wm.set_size(mm_dot, 5, 5);
     wm.set_color(mm_dot, [1.0, 1.0, 1.0, 1.0]);
+    wm.set_name(mm_dot, "MiniMapDot");
 
     // =========================================================================
     // LEWY DOLNY ROG: OKNO CZATU
@@ -1090,7 +1093,252 @@ pub fn m2_ui_setup_game_hud(
     wm.set_text(chat_input_txt, "Nacisnij ENTER aby napisac wiadomosc na czacie...");
     wm.set_font_color(chat_input_txt, [0.55, 0.55, 0.55, 1.0]);
 
+    // =========================================================================
+    // OKNO EKWIPUNKU (Inventory - I)
+    // =========================================================================
+    let inv_w = 180;
+    let inv_h = 390;
+    let inv_board = create_thin_board(wm, Some(hud_board), sw - inv_w - 15, bar_y - inv_h - 10, inv_w, inv_h, 0);
+    wm.set_name(inv_board, "InventoryBoard");
+    if let Some(w) = wm.windows.get_mut(&inv_board) {
+        w.is_show = false;
+    }
+
+    let inv_title = wm.register(WindowType::TextLine);
+    wm.set_parent(inv_title, inv_board);
+    wm.set_position(inv_title, 14, 12);
+    wm.set_text(inv_title, "Ekwipunek");
+    wm.set_font_color(inv_title, [1.0, 0.85, 0.25, 1.0]);
+
+    let inv_close = wm.register(WindowType::Button);
+    wm.set_parent(inv_close, inv_board);
+    wm.set_position(inv_close, inv_w - 24, 10);
+    wm.set_size(inv_close, 14, 14);
+    wm.set_name(inv_close, "InvCloseButton");
+    wm.set_text(inv_close, "X");
+    wm.set_color(inv_close, [0.8, 0.2, 0.2, 1.0]);
+
+    for page in 0..4 {
+        let page_btn = wm.register(WindowType::Button);
+        wm.set_parent(page_btn, inv_board);
+        wm.set_position(page_btn, 14 + (page as i32 * 38), 34);
+        wm.set_size(page_btn, 36, 18);
+        wm.set_name(page_btn, &format!("InvPageBtn_{}", page + 1));
+        let roman = match page { 0 => "I", 1 => "II", 2 => "III", _ => "IV" };
+        wm.set_text(page_btn, roman);
+        if page == 0 {
+            wm.set_color(page_btn, [0.3, 0.3, 0.45, 0.95]);
+        } else {
+            wm.set_color(page_btn, [0.15, 0.15, 0.2, 0.8]);
+        }
+    }
+
+    let slot_size = 30;
+    let slot_start_x = 14;
+    let slot_start_y = 56;
+    for row in 0..9 {
+        for col in 0..5 {
+            let slot_idx = row * 5 + col;
+            let slot_box = wm.register(WindowType::Bar);
+            wm.set_parent(slot_box, inv_board);
+            wm.set_position(slot_box, slot_start_x + (col * (slot_size + 1)), slot_start_y + (row * (slot_size + 1)));
+            wm.set_size(slot_box, slot_size, slot_size);
+            wm.set_color(slot_box, [0.08, 0.08, 0.1, 0.9]);
+            wm.set_name(slot_box, &format!("InvSlot_{}", slot_idx));
+
+            let slot_border = wm.register(WindowType::Line);
+            wm.set_parent(slot_border, slot_box);
+            wm.set_position(slot_border, 0, 0);
+            wm.set_size(slot_border, slot_size, 1);
+            wm.set_color(slot_border, [0.35, 0.35, 0.4, 0.7]);
+        }
+    }
+
+    let yang_bar = wm.register(WindowType::Bar);
+    wm.set_parent(yang_bar, inv_board);
+    wm.set_position(yang_bar, 14, inv_h - 32);
+    wm.set_size(yang_bar, inv_w - 28, 20);
+    wm.set_color(yang_bar, [0.05, 0.05, 0.08, 0.95]);
+
+    let yang_txt = wm.register(WindowType::TextLine);
+    wm.set_parent(yang_txt, yang_bar);
+    wm.set_position(yang_txt, 8, 2);
+    wm.set_text(yang_txt, "999,999,999 Yang");
+    wm.set_font_color(yang_txt, [1.0, 0.85, 0.2, 1.0]);
+    wm.set_name(yang_txt, "InvYangText");
+
+    // =========================================================================
+    // OKNO STATUSU POSTACI (Character Status - C)
+    // =========================================================================
+    let cs_w = 230;
+    let cs_h = 370;
+    let cs_board = create_thin_board(wm, Some(hud_board), 20, 50, cs_w, cs_h, 0);
+    wm.set_name(cs_board, "CharacterStatusBoard");
+    if let Some(w) = wm.windows.get_mut(&cs_board) {
+        w.is_show = false;
+    }
+
+    let cs_title = wm.register(WindowType::TextLine);
+    wm.set_parent(cs_title, cs_board);
+    wm.set_position(cs_title, 14, 12);
+    wm.set_text(cs_title, "Status Postaci");
+    wm.set_font_color(cs_title, [1.0, 0.85, 0.25, 1.0]);
+
+    let cs_close = wm.register(WindowType::Button);
+    wm.set_parent(cs_close, cs_board);
+    wm.set_position(cs_close, cs_w - 24, 10);
+    wm.set_size(cs_close, 14, 14);
+    wm.set_name(cs_close, "CharCloseButton");
+    wm.set_text(cs_close, "X");
+    wm.set_color(cs_close, [0.8, 0.2, 0.2, 1.0]);
+
+    let stat_lines = [
+        ("Postac: [SA]Admin (Wojownik)", [1.0, 1.0, 1.0, 1.0]),
+        ("Poziom: 105  (EXP: 85%)", [0.4, 1.0, 0.4, 1.0]),
+        ("Ranga: Rycerski (+20000)", [0.4, 0.8, 1.0, 1.0]),
+        ("Gildia: Mistrzowie", [1.0, 0.85, 0.2, 1.0]),
+        ("--------------------------------", [0.4, 0.4, 0.4, 1.0]),
+        ("PZ: 15000 / 15000", [0.9, 0.3, 0.3, 1.0]),
+        ("PE: 2000 / 2000", [0.3, 0.6, 1.0, 1.0]),
+        ("WIT (Witalnosc): 90  (+)", [0.9, 0.85, 0.7, 1.0]),
+        ("INT (Inteligencja): 90 (+)", [0.9, 0.85, 0.7, 1.0]),
+        ("SILA (Sila): 90     (+)", [0.9, 0.85, 0.7, 1.0]),
+        ("ZRE (Zrecznosc): 90  (+)", [0.9, 0.85, 0.7, 1.0]),
+        ("--------------------------------", [0.4, 0.4, 0.4, 1.0]),
+        ("Wartosc Ataku: 980 - 1120", [1.0, 0.7, 0.3, 1.0]),
+        ("Obrona: 750", [0.7, 0.8, 1.0, 1.0]),
+        ("Szybkosc Ruchu: 150", [0.8, 1.0, 0.8, 1.0]),
+        ("Szybkosc Ataku: 135", [0.8, 1.0, 0.8, 1.0]),
+    ];
+    for (i, (txt, col)) in stat_lines.iter().enumerate() {
+        let s_txt = wm.register(WindowType::TextLine);
+        wm.set_parent(s_txt, cs_board);
+        wm.set_position(s_txt, 14, 34 + (i as i32 * 20));
+        wm.set_text(s_txt, txt);
+        wm.set_font_color(s_txt, *col);
+    }
+
+    // =========================================================================
+    // OKNO UMIEJETNOSCI (Skills - V)
+    // =========================================================================
+    let sk_w = 230;
+    let sk_h = 320;
+    let sk_board = create_thin_board(wm, Some(hud_board), 260, 50, sk_w, sk_h, 0);
+    wm.set_name(sk_board, "SkillBoard");
+    if let Some(w) = wm.windows.get_mut(&sk_board) {
+        w.is_show = false;
+    }
+
+    let sk_title = wm.register(WindowType::TextLine);
+    wm.set_parent(sk_title, sk_board);
+    wm.set_position(sk_title, 14, 12);
+    wm.set_text(sk_title, "Umiejetnosci (Body)");
+    wm.set_font_color(sk_title, [1.0, 0.85, 0.25, 1.0]);
+
+    let sk_close = wm.register(WindowType::Button);
+    wm.set_parent(sk_close, sk_board);
+    wm.set_position(sk_close, sk_w - 24, 10);
+    wm.set_size(sk_close, 14, 14);
+    wm.set_name(sk_close, "SkillCloseButton");
+    wm.set_text(sk_close, "X");
+    wm.set_color(sk_close, [0.8, 0.2, 0.2, 1.0]);
+
+    let skill_list = [
+        ("1. Trzystopniowe Ciecie (P)", "3-krotny cios wroga"),
+        ("2. Wir Miecza (P)", "Obszarowy atak 360"),
+        ("3. Szarza (P)", "Szybki doskok do celu"),
+        ("4. Berserk (P)", "Zwieksza szybkosc ataku"),
+        ("5. Aura Miecza (P)", "Potezny bonus do ataku"),
+        ("6. Wola Zycia (P)", "Odpornosc na obrazenia"),
+    ];
+    for (i, (s_name, s_desc)) in skill_list.iter().enumerate() {
+        let s_btn = wm.register(WindowType::Button);
+        wm.set_parent(s_btn, sk_board);
+        wm.set_position(s_btn, 14, 38 + (i as i32 * 44));
+        wm.set_size(s_btn, sk_w - 28, 38);
+        wm.set_name(s_btn, &format!("SkillBtn_{}", i + 1));
+        wm.set_color(s_btn, [0.15, 0.15, 0.22, 0.9]);
+        wm.set_text(s_btn, s_name);
+
+        let d_txt = wm.register(WindowType::TextLine);
+        wm.set_parent(d_txt, s_btn);
+        wm.set_position(d_txt, 8, 18);
+        wm.set_text(d_txt, s_desc);
+        wm.set_font_color(d_txt, [0.7, 0.7, 0.7, 1.0]);
+    }
+
+    // =========================================================================
+    // DIALOG SYSTEMOWY (ESC)
+    // =========================================================================
+    let sys_w = 200;
+    let sys_h = 210;
+    let sys_board = create_thin_board(wm, Some(hud_board), (sw - sys_w) / 2, (sh - sys_h) / 2, sys_w, sys_h, 0);
+    wm.set_name(sys_board, "SystemDialogBoard");
+    if let Some(w) = wm.windows.get_mut(&sys_board) {
+        w.is_show = false;
+    }
+
+    let sys_title = wm.register(WindowType::TextLine);
+    wm.set_parent(sys_title, sys_board);
+    wm.set_position(sys_title, 14, 12);
+    wm.set_text(sys_title, "Menu Gry [ESC]");
+    wm.set_font_color(sys_title, [1.0, 0.85, 0.25, 1.0]);
+
+    let sys_btns = [
+        ("SysBtnRestart", "Restart w miescie", 38),
+        ("SysBtnLogout", "Wyloguj do wyboru", 78),
+        ("SysBtnExit", "Zakoncz gre", 118),
+        ("SysBtnCancel", "Powrot do gry", 158),
+    ];
+    for (b_name, b_label, b_y) in sys_btns {
+        let btn = wm.register(WindowType::Button);
+        wm.set_parent(btn, sys_board);
+        wm.set_position(btn, 14, b_y);
+        wm.set_size(btn, sys_w - 28, 28);
+        wm.set_name(btn, b_name);
+        wm.set_color(btn, [0.2, 0.2, 0.28, 0.95]);
+        wm.set_text(btn, b_label);
+    }
+
     println!("[+] Game HUD UI Pure Rust gotowy (zarejestrowano {} okien)!", wm.windows.len());
+}
+
+pub fn update_game_hud_live(pos: [f32; 3], _rot: f32) {
+    let (hp, max_hp, sp, max_sp, level) = if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+        (
+            state.player.points[5],
+            state.player.points[6].max(1),
+            state.player.points[7],
+            state.player.points[8].max(1),
+            state.player.points[1],
+        )
+    } else {
+        (15000, 15000, 2000, 2000, 105)
+    };
+
+    let mut wm = crate::ui_window_mgr::get_window_manager();
+    if let Some(h) = wm.windows.values().find(|w| w.name == "HudHpText").map(|w| w.handle) {
+        wm.set_text(h, &format!("PZ: {} / {}", hp, max_hp));
+    }
+    if let Some(h) = wm.windows.values().find(|w| w.name == "HudHpBarFg").map(|w| w.handle) {
+        let width = ((hp as f32 / max_hp as f32) * 180.0).clamp(0.0, 180.0) as i32;
+        wm.set_size(h, width, 14);
+    }
+    if let Some(h) = wm.windows.values().find(|w| w.name == "HudSpText").map(|w| w.handle) {
+        wm.set_text(h, &format!("PE: {} / {}", sp, max_sp));
+    }
+    if let Some(h) = wm.windows.values().find(|w| w.name == "HudSpBarFg").map(|w| w.handle) {
+        let width = ((sp as f32 / max_sp as f32) * 180.0).clamp(0.0, 180.0) as i32;
+        wm.set_size(h, width, 14);
+    }
+    if let Some(h) = wm.windows.values().find(|w| w.name == "HudLevelText").map(|w| w.handle) {
+        wm.set_text(h, &format!("Pozycja: {:.0}, {:.0} (Lv. {})", pos[0], pos[1], level));
+    }
+    if let Some(h) = wm.windows.values().find(|w| w.name == "MiniMapDot").map(|w| w.handle) {
+        let radar_x = 70 + ((pos[0] / 80.0) as i32).clamp(-65, 65);
+        let radar_y = 50 + ((-pos[1] / 80.0) as i32).clamp(-45, 45);
+        wm.set_position(h, radar_x, radar_y);
+    }
 }
 
 pub fn toggle_edit_focus() {
@@ -1637,17 +1885,108 @@ pub fn handle_ui_click(name: &str, _handle: u32, wm: &mut crate::ui_window_mgr::
             println!("[UI] HUD: Wyjscie z gry na polecenie gracza");
             crate::win32_message_dispatcher::post_quit_message(0);
         }
-        "HudBtnCharacter" => {
-            println!("[UI] HUD: Otwarto okno Statusu Postaci (C)");
+        "HudBtnCharacter" | "HudBtnChar" => {
+            println!("[UI] HUD: Przelaczenie okna Statusu Postaci (C)");
+            if let Some(h) = wm.windows.values().find(|w| w.name == "CharacterStatusBoard").map(|w| w.handle) {
+                let vis = wm.windows.get(&h).map(|w| w.is_show).unwrap_or(false);
+                if vis { wm.hide(h); } else { wm.show(h); }
+            }
         }
-        "HudBtnInventory" => {
-            println!("[UI] HUD: Otwarto okno Ekwipunku (I)");
+        "CharCloseButton" => {
+            println!("[UI] Zamkniecie okna Statusu Postaci");
+            if let Some(h) = wm.windows.values().find(|w| w.name == "CharacterStatusBoard").map(|w| w.handle) {
+                wm.hide(h);
+            }
+        }
+        "HudBtnInventory" | "HudBtnInv" => {
+            println!("[UI] HUD: Przelaczenie okna Ekwipunku (I)");
+            if let Some(h) = wm.windows.values().find(|w| w.name == "InventoryBoard").map(|w| w.handle) {
+                let vis = wm.windows.get(&h).map(|w| w.is_show).unwrap_or(false);
+                if vis { wm.hide(h); } else { wm.show(h); }
+            }
+        }
+        "InvCloseButton" => {
+            println!("[UI] Zamkniecie okna Ekwipunku");
+            if let Some(h) = wm.windows.values().find(|w| w.name == "InventoryBoard").map(|w| w.handle) {
+                wm.hide(h);
+            }
         }
         "HudBtnSkills" => {
-            println!("[UI] HUD: Otwarto okno Umiejetnosci (V)");
+            println!("[UI] HUD: Przelaczenie okna Umiejetnosci (V)");
+            if let Some(h) = wm.windows.values().find(|w| w.name == "SkillBoard").map(|w| w.handle) {
+                let vis = wm.windows.get(&h).map(|w| w.is_show).unwrap_or(false);
+                if vis { wm.hide(h); } else { wm.show(h); }
+            }
+        }
+        "SkillCloseButton" => {
+            println!("[UI] Zamkniecie okna Umiejetnosci");
+            if let Some(h) = wm.windows.values().find(|w| w.name == "SkillBoard").map(|w| w.handle) {
+                wm.hide(h);
+            }
         }
         "HudBtnSystem" => {
-            println!("[UI] HUD: Otwarto Opcje Systemowe (ESC)");
+            println!("[UI] HUD: Menu Gry (ESC)");
+            let mut closed_sub = false;
+            for win_name in &["InventoryBoard", "CharacterStatusBoard", "SkillBoard"] {
+                if let Some(h) = wm.windows.values().find(|w| &w.name == win_name).map(|w| w.handle) {
+                    if wm.windows.get(&h).map(|w| w.is_show).unwrap_or(false) {
+                        wm.hide(h);
+                        closed_sub = true;
+                    }
+                }
+            }
+            if !closed_sub {
+                if let Some(h) = wm.windows.values().find(|w| w.name == "SystemDialogBoard").map(|w| w.handle) {
+                    let vis = wm.windows.get(&h).map(|w| w.is_show).unwrap_or(false);
+                    if vis { wm.hide(h); } else { wm.show(h); }
+                }
+            }
+        }
+        "SysBtnCancel" => {
+            if let Some(h) = wm.windows.values().find(|w| w.name == "SystemDialogBoard").map(|w| w.handle) {
+                wm.hide(h);
+            }
+        }
+        "SysBtnExit" => {
+            println!("[UI] Wyjscie z gry z menu opcji");
+            crate::win32_message_dispatcher::post_quit_message(0);
+        }
+        "SysBtnLogout" => {
+            println!("[UI] Wylogowanie do ekranu wyboru postaci");
+            if let Some(h) = wm.windows.values().find(|w| w.name == "SystemDialogBoard").map(|w| w.handle) {
+                wm.hide(h);
+            }
+            if let Some(h) = wm.windows.values().find(|w| w.name == "GameHudBoard").map(|w| w.handle) {
+                wm.hide(h);
+            }
+            *CURRENT_PHASE.lock().unwrap() = "SELECT".to_string();
+            let chars = GLOBAL_CHARACTERS.lock().unwrap().clone();
+            m2_ui_setup_character_select(wm, 1024, 768, &chars);
+        }
+        "SysBtnRestart" => {
+            println!("[UI] Restart pozycji postaci w miescie");
+            if let Some(h) = wm.windows.values().find(|w| w.name == "SystemDialogBoard").map(|w| w.handle) {
+                wm.hide(h);
+            }
+            if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+                state.player.x = 0.0;
+                state.player.y = 0.0;
+                state.player.z = 0.0;
+            }
+        }
+        _ if name.starts_with("QuickSlot_") => {
+            let num = name.trim_start_matches("QuickSlot_");
+            match num {
+                "1" => println!("[QUICKSLOT] [1] Uzyto umiejetnosci: Wir Miecza!"),
+                "2" => println!("[QUICKSLOT] [2] Uzyto umiejetnosci: Szarza!"),
+                "3" => println!("[QUICKSLOT] [3] Uzyto umiejetnosci: Ciecie!"),
+                "4" => println!("[QUICKSLOT] [4] Aktywowano buff: Berserk!"),
+                "5" => println!("[QUICKSLOT] [F1] Uzyto Czerwonej Mikstury (+500 PZ)!"),
+                "6" => println!("[QUICKSLOT] [F2] Uzyto Niebieskiej Mikstury (+200 PE)!"),
+                "7" => println!("[QUICKSLOT] [F3] Uzyto Zielonej Mikstury (Szybkosc Ataku +30)!"),
+                "8" => println!("[QUICKSLOT] [F4] Uzyto Fioletowej Mikstury (Szybkosc Ruchu +60)!"),
+                _ => println!("[QUICKSLOT] Uzyto slotu {}", num),
+            }
         }
         _ if name.starts_with("CharSlot") => {
             let suffix = if name.starts_with("CharSlotBar_") {

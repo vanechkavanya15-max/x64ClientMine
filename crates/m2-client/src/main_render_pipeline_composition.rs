@@ -134,9 +134,17 @@ impl MainRenderPipelineComposition {
 
             // Step 2: Skybox
             self.pass_execution_flags |= Self::PASS_SKYBOX;
-            if let Some(pipeline) = &pipeline_mgr.skybox_pipeline {
+            if let (Some(pipeline), Some(bg), Some(vb), Some(ib)) = (
+                &pipeline_mgr.skybox_pipeline,
+                &pipeline_mgr.skybox_bind_group,
+                &pipeline_mgr.skybox_vertex_buffer,
+                &pipeline_mgr.skybox_index_buffer,
+            ) {
                 render_pass.set_pipeline(pipeline);
-                render_pass.draw(0..6, 0..1);
+                render_pass.set_bind_group(0, bg, &[]);
+                render_pass.set_vertex_buffer(0, vb.slice(..));
+                render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.draw_indexed(0..pipeline_mgr.skybox_index_count, 0, 0..1);
             }
 
             // Step 3: Shadow Pass
@@ -147,71 +155,98 @@ impl MainRenderPipelineComposition {
             
             // Step 4: Terrain 3D
             self.pass_execution_flags |= Self::PASS_TERRAIN;
-            if let (Some(pipeline), Some(vb), Some(bg)) = (
-                &pipeline_mgr.terrain_pipeline,
-                &pipeline_mgr.terrain_vertex_buffer,
-                &pipeline_mgr.terrain_bind_group,
-            ) {
-                render_pass.set_pipeline(pipeline);
-                render_pass.set_bind_group(0, bg, &[]);
-                render_pass.set_vertex_buffer(0, vb.slice(..));
-                render_pass.draw(0..pipeline_mgr.terrain_vertex_count, 0..1);
+            let terrain_pipe = pipeline_mgr.terrain_pipeline.as_ref().or(ctx.terrain_pipeline.as_ref());
+            let terrain_vb = pipeline_mgr.terrain_vertex_buffer.as_ref().or(ctx.terrain_vertex_buffer.as_ref());
+            let terrain_vc = if pipeline_mgr.terrain_vertex_count > 0 { pipeline_mgr.terrain_vertex_count } else { ctx.terrain_vertex_count };
+            let uniform_bg = pipeline_mgr.terrain_bind_group.as_ref().or(ctx.character_uniform_bind_group.as_ref());
+
+            if let (Some(pipeline), Some(vb), Some(bg)) = (terrain_pipe, terrain_vb, uniform_bg) {
+                if terrain_vc > 0 {
+                    render_pass.set_pipeline(pipeline);
+                    render_pass.set_bind_group(0, bg, &[]);
+                    render_pass.set_vertex_buffer(0, vb.slice(..));
+                    render_pass.draw(0..terrain_vc, 0..1);
+                }
             }
             
             // Step 5: SpeedTree Forest
             self.pass_execution_flags |= Self::PASS_SPEEDTREE;
-            if let (Some(pipeline), Some(vb)) = (&pipeline_mgr.speedtree_pipeline, &pipeline_mgr.speedtree_vertex_buffer) {
-                render_pass.set_pipeline(pipeline);
-                render_pass.set_vertex_buffer(0, vb.slice(..));
-                render_pass.draw(0..pipeline_mgr.speedtree_vertex_count, 0..1);
+            if let (Some(pipeline), Some(vb), Some(bg)) = (&pipeline_mgr.speedtree_pipeline, &pipeline_mgr.speedtree_vertex_buffer, uniform_bg) {
+                if pipeline_mgr.speedtree_vertex_count > 0 {
+                    render_pass.set_pipeline(pipeline);
+                    render_pass.set_bind_group(0, bg, &[]);
+                    render_pass.set_vertex_buffer(0, vb.slice(..));
+                    render_pass.draw(0..pipeline_mgr.speedtree_vertex_count, 0..1);
+                }
             }
 
             // Step 6: Water Surface
             self.pass_execution_flags |= Self::PASS_WATER;
-            if let (Some(pipeline), Some(vb)) = (&pipeline_mgr.water_pipeline, &pipeline_mgr.water_vertex_buffer) {
-                render_pass.set_pipeline(pipeline);
-                render_pass.set_vertex_buffer(0, vb.slice(..));
-                render_pass.draw(0..pipeline_mgr.water_vertex_count, 0..1);
+            if let (Some(pipeline), Some(vb), Some(bg)) = (&pipeline_mgr.water_pipeline, &pipeline_mgr.water_vertex_buffer, &pipeline_mgr.water_bind_group) {
+                if pipeline_mgr.water_vertex_count > 0 {
+                    render_pass.set_pipeline(pipeline);
+                    render_pass.set_bind_group(0, bg, &[]);
+                    render_pass.set_vertex_buffer(0, vb.slice(..));
+                    render_pass.draw(0..pipeline_mgr.water_vertex_count, 0..1);
+                }
             }
 
             // Step 7: Characters and Monsters
             self.pass_execution_flags |= Self::PASS_CHARACTERS;
-            if let (Some(pipeline), Some(vb)) = (&pipeline_mgr.character_pipeline, &pipeline_mgr.character_vertex_buffer) {
+            let char_pipe = pipeline_mgr.character_pipeline.as_ref().or(ctx.character_pipeline.as_ref());
+            let char_ubg = pipeline_mgr.character_uniform_bind_group.as_ref().or(ctx.character_uniform_bind_group.as_ref());
+            let char_tex = pipeline_mgr.character_texture_bind_group.as_ref().or(ctx.player_texture_bind_group.as_ref());
+
+            if let (Some(pipeline), Some(bg0), Some(bg1)) = (char_pipe, char_ubg, char_tex) {
                 render_pass.set_pipeline(pipeline);
-                if let Some(bg0) = &pipeline_mgr.character_uniform_bind_group {
-                    render_pass.set_bind_group(0, bg0, &[]);
+                render_pass.set_bind_group(0, bg0, &[]);
+                render_pass.set_bind_group(1, bg1, &[]);
+
+                if let Some(mesh) = &ctx.player_mesh_buffers {
+                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                    render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                    render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+                } else if let (Some(vb), Some(ib)) = (&pipeline_mgr.character_vertex_buffer, &pipeline_mgr.character_index_buffer) {
+                    if pipeline_mgr.character_index_count > 0 {
+                        render_pass.set_vertex_buffer(0, vb.slice(..));
+                        render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint16);
+                        render_pass.draw_indexed(0..pipeline_mgr.character_index_count, 0, 0..1);
+                    }
                 }
-                if let Some(bg1) = &pipeline_mgr.character_texture_bind_group {
-                    render_pass.set_bind_group(1, bg1, &[]);
-                }
-                render_pass.set_vertex_buffer(0, vb.slice(..));
-                if let Some(ib) = &pipeline_mgr.character_index_buffer {
-                    render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint16);
-                    render_pass.draw_indexed(0..pipeline_mgr.character_index_count, 0, 0..1);
-                } else {
-                    render_pass.draw(0..pipeline_mgr.character_vertex_count, 0..1);
+
+                if let (Some(w_mesh), Some(w_tex)) = (&ctx.weapon_mesh_buffers, &ctx.weapon_texture_bind_group) {
+                    render_pass.set_bind_group(1, w_tex, &[]);
+                    render_pass.set_vertex_buffer(0, w_mesh.vertex_buffer.slice(..));
+                    render_pass.set_index_buffer(w_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                    render_pass.draw_indexed(0..w_mesh.index_count, 0, 0..1);
                 }
             }
 
             // Step 8: Particles & Projectiles
             self.pass_execution_flags |= Self::PASS_PARTICLES;
             if let (Some(pipeline), Some(vb)) = (&pipeline_mgr.magic_effect_pipeline, &pipeline_mgr.magic_effect_vertex_buffer) {
-                render_pass.set_pipeline(pipeline);
-                render_pass.set_vertex_buffer(0, vb.slice(..));
-                render_pass.draw(0..pipeline_mgr.magic_effect_vertex_count, 0..1);
+                if pipeline_mgr.magic_effect_vertex_count > 0 {
+                    render_pass.set_pipeline(pipeline);
+                    render_pass.set_vertex_buffer(0, vb.slice(..));
+                    render_pass.draw(0..pipeline_mgr.magic_effect_vertex_count, 0..1);
+                }
             }
             if let (Some(pipeline), Some(vb)) = (&pipeline_mgr.projectile_pipeline, &pipeline_mgr.projectile_vertex_buffer) {
-                render_pass.set_pipeline(pipeline);
-                render_pass.set_vertex_buffer(0, vb.slice(..));
-                render_pass.draw(0..pipeline_mgr.projectile_vertex_count, 0..1);
+                if pipeline_mgr.projectile_vertex_count > 0 {
+                    render_pass.set_pipeline(pipeline);
+                    render_pass.set_vertex_buffer(0, vb.slice(..));
+                    render_pass.draw(0..pipeline_mgr.projectile_vertex_count, 0..1);
+                }
             }
             
             // Step 9: TextTail
             self.pass_execution_flags |= Self::PASS_TEXTTAIL;
             if let (Some(pipeline), Some(vb)) = (&pipeline_mgr.text_tail_pipeline, &pipeline_mgr.text_tail_vertex_buffer) {
-                render_pass.set_pipeline(pipeline);
-                render_pass.set_vertex_buffer(0, vb.slice(..));
-                render_pass.draw(0..pipeline_mgr.text_tail_vertex_count, 0..1);
+                if pipeline_mgr.text_tail_vertex_count > 0 {
+                    render_pass.set_pipeline(pipeline);
+                    render_pass.set_vertex_buffer(0, vb.slice(..));
+                    render_pass.draw(0..pipeline_mgr.text_tail_vertex_count, 0..1);
+                }
             }
         }
         

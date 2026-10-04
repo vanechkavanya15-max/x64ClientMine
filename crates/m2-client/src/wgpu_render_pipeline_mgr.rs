@@ -21,6 +21,9 @@ pub struct WgpuRenderPipelineManager {
 
     pub skybox_pipeline: Option<wgpu::RenderPipeline>,
     pub skybox_bind_group: Option<wgpu::BindGroup>,
+    pub skybox_vertex_buffer: Option<wgpu::Buffer>,
+    pub skybox_index_buffer: Option<wgpu::Buffer>,
+    pub skybox_index_count: u32,
     pub terrain_pipeline: Option<wgpu::RenderPipeline>,
     pub water_pipeline: Option<wgpu::RenderPipeline>,
     pub water_bind_group: Option<wgpu::BindGroup>,
@@ -65,6 +68,15 @@ impl WgpuRenderPipelineManager {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
     pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
+        Self::new_with_format(device, width, height, wgpu::TextureFormat::Rgba8UnormSrgb)
+    }
+
+    pub fn new_with_format(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        surface_format: wgpu::TextureFormat,
+    ) -> Self {
         let size = wgpu::Extent3d {
             width: width.max(1),
             height: height.max(1),
@@ -86,7 +98,7 @@ impl WgpuRenderPipelineManager {
         let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let (char_pipe, _char_ub, char_ubg, u_layout, _tex_layout) =
-            WgpuEngineContext::setup_character_pipeline(device, wgpu::TextureFormat::Rgba8UnormSrgb);
+            WgpuEngineContext::setup_character_pipeline(device, surface_format);
         let warrior = crate::character_model_vfs_loader::load_warrior_model(device).ok();
         let (char_vb, char_vc, char_ib, char_ic) = if let Some(m) = warrior {
             (
@@ -102,16 +114,19 @@ impl WgpuRenderPipelineManager {
         // 1. Inicjalizacja skybox_pipeline
         let skybox_renderer = crate::wgpu_skybox_renderer::SkyboxRenderer::new(
             device,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
+            surface_format,
             Self::DEPTH_FORMAT,
         );
         let skybox_pipeline = Some(skybox_renderer.pipeline);
         let skybox_bind_group = Some(skybox_renderer.uniform_bind_group);
+        let skybox_vertex_buffer = Some(skybox_renderer.vertex_buffer);
+        let skybox_index_buffer = Some(skybox_renderer.index_buffer);
+        let skybox_index_count = skybox_renderer.index_count;
 
         // 2. Inicjalizacja terrain_pipeline oraz bufora wierzcholkow terenu
         let terrain_pipeline = Some(crate::wgpu_terrain_renderer::create_terrain_pipeline(
             device,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
+            surface_format,
             &u_layout,
         ));
         let terrain_bind_group = Some(char_ubg.clone());
@@ -168,7 +183,7 @@ impl WgpuRenderPipelineManager {
         });
         let water_renderer = crate::wgpu_water_plane_renderer::WgpuWaterPlaneRenderer::new(
             device,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
+            surface_format,
             &water_bind_group_layout,
         );
         let water_pipeline = Some(water_renderer.pipeline);
@@ -192,14 +207,14 @@ impl WgpuRenderPipelineManager {
         // 4. Inicjalizacja text_tail_pipeline
         let text_tail_pipeline = Some(Self::create_text_tail_pipeline(
             device,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
+            surface_format,
             Self::DEPTH_FORMAT,
         ));
 
         // 5. Inicjalizacja speedtree_pipeline
         let speedtree_pipeline = Some(Self::create_speedtree_pipeline(
             device,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
+            surface_format,
             Self::DEPTH_FORMAT,
             &u_layout,
         ));
@@ -207,21 +222,21 @@ impl WgpuRenderPipelineManager {
         // 6. Inicjalizacja magic_effect_pipeline
         let magic_effect_pipeline = Some(Self::create_magic_effect_pipeline(
             device,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
+            surface_format,
             Self::DEPTH_FORMAT,
         ));
 
         // 7. Inicjalizacja projectile_pipeline
         let projectile_pipeline = Some(Self::create_projectile_pipeline(
             device,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
+            surface_format,
             Self::DEPTH_FORMAT,
         ));
 
         // 8. Inicjalizacja ground_item_pipeline
         let ground_item_pipeline = Some(Self::create_speedtree_pipeline(
             device,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
+            surface_format,
             Self::DEPTH_FORMAT,
             &u_layout,
         ));
@@ -231,6 +246,9 @@ impl WgpuRenderPipelineManager {
             depth_view,
             skybox_pipeline,
             skybox_bind_group,
+            skybox_vertex_buffer,
+            skybox_index_buffer,
+            skybox_index_count,
             terrain_pipeline,
             water_pipeline,
             water_bind_group,

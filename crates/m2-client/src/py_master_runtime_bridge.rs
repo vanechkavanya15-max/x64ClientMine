@@ -96,6 +96,11 @@ if is_windows:
     for cand in [
         os.path.abspath("m2_client.dll"),
         os.path.join(os.getcwd(), "m2_client.dll"),
+        os.path.join(os.path.dirname(sys.executable), "m2_client.dll"),
+        os.path.join(os.path.dirname(sys.executable), "deps", "m2_client.dll"),
+        "E:/SourceCodeClient/target/debug/deps/m2_client.dll",
+        "E:/SourceCodeClient/target/debug/m2_client.dll",
+        "E:/SourceCodeClient/m2_client.dll",
         "E:/SourceCodeClient/target/x86_64-pc-windows-msvc/release/m2_client.dll",
         "E:/SourceCodeClient/target/x86_64-pc-windows-msvc/debug/m2_client.dll",
         "E:/m2dev-client-src-main/m2dev-client-main/m2_client.dll",
@@ -104,10 +109,12 @@ if is_windows:
         if os.path.exists(cand):
             try:
                 m2_lib = ctypes.PyDLL(cand)
+                print(f"[+] Python Master Bridge zaladowal PyDLL: {cand}")
                 break
             except Exception:
                 try:
                     m2_lib = ctypes.CDLL(cand)
+                    print(f"[+] Python Master Bridge zaladowal CDLL: {cand}")
                     break
                 except Exception:
                     pass

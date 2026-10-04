@@ -1862,6 +1862,8 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
                             }
                         };
 
+                        crate::ui_bridge_ffi::update_game_hud_live(player_pos, player_rot);
+
                         // 1.5. Zbieranie partii TextTail (imiona, poziomy, rangi i paski HP nad postaciami)
                         let (cam_dist, cam_pitch, cam_rot, target_height) = if let Ok(app) = crate::py_bridge_app::app_lock() {
                             (app.camera.distance, app.camera.pitch, app.camera.rotation, app.camera.target_height)
@@ -1894,7 +1896,8 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
                         }
 
                         if pipeline_mgr.is_none() {
-                            let pm = crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager::new(&ctx.device, ctx.width, ctx.height);
+                            let color_format = ctx.config.as_ref().map(|c| c.format).unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
+                            let pm = crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager::new_with_format(&ctx.device, ctx.width, ctx.height, color_format);
                             pipeline_mgr = Some(pm);
                             let win_cfg = crate::client_engine_main::WindowConfig {
                                 width: ctx.width,

@@ -55,6 +55,10 @@ pub struct AppConfig {
     pub connect_ip: Option<String>,
     pub connect_port: Option<u16>,
     pub max_frames: Option<u64>,
+    pub phase: Option<String>,
+    pub auto_login: bool,
+    pub user: Option<String>,
+    pub pwd: Option<String>,
 }
 
 impl AppConfig {
@@ -79,6 +83,20 @@ impl AppConfig {
                     if let Ok(f) = val.as_ref().parse::<u64>() {
                         config.max_frames = Some(f);
                     }
+                }
+            } else if s == "--phase" {
+                if let Some(val) = iter.next() {
+                    config.phase = Some(val.as_ref().to_uppercase());
+                }
+            } else if s == "--auto-login" {
+                config.auto_login = true;
+            } else if s == "--user" {
+                if let Some(val) = iter.next() {
+                    config.user = Some(val.as_ref().to_string());
+                }
+            } else if s == "--pwd" || s == "--pass" {
+                if let Some(val) = iter.next() {
+                    config.pwd = Some(val.as_ref().to_string());
                 }
             } else if s == "--connect" {
                 if let Some(ip) = iter.next() {
@@ -477,6 +495,61 @@ else:
         let _ = self.init_vfs_packs();
 
         let _ = self.start_python();
+
+        // Aktywacja zadanej fazy jesli podano argument --phase lub --auto-login
+        if let Some(ref ph) = self.config.phase {
+            if ph.eq_ignore_ascii_case("GAME") {
+                println!("[+] ========================================================");
+                println!("[+] [TRYB GRY] Aktywacja fazy GAME (swiat 3D, potok WGPU, sterowanie WASD)");
+                println!("[+] ========================================================");
+                if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+                    state.player.vid = 1001;
+                    state.player.x = 0.0;
+                    state.player.y = 0.0;
+                    state.player.z = 0.0;
+                    state.player.rot = 0.0;
+                    state.player.points[1] = 105; // POINT_LEVEL
+                    state.player.points[5] = 15000; // HP
+                    state.player.points[6] = 15000; // Max HP
+                    state.player.points[7] = 2000;  // SP
+                    state.player.points[8] = 2000;  // Max SP
+                    state.player.points[11] = 999_999_999; // POINT_GOLD
+                }
+                if let Ok(mut chrmgr) = crate::character_manager_core::get_character_manager().write() {
+                    chrmgr.create_instance_full(1001, 0, 0.0, 0.0, 0.0, "[SA]Admin".to_string(), false);
+                    chrmgr.main_actor_vid = Some(1001);
+                }
+                if let Ok(mut cur_phase) = crate::ui_bridge_ffi::CURRENT_PHASE.lock() {
+                    *cur_phase = "GAME".to_string();
+                }
+                let mut wm = crate::ui_window_mgr::get_window_manager();
+                crate::ui_bridge_ffi::m2_ui_setup_game_hud(&mut wm, self.width, self.height);
+            } else if ph.eq_ignore_ascii_case("SELECT") {
+                println!("[+] [TRYB POSTACI] Aktywacja fazy SELECT (wybor bohatera 3D)...");
+                if let Ok(mut cur_phase) = crate::ui_bridge_ffi::CURRENT_PHASE.lock() {
+                    *cur_phase = "SELECT".to_string();
+                }
+                let chars = vec![crate::ui_bridge_ffi::CharacterSlot {
+                    id: 1,
+                    name: "[SA]Admin".to_string(),
+                    job: 0,
+                    level: 105,
+                    playtime: 120,
+                    st: 90,
+                    ht: 90,
+                    dx: 90,
+                    iq: 90,
+                    main_part: 0,
+                    hair_part: 0,
+                }];
+                let mut wm = crate::ui_window_mgr::get_window_manager();
+                crate::ui_bridge_ffi::m2_ui_setup_character_select(&mut wm, self.width, self.height, &chars);
+            }
+        } else if self.config.auto_login {
+            println!("[+] [AUTO-LOGIN] Automatyczne logowanie do serwera gry...");
+            let mut wm = crate::ui_window_mgr::get_window_manager();
+            crate::ui_bridge_ffi::handle_ui_click("LoginButton", 0, &mut wm);
+        }
 
         // Jesli Python nie przeszedl do glownej petli (lub w trybie fallback), uruchom natywna petle gry
         println!("[+] Uruchamianie natywnej petli renderowania okna gry...");

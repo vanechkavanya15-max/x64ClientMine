@@ -34,11 +34,12 @@ impl WaterVertex {
 pub struct WaterUniforms {
     pub view_proj: [[f32; 4]; 4],
     pub time: f32,
-    pub _padding: [f32; 3],
+    pub water_depth_scale: f32,
+    pub _pad0: [f32; 2],
     pub dir1: [f32; 2],
     pub dir2: [f32; 2],
     pub sun_dir: [f32; 3],
-    pub water_depth_scale: f32,
+    pub _pad1: f32,
 }
 
 impl Default for WaterUniforms {
@@ -46,11 +47,12 @@ impl Default for WaterUniforms {
         Self {
             view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
             time: 0.0,
-            _padding: [0.0; 3],
+            water_depth_scale: 1.0,
+            _pad0: [0.0; 2],
             dir1: [0.05, 0.05],
             dir2: [-0.03, 0.04],
             sun_dir: [0.5, 1.0, 0.3],
-            water_depth_scale: 1.0,
+            _pad1: 0.0,
         }
     }
 }
@@ -91,11 +93,12 @@ impl WgpuWaterPlaneRenderer {
 struct WaterUniforms {
     view_proj: mat4x4<f32>,
     time: f32,
-    _padding: vec3<f32>,
+    water_depth_scale: f32,
+    _pad0: vec2<f32>,
     dir1: vec2<f32>,
     dir2: vec2<f32>,
     sun_dir: vec3<f32>,
-    water_depth_scale: f32,
+    _pad1: f32,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: WaterUniforms;

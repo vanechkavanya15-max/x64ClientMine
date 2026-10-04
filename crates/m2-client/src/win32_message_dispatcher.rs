@@ -325,6 +325,58 @@ fn process_single_message_internal(state: &mut DispatcherState, msg: &WinMsg) ->
                         }
                     }
                 }
+                0x57 | 0x26 => { // 'W' lub Strzalka w gore - bieg w przod
+                    if phase == "GAME" {
+                        handle_player_keyboard_step(150.0, 0.0);
+                    }
+                }
+                0x53 | 0x28 => { // 'S' lub Strzalka w dol - krok w tyl
+                    if phase == "GAME" {
+                        handle_player_keyboard_step(-100.0, 0.0);
+                    }
+                }
+                0x41 | 0x25 => { // 'A' lub Strzalka w lewo - obrot postaci w lewo
+                    if phase == "GAME" {
+                        handle_player_keyboard_rotate(-15.0);
+                    }
+                }
+                0x44 | 0x27 => { // 'D' lub Strzalka w prawo - obrot postaci w prawo
+                    if phase == "GAME" {
+                        handle_player_keyboard_rotate(15.0);
+                    }
+                }
+                0x51 => { // 'Q' - obrot kamery w lewo
+                    if phase == "GAME" {
+                        crate::py_bridge_app::m2_app_rotate_camera_delta(-10.0, 0.0);
+                    }
+                }
+                0x45 => { // 'E' - obrot kamery w prawo
+                    if phase == "GAME" {
+                        crate::py_bridge_app::m2_app_rotate_camera_delta(10.0, 0.0);
+                    }
+                }
+                0x31..=0x34 => { // '1' - '4' - Pasek QuickSlot (potki HP/SP/speed)
+                    if phase == "GAME" {
+                        let slot = vk - 0x31;
+                        let mut wm = crate::ui_window_mgr::get_window_manager();
+                        let slot_name = format!("QuickSlot_{}", slot + 1);
+                        crate::ui_bridge_ffi::handle_ui_click(&slot_name, 0, &mut wm);
+                    }
+                }
+                0x70..=0x73 => { // F1 - F4 - Pasek QuickSlot skilli
+                    if phase == "GAME" {
+                        let slot = vk - 0x70 + 4;
+                        let mut wm = crate::ui_window_mgr::get_window_manager();
+                        let slot_name = format!("QuickSlot_{}", slot + 1);
+                        crate::ui_bridge_ffi::handle_ui_click(&slot_name, 0, &mut wm);
+                    }
+                }
+                0x4E => { // 'N' - Zadania / Quests
+                    if phase == "GAME" {
+                        let mut wm = crate::ui_window_mgr::get_window_manager();
+                        crate::ui_bridge_ffi::handle_ui_click("HudBtnQuests", 0, &mut wm);
+                    }
+                }
                 _ => {}
             }
             true
@@ -498,6 +550,54 @@ pub fn handle_game_world_click(mx: i32, my: i32) {
     // 6. Aktualizacja stanu gracza
     if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
         state.player.rot = rot_deg;
+    }
+}
+
+/// Obsluga plynnego przesuniecia postaci klawiatura (WASD / strzalki)
+pub fn handle_player_keyboard_step(forward_step: f32, side_step: f32) {
+    let (mut px, mut py, pz, rot) = {
+        if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+            (state.player.x, state.player.y, state.player.z, state.player.rot)
+        } else {
+            return;
+        }
+    };
+
+    let rad = rot.to_radians();
+    px += rad.sin() * forward_step + rad.cos() * side_step;
+    py += rad.cos() * forward_step - rad.sin() * side_step;
+
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        state.player.x = px;
+        state.player.y = py;
+    }
+
+    // Wyslij pakiet HEADER_CG_CHARACTER_MOVE (0x03, 16 bajtow) do serwera
+    let mut move_pkt = [0u8; 16];
+    move_pkt[0] = 0x03; // HEADER_CG_CHARACTER_MOVE
+    move_pkt[1] = 0;    // bFunc = FUNC_MOVE
+    move_pkt[2] = 0;    // bArg
+    move_pkt[3] = (rot / 5.0) as u8; // bRot
+    move_pkt[4..8].copy_from_slice(&(px as i32).to_le_bytes());
+    move_pkt[8..12].copy_from_slice(&(py as i32).to_le_bytes());
+    let dw_time = crate::app_timing_clock::m2_get_time() as u32;
+    move_pkt[12..16].copy_from_slice(&dw_time.to_le_bytes());
+
+    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+        if let Some((ref mut stream, ref mut cipher)) = *sock_guard {
+            let mut encrypted = move_pkt.to_vec();
+            cipher.encrypt_in_place(&mut encrypted);
+            let _ = std::io::Write::write_all(stream, &encrypted);
+        }
+    }
+    println!("[MOVE] [KLAWIATURA] Gracz: X={:.1}, Y={:.1}, Z={:.1}, Rot={:.1}°", px, py, pz, rot);
+}
+
+/// Obsluga plynnego obrotu postaci klawiatura (A / D / strzalki lewo / prawo)
+pub fn handle_player_keyboard_rotate(delta_deg: f32) {
+    if let Ok(mut state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.write() {
+        state.player.rot = (state.player.rot + delta_deg).rem_euclid(360.0);
+        println!("[MOVE] [OBROT] Rot={:.1}°", state.player.rot);
     }
 }
 
