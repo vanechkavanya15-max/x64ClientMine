@@ -1,171 +1,151 @@
-#[path = "../src/game_auto_hunt_ai.rs"]
-mod game_auto_hunt_ai;
-
-use game_auto_hunt_ai::{AutoHuntAction, AutoHuntActorInfo, AutoHuntAi, AutoHuntConfig, AutoHuntState};
-use glam::Vec2;
+use m2_client::game_auto_hunt_ai::{AutoHuntAction, AutoHuntAiManager, AutoHuntState, MonsterTarget};
+use std::time::{Duration, Instant};
 
 #[test]
-fn test_auto_hunt_state_transitions() {
-    let config = AutoHuntConfig {
-        scan_radius: 1000.0,
-        attack_range: 200.0,
-        use_skills: false,
-        skill_cooldown_ms: 3000,
-    };
-    let mut ai = AutoHuntAi::new(config);
-    let my_pos = Vec2::new(0.0, 0.0);
+fn test_ai_state_transitions() {
+    let mut ai = AutoHuntAiManager::new(1500.0, 200.0);
+    assert_eq!(ai.state, AutoHuntState::Idle);
 
-    // Initial state is Idle
-    assert_eq!(ai.get_state(), AutoHuntState::Idle);
+    ai.start();
+    assert_eq!(ai.state, AutoHuntState::Search);
 
-    let actors = vec![AutoHuntActorInfo {
-        vid: 100,
-        position: Vec2::new(500.0, 0.0), // out of attack range, in scan range
-        is_monster: true,
+    let monsters = vec![MonsterTarget {
+        vid: 101,
+        x: 1000.0,
+        y: 1000.0,
+        hp: 100,
+        max_hp: 100,
         is_dead: false,
-        hp_percent: 1.0,
     }];
+    let time = Instant::now();
 
-    // Update 1: Idle -> Search
-    let action = ai.update(0, my_pos, &actors);
-    assert_eq!(ai.get_state(), AutoHuntState::Search);
-    assert_eq!(action, AutoHuntAction::None);
+    // From Search -> Approach
+    let action = ai.update(0.0, 0.0, &monsters, time);
+    assert_eq!(action, AutoHuntAction::SetTarget(101));
+    assert_eq!(ai.state, AutoHuntState::Approach);
 
-    // Update 2: Search -> Approach (found target)
-    let action = ai.update(0, my_pos, &actors);
-    assert_eq!(ai.get_state(), AutoHuntState::Approach);
-    assert_eq!(ai.get_target_vid(), Some(100));
-    assert_eq!(action, AutoHuntAction::None); // Transitions wait a tick
+    // From Approach -> Approach (MoveTo)
+    let action = ai.update(0.0, 0.0, &monsters, time);
+    assert_eq!(action, AutoHuntAction::MoveTo(1000.0, 1000.0));
+    assert_eq!(ai.state, AutoHuntState::Approach);
 
-    // Update 3: Approach -> MoveTo
-    let action = ai.update(0, my_pos, &actors);
-    assert_eq!(ai.get_state(), AutoHuntState::Approach);
-    assert_eq!(action, AutoHuntAction::MoveTo(Vec2::new(500.0, 0.0)));
+    // From Approach -> Attack
+    let action = ai.update(900.0, 1000.0, &monsters, time); // 100 dist
+    assert_eq!(action, AutoHuntAction::StartAttack(101));
+    assert_eq!(ai.state, AutoHuntState::Attack);
 
-    // Simulate moving into range
-    let my_pos = Vec2::new(350.0, 0.0); // distance is now 150.0 (< 200.0)
-
-    // Update 4: Approach -> Attack state transition
-    let action = ai.update(0, my_pos, &actors);
-    assert_eq!(ai.get_state(), AutoHuntState::Attack);
-    assert_eq!(action, AutoHuntAction::None);
-
-    // Update 5: Attack -> Perform Attack
-    let action = ai.update(0, my_pos, &actors);
-    assert_eq!(ai.get_state(), AutoHuntState::Attack);
-    assert_eq!(action, AutoHuntAction::Attack(100));
+    ai.stop();
+    assert_eq!(ai.state, AutoHuntState::Idle);
 }
 
 #[test]
-fn test_auto_hunt_target_selection() {
-    let config = AutoHuntConfig {
-        scan_radius: 1000.0,
-        ..Default::default()
-    };
-    let mut ai = AutoHuntAi::new(config);
-    let my_pos = Vec2::new(0.0, 0.0);
+fn test_ai_optimal_target_selection() {
+    let mut ai = AutoHuntAiManager::new(1500.0, 200.0);
+    ai.start();
 
-    let actors = vec![
-        AutoHuntActorInfo {
-            vid: 1, // Close but high HP
-            position: Vec2::new(300.0, 0.0), // Dist = 300, HP Penalty = 500 => Score = 800
-            is_monster: true,
+    let monsters = vec![
+        MonsterTarget {
+            vid: 1,
+            x: 1000.0, // dist = 1000
+            y: 0.0,
+            hp: 1000,
+            max_hp: 1000, // hp_factor = 1.0
             is_dead: false,
-            hp_percent: 1.0,
         },
-        AutoHuntActorInfo {
-            vid: 2, // Far but low HP
-            position: Vec2::new(600.0, 0.0), // Dist = 600, HP Penalty = 50 => Score = 650
-            is_monster: true,
+        MonsterTarget {
+            vid: 2,
+            x: 800.0, // dist = 800
+            y: 0.0,
+            hp: 1000,
+            max_hp: 1000, // hp_factor = 1.0
             is_dead: false,
-            hp_percent: 0.1,
         },
-        AutoHuntActorInfo {
-            vid: 3, // Very Far
-            position: Vec2::new(900.0, 0.0),
-            is_monster: true,
+        MonsterTarget {
+            vid: 3,
+            x: 900.0, // dist = 900
+            y: 0.0,
+            hp: 10,
+            max_hp: 1000, // hp_factor = 0.01 (score = 900 + 2 = 902) vs (800 + 200 = 1000)
             is_dead: false,
-            hp_percent: 1.0,
+        },
+        MonsterTarget {
+            vid: 4, // dead
+            x: 100.0,
+            y: 0.0,
+            hp: 0,
+            max_hp: 100,
+            is_dead: true,
         },
     ];
 
-    ai.set_state(AutoHuntState::Search);
-    ai.update(0, my_pos, &actors);
+    let time = Instant::now();
+    let action = ai.update(0.0, 0.0, &monsters, time);
 
-    // AI should pick target 2 because of lower score (distance + hp_penalty)
-    assert_eq!(ai.get_target_vid(), Some(2));
+    // Should pick 3 because HP weight makes its score lowest (902 vs 1000 for vid 2)
+    assert_eq!(action, AutoHuntAction::SetTarget(3));
 }
 
 #[test]
-fn test_auto_hunt_target_loss_and_death() {
-    let mut ai = AutoHuntAi::new(AutoHuntConfig::default());
-    let my_pos = Vec2::new(0.0, 0.0);
+fn test_ai_skill_usage() {
+    let mut ai = AutoHuntAiManager::new(1500.0, 200.0);
+    ai.add_skill(50, Duration::from_secs(5));
+    ai.start();
 
-    ai.set_state(AutoHuntState::Approach);
-    
-    // Simulate finding target
-    let actors = vec![AutoHuntActorInfo {
+    let monsters = vec![MonsterTarget {
         vid: 99,
-        position: Vec2::new(500.0, 0.0),
-        is_monster: true,
+        x: 100.0,
+        y: 0.0,
+        hp: 100,
+        max_hp: 100,
         is_dead: false,
-        hp_percent: 1.0,
     }];
-    ai.set_state(AutoHuntState::Search);
-    ai.update(0, my_pos, &actors);
-    assert_eq!(ai.get_state(), AutoHuntState::Approach);
+    
+    let time = Instant::now();
+
+    // Search
+    ai.update(0.0, 0.0, &monsters, time);
+    // Approach -> Attack
+    ai.update(0.0, 0.0, &monsters, time);
+
+    // In Attack state: first use skill
+    let action1 = ai.update(0.0, 0.0, &monsters, time);
+    assert_eq!(action1, AutoHuntAction::UseSkill(50));
+
+    // Next frame: skill on CD, combo attack
+    let action2 = ai.update(0.0, 0.0, &monsters, time);
+    assert_eq!(action2, AutoHuntAction::ComboAttack(99));
+
+    // Time passes: CD over
+    let action3 = ai.update(0.0, 0.0, &monsters, time + Duration::from_secs(6));
+    assert_eq!(action3, AutoHuntAction::UseSkill(50));
+}
+
+#[test]
+fn test_ai_target_death() {
+    let mut ai = AutoHuntAiManager::new(1500.0, 200.0);
+    ai.start();
+
+    let mut monsters = vec![MonsterTarget {
+        vid: 7,
+        x: 100.0,
+        y: 0.0,
+        hp: 100,
+        max_hp: 100,
+        is_dead: false,
+    }];
+    let time = Instant::now();
+
+    // Search
+    ai.update(0.0, 0.0, &monsters, time);
+    // Approach -> Attack
+    ai.update(0.0, 0.0, &monsters, time);
 
     // Target dies
-    let actors_dead = vec![AutoHuntActorInfo {
-        vid: 99,
-        position: Vec2::new(500.0, 0.0),
-        is_monster: true,
-        is_dead: true,
-        hp_percent: 0.0,
-    }];
-    let action = ai.update(0, my_pos, &actors_dead);
-    
-    // Should clear target and go back to Search
-    assert_eq!(ai.get_state(), AutoHuntState::Search);
-    assert_eq!(ai.get_target_vid(), None);
+    monsters[0].hp = 0;
+    monsters[0].is_dead = true;
+
+    // AI should transition back to search and do nothing
+    let action = ai.update(0.0, 0.0, &monsters, time);
     assert_eq!(action, AutoHuntAction::None);
-}
-
-#[test]
-fn test_auto_hunt_skill_usage() {
-    let config = AutoHuntConfig {
-        attack_range: 200.0,
-        use_skills: true,
-        skill_cooldown_ms: 3000,
-        ..Default::default()
-    };
-    let mut ai = AutoHuntAi::new(config);
-    let my_pos = Vec2::new(0.0, 0.0);
-
-    let actors = vec![AutoHuntActorInfo {
-        vid: 55,
-        position: Vec2::new(100.0, 0.0), // in range
-        is_monster: true,
-        is_dead: false,
-        hp_percent: 1.0,
-    }];
-
-    // Force into attack state directly
-    ai.set_state(AutoHuntState::Attack);
-    // Needs a target set manually or via update
-    ai.set_state(AutoHuntState::Search);
-    ai.update(0, my_pos, &actors); // -> Approach
-    ai.update(0, my_pos, &actors); // -> Attack
-    
-    // First attack should be a skill if time >= cooldown (time=3000, cd=3000 -> ok)
-    let action = ai.update(3000, my_pos, &actors);
-    assert_eq!(action, AutoHuntAction::UseSkill(1, 55));
-
-    // Next attack immediately should be normal attack because skill is on cooldown
-    let action = ai.update(3100, my_pos, &actors);
-    assert_eq!(action, AutoHuntAction::Attack(55));
-
-    // Next attack after cooldown should be skill again
-    let action = ai.update(6000, my_pos, &actors);
-    assert_eq!(action, AutoHuntAction::UseSkill(1, 55));
+    assert_eq!(ai.state, AutoHuntState::Search);
 }
