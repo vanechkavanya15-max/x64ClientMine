@@ -368,6 +368,7 @@ pub mod py_bridge_item_native;
 pub mod py_bridge_chr_native;
 pub mod py_bridge_wndmgr_native;
 pub mod py_bridge_chat_minimap;
+pub mod py_bridge_chat_whisper_manager;
 pub mod py_bridge_game_systems;
 pub mod py_bridge_graphics_audio;
 pub mod py_event_dispatcher;

@@ -35,41 +35,6 @@ pub extern "C" fn m2_py_chat_append_chat_v2(chat_type: u8, text: *const c_char) 
     })
 }
 
-#[no_mangle]
-pub extern "C" fn m2_py_chat_append_whisper(
-    whisper_type: u8,
-    sender: *const c_char,
-    msg: *const c_char,
-) -> bool {
-    safe_ffi_call(false, || {
-        if sender.is_null() || msg.is_null() {
-            return false;
-        }
-
-        let sender_str = match unsafe { CStr::from_ptr(sender) }.to_str() {
-            Ok(s) => s,
-            Err(_) => return false,
-        };
-
-        let msg_str = match unsafe { CStr::from_ptr(msg) }.to_str() {
-            Ok(s) => s,
-            Err(_) => return false,
-        };
-
-        let formatted = format!("{} : {}", sender_str, msg_str);
-
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u32;
-
-        let mut buffer = match get_chat_buffer().lock() {
-            Ok(b) => b,
-            Err(e) => e.into_inner(),
-        };
-        buffer.append_line(whisper_type, &formatted, timestamp)
-    })
-}
 
 #[no_mangle]
 pub extern "C" fn m2_py_chat_get_line_count() -> usize {
