@@ -262,6 +262,7 @@ pub mod app_panic_crash_handler;
 pub mod app_timing_clock;
 pub mod audio_bgm_player;
 pub mod audio_mss_device;
+pub mod engine_mss_animation_audio_wire;
 pub mod audio_volume_controller;
 pub mod client_config_loader;
 pub mod client_engine_main;
