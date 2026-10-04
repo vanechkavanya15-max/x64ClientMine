@@ -71,6 +71,10 @@ impl TPacketCGQuestInputString {
     }
 }
 
+use m2_client_bridge::ffi_guard::safe_ffi_call;
+#[cfg(not(test))]
+use m2_client_bridge::net::send_queue::enqueue_outgoing_packet;
+
 // Global hook for tests to observe sent packets
 static mut LAST_SENT_PACKET: Option<Vec<u8>> = None;
 
@@ -82,28 +86,40 @@ fn send_to_network(bytes: &[u8]) -> bool {
     unsafe {
         LAST_SENT_PACKET = Some(bytes.to_vec());
     }
-    true
+    
+    #[cfg(not(test))]
+    {
+        enqueue_outgoing_packet(bytes.to_vec())
+    }
+    #[cfg(test)]
+    {
+        true
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn m2_net_send_quest_confirm_packet(dw_pid: u32, b_answer: u8) -> bool {
-    let packet = TPacketCGQuestConfirm::new(b_answer, dw_pid);
-    send_to_network(packet.to_bytes())
+    safe_ffi_call(false, || {
+        let packet = TPacketCGQuestConfirm::new(b_answer, dw_pid);
+        send_to_network(packet.to_bytes())
+    })
 }
 
 #[no_mangle]
 pub extern "C" fn m2_net_send_quest_input_string_packet(sz_string: *const c_char) -> bool {
-    if sz_string.is_null() {
-        return false;
-    }
+    safe_ffi_call(false, || {
+        if sz_string.is_null() {
+            return false;
+        }
 
-    let c_str = unsafe { CStr::from_ptr(sz_string) };
-    let Ok(str_slice) = c_str.to_str() else {
-        return false; // Invalid UTF-8
-    };
+        let c_str = unsafe { CStr::from_ptr(sz_string) };
+        let Ok(str_slice) = c_str.to_str() else {
+            return false; // Invalid UTF-8
+        };
 
-    let packet = TPacketCGQuestInputString::new(str_slice);
-    send_to_network(packet.to_bytes())
+        let packet = TPacketCGQuestInputString::new(str_slice);
+        send_to_network(packet.to_bytes())
+    })
 }
 
 pub fn get_last_sent_packet() -> Option<Vec<u8>> {
