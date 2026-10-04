@@ -7,6 +7,27 @@ pub struct StatDelta {
     pub delta: i32,
 }
 
+pub const COLOR_COMPARISON_POSITIVE: [f32; 4] = [0.2, 1.0, 0.2, 1.0];
+pub const COLOR_COMPARISON_NEGATIVE: [f32; 4] = [1.0, 0.1, 0.1, 1.0];
+
+pub fn format_stat_delta<F>(delta: &StatDelta, get_name_fn: F) -> (String, [f32; 4])
+where
+    F: Fn(u8) -> &'static str,
+{
+    let name = get_name_fn(delta.apply_type);
+    if delta.delta > 0 {
+        (
+            format!("{}: +{}", name, delta.delta),
+            COLOR_COMPARISON_POSITIVE,
+        )
+    } else {
+        (
+            format!("{}: {}", name, delta.delta),
+            COLOR_COMPARISON_NEGATIVE,
+        )
+    }
+}
+
 pub fn calculate_stat_deltas(
     equipped_stats: &[(u8, i32)],
     hovered_stats: &[(u8, i32)],

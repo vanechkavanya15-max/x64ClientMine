@@ -1,5 +1,26 @@
 use m2_client::equipment_slots;
-use m2_client::ui_tooltip_item_comparison::{calculate_stat_deltas, find_equipped_slot, StatDelta};
+use m2_client::ui_tooltip_item_comparison::{calculate_stat_deltas, find_equipped_slot, format_stat_delta, StatDelta, COLOR_COMPARISON_POSITIVE, COLOR_COMPARISON_NEGATIVE};
+
+#[test]
+fn test_format_stat_delta() {
+    let get_name_fn = |apply_type: u8| -> &'static str {
+        match apply_type {
+            1 => "Max PŻ",
+            5 => "Siła",
+            _ => "Unknown",
+        }
+    };
+
+    let positive_delta = StatDelta { apply_type: 1, delta: 50 };
+    let (text_pos, color_pos) = format_stat_delta(&positive_delta, get_name_fn);
+    assert_eq!(text_pos, "Max PŻ: +50");
+    assert_eq!(color_pos, COLOR_COMPARISON_POSITIVE);
+
+    let negative_delta = StatDelta { apply_type: 5, delta: -2 };
+    let (text_neg, color_neg) = format_stat_delta(&negative_delta, get_name_fn);
+    assert_eq!(text_neg, "Siła: -2");
+    assert_eq!(color_neg, COLOR_COMPARISON_NEGATIVE);
+}
 
 #[test]
 fn test_stat_delta_calculation_basic() {
