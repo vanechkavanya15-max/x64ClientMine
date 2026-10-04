@@ -24,6 +24,7 @@ pub mod actor_pvp_keys;
 pub mod actor_rotation;
 pub mod actor_pet_instance;
 pub mod actor_text_tail;
+pub mod actor_texttail_render_cache;
 pub mod actor_transform;
 pub mod auto_attack;
 pub mod battle_event_dispatcher;
