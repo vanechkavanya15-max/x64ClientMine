@@ -97,6 +97,7 @@ pub mod terrain_height_map;
 pub mod view_bound_culling;
 pub mod warp_transition;
 pub mod weapon_trace;
+pub mod wgpu_weapon_trace_spline_mesh;
 pub mod warp_phase_reconnect;
 
 pub mod map_setting_parser;
