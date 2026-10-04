@@ -349,6 +349,7 @@ pub mod ui_widget_slotwindow;
 pub mod ui_window_character_status;
 pub mod ui_window_pet;
 pub mod ui_window_target;
+pub mod ui_window_target_board_complete;
 pub mod ui_window_shop;
 pub mod ui_window_exchange;
 pub mod ui_private_shop_overhead_sign;
