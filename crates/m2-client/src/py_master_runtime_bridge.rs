@@ -1688,13 +1688,36 @@ def _player_request_delete_global_quick_slot(slot):
             net_mod.SendQuickSlotDelPacket(int(slot))
     except Exception: pass
 
+def _player_request_add_local_quick_slot(local_slot, wnd_type, wnd_item_pos):
+    try:
+        global_slot = int(local_slot) + _player_quick_page * 8
+        net_mod = sys.modules.get('net')
+        if net_mod and hasattr(net_mod, 'SendQuickSlotAddPacket'):
+            net_mod.SendQuickSlotAddPacket(global_slot, int(wnd_type), int(wnd_item_pos))
+    except Exception: pass
+
+def _player_request_move_global_quick_slot(src_global, dst_local):
+    try:
+        dst_global = int(dst_local) + _player_quick_page * 8
+        net_mod = sys.modules.get('net')
+        if net_mod and hasattr(net_mod, 'SendQuickSlotMovePacket'):
+            net_mod.SendQuickSlotMovePacket(int(src_global), dst_global)
+    except Exception: pass
+
+def _player_is_mounting_horse():
+    try:
+        if hasattr(lib, 'm2_py_player_is_mounting_horse'):
+            return bool(lib.m2_py_player_is_mounting_horse())
+    except Exception: pass
+    return False
+
 setattr(PlayerModule, 'ClearSkillDict', staticmethod(_player_clear_skill_dict))
 setattr(PlayerModule, 'SetSkill', staticmethod(_player_set_skill))
 setattr(PlayerModule, 'EndKeyWalkingImmediately', staticmethod(lambda: None))
 setattr(PlayerModule, 'EndMouseWalking', staticmethod(lambda: None))
 setattr(PlayerModule, 'StartMouseWalking', staticmethod(lambda: None))
 setattr(PlayerModule, 'IsMainCharacterIndex', staticmethod(_player_is_main_character_index))
-setattr(PlayerModule, 'IsMountingHorse', staticmethod(lambda: False))
+setattr(PlayerModule, 'IsMountingHorse', staticmethod(_player_is_mounting_horse))
 setattr(PlayerModule, 'SetAttackKeyState', staticmethod(_player_set_attack_key_state))
 setattr(PlayerModule, 'SetSingleDIKKeyState', staticmethod(lambda key, state: None))
 setattr(PlayerModule, 'SetMouseState', staticmethod(lambda s: None))
@@ -1707,8 +1730,9 @@ setattr(PlayerModule, 'SetQuickPage', staticmethod(_player_set_quick_page))
 setattr(PlayerModule, 'GetQuickPage', staticmethod(_player_get_quick_page))
 setattr(PlayerModule, 'RequestUseLocalQuickSlot', staticmethod(_player_request_use_local_quick_slot))
 setattr(PlayerModule, 'RequestDeleteGlobalQuickSlot', staticmethod(_player_request_delete_global_quick_slot))
-setattr(PlayerModule, 'RequestMoveGlobalQuickSlotToLocalQuickSlot', staticmethod(lambda src, dst: None))
-setattr(PlayerModule, 'LocalQuickSlotIndexToGlobalQuickSlotIndex', staticmethod(lambda s: int(s) + _player_quick_page * 4))
+setattr(PlayerModule, 'RequestAddLocalQuickSlot', staticmethod(_player_request_add_local_quick_slot))
+setattr(PlayerModule, 'RequestMoveGlobalQuickSlotToLocalQuickSlot', staticmethod(_player_request_move_global_quick_slot))
+setattr(PlayerModule, 'LocalQuickSlotIndexToGlobalQuickSlotIndex', staticmethod(lambda s: int(s) + _player_quick_page * 8))
 setattr(PlayerModule, 'ResetCameraRotation', staticmethod(lambda: None))
 setattr(PlayerModule, 'ClickSkillSlot', staticmethod(lambda slot: None))
 setattr(PlayerModule, 'ChangeCurrentSkillNumberOnly', staticmethod(lambda idx: None))
