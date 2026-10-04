@@ -545,3 +545,4 @@ pub mod area_loader_thread;
 pub mod py_bridge_quest_runtime_complete;
 pub mod game_guild_land_and_altar;
 pub mod game_pair_emotion_controller;
+pub mod ui_window_character_select_screen;
