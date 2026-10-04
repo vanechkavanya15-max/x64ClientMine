@@ -249,6 +249,7 @@ pub mod hair_head_attach_v2;
 pub mod send_party_guild_v2;
 
 // --- Pure Rust Faza C Moduly ---
+pub mod actor_sliding_collision;
 pub mod app_fps_limiter;
 pub mod app_panic_crash_handler;
 pub mod app_timing_clock;
