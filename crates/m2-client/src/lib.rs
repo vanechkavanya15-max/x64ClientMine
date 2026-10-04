@@ -377,6 +377,7 @@ pub mod wgpu_flying_projectile_renderer;
 pub mod wgpu_texttail_renderer;
 pub mod wgpu_camera_orbit_controller;
 pub mod wgpu_terrain_splatting_shader;
+pub mod wgpu_terrain_splatting_array;
 pub mod granny_bone_anim_evaluator;
 pub mod wgpu_skeletal_mesh_renderer;
 pub mod wgpu_particle_system_renderer;
