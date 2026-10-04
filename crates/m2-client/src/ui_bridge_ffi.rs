@@ -1974,6 +1974,38 @@ pub fn handle_ui_click(name: &str, _handle: u32, wm: &mut crate::ui_window_mgr::
                 state.player.z = 0.0;
             }
         }
+        _ if name.starts_with("InvPageBtn_") => {
+            let page_str = name.trim_start_matches("InvPageBtn_");
+            if let Ok(page) = page_str.parse::<usize>() {
+                println!("[INVENTORY] Przelaczono na zakladke ekwipunku {}", page);
+                for p in 1..=4 {
+                    if let Some(h) = wm.windows.values().find(|w| w.name == format!("InvPageBtn_{}", p)).map(|w| w.handle) {
+                        if p == page {
+                            wm.set_color(h, [0.3, 0.3, 0.45, 0.95]);
+                        } else {
+                            wm.set_color(h, [0.15, 0.15, 0.2, 0.8]);
+                        }
+                    }
+                }
+            }
+        }
+        _ if name.starts_with("InvSlot_") => {
+            let slot_str = name.trim_start_matches("InvSlot_");
+            if let Ok(slot_idx) = slot_str.parse::<u16>() {
+                let item_info = if let Ok(state) = m2_client_bridge::state::game_state::GLOBAL_GAME_STATE.read() {
+                    state.get_item(1, slot_idx).cloned()
+                } else {
+                    None
+                };
+
+                if let Some(item) = item_info {
+                    println!("[INVENTORY] Kliknieto slot {}: VNUM={}, Ilosc={}. Wysylanie pakietu uzycia...", slot_idx, item.vnum, item.count);
+                    crate::py_bridge_net::m2_net_SendItemUsePacket(slot_idx);
+                } else {
+                    println!("[INVENTORY] Kliknieto slot {}: pusty slot ekwipunku", slot_idx);
+                }
+            }
+        }
         _ if name.starts_with("QuickSlot_") => {
             let num = name.trim_start_matches("QuickSlot_");
             match num {
@@ -1986,6 +2018,18 @@ pub fn handle_ui_click(name: &str, _handle: u32, wm: &mut crate::ui_window_mgr::
                 "7" => println!("[QUICKSLOT] [F3] Uzyto Zielonej Mikstury (Szybkosc Ataku +30)!"),
                 "8" => println!("[QUICKSLOT] [F4] Uzyto Fioletowej Mikstury (Szybkosc Ruchu +60)!"),
                 _ => println!("[QUICKSLOT] Uzyto slotu {}", num),
+            }
+            if let Ok(slot_idx) = num.parse::<u8>() {
+                if slot_idx >= 1 {
+                    let quick_idx = slot_idx - 1;
+                    let slot_res = crate::recv_quickslot_sync_v2::m2_quickslot_get_v2(quick_idx);
+                    if slot_res.slot_type == 1 {
+                        crate::py_bridge_net::m2_net_SendItemUsePacket(slot_res.slot_position as u16);
+                    } else if slot_res.slot_type == 2 {
+                        let main_vid = unsafe { crate::py_bridge_player_status::m2_py_player_get_main_character_index() };
+                        crate::py_bridge_net::m2_net_SendUseSkillPacket(slot_res.slot_position, main_vid, std::ptr::null_mut());
+                    }
+                }
             }
         }
         _ if name.starts_with("CharSlot") => {

@@ -532,6 +532,7 @@ AppModule.ENABLE_COSTUME_SYSTEM = 1
 AppModule.ENABLE_ENERGY_SYSTEM = 1
 AppModule.ENABLE_DRAGON_SOUL_SYSTEM = 1
 AppModule.DIK_ESCAPE = 1
+AppModule.DIK_ESC = 1
 AppModule.DIK_1 = 2
 AppModule.DIK_2 = 3
 AppModule.DIK_3 = 4
@@ -542,13 +543,101 @@ AppModule.DIK_7 = 8
 AppModule.DIK_8 = 9
 AppModule.DIK_9 = 10
 AppModule.DIK_0 = 11
-AppModule.DIK_RETURN = 28
-AppModule.DIK_SPACE = 57
+AppModule.DIK_MINUS = 12
+AppModule.DIK_EQUALS = 13
+AppModule.DIK_BACK = 14
 AppModule.DIK_TAB = 15
+AppModule.DIK_Q = 16
+AppModule.DIK_W = 17
+AppModule.DIK_E = 18
+AppModule.DIK_R = 19
+AppModule.DIK_T = 20
+AppModule.DIK_Y = 21
+AppModule.DIK_U = 22
+AppModule.DIK_I = 23
+AppModule.DIK_O = 24
+AppModule.DIK_P = 25
+AppModule.DIK_LBRACKET = 26
+AppModule.DIK_RBRACKET = 27
+AppModule.DIK_RETURN = 28
+AppModule.DIK_LCONTROL = 29
+AppModule.DIK_A = 30
+AppModule.DIK_S = 31
+AppModule.DIK_D = 32
+AppModule.DIK_F = 33
+AppModule.DIK_G = 34
+AppModule.DIK_H = 35
+AppModule.DIK_J = 36
+AppModule.DIK_K = 37
+AppModule.DIK_L = 38
+AppModule.DIK_SEMICOLON = 39
+AppModule.DIK_APOSTROPHE = 40
+AppModule.DIK_GRAVE = 41
+AppModule.DIK_LSHIFT = 42
+AppModule.DIK_BACKSLASH = 43
+AppModule.DIK_Z = 44
+AppModule.DIK_X = 45
+AppModule.DIK_C = 46
+AppModule.DIK_V = 47
+AppModule.DIK_B = 48
+AppModule.DIK_N = 49
+AppModule.DIK_M = 50
+AppModule.DIK_COMMA = 51
+AppModule.DIK_PERIOD = 52
+AppModule.DIK_SLASH = 53
+AppModule.DIK_RSHIFT = 54
+AppModule.DIK_MULTIPLY = 55
+AppModule.DIK_LALT = 56
+AppModule.DIK_SPACE = 57
+AppModule.DIK_CAPITAL = 58
+AppModule.DIK_F1 = 59
+AppModule.DIK_F2 = 60
+AppModule.DIK_F3 = 61
+AppModule.DIK_F4 = 62
+AppModule.DIK_F5 = 63
+AppModule.DIK_F6 = 64
+AppModule.DIK_F7 = 65
+AppModule.DIK_F8 = 66
+AppModule.DIK_F9 = 67
+AppModule.DIK_F10 = 68
+AppModule.DIK_NUMLOCK = 69
+AppModule.DIK_SCROLL = 70
+AppModule.DIK_NUMPAD7 = 71
+AppModule.DIK_NUMPAD8 = 72
+AppModule.DIK_NUMPAD9 = 73
+AppModule.DIK_SUBTRACT = 74
+AppModule.DIK_NUMPAD4 = 75
+AppModule.DIK_NUMPAD5 = 76
+AppModule.DIK_NUMPAD6 = 77
+AppModule.DIK_ADD = 78
+AppModule.DIK_NUMPAD1 = 79
+AppModule.DIK_NUMPAD2 = 80
+AppModule.DIK_NUMPAD3 = 81
+AppModule.DIK_NUMPAD0 = 82
+AppModule.DIK_DECIMAL = 83
+AppModule.DIK_F11 = 87
+AppModule.DIK_F12 = 88
+AppModule.DIK_NUMPADENTER = 156
+AppModule.DIK_RCONTROL = 157
+AppModule.DIK_DIVIDE = 181
+AppModule.DIK_SYSRQ = 183
+AppModule.DIK_RALT = 184
+AppModule.DIK_PAUSE = 197
+AppModule.DIK_HOME = 199
 AppModule.DIK_UP = 200
+AppModule.DIK_PGUP = 201
+AppModule.DIK_PRIOR = 201
 AppModule.DIK_LEFT = 203
 AppModule.DIK_RIGHT = 205
+AppModule.DIK_END = 207
 AppModule.DIK_DOWN = 208
+AppModule.DIK_PGDN = 209
+AppModule.DIK_NEXT = 209
+AppModule.DIK_INSERT = 210
+AppModule.DIK_DELETE = 211
+AppModule.DIK_LWIN = 219
+AppModule.DIK_RWIN = 220
+AppModule.DIK_APPS = 221
 
 setattr(AppModule, 'Abort', staticmethod(lambda: None))
 setattr(AppModule, 'SetFrameSkip', staticmethod(lambda *args: None))
@@ -920,6 +1009,36 @@ NetModule.ERROR_NONE = 0
 setattr(NetModule, 'IsInsultIn', staticmethod(lambda s: False))
 setattr(NetModule, 'SetEmpireLanguageMode', staticmethod(lambda m: None))
 setattr(NetModule, 'ToggleGameDebugInfo', staticmethod(lambda: None))
+
+def _wrap_net_exit_app():
+    fn = getattr(m2_lib, 'm2_app_exit', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+    else:
+        sys.exit(0)
+
+def _wrap_net_logout_game():
+    print("[+] [NET] LogOutGame() - rozlaczenie i powrot do ekranu logowania")
+    fn = getattr(m2_lib, 'm2_net_Disconnect', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_net_exit_game():
+    print("[+] [NET] ExitGame() - zakonczenie sesji postaci")
+    _wrap_net_exit_app()
+
+setattr(NetModule, 'ExitApplication', staticmethod(_wrap_net_exit_app))
+setattr(NetModule, 'ExitGame', staticmethod(_wrap_net_exit_game))
+setattr(NetModule, 'LogOutGame', staticmethod(_wrap_net_logout_game))
+setattr(NetModule, 'SendEmoticon', staticmethod(lambda e: None))
+setattr(NetModule, 'SendGiveItemPacket', staticmethod(lambda target_vid, w, c, count: None))
+setattr(NetModule, 'SendGoldDropPacketNew', staticmethod(lambda gold: None))
+setattr(NetModule, 'SendPartyInviteAnswerPacket', staticmethod(lambda pid, accept: None))
+setattr(NetModule, 'SendWhisperPacket', staticmethod(lambda name, msg: None))
+setattr(NetModule, 'SendCharacterPositionPacket', staticmethod(lambda x, y: None))
+setattr(NetModule, 'SendTargetPacket', staticmethod(lambda vid: None))
 sys.modules['net'] = NetModule
 sys.modules['Net'] = NetModule
 
@@ -1293,10 +1412,134 @@ def _wrap_player_get_item_attribute(w=1, c=0, idx=0):
     return (0, 0)
 setattr(PlayerModule, 'GetItemAttribute', staticmethod(_wrap_player_get_item_attribute))
 
-# --- Tuple-returning method overrides (C++ Py_BuildValue zwraca tuple, ModType fallback zwraca int) ---
-# QuickSlot: Py_BuildValue("ii", dwWndType, dwWndItemPos) -> (int, int)
-setattr(PlayerModule, 'GetLocalQuickSlot', staticmethod(lambda slot: (0, 0)))
-setattr(PlayerModule, 'GetGlobalQuickSlot', staticmethod(lambda slot: (0, 0)))
+# --- PlayerModule Constants (100% C++ Parity with PythonPlayerModule.cpp) ---
+PlayerModule.SLOT_TYPE_NONE = 0
+PlayerModule.SLOT_TYPE_INVENTORY = 1
+PlayerModule.SLOT_TYPE_SKILL = 2
+PlayerModule.SLOT_TYPE_EMOTION = 3
+PlayerModule.SLOT_TYPE_SHOP = 4
+PlayerModule.SLOT_TYPE_EXCHANGE_OWNER = 5
+PlayerModule.SLOT_TYPE_EXCHANGE_TARGET = 6
+PlayerModule.SLOT_TYPE_QUICK_SLOT = 7
+PlayerModule.SLOT_TYPE_SAFEBOX = 8
+PlayerModule.SLOT_TYPE_PRIVATE_SHOP = 9
+PlayerModule.SLOT_TYPE_MALL = 10
+PlayerModule.SLOT_TYPE_DRAGON_SOUL_INVENTORY = 11
+
+PlayerModule.RESERVED_WINDOW = 0
+PlayerModule.INVENTORY = 1
+PlayerModule.EQUIPMENT = 2
+PlayerModule.SAFEBOX = 3
+PlayerModule.MALL = 4
+PlayerModule.DRAGON_SOUL_INVENTORY = 5
+PlayerModule.GROUND = 6
+
+PlayerModule.INVENTORY_PAGE_SIZE = 45
+PlayerModule.INVENTORY_PAGE_COUNT = 2
+PlayerModule.INVENTORY_SLOT_COUNT = 90
+PlayerModule.EQUIPMENT_SLOT_START = 90
+PlayerModule.EQUIPMENT_PAGE_COUNT = 1
+PlayerModule.NEW_EQUIPMENT_SLOT_START = 180
+PlayerModule.NEW_EQUIPMENT_SLOT_COUNT = 32
+
+PlayerModule.ITEM_MONEY = -1
+PlayerModule.SKILL_SLOT_COUNT = 255
+PlayerModule.ATTRIBUTE_SLOT_MAX_NUM = 7
+PlayerModule.METIN_SOCKET_MAX_NUM = 3
+
+PlayerModule.PK_MODE_PEACE = 0
+PlayerModule.PK_MODE_REVENGE = 1
+PlayerModule.PK_MODE_FREE = 2
+PlayerModule.PK_MODE_PROTECT = 3
+PlayerModule.PK_MODE_GUILD = 4
+PlayerModule.PK_MODE_MAX_NUM = 5
+
+PlayerModule.LEVEL = 1
+PlayerModule.VOICE = 2
+PlayerModule.EXP = 3
+PlayerModule.NEXT_EXP = 4
+PlayerModule.HP = 5
+PlayerModule.MAX_HP = 6
+PlayerModule.SP = 7
+PlayerModule.MAX_SP = 8
+PlayerModule.STAMINA = 9
+PlayerModule.MAX_STAMINA = 10
+PlayerModule.ELK = 14
+PlayerModule.GOLD = 14
+PlayerModule.ST = 12
+PlayerModule.HT = 13
+PlayerModule.DX = 14
+PlayerModule.IQ = 15
+PlayerModule.ATT_POWER = 17
+PlayerModule.ATT_SPEED = 19
+PlayerModule.MOVING_SPEED = 20
+PlayerModule.CASTING_SPEED = 21
+PlayerModule.ATT_MIN = 22
+PlayerModule.ATT_MAX = 23
+PlayerModule.DEF_GRADE = 24
+PlayerModule.DEF_BONUS = 25
+PlayerModule.PLAYTIME = 31
+
+PlayerModule.CATEGORY_ACTIVE = 0
+PlayerModule.CATEGORY_PASSIVE = 1
+
+PlayerModule.ATTACH_METIN_OK = 0
+PlayerModule.ATTACH_METIN_CANT = 1
+PlayerModule.ATTACH_METIN_CANT_ATTACH_TO_EQUIPMENT = 2
+PlayerModule.ATTACH_METIN_NOT_MATCHABLE_ITEM = 3
+PlayerModule.ATTACH_METIN_NO_MATCHABLE_SOCKET = 4
+PlayerModule.ATTACH_METIN_NOT_EXIST_GOLD_SOCKET = 5
+
+PlayerModule.DETACH_METIN_OK = 0
+PlayerModule.DETACH_METIN_CANT = 1
+PlayerModule.REFINE_OK = 0
+PlayerModule.REFINE_CANT = 1
+
+PlayerModule.AUTO_POTION_TYPE_HP = 0
+PlayerModule.AUTO_POTION_TYPE_SP = 1
+
+PlayerModule.BLOCK_EXCHANGE = 1
+PlayerModule.BLOCK_PARTY = 2
+PlayerModule.BLOCK_GUILD = 4
+PlayerModule.BLOCK_WHISPER = 8
+PlayerModule.BLOCK_FRIEND = 16
+PlayerModule.BLOCK_PARTY_REQUEST = 32
+
+PlayerModule.DRAGON_SOUL_EQUIPMENT_FIRST_SIZE = 6
+PlayerModule.DRAGON_SOUL_EQUIPMENT_PAGE_COUNT = 2
+PlayerModule.DRAGON_SOUL_EQUIPMENT_SLOT_START = 0
+PlayerModule.DRAGON_SOUL_PAGE_COUNT = 5
+PlayerModule.DRAGON_SOUL_PAGE_SIZE = 32
+PlayerModule.DRAGON_SOUL_SLOT_COUNT = 160
+
+PlayerModule.MBF_SMART = 0
+PlayerModule.MBF_MOVE = 1
+PlayerModule.MBF_CAMERA = 2
+PlayerModule.MBF_ATTACK = 3
+PlayerModule.MBF_SKILL = 4
+PlayerModule.MBF_AUTO = 5
+PlayerModule.MBS_CLICK = 0
+PlayerModule.MBS_PRESS = 1
+PlayerModule.MBT_LEFT = 0
+PlayerModule.MBT_RIGHT = 1
+
+# --- QuickSlot FFI integration (m2_quickslot_get_v2) ---
+class QuickSlotResult(ctypes.Structure):
+    _fields_ = [("slot_type", ctypes.c_uint8), ("slot_position", ctypes.c_uint32)]
+
+def _wrap_player_get_local_quick_slot(slot):
+    fn = getattr(m2_lib, 'm2_quickslot_get_v2', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint8]
+            fn.restype = QuickSlotResult
+            res = fn(int(slot))
+            return (int(res.slot_type), int(res.slot_position))
+        except Exception: pass
+    return (0, 0)
+
+setattr(PlayerModule, 'GetLocalQuickSlot', staticmethod(_wrap_player_get_local_quick_slot))
+setattr(PlayerModule, 'GetGlobalQuickSlot', staticmethod(_wrap_player_get_local_quick_slot))
 
 # SkillCoolTime: Py_BuildValue("ff", fCoolTime, fElapsedCoolTime) -> (float, float)
 setattr(PlayerModule, 'GetSkillCoolTime', staticmethod(lambda idx: (0.0, 0.0)))
@@ -1382,6 +1625,99 @@ def _wrap_player_get_main_character_index():
 setattr(PlayerModule, 'GetMainCharacterIndex', staticmethod(_wrap_player_get_main_character_index))
 setattr(PlayerModule, 'GetTargetVID', staticmethod(lambda: 0))
 
+# --- Missing Game Logic and Action Handlers (game.py & ui*.py parity) ---
+_player_quick_page = 0
+_player_game_window = None
+_player_attack_key_state = False
+_player_skills = {}
+
+def _player_clear_skill_dict():
+    _player_skills.clear()
+
+def _player_set_skill(slot, vnum):
+    _player_skills[slot] = vnum
+
+def _player_get_quick_page():
+    return _player_quick_page
+
+def _player_set_quick_page(p):
+    global _player_quick_page
+    _player_quick_page = int(p)
+
+def _player_set_game_window(wnd):
+    global _player_game_window
+    _player_game_window = wnd
+
+def _player_get_game_window():
+    return _player_game_window
+
+def _player_is_main_character_index(vid):
+    return int(vid) == _wrap_player_get_main_character_index()
+
+def _player_set_attack_key_state(state):
+    global _player_attack_key_state
+    _player_attack_key_state = bool(state)
+
+def _player_request_use_local_quick_slot(slot):
+    try:
+        q_type, q_pos = _wrap_player_get_local_quick_slot(slot)
+        if q_type == 1:
+            net_mod = sys.modules.get('net')
+            if net_mod and hasattr(net_mod, 'SendItemUsePacket'):
+                net_mod.SendItemUsePacket(q_pos)
+        elif q_type == 2:
+            net_mod = sys.modules.get('net')
+            if net_mod and hasattr(net_mod, 'SendUseSkillPacket'):
+                net_mod.SendUseSkillPacket(q_pos, _wrap_player_get_main_character_index(), None)
+    except Exception: pass
+
+def _player_request_delete_global_quick_slot(slot):
+    try:
+        net_mod = sys.modules.get('net')
+        if net_mod and hasattr(net_mod, 'SendQuickSlotDelPacket'):
+            net_mod.SendQuickSlotDelPacket(int(slot))
+    except Exception: pass
+
+setattr(PlayerModule, 'ClearSkillDict', staticmethod(_player_clear_skill_dict))
+setattr(PlayerModule, 'SetSkill', staticmethod(_player_set_skill))
+setattr(PlayerModule, 'EndKeyWalkingImmediately', staticmethod(lambda: None))
+setattr(PlayerModule, 'EndMouseWalking', staticmethod(lambda: None))
+setattr(PlayerModule, 'StartMouseWalking', staticmethod(lambda: None))
+setattr(PlayerModule, 'IsMainCharacterIndex', staticmethod(_player_is_main_character_index))
+setattr(PlayerModule, 'IsMountingHorse', staticmethod(lambda: False))
+setattr(PlayerModule, 'SetAttackKeyState', staticmethod(_player_set_attack_key_state))
+setattr(PlayerModule, 'SetSingleDIKKeyState', staticmethod(lambda key, state: None))
+setattr(PlayerModule, 'SetMouseState', staticmethod(lambda s: None))
+setattr(PlayerModule, 'SetMouseMiddleButtonState', staticmethod(lambda s: None))
+setattr(PlayerModule, 'SetMouseFunc', staticmethod(lambda f: None))
+setattr(PlayerModule, 'GetMouseFunc', staticmethod(lambda: 0))
+setattr(PlayerModule, 'SetGameWindow', staticmethod(_player_set_game_window))
+setattr(PlayerModule, 'GetGameWindow', staticmethod(_player_get_game_window))
+setattr(PlayerModule, 'SetQuickPage', staticmethod(_player_set_quick_page))
+setattr(PlayerModule, 'GetQuickPage', staticmethod(_player_get_quick_page))
+setattr(PlayerModule, 'RequestUseLocalQuickSlot', staticmethod(_player_request_use_local_quick_slot))
+setattr(PlayerModule, 'RequestDeleteGlobalQuickSlot', staticmethod(_player_request_delete_global_quick_slot))
+setattr(PlayerModule, 'RequestMoveGlobalQuickSlotToLocalQuickSlot', staticmethod(lambda src, dst: None))
+setattr(PlayerModule, 'LocalQuickSlotIndexToGlobalQuickSlotIndex', staticmethod(lambda s: int(s) + _player_quick_page * 4))
+setattr(PlayerModule, 'ResetCameraRotation', staticmethod(lambda: None))
+setattr(PlayerModule, 'ClickSkillSlot', staticmethod(lambda slot: None))
+setattr(PlayerModule, 'ChangeCurrentSkillNumberOnly', staticmethod(lambda idx: None))
+setattr(PlayerModule, 'ComboAttack', staticmethod(lambda: None))
+setattr(PlayerModule, 'Clear', staticmethod(lambda: None))
+setattr(PlayerModule, 'ClearTarget', staticmethod(lambda: None))
+setattr(PlayerModule, 'SetPlayTime', staticmethod(lambda t: None))
+setattr(PlayerModule, 'GetGuildID', staticmethod(lambda: 0))
+setattr(PlayerModule, 'CanAttackInstance', staticmethod(lambda vid: True))
+setattr(PlayerModule, 'IsActingEmotion', staticmethod(lambda: False))
+setattr(PlayerModule, 'ActEmotion', staticmethod(lambda e: None))
+setattr(PlayerModule, 'ShowPlayer', staticmethod(lambda: None))
+setattr(PlayerModule, 'HidePlayer', staticmethod(lambda: None))
+setattr(PlayerModule, 'SetAutoCameraRotationSpeed', staticmethod(lambda s: None))
+setattr(PlayerModule, 'SetQuickCameraMode', staticmethod(lambda f: None))
+setattr(PlayerModule, 'RemoveQuickSlotByValue', staticmethod(lambda v: None))
+setattr(PlayerModule, 'isItem', staticmethod(lambda s: True))
+setattr(PlayerModule, 'IsObserverMode', staticmethod(lambda: False))
+
 sys.modules['player'] = PlayerModule
 sys.modules['Player'] = PlayerModule
 
@@ -1427,7 +1763,21 @@ chr_methods = [
     ("IsSelectedVID", "m2_py_chrmgr_is_selected_vid", [ctypes.c_uint32], ctypes.c_bool),
 ]
 ChrModule = create_real_module('chr', 'chr', chr_methods)
-setattr(ChrModule, 'GetPixelPosition', staticmethod(lambda vid=0: (0.0, 0.0, 0.0)))
+
+def _wrap_chr_get_pixel_position(vid=0):
+    fn = getattr(m2_lib, 'm2_chr_get_pixel_position', None)
+    if fn:
+        try:
+            x, y, z = ctypes.c_float(0.0), ctypes.c_float(0.0), ctypes.c_float(0.0)
+            fn.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
+            fn.restype = ctypes.c_bool
+            target_vid = int(vid) if vid else _wrap_player_get_main_character_index()
+            if fn(target_vid, ctypes.byref(x), ctypes.byref(y), ctypes.byref(z)):
+                return (x.value, y.value, z.value)
+        except Exception: pass
+    return (0.0, 0.0, 0.0)
+
+setattr(ChrModule, 'GetPixelPosition', staticmethod(_wrap_chr_get_pixel_position))
 setattr(ChrModule, 'SetVirtualID', staticmethod(lambda id: None))
 setattr(ChrModule, 'SetNameString', staticmethod(lambda name: None))
 setattr(ChrModule, 'SetInstanceType', staticmethod(lambda t: None))
@@ -1440,6 +1790,9 @@ setattr(ChrModule, 'Revive', staticmethod(lambda: None))
 setattr(ChrModule, 'Die', staticmethod(lambda: None))
 setattr(ChrModule, 'Hide', staticmethod(lambda: None))
 setattr(ChrModule, 'Show', staticmethod(lambda: None))
+setattr(ChrModule, 'Update', staticmethod(lambda: None))
+setattr(ChrModule, 'GetGuildID', staticmethod(lambda vid=0: 0))
+setattr(ChrModule, 'IsPartyMember', staticmethod(lambda vid=0: False))
 def _wrap_chr_pick():
     fn = getattr(m2_lib, 'm2_chr_Pick', None)
     if fn:
@@ -1567,16 +1920,46 @@ class ChrmgrModule:
     def SetShapeModel(shape=0, path="", *args, **kwargs): pass
     @staticmethod
     def AppendShapeSkin(shape=0, part=0, path="", *args, **kwargs): pass
+    _active_race = 0
+    _path_name = ""
+
     @staticmethod
-    def SetPathName(path="", *args, **kwargs): pass
+    def SetPathName(path="", *args, **kwargs):
+        ChrmgrModule._path_name = str(path) if path else ""
+
     @staticmethod
-    def LoadRaceData(race=0, path="", *args, **kwargs): return True
+    def CreateRace(race=0, *args, **kwargs):
+        ChrmgrModule._active_race = int(race)
+        fn = getattr(m2_lib, 'm2_py_chrmgr_create_race', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32]
+                fn.restype = ctypes.c_bool
+                return fn(int(race))
+            except Exception: pass
+        return True
+
     @staticmethod
-    def LoadLocalRaceData(race=0, path="", *args, **kwargs): return True
+    def SelectRace(race=0, *args, **kwargs):
+        ChrmgrModule._active_race = int(race)
+        return True
+
     @staticmethod
-    def CreateRace(race=0, *args, **kwargs): return True
+    def LoadRaceData(race=0, path="", *args, **kwargs):
+        target_race = int(race) if race else ChrmgrModule._active_race
+        full_path = (ChrmgrModule._path_name + str(path)) if path else ""
+        fn = getattr(m2_lib, 'm2_py_chrmgr_load_race_data', None)
+        if fn and full_path:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                return fn(int(target_race), str(full_path).encode('utf-8'))
+            except Exception: pass
+        return True
+
     @staticmethod
-    def SelectRace(race=0, *args, **kwargs): return True
+    def LoadLocalRaceData(race=0, path="", *args, **kwargs):
+        return ChrmgrModule.LoadRaceData(race, path)
     @staticmethod
     def RegisterAttachingBoneName(race=0, part=0, bone="", *args, **kwargs): pass
     @staticmethod

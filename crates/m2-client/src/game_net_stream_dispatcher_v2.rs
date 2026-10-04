@@ -481,6 +481,115 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
             }
             return true;
         }
+        0x0515 => { // ITEM_GROUND_ADD
+            return true;
+        }
+        0x0516 => { // ITEM_GROUND_DEL
+            return true;
+        }
+        0x0517 => { // ITEM_OWNERSHIP
+            return true;
+        }
+        0x0519 => { // QUICKSLOT_ADD
+            return crate::recv_quickslot_sync_v2::process_quickslot_add(data.as_ptr());
+        }
+        0x051A => { // QUICKSLOT_DEL
+            return crate::recv_quickslot_sync_v2::process_quickslot_del(data.as_ptr());
+        }
+        0x051B => { // QUICKSLOT_SWAP
+            return crate::recv_quickslot_sync_v2::process_quickslot_swap(data.as_ptr());
+        }
+        0x0216 => { // STUN
+            return true;
+        }
+        0x0217 => { // DEAD
+            return true;
+        }
+        0x0218 => { // CHANGE_SPEED
+            return true;
+        }
+        0x0219 => { // WALK_MODE
+            return true;
+        }
+        0x021A | 0x021B => { // SKILL_LEVEL, SKILL_LEVEL_NEW
+            return true;
+        }
+        0x0304 => { // SYNC_POSITION
+            return true;
+        }
+        0x0307 => { // MOTION
+            return true;
+        }
+        0x0308 => { // DIG_MOTION
+            return true;
+        }
+        0x0414 => { // PVP
+            return true;
+        }
+        0x0415 => { // DUEL_START
+            return true;
+        }
+        0x0714 | 0x0715 | 0x0716 => { // PARTY_LINK, PARTY_UNLINK, PARTY_PARAMETER
+            return true;
+        }
+        0x0731 => { // REQUEST_MAKE_GUILD
+            return true;
+        }
+        0x0750 | 0x0751 => { // LOVER_INFO, LOVE_POINT_UPDATE
+            return true;
+        }
+        0x0832 => { // SAFEBOX_WRONG_PASSWORD
+            return true;
+        }
+        0x0841 | 0x0842 | 0x0843 => { // MALL_OPEN, MALL_SET, MALL_DEL
+            return true;
+        }
+        0x0911 => { // QUEST_CONFIRM
+            return true;
+        }
+        0x0A13 => { // TARGET_CREATE_NEW
+            return true;
+        }
+        0x0A20 | 0x0A21 => { // AFFECT_ADD, AFFECT_REMOVE
+            return true;
+        }
+        0x0A30 | 0x0A31 => { // SPECIAL_EFFECT, SPECIFIC_EFFECT
+            return true;
+        }
+        0x0A40 => { // MOUNT
+            return true;
+        }
+        0x0A41 => { // OWNERSHIP
+            return true;
+        }
+        0x0A50 => { // NPC_POSITION
+            return true;
+        }
+        0x0B12 => { // LAND_LIST
+            return true;
+        }
+        0x0B13 => { // TIME
+            if data.len() >= 8 {
+                let time_val = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                push_event(GameEvent::ServerTime { time: time_val as i64 });
+                return true;
+            }
+            return true;
+        }
+        0x0B14 => { // CHANNEL
+            if data.len() >= 5 {
+                let channel = data[4];
+                push_event(GameEvent::Channel { channel });
+                return true;
+            }
+            return true;
+        }
+        0x0B15 => { // MARK_UPDATE
+            return true;
+        }
+        0x0B20 | 0x0B21 | 0x0B22 => { // OBSERVER_ADD, OBSERVER_REMOVE, OBSERVER_MOVE
+            return true;
+        }
         0x0732 => { // SYMBOL_DATA
             return true;
         }
