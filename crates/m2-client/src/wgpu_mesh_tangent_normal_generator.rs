@@ -89,9 +89,6 @@ impl MeshTangentGenerator {
                 tangent = Vec3::X; // fallback
             }
 
-            // Calculate handedness (sign)
-            // let sign = if n.cross(t).dot(b) < 0.0 { -1.0 } else { 1.0 };
-
             // Orthogonalize bitangent
             let n_dot_b = n.dot(b);
             let t_dot_b = tangent.dot(b);
