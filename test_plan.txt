@@ -1,0 +1,5 @@
+1. We need to implement net_shop_private_packets in `crates/m2-client/src/net_shop_private_packets.rs`.
+2. Packets to implement:
+- `TPacketCGBuildPrivateShop` (known as `TPacketCGMyShop` in code: header=MYSHOP, length, szSign[33], bCount). Followed by `bCount` `TShopItemTable` elements (vnum, count, pos, price, display_pos).
+- `TPacketCGShop` (header=SHOP, length, subheader). Subheaders: BUY, SELL, SELL2, END (under ShopSub::CG::...). Note: `SendShopBuyPacket` sends `TPacketCGShop` (header=SHOP, length, subheader=BUY) followed by `uint8_t count`.
+Wait, let's verify `SendShopBuyPacket` and `SendShopSellPacket` from PythonNetworkStreamPhaseGame.cpp.

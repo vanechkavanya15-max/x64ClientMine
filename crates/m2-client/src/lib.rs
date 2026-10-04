@@ -517,3 +517,4 @@ pub mod ui_editline_formatter;
 pub mod full_ui_adv_09;
 pub mod ui_py_event_dispatcher;
 pub mod net_guild_packets;
+pub mod net_shop_private_packets;

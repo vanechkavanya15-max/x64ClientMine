@@ -1,0 +1,21 @@
+1. Create `crates/m2-client/src/net_shop_private_packets.rs`.
+2. Define the structs:
+   - `TItemPos` (`#[repr(C, packed)]`): `window_type: u8, cell: u16`
+   - `TShopItemTable` (`#[repr(C, packed)]`): `vnum: u32, count: u8, pos: TItemPos, price: u32, display_pos: u8`
+   - `TPacketCGMyShop` (`#[repr(C, packed)]`): `header: u16 = 0x0802, length: u16, szSign: [u8; 33], bCount: u8`
+   - `TPacketCGShop` (`#[repr(C, packed)]`): `header: u16 = 0x0801, length: u16, subheader: u8`
+3. Implement serialization functions:
+   - `net_send_build_private_shop(sign: &str, items: &[TShopItemTable]) -> Result<Vec<u8>, Error>`
+   - `net_send_shop_buy(pos: u8, count: u8) -> Result<Vec<u8>, Error>`
+   - `net_send_shop_sell(slot: u8) -> Result<Vec<u8>, Error>`
+   - `net_send_shop_sell_new(slot: u8, count: u8) -> Result<Vec<u8>, Error>`
+   - `net_send_shop_end() -> Result<Vec<u8>, Error>`
+4. Implement C-FFI exports matching PythonNetworkStreamPhaseGameItem.cpp signatures or similar:
+   - `m2_net_send_build_private_shop_packet(c_sign: *const c_char, items: *const TShopItemTable, count: usize) -> bool`
+   - `m2_net_send_shop_buy_packet(pos: u8) -> bool`
+   - `m2_net_send_shop_sell_packet(slot: u8) -> bool`
+   - `m2_net_send_shop_sell_packet_new(slot: u8, count: u8) -> bool`
+   - `m2_net_send_shop_end_packet() -> bool`
+5. Write unit tests in `crates/m2-client/tests/test_net_shop_private_packets.rs`.
+6. Add `pub mod net_shop_private_packets;` to `crates/m2-client/src/lib.rs`.
+7. Pre-commit check and submit.
