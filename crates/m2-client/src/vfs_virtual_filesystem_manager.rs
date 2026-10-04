@@ -1,9 +1,6 @@
-// vfs_virtual_filesystem_manager.rs
-
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::vfs_pck_memory_mapped::{PckArchive, read_file_from_archive, mount_archive};
@@ -31,6 +28,12 @@ pub fn get_vfs_manager() -> &'static Mutex<VfsManager> {
     VFS_MANAGER.get_or_init(|| {
         Mutex::new(VfsManager::new())
     })
+}
+
+impl Default for VfsManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl VfsManager {

@@ -1,19 +1,10 @@
-#[path = "../src/vfs_virtual_filesystem_manager.rs"]
-mod vfs_virtual_filesystem_manager;
-
-#[path = "../src/vfs_pck_memory_mapped.rs"]
-mod vfs_pck_memory_mapped;
-
-#[path = "../src/vfs_security_decrypt.rs"]
-mod vfs_security_decrypt;
-
-use vfs_virtual_filesystem_manager::VfsManager;
-use vfs_pck_memory_mapped::{TPackFileHeader, TPackFileEntry, PckArchive};
+use m2_client::vfs_virtual_filesystem_manager::VfsManager;
+use m2_client::vfs_pck_memory_mapped::{TPackFileHeader, TPackFileEntry, PckArchive};
 use std::collections::HashMap;
 
 fn create_dummy_archive(name: &str, files: Vec<(&str, Vec<u8>)>) -> PckArchive {
     let mut name_map = HashMap::new();
-    let mut index_map = HashMap::new();
+    let index_map = HashMap::new();
     let mut entries = Vec::new();
     let mut data_mmap = Vec::new();
     
@@ -27,7 +18,6 @@ fn create_dummy_archive(name: &str, files: Vec<(&str, Vec<u8>)>) -> PckArchive {
         
         name_map.insert(file_name.to_lowercase(), i);
         
-        // Wypełniamy bufor danymi z testów 
         data_mmap.extend_from_slice(&data);
         offset += data.len();
         entries.push(entry);
@@ -35,7 +25,7 @@ fn create_dummy_archive(name: &str, files: Vec<(&str, Vec<u8>)>) -> PckArchive {
     
     PckArchive {
         file_path: name.to_string(),
-        header: Some(TPackFileHeader { entry_num: 0, data_begin: 0, nonce: [0; 24] }), // uproszczenie
+        header: Some(TPackFileHeader { entry_num: 0, data_begin: 0, nonce: [0; 24] }), 
         entries,
         name_map,
         index_map,
@@ -46,32 +36,23 @@ fn create_dummy_archive(name: &str, files: Vec<(&str, Vec<u8>)>) -> PckArchive {
 #[test]
 fn test_vfs_lru_cache() {
     let mut vfs = VfsManager::new();
-    vfs.max_cache_size = 10; // small cache
+    vfs.max_cache_size = 10; 
     
-    // Ustawienie base path na istniejący w systemie plik (może to być sam plik testowy)
-    let test_file = "Cargo.toml"; 
-    // to przeczyta rzeczywisty plik "Cargo.toml" jak jest na dysku
-    
-    // Ale w tescie cache stworzymy własne pakiety, zeby to z nich korzystać
     let pack = create_dummy_archive("test.pck", vec![
         ("file1.txt", vec![1, 2, 3]),
         ("file2.txt", vec![4, 5, 6]),
-        ("file3.txt", vec![7, 8, 9, 10, 11]), // 5 bajtów
+        ("file3.txt", vec![7, 8, 9, 10, 11]),
     ]);
     vfs.std_packs.push(pack);
     
-    // File 1 cache (3 bajty, w cache)
-    let d1 = vfs.get_file_bytes("file1.txt").unwrap();
+    let _d1 = vfs.get_file_bytes("file1.txt").unwrap();
     assert_eq!(vfs.current_cache_size, 3);
     
-    // File 2 cache (3 bajty, lacznie 6)
-    let d2 = vfs.get_file_bytes("file2.txt").unwrap();
+    let _d2 = vfs.get_file_bytes("file2.txt").unwrap();
     assert_eq!(vfs.current_cache_size, 6);
     
-    // File 3 cache (5 bajtow, przekroczy 10 bajtow)
-    // 6 + 5 = 11 > 10, usunie file1 (najstarszy)
-    let d3 = vfs.get_file_bytes("file3.txt").unwrap();
-    assert_eq!(vfs.current_cache_size, 8); // 3 (file2) + 5 (file3)
+    let _d3 = vfs.get_file_bytes("file3.txt").unwrap();
+    assert_eq!(vfs.current_cache_size, 8); 
     
     assert!(vfs.file_cache.contains_key("file2.txt"));
     assert!(vfs.file_cache.contains_key("file3.txt"));
@@ -92,15 +73,13 @@ fn test_vfs_priority() {
     
     vfs.std_packs.push(std_pack);
     
-    // powinno zwrocic ze std_pack
     let d1 = vfs.get_file_bytes("test.txt").unwrap();
     assert_eq!(d1.as_ref(), &vec![1, 1, 1]);
     
-    vfs.clear_cache(); // czyscimy cache zeby nie korzystalo
+    vfs.clear_cache(); 
     
     vfs.mod_packs.push(mod_pack);
     
-    // teraz priorytet ma mod_pack
     let d2 = vfs.get_file_bytes("test.txt").unwrap();
     assert_eq!(d2.as_ref(), &vec![2, 2, 2]);
 }
@@ -113,17 +92,33 @@ fn test_vfs_file_case_insensitivity() {
     ]);
     vfs.std_packs.push(pack);
     
-    // Test should find file with lowercase even if stored with uppercase
-    // Wait, the dummy archive stores exactly what we pass to `set_file_name`. 
-    // And `name_map` keys are `to_lowercase()`.
-    
     let d = vfs.get_file_bytes("ui/test.txt");
     assert!(d.is_some());
     assert_eq!(d.unwrap().as_ref(), &vec![9, 9, 9]);
     
     vfs.clear_cache();
-    let d2 = vfs.get_file_bytes("UI/TEST.TXT"); // should also normalize
+    let d2 = vfs.get_file_bytes("UI/TEST.TXT");
     assert!(d2.is_some());
     assert_eq!(d2.unwrap().as_ref(), &vec![9, 9, 9]);
 }
 
+#[test]
+fn test_vfs_disk_priority() {
+    use std::io::Write;
+    let mut vfs = VfsManager::new();
+    let file_path = "test_disk_priority.txt";
+    
+    let mut f = std::fs::File::create(file_path).unwrap();
+    f.write_all(&[5, 5, 5]).unwrap();
+    
+    let std_pack = create_dummy_archive("std.pck", vec![
+        ("test_disk_priority.txt", vec![1, 1, 1]),
+    ]);
+    vfs.std_packs.push(std_pack);
+    
+    let d = vfs.get_file_bytes("test_disk_priority.txt");
+    assert!(d.is_some());
+    assert_eq!(d.unwrap().as_ref(), &vec![5, 5, 5]);
+    
+    std::fs::remove_file(file_path).unwrap();
+}
