@@ -159,3 +159,29 @@ pub extern "C" fn wndMgr_SetSelectItemSlotEvent(_py_obj: usize, handle: u32, eve
     }
     false
 }
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetSlotCoolTime(
+    _py_obj: usize,
+    handle: u32,
+    slot_idx: c_int,
+    cool_time: f32,
+    elapsed_time: f32,
+) -> bool {
+    let mut wm = get_window_manager();
+    wm.set_slot_cool_time(handle, slot_idx as usize, cool_time, elapsed_time)
+}
+
+#[no_mangle]
+pub extern "C" fn wndMgr_SetClipRect(
+    _py_obj: usize,
+    handle: u32,
+    l: f32,
+    t: f32,
+    r: f32,
+    b: f32,
+) -> bool {
+    let mut wm = get_window_manager();
+    wm.set_clip_rect(handle, l, t, r, b)
+}
+

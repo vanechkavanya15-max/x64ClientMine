@@ -209,3 +209,19 @@ pub extern "C" fn m2_audio_mute_all(mute: bool) {
     })
 }
 
+#[no_mangle]
+pub extern "C" fn m2_audio_stop_all_sound() -> bool {
+    safe_ffi_call(false, || {
+        let mut state = get_audio_state().lock().unwrap();
+        if !state.is_initialized {
+            return false;
+        }
+        state.current_bgm = None;
+        state.last_played_2d = None;
+        state.last_played_3d = None;
+        true
+    })
+}
+
+
+

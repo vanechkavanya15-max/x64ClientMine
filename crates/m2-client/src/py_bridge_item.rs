@@ -177,3 +177,52 @@ pub extern "C" fn m2_py_item_get_item_description() -> *const c_char {
     ITEM_DESC.as_ptr() as *const c_char
 }
 
+#[no_mangle]
+pub extern "C" fn m2_py_item_get_use_type(out_buf: *mut c_char, out_len: usize) -> bool {
+    safe_ffi_call(false, || {
+        if out_buf.is_null() || out_len == 0 {
+            return false;
+        }
+        let mgr = get_item_manager().lock().unwrap();
+        if let Some(item) = mgr.get_selected_item() {
+            let use_str = if item.item_type == 3 {
+                match item.item_sub_type {
+                    0 => "USE_POTION",
+                    1 => "USE_TALISMAN",
+                    2 => "USE_TUNING",
+                    3 => "USE_MOVE",
+                    4 => "USE_TREASURE_BOX",
+                    5 => "USE_MONEYBAG",
+                    6 => "USE_BAIT",
+                    7 => "USE_ABILITY_UP",
+                    8 => "USE_AFFECT",
+                    9 => "USE_CREATE_STONE",
+                    10 => "USE_SPECIAL",
+                    11 => "USE_POTION_NODELAY",
+                    12 => "USE_CLEAR",
+                    13 => "USE_INVISIBILITY",
+                    14 => "USE_DETACHMENT",
+                    15 => "USE_TIME_CHARGE_PER",
+                    16 => "USE_TIME_CHARGE_FIX",
+                    17 => "USE_PUT_INTO_BELT_SOCKET",
+                    18 => "USE_PUT_INTO_RING_SOCKET",
+                    _ => "USE_SPECIAL",
+                }
+            } else {
+                ""
+            };
+            if let Ok(c_str) = CString::new(use_str) {
+                let bytes = c_str.as_bytes_with_nul();
+                if bytes.len() <= out_len {
+                    unsafe {
+                        std::ptr::copy_nonoverlapping(bytes.as_ptr(), out_buf as *mut u8, bytes.len());
+                    }
+                    return true;
+                }
+            }
+        }
+        false
+    })
+}
+
+

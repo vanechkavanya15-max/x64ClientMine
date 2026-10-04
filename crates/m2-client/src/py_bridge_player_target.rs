@@ -186,4 +186,130 @@ pub unsafe extern "C" fn m2_py_player_get_target_hp(out_hp: *mut i32, out_max_hp
     })
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_alignment_data(out_point: *mut i32, out_grade: *mut i32) -> bool {
+    safe_ffi_call(false, || {
+        if out_point.is_null() || out_grade.is_null() {
+            return false;
+        }
+        let mgr = get_character_manager().read().unwrap();
+        if let Some(main_vid) = mgr.main_actor_vid {
+            if let Some(main_actor) = mgr.alive_instances.get(&main_vid) {
+                let alignment = main_actor.network_data.as_ref().map(|d| d.alignment).unwrap_or(0);
+                let grade = if alignment >= 12000 {
+                    0
+                } else if alignment >= 8000 {
+                    1
+                } else if alignment >= 4000 {
+                    2
+                } else if alignment >= 1000 {
+                    3
+                } else if alignment >= 0 {
+                    4
+                } else if alignment > -4000 {
+                    5
+                } else if alignment > -8000 {
+                    6
+                } else if alignment > -12000 {
+                    7
+                } else {
+                    8
+                };
+                *out_point = alignment as i32;
+                *out_grade = grade;
+                return true;
+            }
+        }
+        *out_point = 0;
+        *out_grade = 4;
+        true
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_guild_id() -> u32 {
+    safe_ffi_call(0, || {
+        let mgr = get_character_manager().read().unwrap();
+        if let Some(main_vid) = mgr.main_actor_vid {
+            if let Some(main_actor) = mgr.alive_instances.get(&main_vid) {
+                return main_actor.network_data.as_ref().map(|d| d.guild_id).unwrap_or(0);
+            }
+        }
+        0
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_get_character_guild_name(out_buf: *mut std::os::raw::c_char, max_len: usize) -> i32 {
+    safe_ffi_call(-1, || {
+        if out_buf.is_null() || max_len == 0 {
+            return -1;
+        }
+        let guild_id = m2_py_player_get_guild_id();
+        if guild_id == 0 {
+            *out_buf = 0;
+            return 0;
+        }
+        if let Ok(state) = crate::recv_guild_logic_v2::get_guild_state().lock() {
+            if state.is_enabled && !state.name.is_empty() {
+                let bytes = state.name.as_bytes();
+                let copy_len = bytes.len().min(max_len - 1);
+                std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const std::os::raw::c_char, out_buf, copy_len);
+                *out_buf.add(copy_len) = 0;
+                return copy_len as i32;
+            }
+        }
+        *out_buf = 0;
+        0
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_is_mounting_horse() -> bool {
+    safe_ffi_call(false, || {
+        let mgr = get_character_manager().read().unwrap();
+        if let Some(main_vid) = mgr.main_actor_vid {
+            crate::actor_mount_synchronizer::m2_is_actor_mounted(main_vid)
+        } else {
+            false
+        }
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn m2_py_player_combo_attack() -> bool {
+    safe_ffi_call(false, || {
+        let mgr = get_character_manager().read().unwrap();
+        let main_vid = match mgr.main_actor_vid {
+            Some(v) => v,
+            None => return false,
+        };
+        let main_actor = match mgr.alive_instances.get(&main_vid) {
+            Some(a) => a,
+            None => return false,
+        };
+
+        let target_vid = get_player_target_state().lock().unwrap().target_vid;
+        if target_vid != 0 {
+            if let Some(target_actor) = mgr.alive_instances.get(&target_vid) {
+                let mut knockback_x = 0.0f32;
+                let mut knockback_y = 0.0f32;
+                return crate::melee_combat_hit_resolver::m2_combat_test_melee_hit(
+                    main_actor.x, main_actor.y, main_actor.z,
+                    main_actor.rot_deg,
+                    150.0,
+                    target_vid,
+                    target_actor.x, target_actor.y, target_actor.z,
+                    50.0,
+                    false,
+                    &mut knockback_x,
+                    &mut knockback_y,
+                );
+            }
+        }
+        true
+    })
+}
+
+
 

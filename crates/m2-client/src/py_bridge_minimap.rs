@@ -65,6 +65,25 @@ pub extern "C" fn m2_minimap_get_scale() -> f32 {
 }
 
 #[no_mangle]
+pub extern "C" fn m2_minimap_scale_up() -> bool {
+    catch_unwind(|| {
+        let mut state = get_minimap_state().write().unwrap();
+        state.scale = (state.scale * 1.25).min(4.0);
+    })
+    .is_ok()
+}
+
+#[no_mangle]
+pub extern "C" fn m2_minimap_scale_down() -> bool {
+    catch_unwind(|| {
+        let mut state = get_minimap_state().write().unwrap();
+        state.scale = (state.scale * 0.8).max(0.25);
+    })
+    .is_ok()
+}
+
+
+#[no_mangle]
 pub extern "C" fn m2_minimap_open_atlas_window() -> bool {
     catch_unwind(|| {
         let mut state = get_minimap_state().write().unwrap();
@@ -235,3 +254,35 @@ pub extern "C" fn m2_minimap_get_waypoint_atlas_pos(
     })
     .unwrap_or(false)
 }
+
+#[no_mangle]
+pub extern "C" fn m2_minimap_get_info(
+    out_map_name: *mut std::os::raw::c_char,
+    max_len: usize,
+    out_x: *mut f32,
+    out_y: *mut f32,
+    out_scale: *mut f32,
+) -> bool {
+    catch_unwind(|| {
+        let state = get_minimap_state().read().unwrap();
+        unsafe {
+            if !out_scale.is_null() {
+                *out_scale = state.scale;
+            }
+            if !out_x.is_null() {
+                *out_x = 0.0;
+            }
+            if !out_y.is_null() {
+                *out_y = 0.0;
+            }
+            if !out_map_name.is_null() && max_len > 0 {
+                let bytes = b"metin2_map_a1\0";
+                let len = bytes.len().min(max_len);
+                std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const std::os::raw::c_char, out_map_name, len);
+            }
+        }
+        true
+    })
+    .unwrap_or(false)
+}
+

@@ -577,6 +577,96 @@ pub extern "C" fn m2_guild_get_info(
     })
 }
 
+#[no_mangle]
+pub extern "C" fn m2_guild_has_land() -> bool {
+    safe_ffi_call(false, || {
+        let state = get_guild_state().lock().unwrap();
+        state.is_enabled && state.has_land != 0
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_guild_get_skill_point() -> u8 {
+    safe_ffi_call(0, || {
+        let state = get_guild_state().lock().unwrap();
+        state.skills.skill_point
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_guild_get_skill_level(idx: u8) -> u8 {
+    safe_ffi_call(0, || {
+        let state = get_guild_state().lock().unwrap();
+        if (idx as usize) < state.skills.skill_level.len() {
+            state.skills.skill_level[idx as usize]
+        } else {
+            0
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_guild_get_exp(out_cur: *mut u32, out_max: *mut u32) -> bool {
+    safe_ffi_call(false, || {
+        let state = get_guild_state().lock().unwrap();
+        if !out_cur.is_null() {
+            unsafe { *out_cur = state.exp };
+        }
+        if !out_max.is_null() {
+            unsafe { *out_max = (state.level as u32).max(1) * 10000 };
+        }
+        true
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_guild_get_member_count(out_cur: *mut u16, out_max: *mut u16) -> bool {
+    safe_ffi_call(false, || {
+        let state = get_guild_state().lock().unwrap();
+        if !out_cur.is_null() {
+            unsafe { *out_cur = state.member_count };
+        }
+        if !out_max.is_null() {
+            unsafe { *out_max = state.max_member_count.max(32) };
+        }
+        true
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_guild_get_grade_name(
+    grade_idx: u8,
+    out_buf: *mut std::os::raw::c_char,
+    max_len: usize,
+) -> bool {
+    safe_ffi_call(false, || {
+        if out_buf.is_null() || max_len == 0 {
+            return false;
+        }
+        let state = get_guild_state().lock().unwrap();
+        let name = if let Some(g) = state.grades.get(&grade_idx) {
+            g.name.clone()
+        } else {
+            format!("Grade {}", grade_idx)
+        };
+        let bytes = name.as_bytes();
+        let copy_len = bytes.len().min(max_len.saturating_sub(1));
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const std::os::raw::c_char, out_buf, copy_len);
+            *out_buf.add(copy_len) = 0;
+        }
+        true
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_guild_main_player_has_authority(_auth_flag: u8) -> bool {
+    safe_ffi_call(false, || {
+        let state = get_guild_state().lock().unwrap();
+        state.is_enabled
+    })
+}
+
 /// Helper for testing reset
 pub fn test_clear_guild_state() {
     let mut state = get_guild_state().lock().unwrap();

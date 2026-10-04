@@ -1050,3 +1050,36 @@ pub extern "C" fn m2_wndmgr_set_slot_cool_time(handle: u32, slot_id: usize, cool
     get_window_manager().set_slot_cool_time(handle, slot_id, cool_time, elapsed_time)
 }
 
+#[no_mangle]
+pub extern "C" fn m2_wndmgr_enable_scissor_rect(handle: u32) -> bool {
+    let mut wm = get_window_manager();
+    if let Some(win) = wm.windows.get_mut(&handle) {
+        win.scissor_enabled = true;
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_wndmgr_disable_scissor_rect(handle: u32) -> bool {
+    let mut wm = get_window_manager();
+    if let Some(win) = wm.windows.get_mut(&handle) {
+        win.scissor_enabled = false;
+        true
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_wndmgr_is_scissor_rect_enabled(handle: u32) -> bool {
+    let wm = get_window_manager();
+    if let Some(win) = wm.windows.get(&handle) {
+        win.scissor_enabled
+    } else {
+        false
+    }
+}
+
+

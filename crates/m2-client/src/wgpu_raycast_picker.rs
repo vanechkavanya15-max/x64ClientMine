@@ -210,6 +210,18 @@ pub extern "C" fn m2_picker_pick_ground_position(
     })
 }
 
+#[no_mangle]
+pub extern "C" fn m2_py_background_get_picking_point(
+    screen_x: f32,
+    screen_y: f32,
+    out_x: *mut f32,
+    out_y: *mut f32,
+    out_z: *mut f32,
+) -> bool {
+    m2_picker_pick_ground_position(screen_x, screen_y, 1024.0, 768.0, out_x, out_y, out_z)
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

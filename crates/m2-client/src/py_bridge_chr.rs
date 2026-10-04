@@ -228,3 +228,139 @@ pub extern "C" fn m2_py_chrmgr_load_race_data(race_id: u32, path: *const c_char)
         true
     })
 }
+
+#[no_mangle]
+pub extern "C" fn m2_chr_get_rotation(vid: u32) -> f32 {
+    safe_ffi_call(0.0, || {
+        let mgr = match get_character_manager().read() {
+            Ok(lock) => lock,
+            Err(_) => return 0.0,
+        };
+        let target_vid = if vid == 0 {
+            mgr.main_actor_vid.unwrap_or(0)
+        } else {
+            vid
+        };
+        if let Some(inst) = mgr.get_instance(target_vid) {
+            inst.rot_deg
+        } else {
+            0.0
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_chr_get_virtual_number(vid: u32) -> u32 {
+    safe_ffi_call(0, || {
+        let mgr = match get_character_manager().read() {
+            Ok(lock) => lock,
+            Err(_) => return 0,
+        };
+        let target_vid = if vid == 0 {
+            mgr.main_actor_vid.unwrap_or(0)
+        } else {
+            vid
+        };
+        if let Some(inst) = mgr.get_instance(target_vid) {
+            inst.race as u32
+        } else {
+            0
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_chr_set_direction(vid: u32, dir: f32) -> bool {
+    safe_ffi_call(false, || {
+        let mut mgr = match get_character_manager().write() {
+            Ok(lock) => lock,
+            Err(_) => return false,
+        };
+        let target_vid = if vid == 0 {
+            mgr.main_actor_vid.unwrap_or(0)
+        } else {
+            vid
+        };
+        if let Some(inst) = mgr.get_instance_mut(target_vid) {
+            inst.rot_deg = dir;
+            true
+        } else {
+            false
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_chr_revive(vid: u32) -> bool {
+    safe_ffi_call(false, || {
+        let mut mgr = match get_character_manager().write() {
+            Ok(lock) => lock,
+            Err(_) => return false,
+        };
+        let target_vid = if vid == 0 {
+            mgr.main_actor_vid.unwrap_or(0)
+        } else {
+            vid
+        };
+        if let Some(inst) = mgr.get_instance_mut(target_vid) {
+            inst.is_dead = false;
+            true
+        } else {
+            false
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_chr_die(vid: u32) -> bool {
+    safe_ffi_call(false, || {
+        let mut mgr = match get_character_manager().write() {
+            Ok(lock) => lock,
+            Err(_) => return false,
+        };
+        let target_vid = if vid == 0 {
+            mgr.main_actor_vid.unwrap_or(0)
+        } else {
+            vid
+        };
+        if let Some(inst) = mgr.get_instance_mut(target_vid) {
+            inst.is_dead = true;
+            true
+        } else {
+            false
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_chr_is_party_member(vid: u32) -> bool {
+    safe_ffi_call(false, || {
+        if let Ok(party_mgr) = m2_client_bridge::state::party::PARTY_MANAGER.read() {
+            party_mgr.get_member_by_vid(vid).is_some()
+        } else {
+            false
+        }
+    })
+}
+
+
+#[no_mangle]
+pub extern "C" fn m2_chr_get_guild_id(vid: u32) -> u32 {
+    safe_ffi_call(0, || {
+        let mgr = match get_character_manager().read() {
+            Ok(lock) => lock,
+            Err(_) => return 0,
+        };
+        let target_vid = if vid == 0 {
+            mgr.main_actor_vid.unwrap_or(0)
+        } else {
+            vid
+        };
+        if let Some(inst) = mgr.get_instance(target_vid) {
+            inst.network_data.as_ref().map(|d| d.guild_id).unwrap_or(0)
+        } else {
+            0
+        }
+    })
+}
+

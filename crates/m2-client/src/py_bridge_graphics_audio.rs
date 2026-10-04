@@ -221,6 +221,17 @@ pub extern "C" fn m2_snd_set_bgm_volume(vol: f32) {
     m2_audio_set_category_volume(1, vol);
 }
 
+#[no_mangle]
+pub extern "C" fn m2_snd_play_sound_3d(file_name_ptr: *const std::os::raw::c_char, x: f32, y: f32, z: f32) -> bool {
+    crate::sound_ffi::m2_audio_play_sound_3d(file_name_ptr, x, y, z, 1.0)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_snd_stop_all_sound() -> bool {
+    crate::sound_ffi::m2_audio_stop_all_sound()
+}
+
+
 
 // systemSetting
 

@@ -87,6 +87,27 @@ pub extern "C" fn m2_camera_get_eye(out_x: *mut f32, out_y: *mut f32, out_z: *mu
 }
 
 #[no_mangle]
+pub extern "C" fn m2_camera_get_target(out_x: *mut f32, out_y: *mut f32, out_z: *mut f32) -> bool {
+    safe_ffi_call(false, || {
+        if out_x.is_null() || out_y.is_null() || out_z.is_null() {
+            return false;
+        }
+
+        let state = get_render_state();
+        let target = state.camera.target_pos;
+
+        unsafe {
+            *out_x = target[0];
+            *out_y = target[1];
+            *out_z = target[2];
+        }
+
+
+        true
+    })
+}
+
+#[no_mangle]
 pub extern "C" fn m2_render_draw_ui_quad(x: f32, y: f32, w: f32, h: f32, color_argb: u32) -> bool {
     safe_ffi_call(false, || {
         let mut state = get_render_state();
