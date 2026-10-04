@@ -651,3 +651,4 @@ pub mod party_sync_coordinator;
 pub mod shop_multitab_manager;
 pub mod combat_skill_engine;
 pub mod messenger_friend_roster;
+pub mod dragon_soul_deck_stat_cache;
