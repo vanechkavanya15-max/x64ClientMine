@@ -598,3 +598,4 @@ pub mod ui_window_quickslot_bar;
 pub mod vfs_virtual_filesystem_manager;
 pub mod engine_sliding_collision_movement;
 pub mod wgpu_camera_collision_resolver;
+pub mod game_auto_potion_manager;
