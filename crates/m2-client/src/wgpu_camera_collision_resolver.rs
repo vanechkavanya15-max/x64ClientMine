@@ -6,6 +6,7 @@ const EPSILON: f32 = 1e-5;
 /// dokladnie tak jak robi to CMapOutdoor::__PickTerrainHeight w oryginalnym C++.
 /// Promien ray'a `fRayRange` i dlugosc `fLimitRange` sprawdzana na kazdym kroku fStep.
 fn pick_terrain_height<F>(
+    f_pos: &mut f32,
     start: Vec3,
     end: Vec3,
     step: f32,
@@ -20,11 +21,10 @@ where
         return None;
     }
     
-    let mut f_pos = 0.0;
     let ray_range_inv = 1.0 / ray_range;
 
-    while f_pos < ray_range && f_pos < limit_range {
-        let cur_pos = start.lerp(end, f_pos * ray_range_inv);
+    while *f_pos < ray_range && *f_pos < limit_range {
+        let cur_pos = start.lerp(end, *f_pos * ray_range_inv);
         let map_height = get_terrain_height(cur_pos.x, cur_pos.y);
 
         if map_height >= cur_pos.z {
@@ -35,7 +35,7 @@ where
             if multiplier < 1.0 {
                 multiplier = 1.0;
             }
-            f_pos += step * multiplier;
+            *f_pos += step * multiplier;
         }
     }
 
@@ -59,14 +59,16 @@ where
 
     let end = start + dir * distance;
     
+    let mut f_pos = 0.0;
+
     // 3 poziomy LOD: step 5 (zasieg 5000), step 10 (zasieg 10000), step 100 (zasieg 100000)
-    if let Some(hit) = pick_terrain_height(start, end, 5.0, distance, 5000.0, get_terrain_height) {
+    if let Some(hit) = pick_terrain_height(&mut f_pos, start, end, 5.0, distance, 5000.0, get_terrain_height) {
         return Some(hit);
     }
-    if let Some(hit) = pick_terrain_height(start, end, 10.0, distance, 10000.0, get_terrain_height) {
+    if let Some(hit) = pick_terrain_height(&mut f_pos, start, end, 10.0, distance, 10000.0, get_terrain_height) {
         return Some(hit);
     }
-    if let Some(hit) = pick_terrain_height(start, end, 100.0, distance, 100000.0, get_terrain_height) {
+    if let Some(hit) = pick_terrain_height(&mut f_pos, start, end, 100.0, distance, 100000.0, get_terrain_height) {
         return Some(hit);
     }
 
