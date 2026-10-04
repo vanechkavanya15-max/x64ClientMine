@@ -1,2 +1,2 @@
 #!/bin/bash
-cargo test --package m2-client --test test_full-3d-pipe_13 --target x86_64-unknown-linux-gnu
+cargo test -p m2-client --lib -- test_net_dispatcher_wire_all
