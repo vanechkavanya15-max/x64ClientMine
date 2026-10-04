@@ -596,3 +596,4 @@ pub mod ui_window_loading_progress_screen;
 pub mod ui_loading_progress_bar;
 pub mod ui_window_quickslot_bar;
 pub mod vfs_virtual_filesystem_manager;
+pub mod engine_sliding_collision_movement;
