@@ -30,6 +30,7 @@ pub struct MapSetting {
     pub base_y: i32,
     pub view_radius: i32,
     pub height_scale: f32,
+    pub environment: String,
 }
 
 impl Default for MapSetting {
@@ -43,6 +44,7 @@ impl Default for MapSetting {
             base_y: 0,
             view_radius: 0,
             height_scale: 0.0,
+            environment: String::new(),
         }
     }
 }
@@ -125,6 +127,13 @@ impl MapOutdoorVfsLoader {
         }
     }
 
+    pub fn auto_play_environment_bgm(&self, mixer: &mut crate::audio_bgm_crossfade_mixer::BgmCrossfadeMixer) {
+        if !self.setting.environment.is_empty() {
+            let bgm_path = format!("bgm/{}.mp3", self.setting.environment);
+            mixer.play_music(&bgm_path);
+        }
+    }
+
     pub fn load_setting(&mut self, content: &str) -> Result<(), &'static str> {
         let mut map: HashMap<String, Vec<String>> = HashMap::new();
         let mut lines = content.lines().peekable();
@@ -196,6 +205,11 @@ impl MapOutdoorVfsLoader {
             .and_then(|s| s.parse::<i32>().ok())
             .unwrap_or(0); // If not found, default to 0 as it's optional sometimes, but original C++ doesn't explicitly parse WaterHeight in LoadSetting, it parses it in MapOutdoorWater. We'll set it here if exists.
 
+        let environment = map.get("environment")
+            .and_then(|v| v.first())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+
         self.setting = MapSetting {
             map_size_x,
             map_size_y,
@@ -205,6 +219,7 @@ impl MapOutdoorVfsLoader {
             base_y,
             view_radius,
             height_scale,
+            environment,
         };
 
         Ok(())

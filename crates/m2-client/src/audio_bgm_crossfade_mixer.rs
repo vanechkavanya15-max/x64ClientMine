@@ -18,6 +18,7 @@ pub struct BgmCrossfadeMixer {
     pub current_track: Option<BgmTrack>,
     pub previous_track: Option<BgmTrack>,
     pub fade_duration_sec: f32,
+    pub global_volume: f32,
 }
 
 impl BgmCrossfadeMixer {
@@ -26,7 +27,20 @@ impl BgmCrossfadeMixer {
             current_track: None,
             previous_track: None,
             fade_duration_sec: fade_duration_sec.max(0.001), // avoid division by zero
+            global_volume: 1.0,
         }
+    }
+
+    pub fn set_global_volume(&mut self, volume: f32) {
+        self.global_volume = volume.clamp(0.0, 1.0);
+    }
+
+    pub fn get_current_track_effective_volume(&self) -> Option<f32> {
+        self.current_track.as_ref().map(|track| track.volume * self.global_volume)
+    }
+
+    pub fn get_previous_track_effective_volume(&self) -> Option<f32> {
+        self.previous_track.as_ref().map(|track| track.volume * self.global_volume)
     }
 
     pub fn play_music(&mut self, filepath: &str) {
