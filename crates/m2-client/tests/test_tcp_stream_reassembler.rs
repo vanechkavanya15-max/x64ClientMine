@@ -105,3 +105,30 @@ fn test_reassemble_multiple_packets_and_compaction() {
 
     assert!(reassembler.read_packet().is_none(), "No more packets should be available");
 }
+
+#[test]
+fn test_reassemble_1_byte_fragments() {
+    let mut reassembler = TcpStreamReassembler::new(1024);
+
+    let header: u16 = 0x9999;
+    let packet_len: u16 = 6;
+    let mut packet_data = Vec::new();
+    packet_data.extend_from_slice(&header.to_le_bytes());
+    packet_data.extend_from_slice(&packet_len.to_le_bytes());
+    packet_data.extend_from_slice(&[0x42, 0x43]);
+
+    assert_eq!(packet_data.len(), 6);
+
+    for (i, byte) in packet_data.iter().enumerate() {
+        reassembler.write(&[*byte]);
+
+        if i < packet_data.len() - 1 {
+            assert!(reassembler.read_packet().is_none(), "Should not return packet before it's fully received");
+        } else {
+            let received = reassembler.read_packet().expect("Should return packet when fully received");
+            assert_eq!(received, packet_data, "Reassembled packet should match the sent one");
+        }
+    }
+
+    assert!(reassembler.read_packet().is_none(), "No more packets should be available");
+}

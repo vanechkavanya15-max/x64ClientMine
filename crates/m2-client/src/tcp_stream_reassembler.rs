@@ -1,23 +1,25 @@
 use std::cmp;
 
-/// A simple ring buffer for accumulating TCP chunks and reassembling them into Metin2 packets.
+/// A true ring buffer for accumulating TCP chunks and reassembling them into Metin2 packets.
 /// Metin2 packets have the format:
 ///   [0..2]: u16 Header
 ///   [2..4]: u16 Length (total length including header and length field)
 ///   [4..Length]: Payload
 pub struct TcpStreamReassembler {
     buffer: Vec<u8>,
-    read_pos: usize,
-    write_pos: usize,
+    head: usize,
+    tail: usize,
+    count: usize,
 }
 
 impl TcpStreamReassembler {
     /// Creates a new reassembler with the given initial capacity.
     pub fn new(initial_capacity: usize) -> Self {
         Self {
-            buffer: vec![0; initial_capacity],
-            read_pos: 0,
-            write_pos: 0,
+            buffer: vec![0; cmp::max(initial_capacity, 1024)],
+            head: 0,
+            tail: 0,
+            count: 0,
         }
     }
 
@@ -27,99 +29,109 @@ impl TcpStreamReassembler {
             return;
         }
 
-        self.ensure_writable(data.len());
-        self.buffer[self.write_pos..self.write_pos + data.len()].copy_from_slice(data);
-        self.write_pos += data.len();
+        self.ensure_capacity(data.len());
+
+        let cap = self.buffer.len();
+        let end_space = cap - self.tail;
+
+        if data.len() <= end_space {
+            self.buffer[self.tail..self.tail + data.len()].copy_from_slice(data);
+        } else {
+            self.buffer[self.tail..cap].copy_from_slice(&data[..end_space]);
+            self.buffer[0..data.len() - end_space].copy_from_slice(&data[end_space..]);
+        }
+
+        self.tail = (self.tail + data.len()) % cap;
+        self.count += data.len();
+    }
+
+    /// Reads a specific number of bytes from the ring buffer without consuming them.
+    fn peek_bytes(&self, size: usize) -> Option<Vec<u8>> {
+        if self.count < size {
+            return None;
+        }
+
+        let cap = self.buffer.len();
+        let end_space = cap - self.head;
+        let mut result = Vec::with_capacity(size);
+
+        if size <= end_space {
+            result.extend_from_slice(&self.buffer[self.head..self.head + size]);
+        } else {
+            result.extend_from_slice(&self.buffer[self.head..cap]);
+            result.extend_from_slice(&self.buffer[0..size - end_space]);
+        }
+
+        Some(result)
+    }
+
+    /// Consumes a specific number of bytes from the ring buffer.
+    fn consume(&mut self, size: usize) {
+        if size > self.count {
+            panic!("Attempting to consume more bytes than available");
+        }
+        self.head = (self.head + size) % self.buffer.len();
+        self.count -= size;
     }
 
     /// Attempts to read the next complete packet from the buffer.
-    /// Returns `Some(packet_data)` if a full packet is available, `None` otherwise.
     pub fn read_packet(&mut self) -> Option<Vec<u8>> {
-        let readable = self.readable_bytes();
+        // We need at least 4 bytes to parse header and length
+        let header_data = self.peek_bytes(4)?;
 
-        // Need at least 4 bytes for the header and length fields
-        if readable < 4 {
-            return None;
-        }
+        let header_bytes = [header_data[0], header_data[1]];
+        let header = u16::from_le_bytes(header_bytes);
 
-        // Read the packet length (u16 at offset 2, little endian)
-        let length_bytes = [
-            self.buffer[self.read_pos + 2],
-            self.buffer[self.read_pos + 3],
-        ];
+        let length_bytes = [header_data[2], header_data[3]];
         let packet_length = u16::from_le_bytes(length_bytes) as usize;
 
-        // If the packet is larger than the buffer's capacity or the readable bytes,
-        // we might have a corrupted stream or an overly large packet, but for this
-        // simple reassembler, we just wait until we have enough bytes.
-        // Wait until we have the full packet
-        if readable < packet_length {
-            return None;
+        if header == 0x0603 || header == 0x0519 {
+            // These are dynamically sized packets (HEADER_GC_CHAT, HEADER_GC_QUICKSLOT_ADD).
+            // We just ensure length covers header and length fields.
+            if packet_length < 4 {
+                // Invalid dynamic packet
+                // Instead of blocking forever, we consume 1 byte to attempt recovery
+                self.consume(1);
+                return None;
+            }
         }
 
-        // Extract the packet
-        let packet = self.buffer[self.read_pos..self.read_pos + packet_length].to_vec();
-        self.read_pos += packet_length;
+        if self.count < packet_length {
+            return None; // Wait for full packet
+        }
 
-        self.maybe_compact();
+        let packet = self.peek_bytes(packet_length)?;
+        self.consume(packet_length);
 
         Some(packet)
     }
 
-    /// Returns the number of readable bytes in the buffer.
-    fn readable_bytes(&self) -> usize {
-        self.write_pos - self.read_pos
-    }
-
-    /// Returns the number of writable bytes at the end of the buffer.
-    fn writable_bytes(&self) -> usize {
-        self.buffer.len() - self.write_pos
-    }
-
-    /// Ensures there is enough contiguous space to write `len` bytes.
-    fn ensure_writable(&mut self, len: usize) {
-        if self.writable_bytes() >= len {
+    fn ensure_capacity(&mut self, needed_space: usize) {
+        if self.buffer.len() - self.count >= needed_space {
             return;
         }
 
-        // Try compaction first
-        self.compact();
-        if self.writable_bytes() >= len {
-            return;
+        let mut new_cap = self.buffer.len() * 2;
+        while new_cap - self.count < needed_space {
+            new_cap *= 2;
         }
 
-        // Need to grow
-        let needed = self.write_pos + len;
-        let mut new_size = cmp::max(self.buffer.len(), 1024);
-        while new_size < needed {
-            new_size *= 2;
+        let mut new_buffer = vec![0; new_cap];
+
+        if self.count > 0 {
+            let cap = self.buffer.len();
+            let end_space = cap - self.head;
+
+            if self.count <= end_space {
+                new_buffer[0..self.count].copy_from_slice(&self.buffer[self.head..self.head + self.count]);
+            } else {
+                new_buffer[0..end_space].copy_from_slice(&self.buffer[self.head..cap]);
+                new_buffer[end_space..self.count].copy_from_slice(&self.buffer[0..self.count - end_space]);
+            }
         }
 
-        self.buffer.resize(new_size, 0);
-    }
-
-    /// Moves remaining readable bytes to the start of the buffer.
-    fn compact(&mut self) {
-        if self.read_pos == 0 {
-            return;
-        }
-
-        let readable = self.readable_bytes();
-        if readable > 0 {
-            self.buffer.copy_within(self.read_pos..self.write_pos, 0);
-        }
-
-        self.read_pos = 0;
-        self.write_pos = readable;
-    }
-
-    /// Compacts the buffer if it's more than half empty and we've read at least half.
-    fn maybe_compact(&mut self) {
-        if self.read_pos == self.write_pos {
-            self.read_pos = 0;
-            self.write_pos = 0;
-        } else if self.read_pos > self.buffer.len() / 2 {
-            self.compact();
-        }
+        self.buffer = new_buffer;
+        self.head = 0;
+        self.tail = self.count;
     }
 }
