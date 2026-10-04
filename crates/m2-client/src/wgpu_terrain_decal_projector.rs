@@ -141,57 +141,76 @@ impl TerrainDecalProjector {
     {
         let mut out_vertices = Vec::new();
 
-        let search_radius = self.width.max(self.height);
+        let search_radius = f32::max(self.width, self.height);
         
         let min_x = self.center.x - search_radius;
         let max_x = self.center.x + search_radius;
         
-        // C++ uses fabs(v3Center.y), but in Metin2 engine y is often negative, 
-        // we'll keep bounds check simple in world coords
-        let min_y = self.center.y - search_radius;
-        let max_y = self.center.y + search_radius;
+        let min_y = self.center.y.abs() - search_radius;
+        let max_y = self.center.y.abs() + search_radius;
 
-        let start_x = (min_x / cell_scale).floor() * cell_scale;
-        let end_x = (max_x / cell_scale).ceil() * cell_scale;
+        let mut start_x = min_x as i32;
+        let mut end_x = max_x as i32;
         
-        let start_y = (min_y / cell_scale).floor() * cell_scale;
-        let end_y = (max_y / cell_scale).ceil() * cell_scale;
+        let mut start_y = min_y as i32;
+        let mut end_y = max_y as i32;
+        
+        let cell_scale_i = cell_scale as i32;
+        
+        start_x -= start_x % cell_scale_i;
+        end_x -= end_x % cell_scale_i;
+        start_y -= start_y % cell_scale_i;
+        end_y -= end_y % cell_scale_i;
 
         let mut y = start_y;
-        while y < end_y {
+        while y <= end_y {
+            if y < 0 {
+                y += cell_scale_i;
+                continue;
+            }
             let mut x = start_x;
-            while x < end_x {
+            while x <= end_x {
+                if x < 0 {
+                    x += cell_scale_i;
+                    continue;
+                }
                 
-                let h00 = get_height(x, y) + DECAL_EPSILON;
-                let h10 = get_height(x + cell_scale, y) + DECAL_EPSILON;
-                let h01 = get_height(x, y + cell_scale) + DECAL_EPSILON;
-                let h11 = get_height(x + cell_scale, y + cell_scale) + DECAL_EPSILON;
+                let fx = x as f32;
+                let fy = y as f32;
+                
+                let height_lt = get_height(fx, fy) + DECAL_EPSILON;
+                let height_rt = get_height(fx + cell_scale, fy) + DECAL_EPSILON;
+                let height_lb = get_height(fx, fy + cell_scale) + DECAL_EPSILON;
+                let height_rb = get_height(fx + cell_scale, fy + cell_scale) + DECAL_EPSILON;
 
-                let v00 = Vec3::new(x, y, h00);
-                let v10 = Vec3::new(x + cell_scale, y, h10);
-                let v01 = Vec3::new(x, y + cell_scale, h01);
-                let v11 = Vec3::new(x + cell_scale, y + cell_scale, h11);
+                let v_lt = Vec3::new(fx, -fy, height_lt);
+                let v_lb = Vec3::new(fx, -fy - cell_scale, height_lb);
+                let v_rt = Vec3::new(fx + cell_scale, -fy, height_rt);
+                let v_rb = Vec3::new(fx + cell_scale, -fy - cell_scale, height_rb);
 
                 // Triangle 1
-                let t1 = [v00, v10, v11];
-                // C++ checks if face is pointing towards projection direction
-                let normal1 = (v10 - v00).cross(v11 - v00).normalize();
-                if self.normal.dot(normal1) > DECAL_EPSILON {
+                let t1 = [v_lt, v_lb, v_rt];
+                let v1 = v_lb - v_lt;
+                let v2 = v_rt - v_lt;
+                let normal1 = v1.cross(v2);
+                if self.normal.dot(normal1) > DECAL_EPSILON * normal1.length() {
                     let clipped1 = self.clip_polygon(&t1);
                     self.triangulate_and_add(&clipped1, &mut out_vertices);
                 }
 
                 // Triangle 2
-                let t2 = [v00, v11, v01];
-                let normal2 = (v11 - v00).cross(v01 - v00).normalize();
-                if self.normal.dot(normal2) > DECAL_EPSILON {
+                let t2 = [v_rt, v_lb, v_rb];
+                let v3 = v_lb - v_rt;
+                let v4 = v_rb - v_rt;
+                let normal2 = v3.cross(v4);
+                if self.normal.dot(normal2) > DECAL_EPSILON * normal2.length() {
                     let clipped2 = self.clip_polygon(&t2);
                     self.triangulate_and_add(&clipped2, &mut out_vertices);
                 }
 
-                x += cell_scale;
+                x += cell_scale_i;
             }
-            y += cell_scale;
+            y += cell_scale_i;
         }
 
         out_vertices

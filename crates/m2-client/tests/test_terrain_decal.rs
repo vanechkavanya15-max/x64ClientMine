@@ -75,7 +75,8 @@ fn test_clip_polygon_partial() {
 
 #[test]
 fn test_decal_generation() {
-    let center = Vec3::new(100.0, 100.0, 50.0);
+    // Note: terrain is rendered with -y coords, so we use negative y for the center
+    let center = Vec3::new(100.0, -100.0, 50.0);
     let normal = Vec3::new(0.0, 0.0, 1.0);
     let tangent = Vec3::new(1.0, 0.0, 0.0);
     
@@ -89,7 +90,7 @@ fn test_decal_generation() {
     let geometry = projector.generate_decal_geometry(cell_scale, get_height);
     
     // Geometry should be non-empty and triangulated correctly
-    assert!(!geometry.is_empty());
+    assert!(!geometry.is_empty(), "Generated geometry should not be empty");
     
     // Check depth bias application and UVs
     for v in geometry {
@@ -99,5 +100,28 @@ fn test_decal_generation() {
         // UVs should be in [0, 1] range
         assert!(v.tex_coord[0] >= 0.0 && v.tex_coord[0] <= 1.0);
         assert!(v.tex_coord[1] >= 0.0 && v.tex_coord[1] <= 1.0);
+    }
+}
+
+#[test]
+fn test_triangle_winding_and_culling() {
+    let center = Vec3::new(100.0, -100.0, 50.0);
+    let normal = Vec3::new(0.0, 0.0, 1.0);
+    let tangent = Vec3::new(1.0, 0.0, 0.0);
+    
+    let projector = TerrainDecalProjector::new(center, normal, tangent, 20.0, 20.0, 10.0);
+
+    let get_height = |_, _| 50.0;
+    let cell_scale = 200.0;
+    let geometry = projector.generate_decal_geometry(cell_scale, get_height);
+    
+    // Just verify it generates something with proper inverted Y mapping
+    assert!(!geometry.is_empty());
+    
+    // Check that vertices generated map back to correct cell coordinates (0 to 200)
+    for v in geometry {
+        assert!(v.position[0] >= 0.0 && v.position[0] <= 200.0);
+        assert!(v.position[1] >= -200.0 && v.position[1] <= 0.0);
+        assert!((v.position[2] - 50.25).abs() < 1e-4);
     }
 }
