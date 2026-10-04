@@ -577,3 +577,4 @@ pub mod py_bridge_skill_data_table;
 pub mod py_bridge_minimap_signals_markers;
 pub mod py_bridge_nonplayer_data_complete;
 pub mod game_dungeon_tracking_panel;
+pub mod game_warp_screen_fader;
