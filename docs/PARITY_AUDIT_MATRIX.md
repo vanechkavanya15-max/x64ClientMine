@@ -134,7 +134,7 @@
 | 12 | `5f08026c` | kowalskijanek | `14823923831614668895` | Dungeon Scoreboard and Multi-Floor Countdown Tracker | 🔄 IN_PROGRESS | Dungeon Scoreboard & Timer |
 | 13 | `7bbcc018` | kowalskijanek | `15957233690005993871` | Mounted Horse Combat Skills and Charge Physics Engine | 🔄 IN_PROGRESS | Horse Skills (121-124) |
 | 14 | `5765b74c` | kowalskijanek | `1413585298611126995` | Belt Special Inventory Slot Gate and Potion Quick Access | 🔄 IN_PROGRESS | Belt 16-Slots Gate |
-| 15 | `ac2efb14` | kowalskijanek | `13000549214173225394` | Dragon Soul Double Deck Switch and Stat Bonus Cache | 🔄 IN_PROGRESS | DS Deck 1/2 Stat Cache |
+| 15 | `ac2efb14` | kowalskijanek | `13000549214173225394` | Dragon Soul Double Deck Switch and Stat Bonus Cache | 🟢 HARVESTED | `55aa92f` (100% PASS, 4 testy) |
 
 - **Fala 3 (Audio System Rodio, Weather Environment & Polish)**: Planowana po zakonczeniu Fali 2.
 
