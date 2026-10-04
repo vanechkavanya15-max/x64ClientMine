@@ -573,3 +573,4 @@ pub mod engine_mse_particle_emitter_wire;
 pub mod engine_combo_input_controller;
 pub mod wgpu_overhead_shop_sign_renderer;
 pub mod py_bridge_skill_data_table;
+pub mod py_bridge_minimap_signals_markers;
