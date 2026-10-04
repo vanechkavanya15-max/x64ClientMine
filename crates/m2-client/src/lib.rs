@@ -529,6 +529,7 @@ pub mod ui_tooltip_item_comparison;
 #[path = "full-ui-adv_09.rs"]
 pub mod full_ui_adv_09;
 pub mod ui_py_event_dispatcher;
+pub mod ui_wndmgr_widget_scroll_bar;
 pub mod net_guild_packets;
 pub mod net_shop_private_packets;
 pub mod net_exchange_packets;
