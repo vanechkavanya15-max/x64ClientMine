@@ -592,3 +592,5 @@ pub mod guild_mark_symbol_cache_manager;
 pub mod game_horse_combat_skill_manager;
 pub mod audio_bgm_crossfade_mixer;
 pub mod engine_footstep_sound_generator;
+pub mod ui_window_loading_progress_screen;
+pub mod ui_loading_progress_bar;

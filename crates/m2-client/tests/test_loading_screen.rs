@@ -1,0 +1,47 @@
+use m2_client::ui_window_loading_progress_screen::LoadingScreen;
+use m2_client::ui_loading_progress_bar::LoadingPhase;
+
+#[test]
+fn test_loading_screen_initialization() {
+    let screen = LoadingScreen::new();
+    assert_eq!(screen.get_progress(), 0.0);
+    assert!(!screen.is_completed());
+    assert_eq!(screen.background_image, "default_loading.jpg");
+}
+
+#[test]
+fn test_loading_screen_set_map() {
+    let mut screen = LoadingScreen::new();
+    screen.set_map("m1");
+    assert_eq!(screen.map_name, "m1");
+    assert_eq!(screen.background_image, "m1_loading.jpg");
+}
+
+#[test]
+fn test_loading_screen_hints() {
+    let mut screen = LoadingScreen::new();
+    let hints = vec!["Hint 1".to_string(), "Hint 2".to_string(), "Hint 3".to_string()];
+    screen.load_hints(hints.clone());
+    
+    assert!(hints.contains(&screen.current_hint));
+    
+    screen.update_hint();
+    assert!(hints.contains(&screen.current_hint));
+}
+
+#[test]
+fn test_loading_screen_progress_update() {
+    let mut screen = LoadingScreen::new();
+    screen.set_phase(LoadingPhase::ResourceLoading);
+    
+    // Upewniamy sie, ze docelowy postep zostal ustawiony (w ui_loading_progress_bar jest to 50%)
+    assert_eq!(screen.progress_bar.get_target_progress(), 50.0);
+    
+    // Sprawdzamy stan po krotkiej aktualizacji (przykladowy czas trwania ramki)
+    screen.update(0.1); 
+    assert!(screen.get_progress() > 0.0);
+    
+    screen.force_complete();
+    assert_eq!(screen.get_progress(), 100.0);
+    assert!(screen.is_completed());
+}
