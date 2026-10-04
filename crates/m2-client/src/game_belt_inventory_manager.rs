@@ -47,4 +47,43 @@ impl BeltInventoryHelper {
     pub fn is_belt_inventory_slot(cell: u16) -> bool {
         cell >= BELT_INVENTORY_SLOT_START && cell < BELT_INVENTORY_SLOT_END
     }
+
+    /// Validates if an item type and subtype is allowed in the belt inventory.
+    /// Only potions (Potions, Elixirs, Dews, Blends) are allowed.
+    pub fn is_item_allowed_in_belt(item_type: u8, item_sub_type: u8) -> bool {
+        // ITEM_TYPE_USE = 3
+        const ITEM_TYPE_USE: u8 = 3;
+        // ITEM_TYPE_BLEND = 27
+        const ITEM_TYPE_BLEND: u8 = 27;
+        
+        // USE_POTION = 0
+        const USE_POTION: u8 = 0;
+        // USE_POTION_NODELAY = 11
+        const USE_POTION_NODELAY: u8 = 11;
+        // USE_ABILITY_UP = 7
+        const USE_ABILITY_UP: u8 = 7; // Dews often use this subtype
+        
+        if item_type == ITEM_TYPE_BLEND {
+            return true;
+        }
+        
+        if item_type == ITEM_TYPE_USE {
+            if item_sub_type == USE_POTION || item_sub_type == USE_POTION_NODELAY || item_sub_type == USE_ABILITY_UP {
+                return true;
+            }
+        }
+
+        false
+    }
+    
+    /// Checks if an item from the belt inventory can be moved/used in the quickslot.
+    /// As per requirement, only potions in the belt inventory can be dragged to or used automatically from quickslot.
+    pub fn can_move_belt_item_to_quickslot(item_type: u8, item_sub_type: u8) -> bool {
+        Self::is_item_allowed_in_belt(item_type, item_sub_type)
+    }
+    
+    /// Checks if an item from the belt inventory can be automatically used (e.g. auto potion).
+    pub fn can_auto_use_belt_item(item_type: u8, item_sub_type: u8) -> bool {
+        Self::is_item_allowed_in_belt(item_type, item_sub_type)
+    }
 }

@@ -67,3 +67,26 @@ fn test_is_available_cell() {
     // Cell out of bounds
     assert!(!BeltInventoryHelper::is_available_cell(16, 7));
 }
+
+#[test]
+fn test_is_item_allowed_in_belt() {
+    // Valid cases for potions (ITEM_TYPE_USE = 3, ITEM_TYPE_BLEND = 27)
+    assert!(BeltInventoryHelper::is_item_allowed_in_belt(27, 0)); // Blend (subtype 0)
+    assert!(BeltInventoryHelper::is_item_allowed_in_belt(27, 99)); // Blend (subtype 99)
+    assert!(BeltInventoryHelper::is_item_allowed_in_belt(3, 0)); // USE_POTION
+    assert!(BeltInventoryHelper::is_item_allowed_in_belt(3, 11)); // USE_POTION_NODELAY
+    assert!(BeltInventoryHelper::is_item_allowed_in_belt(3, 7)); // USE_ABILITY_UP
+
+    // Invalid cases for potions (ITEM_TYPE_USE = 3) with other subtypes
+    assert!(!BeltInventoryHelper::is_item_allowed_in_belt(3, 1)); // USE_TALISMAN
+    assert!(!BeltInventoryHelper::is_item_allowed_in_belt(3, 2)); // USE_TUNING
+    assert!(!BeltInventoryHelper::is_item_allowed_in_belt(3, 8)); // USE_AFFECT
+
+    // Invalid cases for other item types (e.g., Weapon = 1, Armor = 2)
+    assert!(!BeltInventoryHelper::is_item_allowed_in_belt(1, 0));
+    assert!(!BeltInventoryHelper::is_item_allowed_in_belt(2, 0));
+    
+    // Test helper aliases that redirect to the same functionality
+    assert!(BeltInventoryHelper::can_move_belt_item_to_quickslot(3, 0));
+    assert!(BeltInventoryHelper::can_auto_use_belt_item(27, 0));
+}
