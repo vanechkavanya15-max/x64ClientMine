@@ -543,3 +543,4 @@ pub mod audio_spatial_bgm_crossfade;
 pub mod audio_footstep_material_system;
 pub mod area_loader_thread;
 pub mod py_bridge_quest_runtime_complete;
+pub mod game_guild_land_and_altar;
