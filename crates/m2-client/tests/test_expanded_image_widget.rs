@@ -100,18 +100,19 @@ fn test_expanded_image_uv_clipping() {
 
     // Check su, sv, eu, ev mapped back to texture size
     // texReverse = 1/200 = 0.005
-    // su = (50 - (100 * 0.1)) / 200 = (50 - 10) / 200 = 40 / 200 = 0.2
-    // sv = (50 - (100 * 0.2)) / 200 = (50 - 20) / 200 = 30 / 200 = 0.15
-    // eu = (50 + (100 * -0.1) + (150 - 50)) / 200 = (50 - 10 + 100) / 200 = 140 / 200 = 0.7
-    // ev = (50 + (100 * -0.2) + (150 - 50)) / 200 = (50 - 20 + 100) / 200 = 130 / 200 = 0.65
+    // rendering_rect values: left = 10, top = 20, right = -10, bottom = -20
+    // su = (50 + 10) / 200 = 60 / 200 = 0.3
+    // sv = (50 + 20) / 200 = 70 / 200 = 0.35
+    // eu = (150 + -10) / 200 = 140 / 200 = 0.7
+    // ev = (150 + -20) / 200 = 130 / 200 = 0.65
 
-    assert!((vertices[0].tex_coord[0] - 0.2).abs() < 1e-5);
-    assert!((vertices[0].tex_coord[1] - 0.15).abs() < 1e-5);
+    assert!((vertices[0].tex_coord[0] - 0.3).abs() < 1e-5);
+    assert!((vertices[0].tex_coord[1] - 0.35).abs() < 1e-5);
 
     assert!((vertices[1].tex_coord[0] - 0.7).abs() < 1e-5);
-    assert!((vertices[1].tex_coord[1] - 0.15).abs() < 1e-5);
+    assert!((vertices[1].tex_coord[1] - 0.35).abs() < 1e-5);
 
-    assert!((vertices[2].tex_coord[0] - 0.2).abs() < 1e-5);
+    assert!((vertices[2].tex_coord[0] - 0.3).abs() < 1e-5);
     assert!((vertices[2].tex_coord[1] - 0.65).abs() < 1e-5);
 
     assert!((vertices[3].tex_coord[0] - 0.7).abs() < 1e-5);

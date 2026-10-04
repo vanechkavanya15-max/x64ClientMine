@@ -134,10 +134,10 @@ impl ExpandedImageBox {
         let m_rendering_rect_right = self.rendering_rect[2];
         let m_rendering_rect_bottom = self.rendering_rect[3];
 
-        let su = (c_r_rect_left - m_rendering_rect_left) * tex_reverse_width;
-        let sv = (c_r_rect_top - m_rendering_rect_top) * tex_reverse_height;
-        let eu = (c_r_rect_left + m_rendering_rect_right + (c_r_rect_right - c_r_rect_left)) * tex_reverse_width;
-        let ev = (c_r_rect_top + m_rendering_rect_bottom + (c_r_rect_bottom - c_r_rect_top)) * tex_reverse_height;
+        let su = (c_r_rect_left + m_rendering_rect_left) * tex_reverse_width;
+        let sv = (c_r_rect_top + m_rendering_rect_top) * tex_reverse_height;
+        let eu = (c_r_rect_right + m_rendering_rect_right) * tex_reverse_width;
+        let ev = (c_r_rect_bottom + m_rendering_rect_bottom) * tex_reverse_height;
 
         let mut vertices = [
             TPDTVertex {
@@ -162,10 +162,10 @@ impl ExpandedImageBox {
             },
         ];
 
-        if self.rotation == 0.0 {
-            let img_width = self.width * self.scale[0];
-            let img_height = self.height * self.scale[1];
+        let img_width = self.width * self.scale[0];
+        let img_height = self.height * self.scale[1];
 
+        if self.rotation == 0.0 {
             vertices[0].position[0] -= m_rendering_rect_left;
             vertices[0].position[1] -= m_rendering_rect_top;
             
@@ -178,29 +178,30 @@ impl ExpandedImageBox {
             vertices[3].position[0] += img_width + m_rendering_rect_right;
             vertices[3].position[1] += img_height + m_rendering_rect_bottom;
         } else {
-            let img_half_width = (self.width / 2.0) * self.scale[0];
-            let img_half_height = (self.height / 2.0) * self.scale[1];
+            let left = m_rendering_rect_left;
+            let right = img_width + m_rendering_rect_right;
+            let top = m_rendering_rect_top;
+            let bottom = img_height + m_rendering_rect_bottom;
 
-            for vertex in vertices.iter_mut() {
-                vertex.position[0] += self.origin[0];
-                vertex.position[1] += self.origin[1];
-            }
+            let pts = [
+                (left, top),
+                (right, top),
+                (left, bottom),
+                (right, bottom),
+            ];
 
             let f_radian = self.rotation.to_radians();
             let cos_r = f_radian.cos();
             let sin_r = f_radian.sin();
 
-            vertices[0].position[0] += (-img_half_width * cos_r) - (-img_half_height * sin_r);
-            vertices[0].position[1] += (-img_half_width * sin_r) + (-img_half_height * cos_r);
-            
-            vertices[1].position[0] += (img_half_width * cos_r) - (-img_half_height * sin_r);
-            vertices[1].position[1] += (img_half_width * sin_r) + (-img_half_height * cos_r);
-            
-            vertices[2].position[0] += (-img_half_width * cos_r) - (img_half_height * sin_r);
-            vertices[2].position[1] += (-img_half_width * sin_r) + (img_half_height * cos_r);
-            
-            vertices[3].position[0] += (img_half_width * cos_r) - (img_half_height * sin_r);
-            vertices[3].position[1] += (img_half_width * sin_r) + (img_half_height * cos_r);
+            for (i, &(px, py)) in pts.iter().enumerate() {
+                let ox = px - self.origin[0];
+                let oy = py - self.origin[1];
+                let rx = ox * cos_r - oy * sin_r;
+                let ry = ox * sin_r + oy * cos_r;
+                vertices[i].position[0] += self.origin[0] + rx;
+                vertices[i].position[1] += self.origin[1] + ry;
+            }
         }
 
         vertices
