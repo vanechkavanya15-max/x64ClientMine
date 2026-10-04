@@ -1,4 +1,5 @@
 use glam::Vec3;
+use rand::Rng;
 
 #[derive(Debug, Clone)]
 pub struct CameraShakeFx {
@@ -45,18 +46,42 @@ impl CameraShakeFx {
             return Vec3::ZERO;
         }
 
-        let time_val = self.elapsed_time_sec * self.frequency;
+        let mut rng = rand::thread_rng();
+        let mut offset = Vec3::ZERO;
+        
+        // Zgodnie z C++ uzywamy losowych wartosci.
+        // W C++ bylo to: int nShakeSize=10; switch (rand()%2) { case 0: v3Pos.x+=rand()%nShakeSize; break; ... }
+        // Tutaj zmienna bedaca nShakeSize to amplitude, zachowujemy precyzje uzywajac f32.
+        
+        // Poniewaz w C++ bylo rand() (a to generowalo wstrzas FPS-zalezny), uzywamy delta_time do unormowania tego w frequency 
+        // Tak wiec aby oddac wstrzas zachowujac fps independence mnozymy wychylenie zaleznie od uplywu czasu bazujac na frequency,
+        // Albo (co jest lepsze) rzutujemy nowy drganie tylko kiedy minela jakas stala ilosc czasu. 
+        // W tym module aby zachowac gladkosc i poprawic C++, mnozymy wychylenie (amplitude) przez delta i frequency.
+        // Poniewaz C++ wywolywal to w update z uzyciem stalego nShakeSize (np. =10) to w klatkach bylo np `x += (rand() % 10)`.
+        
+        if self.amplitude > 0.0 {
+            let shake_val = self.amplitude * (self.frequency.max(1.0) * delta_time_sec * 60.0).clamp(0.0, 1.0); // Normalizacja na 60 FPS aby zrownowazyc i dac poprawny efekt.
+            
+            if rng.gen_bool(0.5) {
+                offset.x += rng.gen_range(0.0..=shake_val);
+            } else {
+                offset.x -= rng.gen_range(0.0..=shake_val);
+            }
 
-        // Użycie sumy sinusów do symulacji pseudolosowych drgań.
-        // W C++ było: rand()%nShakeSize, my robimy coś przewidywalnego bez stateful random, 
-        // ale o gęstej dystrybucji drgań dla lepszego wyglądu (harmonic sum).
-        let offset_x = (time_val * 43.0).sin() * (time_val * 13.0).cos();
-        let offset_y = (time_val * 47.0).sin() * (time_val * 17.0).cos();
-        let offset_z = (time_val * 53.0).sin() * (time_val * 19.0).cos();
+            if rng.gen_bool(0.5) {
+                offset.y += rng.gen_range(0.0..=shake_val);
+            } else {
+                offset.y -= rng.gen_range(0.0..=shake_val);
+            }
 
-        let offset = Vec3::new(offset_x, offset_y, offset_z) * self.amplitude * damping_factor;
-
-        offset
+            if rng.gen_bool(0.5) {
+                offset.z += rng.gen_range(0.0..=shake_val);
+            } else {
+                offset.z -= rng.gen_range(0.0..=shake_val);
+            }
+        }
+        
+        offset * damping_factor
     }
 
     pub fn apply_to(&mut self, eye_position: &mut Vec3, delta_time_sec: f32) {

@@ -48,5 +48,25 @@ fn test_camera_shake_duration_expiration() {
 fn test_camera_shake_zero_delta() {
     let mut shake = CameraShakeFx::new(1.0, 10.0, 1.0, 1.0);
     let offset = shake.update(0.0);
-    assert_eq!(offset, Vec3::ZERO, "Przy czasie = 0 nie powinno byc zadnego wstrzasu ze wzgledu na brak uplywu czasu oraz rownanie (sin(0) = 0)");
+    // Kiedy delta = 0 (czas sie nie posuwa) to z racji mnoznika delta_time, nie powinnismy miec zadnego offsetu
+    // Poniewaz implementacja bazuje na delta_time dla framerate independence, dla 0 zwraca ZERO offset
+    assert_eq!(offset, Vec3::ZERO, "Przy delt=0 wstrzas powinien zwrocic Vec3::ZERO poniewaz ruch jest zalezny od ramki");
+    assert!(shake.is_active());
+}
+
+#[test]
+fn test_camera_shake_randomness_distribution() {
+    // Sprawdzamy, czy wartosci zachowuja logike z kodu referencyjnego (amplituda = max shake)
+    let amplitude = 20.0;
+    let mut shake = CameraShakeFx::new(5.0, amplitude, 1.0, 0.0);
+    
+    // Sprawdzamy kilkukrotnie granice randomizacji
+    for _ in 0..10 {
+        let offset = shake.update(0.1);
+        // Maksymalne wychylenie offsetu to amplitude. Sprawdzamy wiec, ze jestesmy w limitach.
+        // Po uwzglednieniu f32 moze to byc rowne (albo bliskie).
+        assert!(offset.x.abs() <= amplitude, "Wychylenie kamery na osi X powinno byc mniejsze badz rowne amplitudzie.");
+        assert!(offset.y.abs() <= amplitude, "Wychylenie kamery na osi Y powinno byc mniejsze badz rowne amplitudzie.");
+        assert!(offset.z.abs() <= amplitude, "Wychylenie kamery na osi Z powinno byc mniejsze badz rowne amplitudzie.");
+    }
 }
