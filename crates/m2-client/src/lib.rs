@@ -520,3 +520,4 @@ pub mod net_guild_packets;
 pub mod net_shop_private_packets;
 pub mod net_exchange_packets;
 pub mod net_safebox_packets;
+pub mod net_party_packets;
