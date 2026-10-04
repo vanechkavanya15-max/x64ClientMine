@@ -532,3 +532,4 @@ pub mod actor_horse_riding_sync;
 pub mod actor_melee_hit_sampling;
 pub mod actor_splash_aoe_attacks;
 pub mod audio_mss_script_parser;
+pub mod game_net_phase_machine;
