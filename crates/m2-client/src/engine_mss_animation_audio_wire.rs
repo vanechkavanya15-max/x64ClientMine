@@ -1,15 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::CString;
 
-#[cfg(not(test))]
 use crate::sound_ffi::m2_audio_play_sound_3d;
-
-// Dummy implementation for tests to prevent FFI linkage issues,
-// since we inject tests that might test this without a running rodio thread.
-// Wait, the sound_ffi provides `m2_audio_play_sound_3d` which is totally fine
-// to call in tests because it pushes to an MPSC channel if initialized, or just returns false.
-// It's safer to just use `crate::sound_ffi::m2_audio_play_sound_3d` directly.
-// In tests, we can call `crate::sound_ffi::m2_audio_init()` first.
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MssSoundInstance {
@@ -21,12 +13,9 @@ pub fn parse_mss_file(content: &str, fps: u32) -> Result<Vec<MssSoundInstance>, 
     let mut instances = Vec::new();
     let frame_time = 1.0 / (fps as f32);
 
-    let mut lines = content.lines();
-    
-    // We look for SoundDataCount
     let mut count: Option<usize> = None;
     
-    for line in &mut lines {
+    for line in content.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
             continue;
@@ -50,14 +39,14 @@ pub fn parse_mss_file(content: &str, fps: u32) -> Result<Vec<MssSoundInstance>, 
     };
 
     // Now look for SoundDataXX
-    for line in lines {
+    for line in content.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
             continue;
         }
         
         let lower = trimmed.to_lowercase();
-        if lower.starts_with("sounddata") {
+        if lower.starts_with("sounddata") && !lower.starts_with("sounddatacount") {
             // Format: SoundData00       0.533333 "sound/pc/warrior/skill/samyeon_v.wav"
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
             if parts.len() >= 3 {
@@ -118,7 +107,7 @@ impl MssAudioWire {
                         .unwrap_or(0.0);
 
                     // 0.3s cooldown
-                    if current_time_seconds - last_play < 0.3 {
+                    if current_time_seconds - last_play > 0.0 && current_time_seconds - last_play < 0.3 {
                         continue;
                     }
 
@@ -127,14 +116,7 @@ impl MssAudioWire {
                 }
 
                 if let Ok(c_str) = CString::new(instance.sound_file_name.clone()) {
-                    #[cfg(not(test))]
-                    {
-                        m2_audio_play_sound_3d(c_str.as_ptr(), x, y, z, 1.0);
-                    }
-                    #[cfg(test)]
-                    {
-                        crate::sound_ffi::m2_audio_play_sound_3d(c_str.as_ptr(), x, y, z, 1.0);
-                    }
+                    m2_audio_play_sound_3d(c_str.as_ptr(), x, y, z, 1.0);
                 }
             }
         }

@@ -8,9 +8,7 @@ fn get_test_mutex() -> &'static Mutex<()> {
     TEST_MUTEX.get_or_init(|| Mutex::new(()))
 }
 
-#[path = "../src/engine_mss_animation_audio_wire.rs"]
-mod engine_mss_animation_audio_wire;
-use engine_mss_animation_audio_wire::{MssAudioWire, MssSoundInstance, parse_mss_file};
+use m2_client::engine_mss_animation_audio_wire::{MssAudioWire, MssSoundInstance, parse_mss_file};
 
 use m2_client::sound_ffi::get_audio_state;
 
