@@ -12,6 +12,10 @@ impl Rect {
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self { x, y, width, height }
     }
+
+    pub fn contains(&self, x: f32, y: f32) -> bool {
+        x >= self.x && x <= self.x + self.width && y >= self.y && y <= self.y + self.height
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -97,21 +101,22 @@ pub struct BoardWithTitleBar {
 }
 
 impl BoardWithTitleBar {
+    const TITLE_BAR_HEIGHT: f32 = 24.0;
+    const CLOSE_BTN_WIDTH: f32 = 16.0;
+    const CLOSE_BTN_HEIGHT: f32 = 16.0;
+    const CLOSE_BTN_MARGIN_RIGHT: f32 = 8.0;
+
     pub fn new(width: f32, height: f32, title: &str) -> Self {
         let board = ThinBoard::new(width, height);
-        let title_bar_height = 24.0;
-        let title_bar_rect = Rect::new(0.0, 0.0, width, title_bar_height);
+        let title_bar_rect = Rect::new(0.0, 0.0, width, Self::TITLE_BAR_HEIGHT);
         
-        let close_btn_width = 16.0;
-        let close_btn_height = 16.0;
-        let close_btn_margin_right = 8.0;
-        let close_btn_margin_top = (title_bar_height - close_btn_height) / 2.0;
+        let close_btn_margin_top = (Self::TITLE_BAR_HEIGHT - Self::CLOSE_BTN_HEIGHT) / 2.0;
 
         let close_button_rect = Rect::new(
-            width - close_btn_width - close_btn_margin_right,
+            width - Self::CLOSE_BTN_WIDTH - Self::CLOSE_BTN_MARGIN_RIGHT,
             close_btn_margin_top,
-            close_btn_width,
-            close_btn_height,
+            Self::CLOSE_BTN_WIDTH,
+            Self::CLOSE_BTN_HEIGHT,
         );
 
         Self {
@@ -127,16 +132,11 @@ impl BoardWithTitleBar {
         self.board.resize(width, height);
         self.title_bar_rect.width = width;
         
-        let close_btn_margin_right = 8.0;
-        self.close_button_rect.x = width - self.close_button_rect.width - close_btn_margin_right;
-    }
-
-    fn is_point_in_rect(x: f32, y: f32, rect: &Rect) -> bool {
-        x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
+        self.close_button_rect.x = width - self.close_button_rect.width - Self::CLOSE_BTN_MARGIN_RIGHT;
     }
 
     pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
-        if Self::is_point_in_rect(x, y, &self.close_button_rect) {
+        if self.close_button_rect.contains(x, y) {
             if self.close_button_state != ButtonState::Down {
                 self.close_button_state = ButtonState::Hover;
             }
@@ -146,7 +146,7 @@ impl BoardWithTitleBar {
     }
 
     pub fn handle_mouse_down(&mut self, x: f32, y: f32) -> bool {
-        if Self::is_point_in_rect(x, y, &self.close_button_rect) {
+        if self.close_button_rect.contains(x, y) {
             self.close_button_state = ButtonState::Down;
             return true;
         }
@@ -155,7 +155,7 @@ impl BoardWithTitleBar {
 
     pub fn handle_mouse_up(&mut self, x: f32, y: f32) -> bool {
         let was_down = self.close_button_state == ButtonState::Down;
-        if Self::is_point_in_rect(x, y, &self.close_button_rect) {
+        if self.close_button_rect.contains(x, y) {
             self.close_button_state = ButtonState::Hover;
             return was_down; // Zwraca true, jeśli nastąpiło kliknięcie
         } else {
