@@ -60,7 +60,7 @@ pub fn collect_shop_sign_render_batches(
             let mut bg = Quad2D::new(left, top, state.width, state.height);
             // Typically Metin2 shop backgrounds are semi-transparent dark gray/blueish. 
             // We use semi-transparent black for now as it's safe.
-            bg.color = [0.0, 0.0, 0.0, 0.7]; 
+            bg.color = [0.0, 0.0, 0.0, 0.3]; 
             rect_quads.push(bg);
 
             // 3. Title Text
