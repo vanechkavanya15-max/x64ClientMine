@@ -1,6 +1,10 @@
 
+
 //! Metin2 64-bit Game Engine Core (Phase B)
+
+
 //! Czysty silnik logiki biznesowej, walki, fizyki i ekwipunku w Rust.
+pub mod atlas_radar_blip_manager;
 pub mod combat_combo_chain;
 pub mod wgpu_shadow_terrain_integrator;
 pub mod engine_root_motion_actor_sync;
