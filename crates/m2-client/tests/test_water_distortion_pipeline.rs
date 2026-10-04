@@ -1,6 +1,4 @@
 use m2_client::wgpu_water_distortion_pipeline::{WaterUniforms, WgpuWaterDistortionPipeline};
-use glam::Vec4;
-use wgpu::util::DeviceExt;
 
 fn create_headless_device() -> (wgpu::Device, wgpu::Queue) {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
@@ -15,11 +13,7 @@ fn create_headless_device() -> (wgpu::Device, wgpu::Queue) {
     pollster::block_on(adapter.request_device(
         &wgpu::DeviceDescriptor {
             label: Some("Test Device"),
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::downlevel_webgl2_defaults(),
-            memory_hints: Default::default(),
-            experimental_features: wgpu::ExperimentalFeatures::empty(),
-            trace: None,
+            ..Default::default()
         }
     ))
     .expect("Failed to create device")
@@ -32,7 +26,7 @@ fn test_water_uniforms_layout() {
     assert_eq!(size, 48, "WaterUniforms should be exactly 48 bytes");
     
     let align = std::mem::align_of::<WaterUniforms>();
-    assert_eq!(align, 16, "WaterUniforms should be 16-byte aligned because of Vec4");
+    assert_eq!(align, 16, "WaterUniforms should be 16-byte aligned because of float arrays");
 
     let uniforms = WaterUniforms::default();
     let bytes: &[u8] = bytemuck::cast_slice(std::slice::from_ref(&uniforms));
@@ -65,6 +59,6 @@ fn test_uniform_updates() {
     
     // Ensure all commands finish (not strictly necessary but good practice)
     queue.submit(None);
-    device.poll(wgpu::MaintainBase::Wait);
+    device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
 }
 

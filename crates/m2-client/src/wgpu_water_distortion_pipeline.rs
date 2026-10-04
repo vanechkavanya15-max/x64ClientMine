@@ -1,8 +1,7 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec3, Vec4};
 use wgpu::util::DeviceExt;
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct WaterUniforms {
     pub u_time: f32,
