@@ -1,4 +1,3 @@
-
 /// Menedzer odpowiedzialny za weryfikacje wymogow uzycia
 /// walki i umiejetnosci z siodla konnego.
 pub struct GameHorseCombatSkillManager;
@@ -68,7 +67,7 @@ impl GameHorseCombatSkillManager {
         
         Ok(())
     }
-}
+
     /// Weryfikuje czy umiejetnosc jest specjalna umiejetnoscia szarzy (Charge).
     pub fn is_charge_skill(skill_id: u32) -> bool {
         // Zgodnie z wytycznymi, Charge ma skill index 122
@@ -82,3 +81,35 @@ impl GameHorseCombatSkillManager {
         // wiec obslugujemy id 121 (Ciecie), 122 (Szarza), 123 (Tapanie) z instrukcji z zadania.
         skill_id == 121 || skill_id == 122 || skill_id == 123
     }
+
+    /// Sprawdza czy gracz uzywa umiejetnosci charge
+    pub fn is_using_charge_skill(
+        has_dash_affect: bool,
+        is_reserved_mode_skill: bool,
+        reserved_skill_id: u32,
+    ) -> bool {
+        if has_dash_affect {
+            return true;
+        }
+
+        if !is_reserved_mode_skill {
+            return false;
+        }
+
+        Self::is_charge_skill(reserved_skill_id)
+    }
+
+    /// Sprawdza przypadek comba bronia z siodla konnego, gdy gracz
+    /// zaatakowal normalnie za pomoca myszy i lewego przycisku klawiatury
+    pub fn is_horse_combo_attack(
+        is_mounting: bool,
+        is_hand_mode: bool,
+    ) -> bool {
+        if is_mounting {
+            if is_hand_mode {
+                return false;
+            }
+        }
+        true
+    }
+}

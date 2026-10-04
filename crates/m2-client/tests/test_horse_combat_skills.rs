@@ -59,3 +59,26 @@ fn test_check_skill_usable_on_horse() {
     // 4. Gracz na piechote uzywa zwyklego skilla -> OK
     assert_eq!(GameHorseCombatSkillManager::check_skill_usable_on_horse(false, false), Ok(()));
 }
+
+#[test]
+fn test_is_charge_skill() {
+    // 122 to Charge z konia
+    assert_eq!(GameHorseCombatSkillManager::is_charge_skill(122), true);
+    
+    // Inne umiejetnosci to nie charge
+    assert_eq!(GameHorseCombatSkillManager::is_charge_skill(121), false);
+    assert_eq!(GameHorseCombatSkillManager::is_charge_skill(123), false);
+    assert_eq!(GameHorseCombatSkillManager::is_charge_skill(1), false);
+}
+
+#[test]
+fn test_is_horse_combo() {
+    // Skille ataku z siodla to 121 (Ciecie), 122 (Szarza), 123 (Tapanie)
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo(121), true);
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo(122), true);
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo(123), true);
+    
+    // Inne skille nie sa combami z konia
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo(124), false);
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo(1), false);
+}
