@@ -106,6 +106,16 @@ pub fn compute_atlas_centering_offsets(state: &mut AtlasState) {
     state.atlas_offset_y = (state.atlas_image_size_y - scaled_map_height) * 0.5;
 }
 
+pub fn check_player_bounds(player_x: f32, player_y: f32, real_x: f32, real_y: f32, check_width: f32, check_height: f32) -> bool {
+    player_x - check_width < real_x && player_x + check_width > real_x &&
+    player_y - check_height < real_y && player_y + check_height > real_y
+}
+
+pub fn check_mark_bounds(mark_x: f32, mark_y: f32, real_x: f32, real_y: f32, check_width: f32, check_height: f32) -> bool {
+    mark_x - check_width / 2.0 < real_x && mark_x + check_width > real_x &&
+    mark_y - check_width / 2.0 < real_y && mark_y + check_height > real_y
+}
+
 #[no_mangle]
 pub extern "C" fn m2_minimap_load_atlas() -> bool {
     catch_unwind(|| {
@@ -245,8 +255,7 @@ pub extern "C" fn m2_minimap_get_atlas_info(
                 let k_inst_pos_x = main_inst.x;
                 let k_inst_pos_y = main_inst.y;
 
-                if k_inst_pos_x - check_width < real_x && k_inst_pos_x + check_width > real_x &&
-                   k_inst_pos_y - check_height < real_y && k_inst_pos_y + check_height > real_y {
+                if check_player_bounds(k_inst_pos_x, k_inst_pos_y, real_x, real_y, check_width, check_height) {
                     write_string(&main_inst.name);
                     unsafe {
                         if !out_pos_x.is_null() { *out_pos_x = k_inst_pos_x; }
@@ -260,8 +269,7 @@ pub extern "C" fn m2_minimap_get_atlas_info(
 
         // 2. NPC
         for npc in &state.npcs {
-            if npc.x - check_width / 2.0 < real_x && npc.x + check_width > real_x &&
-               npc.y - check_width / 2.0 < real_y && npc.y + check_height > real_y {
+            if check_mark_bounds(npc.x, npc.y, real_x, real_y, check_width, check_height) {
                 write_string(&npc.text);
                 unsafe {
                     if !out_pos_x.is_null() { *out_pos_x = npc.x; }
@@ -274,8 +282,7 @@ pub extern "C" fn m2_minimap_get_atlas_info(
 
         // 3. Warp
         for warp in &state.warps {
-            if warp.x - check_width / 2.0 < real_x && warp.x + check_width > real_x &&
-               warp.y - check_width / 2.0 < real_y && warp.y + check_height > real_y {
+            if check_mark_bounds(warp.x, warp.y, real_x, real_y, check_width, check_height) {
                 write_string(&warp.text);
                 unsafe {
                     if !out_pos_x.is_null() { *out_pos_x = warp.x; }
@@ -289,8 +296,7 @@ pub extern "C" fn m2_minimap_get_atlas_info(
         // 4. WayPoint
         for wp in &state.waypoints {
             if wp.screen_x > 0.0 && wp.screen_y > 0.0 {
-                if wp.x - check_width / 2.0 < real_x && wp.x + check_width > real_x &&
-                   wp.y - check_width / 2.0 < real_y && wp.y + check_height > real_y {
+                if check_mark_bounds(wp.x, wp.y, real_x, real_y, check_width, check_height) {
                     write_string(&wp.text);
                     unsafe {
                         if !out_pos_x.is_null() { *out_pos_x = wp.x; }

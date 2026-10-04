@@ -4,6 +4,21 @@ mod py_bridge_minimap_atlas_renderer;
 use py_bridge_minimap_atlas_renderer::*;
 
 #[test]
+fn test_check_bounds_helpers() {
+    // Player bounds (exact same logic as original: - check_width < real_x < + check_width)
+    assert!(check_player_bounds(100.0, 100.0, 100.0, 100.0, 5.0, 5.0)); // Center
+    assert!(check_player_bounds(100.0, 100.0, 96.0, 96.0, 5.0, 5.0));   // Inner edge
+    assert!(!check_player_bounds(100.0, 100.0, 105.0, 105.0, 5.0, 5.0));// Outer edge
+    assert!(!check_player_bounds(100.0, 100.0, 95.0, 95.0, 5.0, 5.0));  // Outer edge
+
+    // Mark bounds (logic: - check_width / 2.0 < real_x < + check_width)
+    assert!(check_mark_bounds(100.0, 100.0, 100.0, 100.0, 5.0, 5.0)); // Center
+    assert!(check_mark_bounds(100.0, 100.0, 98.0, 98.0, 5.0, 5.0));   // Inner left/top edge
+    assert!(!check_mark_bounds(100.0, 100.0, 97.0, 97.0, 5.0, 5.0));  // Outer left/top edge (100 - 2.5 = 97.5)
+    assert!(!check_mark_bounds(100.0, 100.0, 105.0, 105.0, 5.0, 5.0));// Outer right/bottom edge
+}
+
+#[test]
 fn test_atlas_visibility_state() {
     let mut state = get_atlas_state().write().unwrap();
     state.is_show_atlas = false;
@@ -159,4 +174,85 @@ fn test_atlas_info_hit_testing_guilds() {
     
     let text = unsafe { std::ffi::CStr::from_ptr(out_str.as_ptr() as *const i8).to_string_lossy() };
     assert_eq!(text, "empty_guild_area"); // Becuase of cfg test macro mock
+}
+
+#[test]
+fn test_atlas_info_hit_testing_waypoints() {
+    let mut state = get_atlas_state().write().unwrap();
+    state.atlas_screen_x = 0.0;
+    state.atlas_screen_y = 0.0;
+    state.atlas_image_size_x = 256.0;
+    state.atlas_image_size_y = 256.0;
+    state.atlas_max_x = 1024.0;
+    state.atlas_max_y = 1024.0;
+    compute_atlas_centering_offsets(&mut state);
+    
+    // Waypoint with 0.0 screen coords should be ignored
+    state.waypoints.push(AtlasMarkInfo {
+        x: 50.0,
+        y: 50.0,
+        screen_x: 0.0,
+        screen_y: 0.0,
+        text: "Hidden WP".to_string(),
+    });
+
+    // Valid waypoint
+    state.waypoints.push(AtlasMarkInfo {
+        x: 200.0,
+        y: 200.0,
+        screen_x: 10.0,
+        screen_y: 10.0,
+        text: "Visible WP".to_string(),
+    });
+    
+    drop(state);
+
+    let mut out_str = [0u8; 128];
+    let mut out_x = 0.0;
+    let mut out_y = 0.0;
+    let mut out_color = 0;
+    let mut out_guild = 0;
+
+    let state_read = get_atlas_state().read().unwrap();
+    let ax = state_read.atlas_screen_x;
+    let ay = state_read.atlas_screen_y;
+    
+    // We want real_x = 50, real_y = 50.
+    // m2_minimap_get_atlas_info takes screen_x and computes:
+    // local_x = screen_x - ax
+    // real_x = atlas_to_global(local_x)
+    // To go backwards: local_x = global_to_atlas(real_x). screen_x = local_x + ax.
+    
+    let (lx1, ly1) = global_to_atlas(50, 50, &state_read);
+    let screen_x1 = lx1 + ax;
+    let screen_y1 = ly1 + ay;
+
+    let (lx2, ly2) = global_to_atlas(200, 200, &state_read);
+    let screen_x2 = lx2 + ax;
+    let screen_y2 = ly2 + ay;
+    
+    drop(state_read);
+
+    let hit1 = m2_minimap_get_atlas_info(
+        screen_x1, screen_y1,
+        out_str.as_mut_ptr(), out_str.len(),
+        &mut out_x, &mut out_y,
+        &mut out_color, &mut out_guild
+    );
+    // Should not hit because wp1 has screen_x=0.0 and screen_y=0.0
+    // Ensure we handle floating point precision by forcing local=tx1 since screen=tx1+ax.
+    assert!(!hit1, "Should not hit waypoint with screen_x/y <= 0.0");
+
+    let hit2 = m2_minimap_get_atlas_info(
+        screen_x2, screen_y2,
+        out_str.as_mut_ptr(), out_str.len(),
+        &mut out_x, &mut out_y,
+        &mut out_color, &mut out_guild
+    );
+    assert!(hit2, "Failed to hit valid waypoint");
+    assert_eq!(out_x, 200.0);
+    assert_eq!(out_y, 200.0);
+    
+    let text = unsafe { std::ffi::CStr::from_ptr(out_str.as_ptr() as *const i8).to_string_lossy() };
+    assert_eq!(text, "Visible WP");
 }
