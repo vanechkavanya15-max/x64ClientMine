@@ -588,3 +588,4 @@ pub mod game_special_item_group_reader;
 pub mod locale_string_dictionary_loader;
 pub mod guild_mark_symbol_cache_manager;
 pub mod game_horse_combat_skill_manager;
+pub mod audio_bgm_crossfade_mixer;
