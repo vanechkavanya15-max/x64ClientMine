@@ -71,3 +71,50 @@ fn test_escaped_quotes_in_locale_string() {
 
     assert_eq!(dict.translate("She said \"Hello\""), "Powiedziała \"Cześć\"");
 }
+
+#[test]
+fn test_system_messages_translation() {
+    let content = r#"
+"Brak wystarczającej ilości Yang.";
+"Not enough Yang.";
+
+"Nie możesz tego teraz zrobić.";
+"You cannot do this right now.";
+"#;
+
+    let mut dict = LocaleDictionary::new();
+    dict.load_locale_string(content);
+
+    assert_eq!(
+        dict.translate("Brak wystarczającej ilości Yang."),
+        "Not enough Yang."
+    );
+    assert_eq!(
+        dict.translate("Nie możesz tego teraz zrobić."),
+        "You cannot do this right now."
+    );
+}
+
+#[test]
+fn test_locale_string_edge_cases() {
+    let content = r#"
+"Empty string translation";
+"";
+
+"";
+"Empty key translation";
+
+"Consecutive\nNewlines\n";
+"Kolejne\nNowelinie\n";
+"#;
+
+    let mut dict = LocaleDictionary::new();
+    dict.load_locale_string(content);
+
+    assert_eq!(dict.translate("Empty string translation"), "");
+    assert_eq!(dict.translate(""), "Empty key translation");
+    assert_eq!(
+        dict.translate("Consecutive\nNewlines\n"),
+        "Kolejne\nNowelinie\n"
+    );
+}

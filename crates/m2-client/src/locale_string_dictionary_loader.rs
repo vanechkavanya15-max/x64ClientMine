@@ -25,12 +25,7 @@ impl LocaleDictionary {
         let mut in_quote = false;
         let mut escape_next = false;
 
-        let chars: Vec<char> = content.chars().collect();
-        let mut i = 0;
-
-        while i < chars.len() {
-            let c = chars[i];
-
+        for c in content.chars() {
             if in_quote {
                 if escape_next {
                     match c {
@@ -59,7 +54,6 @@ impl LocaleDictionary {
                 current_string.clear();
                 escape_next = false;
             }
-            i += 1;
         }
     }
 
