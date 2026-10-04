@@ -664,3 +664,4 @@ pub mod effect_mse_graph_evaluator;
 pub mod granny_bone_attachment_hierarchy;
 pub mod pet_companion_growth_engine;
 pub mod offline_shop_catalog_engine;
+pub mod wgpu_terrain_array_splatter;
