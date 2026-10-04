@@ -537,3 +537,4 @@ pub mod audio_mss_script_parser;
 pub mod game_net_phase_machine;
 pub mod audio_spatial_bgm_crossfade;
 pub mod audio_footstep_material_system;
+pub mod area_loader_thread;
