@@ -133,7 +133,7 @@ impl MssAudioWire {
                     }
                     #[cfg(test)]
                     {
-                        m2_client::sound_ffi::m2_audio_play_sound_3d(c_str.as_ptr(), x, y, z, 1.0);
+                        crate::sound_ffi::m2_audio_play_sound_3d(c_str.as_ptr(), x, y, z, 1.0);
                     }
                 }
             }
