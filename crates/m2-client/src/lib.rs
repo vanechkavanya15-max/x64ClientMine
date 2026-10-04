@@ -601,3 +601,10 @@ pub mod wgpu_camera_collision_resolver;
 pub mod game_auto_potion_manager;
 
 pub mod client_integrated_runtime_facade;
+pub mod wgpu_snow_rain_weather_environment;
+
+pub mod ui_wndmgr_hierarchy;
+
+pub mod ui_wndmgr_widget_edit_line;
+
+pub mod ui_wndmgr_widget_slot_window;

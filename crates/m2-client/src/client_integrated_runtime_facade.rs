@@ -13,7 +13,7 @@ use crate::wgpu_frustum_culling_map_engine::FrustumCullingMapEngine;
 use crate::game_combat_knockback_physics_engine::KnockbackPhysicsEngine;
 use crate::game_safebox_storage_manager::GameSafeboxStorageManager;
 use crate::game_belt_inventory_manager::BeltInventoryHelper;
-use crate::game_skill_splash_area_geometry::{ConeSplash, CylinderSplash, BoxSplash};
+use crate::game_skill_splash_area_geometry::{ConeSplash, SplashGeometry};
 use glam::Vec3;
 
 /// Glowny stan zintegrowanego runtime klienta Metin2 Pure Rust.
@@ -71,13 +71,19 @@ impl ClientIntegratedRuntime {
     }
 
     /// Sprawdzenie czy punkt znajduje sie w stozku ataku umiejetnosci (AOE Splash).
-    pub fn is_point_in_cone_splash(origin: Vec3, direction: Vec3, max_dist: f32, angle_deg: f32, target: Vec3) -> bool {
-        let splash = ConeSplash::new(origin, direction, max_dist, angle_deg);
-        splash.contains(target)
+    pub fn is_point_in_cone_splash(origin: Vec3, direction: Vec3, radius: f32, angle_deg: f32, target: Vec3) -> bool {
+        let half_angle_rad = (angle_deg * 0.5).to_radians();
+        let splash = ConeSplash {
+            origin,
+            direction: direction.normalize(),
+            radius,
+            cone_angle_cos: half_angle_rad.cos(),
+        };
+        splash.is_point_inside(target)
     }
 
-    /// Sprawdzenie czy przedmiot moze trafic do slotu ekwipunku pasa.
-    pub fn can_store_in_belt(item_vnum: u32) -> bool {
-        BeltInventoryHelper::is_belt_item(item_vnum)
+    /// Pobranie poziomu jakosci pasa w zaleznosci od stopnia ulepszenia.
+    pub fn get_belt_grade(refine_level: i32) -> u8 {
+        BeltInventoryHelper::get_belt_grade_by_refine_level(refine_level)
     }
 }

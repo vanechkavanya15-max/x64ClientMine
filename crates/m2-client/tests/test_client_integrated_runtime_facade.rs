@@ -18,22 +18,22 @@ fn test_client_integrated_runtime_lifecycle() {
 fn test_splash_aoe_calculation() {
     let origin = Vec3::new(0.0, 0.0, 0.0);
     let direction = Vec3::new(0.0, 0.0, 1.0);
-    let max_dist = 500.0;
+    let radius = 500.0;
     let angle_deg = 90.0;
 
     let target_in_cone = Vec3::new(10.0, 0.0, 200.0);
     assert!(ClientIntegratedRuntime::is_point_in_cone_splash(
-        origin, direction, max_dist, angle_deg, target_in_cone
+        origin, direction, radius, angle_deg, target_in_cone
     ));
 
     let target_behind = Vec3::new(0.0, 0.0, -100.0);
     assert!(!ClientIntegratedRuntime::is_point_in_cone_splash(
-        origin, direction, max_dist, angle_deg, target_behind
+        origin, direction, radius, angle_deg, target_behind
     ));
 }
 
 #[test]
 fn test_belt_inventory_validation() {
-    assert!(ClientIntegratedRuntime::can_store_in_belt(27001));
-    assert!(!ClientIntegratedRuntime::can_store_in_belt(10));
+    assert_eq!(ClientIntegratedRuntime::get_belt_grade(0), 0);
+    assert_eq!(ClientIntegratedRuntime::get_belt_grade(9), 7);
 }
