@@ -618,3 +618,4 @@ pub mod py_bridge_shop_tabs_multi;
 pub mod py_bridge_item_icon_resolver;
 pub mod py_bridge_app_browser_complete;
 pub mod game_character_stat_calculator;
+pub mod game_offline_shop_search_engine;
