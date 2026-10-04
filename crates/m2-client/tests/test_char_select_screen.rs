@@ -72,6 +72,40 @@ fn test_char_select_camera_rotation() {
     
     screen.update(1.0);
     assert_eq!(screen.camera_rotation, 10.0);
+    
+    screen.update(35.5); // 10.0 + 355.0 = 365.0, wrapped -> 5.0
+    assert_eq!(screen.camera_rotation, 5.0);
+}
+
+#[test]
+fn test_char_select_start_game_enqueues_packet() {
+    m2_client_bridge::net::send_queue::clear_outgoing_packets();
+    let mut screen = CharacterSelectScreen::new();
+    
+    screen.set_slot(0, CharacterSlotData {
+        name: "TestEnqueue".to_string(),
+        level: 1,
+        job: Job::WarriorM,
+        str: 1, dex: 1, vit: 1, int: 1,
+        play_time: 1,
+        armor: 0,
+        weapon: 0,
+        is_empty: false,
+    });
+    
+    screen.select_slot(0);
+    assert_eq!(screen.handle_button_click("StartGame"), true);
+    
+    let packets = m2_client_bridge::net::send_queue::drain_outgoing_packets();
+    
+    // Allow for more than 1 packet if tests are run in parallel and pollute the queue
+    assert!(packets.len() >= 1);
+    
+    // find the packet with length 5 (header(2) + length(2) + index(1))
+    let packet = packets.iter().find(|p| p.len() == 5).unwrap();
+    
+    // Check that player index is 0
+    assert_eq!(packet[4], 0);
 }
 
 #[test]

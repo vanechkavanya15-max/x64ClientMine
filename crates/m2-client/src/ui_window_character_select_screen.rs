@@ -64,19 +64,21 @@ impl CharacterSelectScreen {
     pub fn select_slot(&mut self, index: u8) {
         if index < 4 {
             if !self.slots[index as usize].is_empty {
-                self.selected_slot = Some(index);
-                self.camera_rotation = 0.0;
-                
-                // Zamiast stuba - symulacja animacji "IntroWait" lub podobnej 
-                // wzorowanej na zachowaniu z CPythonNetworkStreamPhaseSelect
-                if let Some(mut chr_mgr) = crate::character_manager_core::get_character_manager().write().ok() {
-                     if let Some(main_actor) = chr_mgr.get_main_instance() {
-                          let vid = main_actor.vid;
-                          if let Some(actor) = chr_mgr.get_instance_mut(vid) {
-                               // Ustaw animacje wprowadzajaca
-                               actor.active_once_motion = Some(1); // MOTION_INTRO_WAIT (1)
-                          }
-                     }
+                if self.selected_slot != Some(index) {
+                    self.selected_slot = Some(index);
+                    self.camera_rotation = 0.0;
+                    
+                    // Zamiast stuba - symulacja animacji "IntroWait" lub podobnej 
+                    // wzorowanej na zachowaniu z CPythonNetworkStreamPhaseSelect
+                    if let Some(mut chr_mgr) = crate::character_manager_core::get_character_manager().write().ok() {
+                         if let Some(main_actor) = chr_mgr.get_main_instance() {
+                              let vid = main_actor.vid;
+                              if let Some(actor) = chr_mgr.get_instance_mut(vid) {
+                                   // Ustaw animacje wprowadzajaca
+                                   actor.active_once_motion = Some(1); // MOTION_INTRO_WAIT (1)
+                              }
+                         }
+                    }
                 }
             }
         }
@@ -89,6 +91,9 @@ impl CharacterSelectScreen {
     pub fn update(&mut self, delta_time: f32) {
         if self.selected_slot.is_some() {
             self.camera_rotation += delta_time * 10.0; // Rotate camera when a character is selected
+            if self.camera_rotation >= 360.0 {
+                self.camera_rotation -= 360.0;
+            }
         }
     }
 }
@@ -99,14 +104,21 @@ impl CharacterSelectScreen {
             "StartGame" => {
                 if let Some(slot) = self.selected_slot {
                     let packet = CharacterSelectPacket::new(slot);
-                    let mut sock_guard = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock().unwrap();
-                    if let Some((stream, cipher)) = sock_guard.as_mut() {
-                        use std::io::Write;
-                        let bytes = packet.to_bytes();
-                        let mut encrypted_buf = bytes;
-                        cipher.encrypt_in_place(&mut encrypted_buf);
-                        let _ = stream.write_all(&encrypted_buf);
-                        let _ = stream.flush();
+                    let mut sent = false;
+                    if let Ok(mut sock_guard) = crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET.lock() {
+                        if let Some((stream, cipher)) = sock_guard.as_mut() {
+                            use std::io::Write;
+                            let bytes = packet.to_bytes();
+                            let mut encrypted_buf = bytes.clone();
+                            cipher.encrypt_in_place(&mut encrypted_buf);
+                            if stream.write_all(&encrypted_buf).is_ok() {
+                                let _ = stream.flush();
+                                sent = true;
+                            }
+                        }
+                    }
+                    if !sent {
+                        m2_client_bridge::net::send_queue::enqueue_outgoing_packet(packet.to_bytes());
                     }
                     return true;
                 }
