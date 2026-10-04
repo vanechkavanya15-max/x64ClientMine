@@ -5,6 +5,8 @@ pub struct SlotItem {
     pub icon_path: String,
     pub is_locked: bool,
     pub color: [f32; 4],
+    pub cool_time: f32,
+    pub elapsed_time: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,6 +40,8 @@ impl SlotItem {
             icon_path,
             is_locked,
             color: [1.0, 1.0, 1.0, 1.0],
+            cool_time: 0.0,
+            elapsed_time: 0.0,
         }
     }
 }
@@ -104,11 +108,24 @@ impl SlotWindow {
                 icon_path: String::new(),
                 is_locked: false,
                 color,
+                cool_time: 0.0,
+                elapsed_time: 0.0,
             });
             Ok(())
         } else {
             Err("Slot not found")
         }
+    }
+
+    pub fn set_slot_cool_time(&mut self, id: usize, cool_time: f32, elapsed_time: f32) -> Result<(), &'static str> {
+        if let Some(cell) = self.cells.iter_mut().find(|c| c.id == id) {
+            if let Some(ref mut item) = cell.item {
+                item.cool_time = cool_time;
+                item.elapsed_time = elapsed_time;
+                return Ok(());
+            }
+        }
+        Err("Slot or item not found")
     }
 
     pub fn set_slot_count(&mut self, id: usize, count: u32) -> Result<(), &'static str> {

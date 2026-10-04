@@ -162,6 +162,29 @@ impl WindowManager {
         }
     }
 
+    pub fn set_clip_rect(&mut self, handle: u32, l: f32, t: f32, r: f32, b: f32) -> bool {
+        if let Some(win) = self.windows.get_mut(&handle) {
+            win.clip_rect = Some([l, t, r, b]);
+            self.render_dirty = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_slot_cool_time(&mut self, handle: u32, slot_id: usize, cool_time: f32, elapsed_time: f32) -> bool {
+        if let Some(win) = self.windows.get_mut(&handle) {
+            if let Some(ref mut sw) = win.slot_window {
+                let res = sw.set_slot_cool_time(slot_id, cool_time, elapsed_time).is_ok();
+                if res {
+                    self.render_dirty = true;
+                }
+                return res;
+            }
+        }
+        false
+    }
+
     pub fn set_scale(&mut self, handle: u32, sx: f32, sy: f32) -> bool {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.scale = [sx, sy];
@@ -855,6 +878,89 @@ pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTe
                     }
                 }
             }
+            WindowType::SlotWindow => {
+                if let Some(ref sw) = win.slot_window {
+                    let fgx = gx as f32;
+                    let fgy = gy as f32;
+
+                    for cell in &sw.cells {
+                        let cx = fgx + cell.x as f32;
+                        let cy = fgy + cell.y as f32;
+                        let cw = cell.w as f32;
+                        let ch = cell.h as f32;
+
+                        // 1. Tlo slotu
+                        if let Some(tex) = white_tex {
+                            let mut cell_bg = Quad2D::new(cx, cy, cw, ch);
+                            cell_bg.color = [0.08, 0.08, 0.1, 0.75];
+                            add_quad(batches, tex.clone(), cell_bg);
+
+                            // Ramka slotu
+                            let border_col = if sw.selected_slot == Some(cell.id) {
+                                [0.85, 0.75, 0.3, 0.9] // Highlight zloty przy hoverze
+                            } else {
+                                [0.25, 0.25, 0.3, 0.8] // Domyslna ramka
+                            };
+                            let mut t_q = Quad2D::new(cx, cy, cw, 1.0);
+                            t_q.color = border_col;
+                            add_quad(batches, tex.clone(), t_q);
+
+                            let mut l_q = Quad2D::new(cx, cy, 1.0, ch);
+                            l_q.color = border_col;
+                            add_quad(batches, tex.clone(), l_q);
+
+                            let mut b_q = Quad2D::new(cx, cy + ch - 1.0, cw, 1.0);
+                            b_q.color = border_col;
+                            add_quad(batches, tex.clone(), b_q);
+
+                            let mut r_q = Quad2D::new(cx + cw - 1.0, cy, 1.0, ch);
+                            r_q.color = border_col;
+                            add_quad(batches, tex.clone(), r_q);
+                        }
+
+                        // 2. Przedmiot w slocie
+                        if let Some(ref item) = cell.item {
+                            if !item.icon_path.is_empty() {
+                                let mut tm = get_ui_texture_manager();
+                                if let Some(img_res) = tm.get_image_resource(&item.icon_path) {
+                                    let mut q = Quad2D::with_uv(
+                                        cx + 1.0, cy + 1.0, cw - 2.0, ch - 2.0,
+                                        img_res.uv[0], img_res.uv[1], img_res.uv[2], img_res.uv[3],
+                                    );
+                                    q.color = item.color;
+                                    add_quad(batches, img_res.texture, q);
+                                }
+                            }
+
+                            // 3. Efekt chlodzenia (CoolTime fan / pie-slice overlay)
+                            if item.cool_time > 0.0 && item.elapsed_time < item.cool_time {
+                                let ratio = (1.0 - item.elapsed_time / item.cool_time).clamp(0.0, 1.0);
+                                if let Some(tex) = white_tex {
+                                    let cool_h = (ch - 2.0) * ratio;
+                                    let mut cool_q = Quad2D::new(cx + 1.0, cy + ch - 1.0 - cool_h, cw - 2.0, cool_h);
+                                    cool_q.color = [0.0, 0.0, 0.0, 0.65]; // Ciemna polprzezroczysta nakladka
+                                    add_quad(batches, tex.clone(), cool_q);
+                                }
+                            }
+
+                            // 4. Licznik ilosci (stack count)
+                            if item.count > 1 {
+                                let count_str = item.count.to_string();
+                                let font = get_global_font_atlas();
+                                if let Some(ref font_tex) = font.texture {
+                                    let cw_text = font.measure_text_width(&count_str);
+                                    let tx = cx + cw - cw_text - 2.0;
+                                    let ty = cy + ch - font.line_height - 2.0;
+                                    let t_quads = font.build_text_quads(&count_str, tx, ty, [1.0, 1.0, 0.7, 1.0], 0.9);
+                                    for q in t_quads {
+                                        add_quad(batches, font_tex.clone(), q);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -907,8 +1013,40 @@ mod tests {
         assert_eq!(wm.windows.get(&thin_board).unwrap().window_type, WindowType::ThinBoard);
         assert_eq!(wm.windows.get(&edit_line).unwrap().window_type, WindowType::EditLine);
     }
+
+    #[test]
+    fn test_ui_window_mgr_slot_cool_time_and_clip() {
+        let mut wm = WindowManager::new();
+        let slot_win = wm.register(WindowType::SlotWindow);
+        wm.set_clip_rect(slot_win, 50.0, 50.0, 200.0, 200.0);
+
+        let win = wm.windows.get(&slot_win).unwrap();
+        assert_eq!(win.clip_rect, Some([50.0, 50.0, 200.0, 200.0]));
+
+        // Dodanie slotu i ustawienie cooldownu
+        let mut sw = crate::ui_widget_slotwindow::SlotWindow::new(1, 1, (32, 32));
+        let _ = sw.set_slot(0, 10, 1, [1.0, 1.0, 1.0, 1.0]);
+        let res = sw.set_slot_cool_time(0, 15.0, 5.0);
+        assert!(res.is_ok());
+
+        let cell = &sw.cells[0];
+        let item = cell.item.as_ref().unwrap();
+        assert_eq!(item.cool_time, 15.0);
+        assert_eq!(item.elapsed_time, 5.0);
+    }
 }
 
-impl WindowManager {
+// ============================================================================
+// FFI C-Bridge dla WindowManagera
+// ============================================================================
+
+#[no_mangle]
+pub extern "C" fn m2_wndmgr_set_clip_rect(handle: u32, l: f32, t: f32, r: f32, b: f32) -> bool {
+    get_window_manager().set_clip_rect(handle, l, t, r, b)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_wndmgr_set_slot_cool_time(handle: u32, slot_id: usize, cool_time: f32, elapsed_time: f32) -> bool {
+    get_window_manager().set_slot_cool_time(handle, slot_id, cool_time, elapsed_time)
 }
 

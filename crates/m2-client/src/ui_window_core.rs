@@ -69,6 +69,7 @@ pub struct Window {
     pub py_handler: usize,
     pub is_flag_pick_always: bool,
     pub flags: u32,
+    pub clip_rect: Option<[f32; 4]>,
 }
 
 impl Window {
@@ -103,6 +104,7 @@ impl Window {
             py_handler: 0,
             is_flag_pick_always: false,
             flags: 0,
+            clip_rect: None,
         }
     }
 
