@@ -64,6 +64,32 @@ fn test_add_rare_attribute() {
 }
 
 #[test]
+fn test_attribute_uniqueness_edge_case() {
+    // Config with only 1 possible attribute
+    let changer = BonusAttributeChanger::with_possible_attributes(vec![
+        AttributeProbability { attr_type: 1, min_value: 10, max_value: 20 },
+    ]);
+    
+    let mut attrs = [ItemAttribute::default(); ITEM_ATTRIBUTE_SLOT_MAX_NUM];
+    
+    // First normal attribute should succeed
+    assert!(changer.add_normal_attribute(&mut attrs));
+    assert_eq!(changer.get_normal_attribute_count(&attrs), 1);
+    
+    // Second normal attribute should fail because no other unique type is available
+    assert!(!changer.add_normal_attribute(&mut attrs));
+    assert_eq!(changer.get_normal_attribute_count(&attrs), 1);
+
+    // Rare attribute should succeed since rare uses slots 5 and 6 and checks uniqueness among them
+    assert!(changer.add_rare_attribute(&mut attrs));
+    assert_ne!(attrs[5].attr_type, APPLY_NONE);
+
+    // Second rare attribute should fail for the same lack-of-unique reason
+    assert!(!changer.add_rare_attribute(&mut attrs));
+    assert_eq!(attrs[6].attr_type, APPLY_NONE);
+}
+
+#[test]
 fn test_change_rare_attributes() {
     let changer = BonusAttributeChanger::with_possible_attributes(get_test_attributes());
     let mut attrs = [ItemAttribute::default(); ITEM_ATTRIBUTE_SLOT_MAX_NUM];

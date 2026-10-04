@@ -33,13 +33,10 @@ impl BonusAttributeChanger {
 
     /// Zwraca ilość normalnych bonusów (1-5)
     pub fn get_normal_attribute_count(&self, attributes: &[ItemAttribute; ITEM_ATTRIBUTE_SLOT_MAX_NUM]) -> usize {
-        let mut count = 0;
-        for i in 0..5 {
-            if attributes[i].attr_type != APPLY_NONE {
-                count += 1;
-            }
-        }
-        count
+        attributes[0..5]
+            .iter()
+            .filter(|a| a.attr_type != APPLY_NONE)
+            .count()
     }
 
     /// Dodaje nowy bonus (1-5) z danym prawdopodobieństwem i wartościami
@@ -80,12 +77,13 @@ impl BonusAttributeChanger {
     
     pub fn add_rare_attribute(&self, attributes: &mut [ItemAttribute; ITEM_ATTRIBUTE_SLOT_MAX_NUM]) -> bool {
         // Find empty slot (6 or 7, index 5 or 6 normally)
-        let slot = if attributes[5].attr_type == APPLY_NONE {
-            5
-        } else if attributes[6].attr_type == APPLY_NONE {
-            6
-        } else {
-            return false;
+        let empty_slot_index = attributes[5..=6]
+            .iter()
+            .position(|a| a.attr_type == APPLY_NONE);
+
+        let slot = match empty_slot_index {
+            Some(idx) => 5 + idx,
+            None => return false,
         };
         
         let existing_types: HashSet<u8> = attributes[5..=6]
@@ -124,61 +122,56 @@ impl BonusAttributeChanger {
         }
 
         let mut rng = rand::thread_rng();
-        let mut new_types = HashSet::new();
+        
+        // Możemy po prostu potasować dostępne i wziąć pierwszych `count` elementów,
+        // co zagwarantuje nam unikalność oraz bycie o wiele szybszym w działaniu.
+        let mut shuffled_attrs = self.possible_attributes.clone();
+        shuffled_attrs.shuffle(&mut rng);
+        
+        if shuffled_attrs.len() < count {
+            return false; // Nie ma wystarczającej liczby unikalnych bonusów
+        }
 
         for i in 0..count {
-            let available_attrs: Vec<&AttributeProbability> = self.possible_attributes
-                .iter()
-                .filter(|a| !new_types.contains(&a.attr_type))
-                .collect();
-
-            if available_attrs.is_empty() {
-                return false;
-            }
-
-            let &attr = available_attrs.choose(&mut rng).unwrap();
+            let attr = &shuffled_attrs[i];
             let value = rng.gen_range(attr.min_value..=attr.max_value);
             
             attributes[i] = ItemAttribute {
                 attr_type: attr.attr_type,
                 value,
             };
-            new_types.insert(attr.attr_type);
         }
 
         true
     }
     
     pub fn change_rare_attributes(&self, attributes: &mut [ItemAttribute; ITEM_ATTRIBUTE_SLOT_MAX_NUM]) -> bool {
-        let mut count = 0;
-        if attributes[5].attr_type != APPLY_NONE { count += 1; }
-        if attributes[6].attr_type != APPLY_NONE { count += 1; }
+        let count = attributes[5..=6]
+            .iter()
+            .filter(|a| a.attr_type != APPLY_NONE)
+            .count();
         
         if count == 0 {
             return false;
         }
         
         let mut rng = rand::thread_rng();
-        let mut new_types = HashSet::new();
+        
+        let mut shuffled_attrs = self.possible_attributes.clone();
+        shuffled_attrs.shuffle(&mut rng);
+        
+        if shuffled_attrs.len() < count {
+            return false; // Nie udało się wylosować
+        }
 
         for i in 0..count {
-            let available_attrs: Vec<&AttributeProbability> = self.possible_attributes
-                .iter()
-                .filter(|a| !new_types.contains(&a.attr_type))
-                .collect();
-
-            if available_attrs.is_empty() {
-                return false; // Nie udało się wylosować
-            }
-
-            let &attr = available_attrs.choose(&mut rng).unwrap();
+            let attr = &shuffled_attrs[i];
             let value = rng.gen_range(attr.min_value..=attr.max_value);
             
             attributes[5 + i] = ItemAttribute {
                 attr_type: attr.attr_type,
                 value,
             };
-            new_types.insert(attr.attr_type);
         }
 
         true
