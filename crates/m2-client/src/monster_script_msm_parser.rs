@@ -187,13 +187,64 @@ impl ScriptParser {
                 idx = next_idx;
             } else {
                 let key = tokens[0].to_lowercase();
-                let values: Vec<String> = tokens.into_iter().skip(1).collect();
+                let mut values: Vec<String> = tokens.into_iter().skip(1).collect();
+                
+                // Check if next non-empty line starts with '{'
+                let mut peek_idx = idx + 1;
+                while peek_idx < lines.len() && lines[peek_idx].trim().is_empty() {
+                    peek_idx += 1;
+                }
+                
+                if peek_idx < lines.len() && lines[peek_idx].trim().starts_with('{') {
+                    let (block_tokens, next_idx) = Self::parse_vector_block(&lines, peek_idx)?;
+                    values.extend(block_tokens);
+                    idx = next_idx;
+                } else {
+                    idx += 1;
+                }
+                
                 root.keys.insert(key, values);
-                idx += 1;
             }
         }
         
         Ok(root)
+    }
+
+    fn parse_vector_block(lines: &[&str], start_idx: usize) -> Result<(Vec<String>, usize), String> {
+        let mut tokens = Vec::new();
+        let mut idx = start_idx;
+        
+        if idx >= lines.len() || !lines[idx].trim().starts_with('{') {
+            return Err("Expected '{' for vector block".to_string());
+        }
+        
+        let first_line = lines[idx].trim();
+        if first_line.len() > 1 {
+            let mut line_tokens = Self::tokenize_line(&first_line[1..]);
+            tokens.append(&mut line_tokens);
+        }
+        idx += 1;
+        
+        while idx < lines.len() {
+            let mut line = lines[idx].trim();
+            if let Some(comment_idx) = line.find("//") {
+                line = line[0..comment_idx].trim();
+            }
+            if line.is_empty() {
+                idx += 1;
+                continue;
+            }
+            
+            if line.starts_with('}') {
+                return Ok((tokens, idx + 1));
+            }
+            
+            let mut line_tokens = Self::tokenize_line(line);
+            tokens.append(&mut line_tokens);
+            idx += 1;
+        }
+        
+        Err("Unexpected end of file while parsing vector block".to_string())
     }
     
     fn tokenize_line(line: &str) -> Vec<String> {
@@ -272,10 +323,22 @@ impl ScriptParser {
                 idx = next_idx;
             } else {
                 let key = tokens[0].to_lowercase();
+                let mut values: Vec<String> = tokens.into_iter().skip(1).collect();
                 
-                let values: Vec<String> = tokens.into_iter().skip(1).collect();
+                let mut peek_idx = idx + 1;
+                while peek_idx < lines.len() && lines[peek_idx].trim().is_empty() {
+                    peek_idx += 1;
+                }
+                
+                if peek_idx < lines.len() && lines[peek_idx].trim().starts_with('{') {
+                    let (block_tokens, next_idx) = Self::parse_vector_block(lines, peek_idx)?;
+                    values.extend(block_tokens);
+                    idx = next_idx;
+                } else {
+                    idx += 1;
+                }
+                
                 node.keys.insert(key, values);
-                idx += 1;
             }
         }
         
@@ -333,10 +396,10 @@ impl ScriptParser {
         let path_name = node.get_token_string("pathname").unwrap_or_default();
         let _special_path = node.get_token_string("specialpath").unwrap_or_default(); // C++ ignores it usually, or just temp
         
-        let shape_data_count = node.get_token_u32("shapedatacount").unwrap_or(0);
+        let _shape_data_count = node.get_token_u32("shapedatacount").unwrap_or(0);
         
         for child in &node.children {
-            if child.name.to_lowercase() == "shapedata" {
+            if child.name.to_lowercase().starts_with("shapedata") {
                 let mut shape = ShapeData::default();
                 
                 if let Some(idx) = child.get_token_u32("shapeindex") {
@@ -397,7 +460,7 @@ impl ScriptParser {
         let _hair_data_count = node.get_token_u32("hairdatacount").unwrap_or(0);
         
         for child in &node.children {
-            if child.name.to_lowercase() == "hairdata" {
+            if child.name.to_lowercase().starts_with("hairdata") {
                 let mut hair = HairData::default();
                 
                 if let Some(idx) = child.get_token_u32("hairindex") {
@@ -428,7 +491,7 @@ impl ScriptParser {
         let _attaching_data_count = node.get_token_u32("attachingdatacount").unwrap_or(0);
 
         for child in &node.children {
-            if child.name.to_lowercase() == "attachingdata" {
+            if child.name.to_lowercase().starts_with("attachingdata") {
                 let mut attach = AttachingData::default();
                 
                 if let Some(dtype) = child.get_token_u32("attachingdatatype") {
@@ -448,7 +511,7 @@ impl ScriptParser {
                         
                         let _sphere_count = child.get_token_u32("spheredatacount").unwrap_or(0);
                         for sub_child in &child.children {
-                            if sub_child.name.to_lowercase() == "spheredata" {
+                            if sub_child.name.to_lowercase().starts_with("spheredata") {
                                 let mut sphere = SphereData::default();
                                 sphere.radius = sub_child.get_token_float("radius").unwrap_or(0.0);
                                 sphere.position = sub_child.get_token_position("position").unwrap_or([0.0, 0.0, 0.0]);
