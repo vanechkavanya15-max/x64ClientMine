@@ -486,6 +486,7 @@ pub mod input_system_validator;
 
 
 pub mod map_property_parser;
+pub mod map_attribute_tile_parser;
 pub mod ui_rendertarget_texture_allocator;
 pub mod guild_mark_atlas_loader;
 pub mod ui_scissor_clip_rect;
