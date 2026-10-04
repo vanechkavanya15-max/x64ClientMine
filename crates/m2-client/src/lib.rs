@@ -312,6 +312,7 @@ pub mod ui_font_renderer;
 pub mod ui_bridge_ffi;
 pub mod vfs_pck_memory_mapped;
 pub mod vfs_security_decrypt;
+pub mod vfs_epk_eix_archive_reader;
 pub mod win32_cursor_manager;
 pub mod wgpu_camera_3d_pipeline;
 pub mod win32_keyboard_hooks;
