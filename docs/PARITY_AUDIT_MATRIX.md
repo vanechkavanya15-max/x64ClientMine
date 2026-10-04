@@ -92,27 +92,29 @@
 ## 5. REJESTR ZADAN I HISTORIA ZBIOROW (Wave Execution History)
 
 - **Fala 0 (Fundamenty & Bootstrap)**: Uruchomienie okna Win32, WGPU, 91 archiwow PCK, Python Master Bridge (32 moduly). [STATUS: ZAKONCZONE 100%]
-- **Fala 1 (Network Protocol Deep Parity & Movement)**: 15 zadan wyslanych do Google Jules Cloud. **9 zadan zharvestowanych i zcommitowanych (100% PASS)**, 6 zadan w toku.
+- **Fala 1 (Network Protocol Deep Parity & Movement)**: 15 zadan wyslanych do Google Jules Cloud. **14 zadan zharvestowanych i zcommitowanych na main (100% testow PASS)**, 1 zadanie w toku (`5c9a94c6`).
 
 ### Szczegolowy Wykaz Sesji Fali 1 w Chmurze Google Jules:
 
 | # | Task ID | Konto | Jules Session ID | Tytul Zadania | Status | Commit / Wynik |
 |---|---|---|---|---|---|---|
-| 1 | `5c9a94c6` | glowne | `1373890500550136999` | Movement Packet Deep Interpolation and Rotation Sync | 🔄 IN_PROGRESS | Przetwarzanie w chmurze |
-| 2 | `aa0a3ce0` | glowne | `4425356815491159133` | Character Add/Update Complete Binary Deserializer | 🔄 IN_PROGRESS | Przetwarzanie w chmurze |
+| 1 | `5c9a94c6` | glowne | `1373890500550136999` | Movement Packet Deep Interpolation and Rotation Sync | 🔄 IN_PROGRESS | Ostatnie zadanie w toku |
+| 2 | `aa0a3ce0` | glowne | `4425356815491159133` | Character Add/Update Complete Binary Deserializer | 🟢 HARVESTED | `6cefa1f` (100% PASS, 1747 linii) |
 | 3 | `72a23b08` | glowne | `17598936422434919002` | Combat Skill Execution and State Machine Engine | 🟢 HARVESTED | `67b59d9` (100% PASS, 3 testy) |
 | 4 | `6b084ccc` | glowne | `14056746478848998890` | Melee Combat and Combo Attack Chain Validator | 🟢 HARVESTED | `5874c10` (100% PASS, 3 testy) |
-| 5 | `8b2e95ce` | glowne | `4162940765429378961` | Item Grid 180 Slots Deep Drag & Drop Transaction Engine | 🔄 IN_PROGRESS | Przetwarzanie w chmurze |
+| 5 | `8b2e95ce` | glowne | `4162940765429378961` | Item Grid 180 Slots Deep Drag & Drop Transaction Engine | 🟢 HARVESTED | `2711cbb` (100% PASS, 345 linii) |
 | 6 | `8b401969` | glowne | `14757952561182844254` | MultiTab NPC Shop and Private Shop Item Table Parser | 🟢 HARVESTED | `6635bfa` (100% PASS, 4 testy) |
-| 7 | `f37a8adb` | glowne | `8504327313342729074` | SafeBox and Mall Storage Synchronization Engine | 🔄 IN_PROGRESS | Przetwarzanie w chmurze |
+| 7 | `f37a8adb` | glowne | `8504327313342729074` | SafeBox and Mall Storage Synchronization Engine | 🟢 HARVESTED | `3c17c75` (100% PASS, 369 linii) |
 | 8 | `f6544813` | glowne | `3731393885629307983` | Player Exchange Transaction State Machine | 🟢 HARVESTED | `ab0f3c5` (100% PASS, 11 testow) |
 | 9 | `49312e44` | glowne | `11134480235396982368` | Guild Management and War State Packet Protocol | 🟢 HARVESTED | `d40e295` (100% PASS, 8 testow) |
 | 10 | `014debe4` | glowne | `12050409221670232702` | Party Member Sync and HP/SP Gauge Broadcaster | 🟢 HARVESTED | `45671d7` (100% PASS, 5 testow) |
-| 11 | `352fddfd` | glowne | `155149292114901815` | Messenger Friends Online Status and Refresh Flow | 🔄 IN_PROGRESS | Przetwarzanie w chmurze |
+| 11 | `352fddfd` | glowne | `155149292114901815` | Messenger Friends Online Status and Refresh Flow | 🟢 HARVESTED | `f41f38e` (100% PASS, 4 testy) |
 | 12 | `b71da247` | glowne | `4782638796779184454` | Quest Script Dialog State and Answer Dispatcher | 🟢 HARVESTED | `7a9654b` (100% PASS, 4 testy) |
 | 13 | `3dcfb98b` | glowne | `7226944519505474520` | Terrain Bicubic Height and Attribute Flag Verifier | 🟢 HARVESTED | `67d78a5` (100% PASS, 3 testy) |
 | 14 | `f891ddb2` | jasiu15000 | `9448445187674356597` | Dragon Soul Alchemy and Refine Window State Machine | 🟢 HARVESTED | `229bd8a` (100% PASS, 9 testow) |
-| 15 | `91e6375c` | jasiu15000 | `12138923967289509951` | Fishing and Mining Interactive Timer Engine | 🔄 IN_PROGRESS | Przetwarzanie w chmurze |
+| 15 | `91e6375c` | jasiu15000 | `12138923967289509951` | Fishing and Mining Interactive Timer Engine | 🟢 HARVESTED | `7a19b41` (100% PASS, 4 testy) |
+
+- **Fala 2 (Graphics WGPU, Granny 3D, Particles, Sound & Raycasting)**: W przygotowaniu do natychmiastowego startu.
 
 - **Fala 2 (Game Systems & Combat State Machines)**: W przygotowaniu po zakonczeniu Fali 1.
 - **Fala 3 (Graphics & Visual Polish)**: W przygotowaniu po zakonczeniu Fali 2.
