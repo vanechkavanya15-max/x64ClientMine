@@ -594,3 +594,4 @@ pub mod audio_bgm_crossfade_mixer;
 pub mod engine_footstep_sound_generator;
 pub mod ui_window_loading_progress_screen;
 pub mod ui_loading_progress_bar;
+pub mod ui_window_quickslot_bar;
