@@ -34,12 +34,15 @@ impl GuildMark {
             let p2 = data[i * 2 + 1] as u16;
             let val = (p2 << 8) | p1;
 
-            let r = (((val >> 11) & 0x1F) as u32) * 255 / 31;
-            let g = (((val >> 5) & 0x3F) as u32) * 255 / 63;
-            let b = ((val & 0x1F) as u32) * 255 / 31;
-            let a = 255;
-
-            mark.pixels[i] = (a << 24) | (b << 16) | (g << 8) | r;
+            if val == 0 {
+                mark.pixels[i] = 0;
+            } else {
+                let r = (((val >> 11) & 0x1F) as u32) * 255 / 31;
+                let g = (((val >> 5) & 0x3F) as u32) * 255 / 63;
+                let b = ((val & 0x1F) as u32) * 255 / 31;
+                let a = 255;
+                mark.pixels[i] = (a << 24) | (b << 16) | (g << 8) | r;
+            }
         }
         Some(mark)
     }

@@ -96,3 +96,27 @@ fn test_guild_mark_symbol_cache_manager() {
     // basic crc check, shouldn't be 0
     assert_ne!(symbol.crc, 0); 
 }
+
+#[test]
+fn test_guild_mark_image_full_packing() {
+    let mut image = GuildMarkImage::new();
+    let mut mark = GuildMark::new();
+    
+    // Fill mark with red pixels
+    let expected = (255u32 << 24) | 255u32;
+    for i in 0..MARK_SIZE {
+        mark.pixels[i] = expected;
+    }
+
+    // Try to pack more than capacity
+    for i in 0..MARK_TOTAL_COUNT {
+        assert!(image.put_mark(i, &mark));
+    }
+
+    // Attempting to pack beyond the texture capacity should fail
+    assert!(!image.put_mark(MARK_TOTAL_COUNT, &mark));
+    
+    // Verify specific index
+    let retrieved = image.get_mark(MARK_TOTAL_COUNT - 1).unwrap();
+    assert_eq!(retrieved.pixels[0], expected);
+}
