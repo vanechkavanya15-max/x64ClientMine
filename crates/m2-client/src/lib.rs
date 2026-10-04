@@ -670,3 +670,4 @@ pub mod offline_shop_catalog_engine;
 pub mod wgpu_terrain_array_splatter;
 pub mod game_net_stream_dispatcher_wire_all;
 pub mod map_warp_phase_coordinator;
+pub mod py_bridge_texttail_runtime_complete;
