@@ -36,3 +36,46 @@ pub fn calculate_sliding_movement(
 
     (new_pos, velocity)
 }
+
+/// Calculates the normal vector for a cylinder-based collision (e.g., trees).
+/// Assumes collision occurs primarily on the XY plane.
+pub fn calculate_cylinder_collision_normal(player_pos: Vec3, obstacle_center: Vec3) -> Vec3 {
+    let mut diff = player_pos - obstacle_center;
+    diff.z = 0.0;
+    if diff.length_squared() > 0.0 {
+        diff.normalize()
+    } else {
+        Vec3::new(1.0, 0.0, 0.0)
+    }
+}
+
+/// Calculates the normal vector for an AABB-based collision (e.g., building walls).
+/// Assumes collision occurs primarily on the XY plane.
+pub fn calculate_aabb_collision_normal(player_pos: Vec3, aabb_min: Vec3, aabb_max: Vec3) -> Vec3 {
+    let center = (aabb_min + aabb_max) * 0.5;
+    let extents = (aabb_max - aabb_min) * 0.5;
+
+    let mut local_pos = player_pos - center;
+    local_pos.z = 0.0;
+
+    let mut normal = Vec3::ZERO;
+
+    let x_ratio = if extents.x > 0.0 { (local_pos.x.abs() / extents.x) } else { 0.0 };
+    let y_ratio = if extents.y > 0.0 { (local_pos.y.abs() / extents.y) } else { 0.0 };
+
+    if x_ratio >= y_ratio {
+        normal.x = if local_pos.x >= 0.0 { 1.0 } else { -1.0 };
+    } else {
+        normal.y = if local_pos.y >= 0.0 { 1.0 } else { -1.0 };
+    }
+
+    normal
+}
+
+/// Calculates the normal vector for a blocked terrain tile collision.
+pub fn calculate_terrain_tile_collision_normal(player_pos: Vec3, tile_center: Vec3, tile_size: f32) -> Vec3 {
+    let half_size = tile_size * 0.5;
+    let aabb_min = tile_center - Vec3::new(half_size, half_size, 0.0);
+    let aabb_max = tile_center + Vec3::new(half_size, half_size, 0.0);
+    calculate_aabb_collision_normal(player_pos, aabb_min, aabb_max)
+}
