@@ -362,6 +362,7 @@ pub mod ui_widget_slotwindow;
 pub mod ui_window_character_status;
 pub mod ui_window_pet;
 pub mod ui_window_target;
+pub mod target_board_info_controller;
 pub mod ui_window_target_board_complete;
 pub mod ui_window_shop;
 pub mod ui_window_exchange;
