@@ -1,20 +1,32 @@
 use std::collections::HashMap;
 
+#[allow(dead_code)]
 pub const FLAG_MOVABLE: u32 = 1 << 0;
+#[allow(dead_code)]
 pub const FLAG_LIMIT: u32 = 1 << 1;
+#[allow(dead_code)]
 pub const FLAG_SNAP: u32 = 1 << 2;
+#[allow(dead_code)]
 pub const FLAG_DRAGABLE: u32 = 1 << 3;
+#[allow(dead_code)]
 pub const FLAG_ATTACH: u32 = 1 << 4;
+#[allow(dead_code)]
 pub const FLAG_RESTRICT_X: u32 = 1 << 5;
+#[allow(dead_code)]
 pub const FLAG_RESTRICT_Y: u32 = 1 << 6;
+#[allow(dead_code)]
 pub const FLAG_NOT_CAPTURE: u32 = 1 << 7;
 pub const FLAG_FLOAT: u32 = 1 << 8;
+#[allow(dead_code)]
 pub const FLAG_NOT_PICK: u32 = 1 << 9;
+#[allow(dead_code)]
 pub const FLAG_IGNORE_SIZE: u32 = 1 << 10;
+#[allow(dead_code)]
 pub const FLAG_RTL: u32 = 1 << 11;
 
 #[derive(Debug, Clone)]
 pub struct WindowNode {
+    #[allow(dead_code)]
     pub id: u32,
     pub parent_id: Option<u32>,
     pub children: Vec<u32>,
@@ -66,6 +78,7 @@ impl WndMgrHierarchy {
         }
     }
 
+    #[allow(dead_code)]
     pub fn remove_window(&mut self, id: u32) {
         if let Some(parent_id) = self.windows.get(&id).and_then(|w| w.parent_id) {
             if let Some(parent) = self.windows.get_mut(&parent_id) {
@@ -208,14 +221,13 @@ impl WndMgrHierarchy {
 
     fn propagate_rendering(&mut self, id: u32, is_rendering: bool) {
         let children = if let Some(window) = self.windows.get_mut(&id) {
-            window.is_rendering = is_rendering;
+            window.is_rendering = is_rendering && window.is_show;
             window.children.clone()
         } else {
             return;
         };
 
-        let next_rendering =
-            is_rendering && self.windows.get(&id).map(|w| w.is_show).unwrap_or(false);
+        let next_rendering = self.windows.get(&id).map(|w| w.is_rendering).unwrap_or(false);
 
         for child_id in children {
             self.propagate_rendering(child_id, next_rendering);

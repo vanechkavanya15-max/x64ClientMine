@@ -139,3 +139,18 @@ fn test_hierarchy_visibility() {
     assert_eq!(hierarchy.windows.get(&3).unwrap().is_rendering, true);
     assert_eq!(hierarchy.windows.get(&4).unwrap().is_rendering, true);
 }
+#[test]
+fn test_hierarchy_flags() {
+    let mut hierarchy = ui_wndmgr_hierarchy::WndMgrHierarchy::new();
+    hierarchy.create_window(1);
+    
+    if let Some(w) = hierarchy.windows.get_mut(&1) {
+        w.set_flag(ui_wndmgr_hierarchy::FLAG_MOVABLE | ui_wndmgr_hierarchy::FLAG_LIMIT | ui_wndmgr_hierarchy::FLAG_SNAP | ui_wndmgr_hierarchy::FLAG_DRAGABLE | ui_wndmgr_hierarchy::FLAG_ATTACH | ui_wndmgr_hierarchy::FLAG_RESTRICT_X | ui_wndmgr_hierarchy::FLAG_RESTRICT_Y | ui_wndmgr_hierarchy::FLAG_NOT_CAPTURE | ui_wndmgr_hierarchy::FLAG_NOT_PICK | ui_wndmgr_hierarchy::FLAG_IGNORE_SIZE | ui_wndmgr_hierarchy::FLAG_RTL, true);
+        
+        assert!(w.has_flag(ui_wndmgr_hierarchy::FLAG_MOVABLE));
+        assert!(w.has_flag(ui_wndmgr_hierarchy::FLAG_LIMIT));
+        
+        let id = w.id;
+        assert_eq!(id, 1);
+    }
+}
