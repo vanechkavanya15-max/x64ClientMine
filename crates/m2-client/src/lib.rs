@@ -638,3 +638,4 @@ pub mod binary_skill_table_loader;
 pub mod ui_drag_drop_global_manager;
 pub mod game_messenger_friends_manager;
 pub mod game_party_group_manager;
+pub mod trade_exchange_state_machine;
