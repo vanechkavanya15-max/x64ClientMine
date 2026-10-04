@@ -1,5 +1,7 @@
 use m2_client::ui_window_loading_progress_screen::LoadingScreen;
 use m2_client::ui_loading_progress_bar::LoadingPhase;
+use std::io::Write;
+use tempfile::NamedTempFile;
 
 #[test]
 fn test_loading_screen_initialization() {
@@ -44,4 +46,27 @@ fn test_loading_screen_progress_update() {
     screen.force_complete();
     assert_eq!(screen.get_progress(), 100.0);
     assert!(screen.is_completed());
+}
+
+#[test]
+fn test_loading_screen_load_hints_from_file() {
+    let mut file = NamedTempFile::new().expect("Failed to create temp file");
+    writeln!(file, "Hint 1").unwrap();
+    writeln!(file, "# Comment").unwrap();
+    writeln!(file, "Hint 2").unwrap();
+    writeln!(file, "   ").unwrap();
+    writeln!(file, "// Another comment").unwrap();
+    writeln!(file, "Hint 3").unwrap();
+    
+    let path = file.path().to_str().unwrap().to_string();
+    
+    let mut screen = LoadingScreen::new();
+    screen.load_hints_from_file(&path).unwrap();
+    
+    assert_eq!(screen.hints.len(), 3);
+    assert_eq!(screen.hints[0], "Hint 1");
+    assert_eq!(screen.hints[1], "Hint 2");
+    assert_eq!(screen.hints[2], "Hint 3");
+    
+    assert!(!screen.current_hint.is_empty());
 }
