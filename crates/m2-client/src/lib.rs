@@ -610,3 +610,4 @@ pub mod ui_wndmgr_widget_edit_line;
 pub mod ui_wndmgr_widget_slot_window;
 pub mod game_item_bonus_attribute_changer;
 pub mod game_fishing_water_detection;
+pub mod client_master_game_phase_orchestrator;
