@@ -384,6 +384,7 @@ pub mod wgpu_granny_actor_renderer;
 pub mod wgpu_weapon_bone_attachment;
 pub mod wgpu_water_plane_renderer;
 pub mod wgpu_particle_billboard_renderer;
+pub mod wgpu_texttail_world_renderer;
 pub mod wgpu_flying_projectile_renderer;
 pub mod wgpu_texttail_renderer;
 pub mod wgpu_camera_orbit_controller;
