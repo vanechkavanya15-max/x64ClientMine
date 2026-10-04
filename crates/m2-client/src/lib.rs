@@ -562,3 +562,4 @@ pub mod ui_wndmgr_widget_expanded_image;
 pub mod ui_wndmgr_widget_thin_board;
 pub mod game_belt_inventory_manager;
 pub mod wgpu_frustum_culling_map_engine;
+pub mod wgpu_speedtree_billboard_lod;
