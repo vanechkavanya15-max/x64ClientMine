@@ -20,6 +20,7 @@ pub struct SkillDataTableEntry {
     pub description: String,
     pub affects: Vec<AffectData>,
     pub skill_attribute: u32,
+    pub need_weapon: u32,
 }
 
 pub struct SkillDataTable {
@@ -202,6 +203,18 @@ pub extern "C" fn m2_py_skill_can_use_skill_v2(skill_index: u32) -> bool {
             return false;
         }
         return true;
+    }
+    false
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_skill_can_use_weapon_v2(skill_index: u32, weapon_type: u32) -> bool {
+    let table = get_table();
+    if let Some(skill) = table.skills.get(&skill_index) {
+        if skill.need_weapon == 0 {
+            return true;
+        }
+        return (skill.need_weapon & (1 << weapon_type)) != 0;
     }
     false
 }
