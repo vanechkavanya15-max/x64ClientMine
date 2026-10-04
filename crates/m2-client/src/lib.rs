@@ -79,6 +79,7 @@ pub mod recv_movement;
 pub mod recv_points;
 pub mod recv_safebox;
 pub mod safebox_inventory;
+pub mod game_safebox_storage_manager;
 pub mod send_combat;
 pub mod send_items;
 pub mod shop_npc;
