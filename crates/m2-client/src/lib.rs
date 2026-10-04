@@ -569,3 +569,4 @@ pub mod game_notice_banner_announcement;
 pub mod wgpu_water_distortion_pipeline;
 pub mod tcp_stream_reassembler;
 pub mod engine_mse_particle_emitter_wire;
+pub mod engine_combo_input_controller;
