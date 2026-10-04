@@ -4,14 +4,7 @@ use std::ffi::{CStr, c_char};
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 use crate::ui_quest_dialog::get_ui_quest_dialog;
 
-#[no_mangle]
-pub extern "C" fn m2_py_quest_clear() {
-    safe_ffi_call((), || {
-        if let Ok(mut state) = get_ui_quest_dialog().lock() {
-            state.clear();
-        }
-    });
-}
+// m2_py_quest_clear jest zaimplementowane w py_bridge_quest_runtime_complete.rs
 
 #[no_mangle]
 pub extern "C" fn m2_py_quest_set_skin(skin_type: u8) {
@@ -79,15 +72,5 @@ pub extern "C" fn m2_py_quest_set_counter_value(val: u32) {
     });
 }
 
-#[no_mangle]
-pub extern "C" fn m2_py_quest_get_quest_count() -> u32 {
-    0
-}
-
-static QUEST_NAME: &[u8] = b"Quest\0";
-
-#[no_mangle]
-pub extern "C" fn m2_py_quest_get_quest_name(_idx: u32) -> *const c_char {
-    QUEST_NAME.as_ptr() as *const c_char
-}
+pub use crate::py_bridge_quest_runtime_complete::{m2_py_quest_clear, m2_py_quest_get_quest_count};
 
