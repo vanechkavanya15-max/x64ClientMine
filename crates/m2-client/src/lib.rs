@@ -227,6 +227,7 @@ pub mod speedtree_billboard_lod_v2;
 pub mod speedtree_forest_mgr_v2;
 pub mod speedtree_forest_renderer;
 pub mod speedtree_wind_sway_v2;
+pub mod wgpu_speedtree_wind_pipeline;
 pub mod terrain_attr_collision_v2;
 pub mod terrain_bicubic_height_v2;
 pub mod terrain_bump_normal_v2;
