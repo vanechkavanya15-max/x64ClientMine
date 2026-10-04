@@ -44,8 +44,8 @@
 | Podsystem Pakietow | Opkody Hex | Status | Zgodnosc Rozmiaru | Dispatcher v2 | Opis i Wymagania |
 |---|---|---|---|---|---|
 | **Handshake & Auth** | `0x0001` - `0x01FF` | 🟢 [VERIFIED 100%] | 100% | PASS | Login2/3/Secure, Empire, AuthSuccess, Pong. |
-| **Character Lifecycle** | `0x0201` - `0x0215` | 🟢 [VERIFIED 100%] | 100% | PASS | CharAdd, CharUpdate, MainCharacter, Delete, Stats. |
-| **Ruch i Pozycja** | `0x0301` - `0x0308` | 🟡 [PARTIAL 85%] | 90% | PASS | `TPacketGCMove` (interpolacja czasu trwania, rotacja). |
+| **Character Lifecycle** | `0x0201` - `0x0219` | 🟢 [VERIFIED 100%] | 100% | PASS | CharAdd, CharUpdate, MainCharacter, Delete, Stun, Dead, Speed, WalkMode. |
+| **Ruch i Pozycja** | `0x0301` - `0x0308` | 🟢 [VERIFIED 100%] | 100% | PASS | `TPacketGCMove` (MovementManager + rotacja), `TPacketGCSyncPosition`, Warp. |
 | **Walka i Skille** | `0x0401` - `0x0415` | 🟡 [PARTIAL 85%] | 90% | PASS | Attack, Skill, DamageInfo, FlyTargeting, PvP, Duel. |
 | **Przedmioty i Sloty** | `0x0501` - `0x051F` | 🟢 [VERIFIED 100%] | 100% | PASS | ItemSet, ItemDel, ItemUse, Drop, Quicksloty, Refine. |
 | **Czat i Komunikacja** | `0x0601` - `0x0604` | 🟢 [VERIFIED 100%] | 100% | PASS | Chat, Whisper, logowanie wiadomosci. |
