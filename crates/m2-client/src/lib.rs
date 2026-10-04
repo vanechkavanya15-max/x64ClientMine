@@ -347,6 +347,7 @@ pub mod map_setting_loader;
 pub mod wgpu_terrain_renderer;
 pub mod wgpu_terrain_mesh_builder;
 pub mod wgpu_skybox_lighting;
+pub mod wgpu_skybox_atmosphere_renderer;
 pub mod ui_window_inventory;
 pub mod ui_window_minimap;
 pub mod ui_window_quickslot;
