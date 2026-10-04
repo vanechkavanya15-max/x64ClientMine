@@ -550,3 +550,4 @@ pub mod game_pair_emotion_controller;
 pub mod ui_window_character_select_screen;
 pub mod wgpu_water_caustics_animator;
 pub mod motion_script_msa_parser;
+pub mod game_combat_knockback_physics_engine;
