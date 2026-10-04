@@ -662,3 +662,4 @@ pub mod belt_inventory_potion_gate;
 pub mod wgpu_shadow_depth_pipeline;
 pub mod effect_mse_graph_evaluator;
 pub mod granny_bone_attachment_hierarchy;
+pub mod pet_companion_growth_engine;
