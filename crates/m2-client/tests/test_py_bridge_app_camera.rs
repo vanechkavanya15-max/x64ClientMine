@@ -1,12 +1,23 @@
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::sync::Mutex;
+use lazy_static::lazy_static;
 
 use m2_client::py_bridge_app_camera::*;
 use m2_client::py_bridge_app::{app_lock, CAMERA_MAX_DISTANCE};
 
+lazy_static! {
+    static ref TEST_MUTEX: Mutex<()> = Mutex::new(());
+}
+
 #[test]
 fn test_camera_pitch_speed() {
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = 1.5;
+    cam.base_pitch_speed = 1.5;
+    cam.base_zoom_speed = 0.05;
+    drop(cam);
     // Reset state
     {
         let mut cam = app_camera_lock();
@@ -36,6 +47,12 @@ fn test_camera_pitch_speed() {
 
 #[test]
 fn test_camera_rotation_speed() {
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = 1.5;
+    cam.base_pitch_speed = 1.5;
+    cam.base_zoom_speed = 0.05;
+    drop(cam);
     // Reset state
     {
         let mut cam = app_camera_lock();
@@ -50,7 +67,7 @@ fn test_camera_rotation_speed() {
     
     {
         let cam = app_camera_lock();
-        assert_eq!(cam.rotation_speed, 3.0); // 1.5 * 2
+        assert_eq!(cam.rotation_speed, 3.0);
     }
     
     m2_py_app_camera_update();
@@ -61,6 +78,12 @@ fn test_camera_rotation_speed() {
 
 #[test]
 fn test_camera_zoom_speed_limits() {
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = 1.5;
+    cam.base_pitch_speed = 1.5;
+    cam.base_zoom_speed = 0.05;
+    drop(cam);
     // Reset state
     {
         let mut cam = app_camera_lock();
@@ -101,6 +124,12 @@ fn test_camera_zoom_speed_limits() {
 
 #[test]
 fn test_camera_save_load_setting() {
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = 1.5;
+    cam.base_pitch_speed = 1.5;
+    cam.base_zoom_speed = 0.05;
+    drop(cam);
     let test_file = "test_camera_setting.txt";
     
     // Setup initial state
@@ -167,6 +196,12 @@ fn test_camera_save_load_setting() {
 
 #[test]
 fn test_camera_is_locked() {
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = 1.5;
+    cam.base_pitch_speed = 1.5;
+    cam.base_zoom_speed = 0.05;
+    drop(cam);
     {
         let mut cam = app_camera_lock();
         cam.is_locked = true;
@@ -183,5 +218,92 @@ fn test_camera_is_locked() {
     {
         let mut cam = app_camera_lock();
         cam.is_locked = false;
+    }
+}
+
+#[test]
+fn test_camera_dynamic_speeds() {
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = 1.5;
+    cam.base_pitch_speed = 1.5;
+    cam.base_zoom_speed = 0.05;
+    drop(cam);
+    
+    m2_py_app_set_camera_rotate_speed(5.0);
+    m2_py_app_set_camera_pitch_speed(2.0);
+    m2_py_app_set_camera_zoom_speed(0.1);
+    
+    {
+        let cam = app_camera_lock();
+        assert_eq!(cam.base_rotate_speed, 5.0);
+        assert_eq!(cam.base_pitch_speed, 2.0);
+        assert_eq!(cam.base_zoom_speed, 0.1);
+    }
+}
+
+#[test]
+fn test_camera_set_get_setting() {
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = 1.5;
+    cam.base_pitch_speed = 1.5;
+    cam.base_zoom_speed = 0.05;
+    drop(cam);
+    
+    let mut setting = CameraSetting::default();
+    setting.zoom = 1234.0;
+    setting.pitch = 42.0;
+    setting.rotation = 99.0;
+    setting.center_position.z = 500.0;
+    
+    m2_py_app_set_camera_setting(&setting as *const _);
+    
+    {
+        let app = app_lock().unwrap();
+        assert_eq!(app.camera.distance, 1234.0);
+        assert_eq!(app.camera.pitch, 42.0);
+        assert_eq!(app.camera.rotation, 99.0);
+    }
+    
+    let mut out_setting = CameraSetting::default();
+    m2_py_app_get_camera_setting(&mut out_setting as *mut _);
+    
+    assert_eq!(out_setting.zoom, 1234.0);
+    assert_eq!(out_setting.pitch, 42.0);
+    assert_eq!(out_setting.rotation, 99.0);
+}
+
+#[test]
+fn test_camera_set_default() {
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = 1.5;
+    cam.base_pitch_speed = 1.5;
+    cam.base_zoom_speed = 0.05;
+    drop(cam);
+    
+    // Scramble camera
+    {
+        let mut app = app_lock().unwrap();
+        app.camera.distance = 9999.0;
+        app.camera.pitch = 80.0;
+        app.camera.rotation = 180.0;
+        app.camera.is_special_mode = true;
+    }
+    
+    m2_py_app_set_default_camera();
+    
+    {
+        let cam = app_camera_lock();
+        assert_eq!(cam.is_special_camera_mode, false);
+    }
+    
+    {
+        let app = app_lock().unwrap();
+        // Uses default camera settings
+        assert_eq!(app.camera.distance, 1000.0);
+        assert_eq!(app.camera.pitch, 30.0);
+        assert_eq!(app.camera.rotation, 0.0);
     }
 }

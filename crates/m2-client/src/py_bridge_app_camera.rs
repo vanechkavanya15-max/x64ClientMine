@@ -67,6 +67,9 @@ impl Default for CameraSetting {
 #[derive(Debug)]
 pub struct AppCameraState {
     pub rotation_speed: f32,
+    pub base_rotate_speed: f32,
+    pub base_pitch_speed: f32,
+    pub base_zoom_speed: f32,
     pub pitch_speed: f32,
     pub zoom_speed: f32,
 
@@ -85,6 +88,9 @@ impl Default for AppCameraState {
     fn default() -> Self {
         Self {
             rotation_speed: 0.0,
+            base_rotate_speed: 1.5,
+            base_pitch_speed: 1.5,
+            base_zoom_speed: 0.05,
             pitch_speed: 0.0,
             zoom_speed: 0.0,
             center_position: Vector3::default(),
@@ -113,7 +119,7 @@ pub extern "C" fn m2_py_app_pitch_camera(direction: i32) {
         return;
     }
     
-    let degree = CAMERA_PITCH_SPEED * (direction as f32);
+    let degree = cam.base_pitch_speed * (direction as f32);
     cam.pitch_speed = degree;
 }
 
@@ -124,7 +130,7 @@ pub extern "C" fn m2_py_app_rotate_camera(direction: i32) {
         return;
     }
     
-    let degree = CAMERA_ROTATE_SPEED * (direction as f32);
+    let degree = cam.base_rotate_speed * (direction as f32);
     cam.rotation_speed = degree;
 }
 
@@ -135,7 +141,7 @@ pub extern "C" fn m2_py_app_zoom_camera(direction: i32) {
         return;
     }
     
-    let ratio = 1.0 + CAMERA_ZOOM_SPEED * (direction as f32);
+    let ratio = 1.0 + cam.base_zoom_speed * (direction as f32);
     cam.zoom_speed = ratio;
 }
 
@@ -380,5 +386,109 @@ pub extern "C" fn m2_py_app_camera_update() {
         if cam.cmr_spd.up_dir != 0.0 {
             cam.cmr_pos.up_dir += cam.cmr_spd.up_dir;
         }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_app_set_camera_rotate_speed(speed: f32) {
+    let mut cam = app_camera_lock();
+    cam.base_rotate_speed = speed;
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_app_set_camera_pitch_speed(speed: f32) {
+    let mut cam = app_camera_lock();
+    cam.base_pitch_speed = speed;
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_app_set_camera_zoom_speed(speed: f32) {
+    let mut cam = app_camera_lock();
+    cam.base_zoom_speed = speed;
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_app_set_default_camera() {
+    let mut cam = app_camera_lock();
+    cam.is_special_camera_mode = false;
+    
+    // Copy default to current
+    let default_setting = cam.default_camera_setting.clone();
+    cam.event_camera_setting = default_setting.clone();
+    
+    // Set actual camera via core
+    if let Ok(mut app) = app_lock() {
+        app.set_camera(
+            default_setting.zoom,
+            default_setting.pitch,
+            default_setting.rotation,
+            default_setting.center_position.z
+        );
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_app_set_camera_setting(setting: *const CameraSetting) {
+    if setting.is_null() {
+        return;
+    }
+    let setting_ref = unsafe { &*setting };
+    
+    let mut cam = app_camera_lock();
+    cam.event_camera_setting = setting_ref.clone();
+    
+    // Reset camera movement speeds
+    cam.cmr_pos.up_dir = 0.0;
+    cam.cmr_pos.view_dir = 0.0;
+    cam.cmr_pos.cross_dir = 0.0;
+    cam.cmr_spd.up_dir = 0.0;
+    cam.cmr_spd.view_dir = 0.0;
+    cam.cmr_spd.cross_dir = 0.0;
+    cam.zoom_speed = 0.0;
+    cam.pitch_speed = 0.0;
+    cam.rotation_speed = 0.0;
+    
+    if let Ok(mut app) = app_lock() {
+        app.set_camera(
+            setting_ref.zoom,
+            setting_ref.pitch,
+            setting_ref.rotation,
+            setting_ref.center_position.z
+        );
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_app_get_camera_setting(out_setting: *mut CameraSetting) {
+    if out_setting.is_null() {
+        return;
+    }
+    
+    let cam = app_camera_lock();
+    
+    // Retrieve current core camera settings
+    let mut zoom = 1000.0;
+    let mut pitch = 30.0;
+    let mut rotation = 0.0;
+    let mut target_height = 0.0;
+    
+    if let Ok(app) = app_lock() {
+        zoom = app.camera.distance;
+        pitch = app.camera.pitch;
+        rotation = app.camera.rotation;
+        target_height = app.camera.target_height;
+    }
+    
+    let mut current_setting = CameraSetting {
+        center_position: cam.center_position.clone(),
+        zoom,
+        pitch,
+        rotation,
+        cmr_pos: cam.cmr_pos.clone(),
+    };
+    current_setting.center_position.z += target_height;
+    
+    unsafe {
+        *out_setting = current_setting;
     }
 }
