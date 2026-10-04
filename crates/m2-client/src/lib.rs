@@ -524,3 +524,4 @@ pub mod net_safebox_packets;
 pub mod net_party_packets;
 pub mod net_alch_refine_packets;
 pub mod actor_combo_window_timing;
+pub mod actor_root_motion_calc;
