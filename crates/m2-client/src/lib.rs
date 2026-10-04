@@ -291,6 +291,7 @@ pub mod main_binary_entry;
 pub mod py_bootstrapper;
 pub mod py_bridge_app;
 pub mod py_bridge_chat;
+pub mod py_bridge_chat_filter_sets;
 pub mod py_bridge_chr;
 pub mod py_bridge_exchange;
 pub mod py_bridge_guild;
