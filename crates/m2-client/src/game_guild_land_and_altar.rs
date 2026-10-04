@@ -19,35 +19,63 @@ pub struct GuildBuilding {
     pub guild_id: u32,
 }
 
+#[derive(Debug, Clone)]
+pub struct GuildLand {
+    pub guild_id: u32,
+    pub buildings: Vec<GuildBuilding>,
+}
+
+impl GuildLand {
+    pub fn new(guild_id: u32) -> Self {
+        Self {
+            guild_id,
+            buildings: Vec::new(),
+        }
+    }
+}
+
 pub struct GuildLandManager {
-    buildings: HashMap<u32, Vec<GuildBuilding>>, // guild_id -> buildings
+    lands: HashMap<u32, GuildLand>, // guild_id -> GuildLand
 }
 
 impl GuildLandManager {
     pub fn new() -> Self {
         Self {
-            buildings: HashMap::new(),
+            lands: HashMap::new(),
         }
     }
 
     pub fn register_building(&mut self, guild_id: u32, building: GuildBuilding) {
-        let list = self.buildings.entry(guild_id).or_insert_with(Vec::new);
-        list.push(building);
+        let land = self.lands.entry(guild_id).or_insert_with(|| GuildLand::new(guild_id));
+        land.buildings.push(building);
     }
 
     pub fn get_buildings(&self, guild_id: u32) -> Option<&Vec<GuildBuilding>> {
-        self.buildings.get(&guild_id)
+        self.lands.get(&guild_id).map(|land| &land.buildings)
     }
     
     pub fn clear_buildings(&mut self, guild_id: u32) {
-        self.buildings.remove(&guild_id);
+        if let Some(land) = self.lands.get_mut(&guild_id) {
+            land.buildings.clear();
+        }
     }
 
     pub fn get_blacksmith_refine_bonus(&self, guild_id: u32, building_type: GuildBuildingType) -> u8 {
-        if let Some(buildings) = self.buildings.get(&guild_id) {
-            for b in buildings {
+        if let Some(land) = self.lands.get(&guild_id) {
+            for b in &land.buildings {
                 if b.building_type == building_type {
                     return 10;
+                }
+            }
+        }
+        0
+    }
+
+    pub fn get_altar_member_bonus(&self, guild_id: u32) -> u32 {
+        if let Some(land) = self.lands.get(&guild_id) {
+            for b in &land.buildings {
+                if b.building_type == GuildBuildingType::Altar {
+                    return 10; // Altar gives +10 max guild members
                 }
             }
         }
@@ -101,4 +129,12 @@ pub extern "C" fn m2_guild_land_get_refine_bonus(
     
     let mgr = GUILD_LAND_MANAGER.lock().unwrap();
     mgr.get_blacksmith_refine_bonus(guild_id, b_type)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_guild_land_get_altar_bonus(
+    guild_id: u32,
+) -> u32 {
+    let mgr = GUILD_LAND_MANAGER.lock().unwrap();
+    mgr.get_altar_member_bonus(guild_id)
 }

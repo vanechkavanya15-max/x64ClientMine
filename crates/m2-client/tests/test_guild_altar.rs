@@ -55,5 +55,19 @@ fn test_clear_buildings() {
     });
     
     mgr.clear_buildings(4);
-    assert!(mgr.get_buildings(4).is_none());
+    assert!(mgr.get_buildings(4).unwrap().is_empty());
+}
+
+#[test]
+fn test_get_altar_member_bonus() {
+    let mut mgr = GuildLandManager::new();
+    mgr.register_building(5, GuildBuilding {
+        building_type: GuildBuildingType::Altar,
+        x: 100,
+        y: 200,
+        guild_id: 5,
+    });
+    
+    assert_eq!(mgr.get_altar_member_bonus(5), 10);
+    assert_eq!(mgr.get_altar_member_bonus(6), 0);
 }
