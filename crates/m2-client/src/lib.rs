@@ -616,3 +616,4 @@ pub mod client_master_game_phase_orchestrator;
 pub mod ui_wndmgr_widget_gauge_bar;
 pub mod py_bridge_shop_tabs_multi;
 pub mod py_bridge_item_icon_resolver;
+pub mod py_bridge_app_browser_complete;
