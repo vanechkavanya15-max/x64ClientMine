@@ -608,3 +608,4 @@ pub mod ui_wndmgr_hierarchy;
 pub mod ui_wndmgr_widget_edit_line;
 
 pub mod ui_wndmgr_widget_slot_window;
+pub mod game_item_bonus_attribute_changer;
