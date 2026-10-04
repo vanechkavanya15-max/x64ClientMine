@@ -1,67 +1,71 @@
 use glam::Vec3;
 
+/// Trait defining the contract for splash area geometries used in game skills.
 pub trait SplashGeometry {
+    /// Checks if a single 3D point is within the splash geometry.
     fn is_point_inside(&self, point: Vec3) -> bool;
+    /// Checks if a bounding sphere intersects or is within the splash geometry.
     fn is_sphere_inside(&self, center: Vec3, radius: f32) -> bool;
 }
 
+/// Represents a cone-shaped attack area (e.g., Sword Spin / Wir Miecza).
 #[derive(Debug, Clone)]
 pub struct ConeSplash {
     pub origin: Vec3,
-    pub direction: Vec3, // Should be normalized
+    pub direction: Vec3, // Must be a normalized vector
     pub radius: f32,
-    pub cone_angle_cos: f32, // Cosine of half the cone angle
+    pub cone_angle_cos: f32, // The cosine of half the cone's opening angle
 }
 
 impl SplashGeometry for ConeSplash {
     fn is_point_inside(&self, point: Vec3) -> bool {
-        let diff = point - self.origin;
-        let distance_sq = diff.length_squared();
+        let offset = point - self.origin;
+        let dist_sq = offset.length_squared();
 
-        if distance_sq > self.radius * self.radius {
+        // Check distance boundary
+        if dist_sq > self.radius * self.radius {
             return false;
         }
 
-        if distance_sq == 0.0 {
+        // Exact origin match
+        if dist_sq <= f32::EPSILON {
             return true;
         }
 
-        let distance = distance_sq.sqrt();
-        let dir_to_target = diff / distance;
-        let dot_product = self.direction.dot(dir_to_target);
+        let dist = dist_sq.sqrt();
+        let target_dir = offset / dist;
+        let dot_val = self.direction.dot(target_dir);
 
-        dot_product >= self.cone_angle_cos
+        // Check angle boundary
+        dot_val >= self.cone_angle_cos
     }
 
     fn is_sphere_inside(&self, center: Vec3, radius: f32) -> bool {
-        // Approximate by treating the sphere as a point pushed slightly towards the origin
-        let diff = center - self.origin;
-        let distance_sq = diff.length_squared();
+        let offset = center - self.origin;
+        let dist_sq = offset.length_squared();
         
-        let effective_radius = self.radius + radius;
-        if distance_sq > effective_radius * effective_radius {
+        let expanded_radius = self.radius + radius;
+        if dist_sq > expanded_radius * expanded_radius {
             return false;
         }
 
-        let distance = distance_sq.sqrt();
-
-        if distance <= radius {
+        let dist = dist_sq.sqrt();
+        if dist <= radius {
             return true;
         }
 
-        // For angle check, we check the center. A perfect check would involve finding the cone-sphere intersection.
-        let dir_to_target = diff / distance;
-        let dot_product = self.direction.dot(dir_to_target);
+        let target_dir = offset / dist;
+        let dot_val = self.direction.dot(target_dir);
 
-        // Relax the cone angle slightly to account for the sphere's radius.
-        // theta_sphere = asin(radius / distance)
-        let relax_angle = (radius / distance).asin();
-        let cone_angle = self.cone_angle_cos.acos();
+        // Approximate relaxation of angle for the sphere size
+        let relax_ang = (radius / dist).asin();
+        let cone_ang = self.cone_angle_cos.acos();
         
-        dot_product.acos() <= cone_angle + relax_angle
+        dot_val.acos() <= cone_ang + relax_ang
     }
 }
 
+/// Represents a cylindrical area around the caster (e.g., Ghost Strike / Duch Duchow).
 #[derive(Debug, Clone)]
 pub struct CylinderSplash {
     pub center: Vec3,
@@ -72,75 +76,77 @@ pub struct CylinderSplash {
 
 impl SplashGeometry for CylinderSplash {
     fn is_point_inside(&self, point: Vec3) -> bool {
-        let dz = point.z - self.center.z;
-        if dz < self.height_min || dz > self.height_max {
+        let delta_z = point.z - self.center.z;
+        if delta_z < self.height_min || delta_z > self.height_max {
             return false;
         }
 
-        let dx = point.x - self.center.x;
-        let dy = point.y - self.center.y;
-        (dx * dx + dy * dy) <= self.radius * self.radius
+        let delta_x = point.x - self.center.x;
+        let delta_y = point.y - self.center.y;
+        (delta_x.powi(2) + delta_y.powi(2)) <= self.radius.powi(2)
     }
 
     fn is_sphere_inside(&self, center: Vec3, radius: f32) -> bool {
-        let dz = center.z - self.center.z;
-        if dz + radius < self.height_min || dz - radius > self.height_max {
+        let delta_z = center.z - self.center.z;
+        if (delta_z + radius) < self.height_min || (delta_z - radius) > self.height_max {
             return false;
         }
 
-        let dx = center.x - self.center.x;
-        let dy = center.y - self.center.y;
-        let effective_radius = self.radius + radius;
+        let delta_x = center.x - self.center.x;
+        let delta_y = center.y - self.center.y;
+        let expanded_radius = self.radius + radius;
         
-        (dx * dx + dy * dy) <= effective_radius * effective_radius
+        (delta_x.powi(2) + delta_y.powi(2)) <= expanded_radius.powi(2)
     }
 }
 
+/// Represents a rectangular box/line attack area (e.g., Charge / Szarza).
 #[derive(Debug, Clone)]
 pub struct BoxSplash {
-    pub origin: Vec3, // Base center
-    pub right: Vec3,  // Local X axis (normalized)
-    pub forward: Vec3,// Local Y axis (normalized)
-    pub up: Vec3,     // Local Z axis (normalized)
-    pub extents: Vec3, // Half sizes: X=width/2, Y=length/2, Z=height/2
+    pub origin: Vec3, // Center point of the base
+    pub right: Vec3,  // Normalized X-axis vector
+    pub forward: Vec3,// Normalized Y-axis vector
+    pub up: Vec3,     // Normalized Z-axis vector
+    pub extents: Vec3, // Half extents: width/2, length/2, height/2
 }
 
 impl SplashGeometry for BoxSplash {
     fn is_point_inside(&self, point: Vec3) -> bool {
-        let diff = point - self.origin;
+        let offset = point - self.origin;
         
-        let x = diff.dot(self.right);
-        if x < -self.extents.x || x > self.extents.x { return false; }
+        let proj_x = offset.dot(self.right);
+        if proj_x < -self.extents.x || proj_x > self.extents.x { return false; }
         
-        let y = diff.dot(self.forward);
-        if y < -self.extents.y || y > self.extents.y { return false; }
+        let proj_y = offset.dot(self.forward);
+        if proj_y < -self.extents.y || proj_y > self.extents.y { return false; }
         
-        let z = diff.dot(self.up);
-        if z < 0.0 || z > self.extents.z * 2.0 { return false; }
+        let proj_z = offset.dot(self.up);
+        if proj_z < 0.0 || proj_z > self.extents.z * 2.0 { return false; }
         
         true
     }
 
     fn is_sphere_inside(&self, center: Vec3, radius: f32) -> bool {
-        let diff = center - self.origin;
+        let offset = center - self.origin;
         
-        let x = diff.dot(self.right);
-        let y = diff.dot(self.forward);
-        let z = diff.dot(self.up);
+        let proj_x = offset.dot(self.right);
+        let proj_y = offset.dot(self.forward);
+        let proj_z = offset.dot(self.up);
         
-        // Find closest point on OBB to sphere center
-        let closest_x = x.clamp(-self.extents.x, self.extents.x);
-        let closest_y = y.clamp(-self.extents.y, self.extents.y);
-        let closest_z = z.clamp(0.0, self.extents.z * 2.0);
+        // Clamp to find the closest point inside the OBB
+        let closest_x = proj_x.clamp(-self.extents.x, self.extents.x);
+        let closest_y = proj_y.clamp(-self.extents.y, self.extents.y);
+        let closest_z = proj_z.clamp(0.0, self.extents.z * 2.0);
         
-        let dx = x - closest_x;
-        let dy = y - closest_y;
-        let dz = z - closest_z;
+        let delta_x = proj_x - closest_x;
+        let delta_y = proj_y - closest_y;
+        let delta_z = proj_z - closest_z;
         
-        (dx*dx + dy*dy + dz*dz) <= radius * radius
+        (delta_x.powi(2) + delta_y.powi(2) + delta_z.powi(2)) <= radius.powi(2)
     }
 }
 
+/// Represents a simple spherical splash area (fallback/general usage).
 #[derive(Debug, Clone)]
 pub struct SphereSplash {
     pub center: Vec3,
@@ -149,13 +155,13 @@ pub struct SphereSplash {
 
 impl SplashGeometry for SphereSplash {
     fn is_point_inside(&self, point: Vec3) -> bool {
-        let diff = point - self.center;
-        diff.length_squared() <= self.radius * self.radius
+        let offset = point - self.center;
+        offset.length_squared() <= self.radius.powi(2)
     }
 
     fn is_sphere_inside(&self, center: Vec3, radius: f32) -> bool {
-        let diff = center - self.center;
-        let r = self.radius + radius;
-        diff.length_squared() <= r * r
+        let offset = center - self.center;
+        let combined_radius = self.radius + radius;
+        offset.length_squared() <= combined_radius.powi(2)
     }
 }
