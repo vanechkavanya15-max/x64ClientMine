@@ -350,6 +350,7 @@ pub mod ui_window_pet;
 pub mod ui_window_target;
 pub mod ui_window_shop;
 pub mod ui_window_exchange;
+pub mod ui_private_shop_overhead_sign;
 
 pub mod audio_engine_playback;
 pub mod actor_target_picking;
