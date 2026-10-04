@@ -89,6 +89,7 @@ pub mod skill_cooldown_tracker;
 pub mod skill_table_core;
 pub mod special_storage;
 pub mod splash_attack;
+pub mod game_skill_splash_area_geometry;
 pub mod stamina_system;
 pub mod target_selection;
 pub mod terrain_attr_map;
