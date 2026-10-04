@@ -7,6 +7,7 @@ fn test_ani_image_box_basic_append_and_clear() {
     
     widget.append_image("frame1.tga");
     widget.append_image("frame2.tga");
+    widget.reset_frame(); // Deterministic frame testing
     
     assert_eq!(widget.images.len(), 2);
     assert_eq!(widget.get_current_image().unwrap(), "frame1.tga");
@@ -17,10 +18,29 @@ fn test_ani_image_box_basic_append_and_clear() {
 }
 
 #[test]
+fn test_ani_image_box_append_randomizes_frame() {
+    // Append multiple times and ensure it hits >0 frames at least sometimes
+    let mut non_zero_hits = 0;
+    for _ in 0..50 {
+        let mut widget = AniImageBoxWidget::new();
+        for i in 0..10 {
+            widget.append_image(&format!("frame{}.tga", i));
+        }
+        if widget.current_frame > 0 {
+            non_zero_hits += 1;
+        }
+    }
+    
+    // It is statistically highly improbable to get 0 non_zero_hits over 50 iterations with 10 images
+    assert!(non_zero_hits > 0, "Appending images should randomize the current frame");
+}
+
+#[test]
 fn test_ani_image_box_delay_and_update_looping() {
     let mut widget = AniImageBoxWidget::new();
     widget.append_image("1.tga");
     widget.append_image("2.tga");
+    widget.reset_frame(); // Deterministic frame testing
     
     widget.set_delay(2);
     widget.set_loop(true);
@@ -55,6 +75,7 @@ fn test_ani_image_box_delay_and_update_non_looping() {
     let mut widget = AniImageBoxWidget::new();
     widget.append_image("1.tga");
     widget.append_image("2.tga");
+    widget.reset_frame(); // Deterministic frame testing
     
     widget.set_delay(1);
     widget.set_loop(false);
@@ -81,6 +102,7 @@ fn test_ani_image_box_pause_resume() {
     let mut widget = AniImageBoxWidget::new();
     widget.append_image("1.tga");
     widget.append_image("2.tga");
+    widget.reset_frame(); // Deterministic frame testing
     
     widget.set_delay(1);
     
@@ -98,6 +120,7 @@ fn test_ani_image_box_reset_frame() {
     let mut widget = AniImageBoxWidget::new();
     widget.append_image("1.tga");
     widget.append_image("2.tga");
+    widget.reset_frame(); // Deterministic frame testing
     
     widget.set_delay(1);
     widget.update();
