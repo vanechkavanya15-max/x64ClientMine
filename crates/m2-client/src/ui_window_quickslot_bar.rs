@@ -37,8 +37,10 @@ impl QuickSlotBarManager {
     pub fn set_page(&mut self, page: i32) {
         if page < 0 {
             self.active_page = ((QUICKSLOT_MAX_LINE as i32 + (page % QUICKSLOT_MAX_LINE as i32)) % QUICKSLOT_MAX_LINE as i32) as u8;
-        } else {
+        } else if page >= QUICKSLOT_MAX_LINE as i32 {
             self.active_page = (page % QUICKSLOT_MAX_LINE as i32) as u8;
+        } else {
+            self.active_page = page as u8;
         }
     }
 
@@ -130,5 +132,11 @@ impl QuickSlotBarManager {
             0x73 /* F4 */ => self.use_slot(7),
             _ => None,
         }
+    }
+}
+
+impl Default for QuickSlotBarManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
