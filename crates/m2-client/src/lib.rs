@@ -5,6 +5,7 @@ pub mod wgpu_shadow_terrain_integrator;
 pub mod ui_wndmgr_geometry;
 pub mod ui_number_line_widget;
 pub mod py_master_runtime_bridge;
+pub mod wgpu_camera_shake_fx;
 
 
 
