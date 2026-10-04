@@ -564,3 +564,4 @@ pub mod game_belt_inventory_manager;
 pub mod wgpu_frustum_culling_map_engine;
 pub mod wgpu_speedtree_billboard_lod;
 pub mod wgpu_actor_status_tint_renderer;
+pub mod game_notice_banner_announcement;
