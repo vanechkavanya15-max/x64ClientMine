@@ -62,3 +62,39 @@ fn test_worker_shutdown() {
     
     // Should safely close.
 }
+
+#[test]
+fn test_moving_player_position() {
+    let mut loader = AreaLoaderThread::new();
+    
+    // Start at (10, 10)
+    loader.request_load(TileCoord { x: 10, y: 10 });
+    
+    // Simulate player moving quickly across the map
+    // (10, 10) -> (11, 10) -> (12, 10) -> (13, 10)
+    loader.request_load(TileCoord { x: 11, y: 10 });
+    loader.request_load(TileCoord { x: 12, y: 10 });
+    loader.request_load(TileCoord { x: 13, y: 10 });
+    
+    let mut completed_tiles = std::collections::HashSet::new();
+    let start_time = std::time::Instant::now();
+    
+    // Wait for the final grid around (13, 10) to finish loading
+    while completed_tiles.len() < 9 && start_time.elapsed() < Duration::from_secs(2) {
+        while let Some(tile) = loader.fetch_completed() {
+            if tile.is_within_3x3_of(&TileCoord { x: 13, y: 10 }) {
+                completed_tiles.insert(tile);
+            }
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    
+    loader.shutdown();
+
+    assert_eq!(completed_tiles.len(), 9, "Expected exactly 9 tiles around (13, 10) to be processed");
+    
+    // Ensure all tiles are indeed within the 3x3 of (13, 10)
+    for tile in completed_tiles {
+        assert!(tile.is_within_3x3_of(&TileCoord { x: 13, y: 10 }), "Tile {:?} is not within 3x3 of (13, 10)", tile);
+    }
+}

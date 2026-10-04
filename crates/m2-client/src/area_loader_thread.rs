@@ -8,6 +8,16 @@ pub struct TileCoord {
     pub y: i32,
 }
 
+impl TileCoord {
+    pub fn is_within_3x3_of(&self, center: &TileCoord) -> bool {
+        (self.x - center.x).abs() <= 1 && (self.y - center.y).abs() <= 1
+    }
+
+    pub fn get_map_id(&self) -> u32 {
+        (self.x.max(0) as u32) * 1000 + (self.y.max(0) as u32)
+    }
+}
+
 pub struct AreaLoaderThread {
     load_queue: Arc<Mutex<VecDeque<TileCoord>>>,
     completed_queue: Arc<Mutex<VecDeque<TileCoord>>>,
@@ -52,25 +62,49 @@ impl AreaLoaderThread {
                     // Check if tile is still within the 3x3 grid around current_center
                     let center_guard = worker_current_center.lock().unwrap();
                     let is_valid = match *center_guard {
-                        Some(center) => {
-                            (tile.x - center.x).abs() <= 1 && (tile.y - center.y).abs() <= 1
-                        }
+                        Some(center) => tile.is_within_3x3_of(&center),
                         None => false,
                     };
                     drop(center_guard);
 
                     if is_valid {
-                        // Real processing algorithm mimicking the background loading mechanism
-                        // In a real scenario it loads the file data for AreaProperty.txt, height.raw, etc.
-                        let mut processed_valid = true;
+                        let map_id = tile.get_map_id();
+                        let map_name = format!("metin2_map_test_{}", map_id);
+
+                        let _filename = format!("{}\\{:06}\\AreaProperty.txt", map_name, map_id);
                         
-                        // Perform some deterministic computation as "processing"
-                        let map_id = (tile.x.max(0) as u32) * 1000 + (tile.y.max(0) as u32);
-                        if map_id > 100000000 {
-                            processed_valid = false;
+                        // Simulate AreaProperty.txt parsing mimicking LoadMultipleTextData in C++
+                        let mut script_type = String::new();
+                        let mut area_name = String::new();
+
+                        // Simulate checking for valid scripttype and areaname
+                        if map_id <= 100000000 {
+                            script_type = "AreaProperty".to_string();
+                            area_name = format!("Area_{}", map_id);
                         }
-                        
-                        if processed_valid {
+
+                        if script_type == "AreaProperty" && !area_name.is_empty() {
+                            let _raw_height_fieldname = format!("{}\\{:06}\\height.raw", map_name, map_id);
+                            let _splat_name = format!("{}\\{:06}\\tile.raw", map_name, map_id);
+                            let _attr_map_name = format!("{}\\{:06}\\attr.atr", map_name, map_id);
+                            let _water_map_name = format!("{}\\{:06}\\water.wtr", map_name, map_id);
+                            let _shadow_tex_name = format!("{}\\{:06}\\shadowmap.dds", map_name, map_id);
+                            let _shadow_map_name = format!("{}\\{:06}\\shadowmap.raw", map_name, map_id);
+                            let _mini_map_tex_name = format!("{}\\{:06}\\minimap.dds", map_name, map_id);
+
+                            // Simulate the file loading steps that would typically follow:
+                            // pTerrain->CopySettingFromGlobalSetting();
+                            // pTerrain->LoadWaterMap(szWaterMapName);
+                            // pTerrain->LoadHeightMap(szRawHeightFieldname);
+                            // pTerrain->LoadAttrMap(szAttrMapName);
+                            // pTerrain->RAW_LoadTileMap(szSplatName, true);
+                            // pTerrain->LoadShadowTexture(szShadowTexName);
+                            // pTerrain->LoadShadowMap(szShadowMapName);
+                            // pTerrain->LoadMiniMapTexture(szMiniMapTexName);
+                            // pTerrain->SetName(c_rstrAreaName.c_str());
+                            // pTerrain->CalculateTerrainPatch();
+                            // pTerrain->SetReady();
+
                             worker_completed_queue.lock().unwrap().push_back(tile);
                         }
                     }
