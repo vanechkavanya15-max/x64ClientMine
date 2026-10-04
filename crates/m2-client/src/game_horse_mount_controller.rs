@@ -65,13 +65,24 @@ impl GraphicThingInstance {
         self.refreshed = true;
     }
 
-    pub fn attach_model_instance(&mut self, _part: u32, _bone_name: &str, _target: &GraphicThingInstance, _target_part: u32) {
+    pub fn attach_model_instance(
+        &mut self,
+        _part: u32,
+        _bone_name: &str,
+        _target: &GraphicThingInstance,
+        _target_part: u32,
+    ) {
         // C++: AttachModelInstance(CRaceData::PART_MAIN, "saddle", m_GraphicThingInstance, CRaceData::PART_MAIN);
-        // This is a placeholder since the full WGPU Granny actor renderer logic 
+        // This is a placeholder since the full WGPU Granny actor renderer logic
         // for attaching parts is handled elsewhere (wgpu_actor_attachment_wiring)
     }
 
-    pub fn detach_model_instance(&mut self, _part: u32, _target: &GraphicThingInstance, _target_part: u32) {
+    pub fn detach_model_instance(
+        &mut self,
+        _part: u32,
+        _target: &GraphicThingInstance,
+        _target_part: u32,
+    ) {
         // C++: DetachModelInstance(CRaceData::PART_MAIN, m_GraphicThingInstance, CRaceData::PART_MAIN);
     }
 }
@@ -94,7 +105,7 @@ impl HorseActorInstance {
             attack_speed: 1.0,
         }
     }
-    
+
     pub fn get_race(&self) -> u32 {
         self.race
     }
@@ -107,11 +118,22 @@ impl HorseActorInstance {
         self.attack_speed = speed;
     }
 
-    pub fn attach_model_instance(&mut self, _part: u32, _bone_name: &str, _target: &GraphicThingInstance, _target_part: u32) {
+    pub fn attach_model_instance(
+        &mut self,
+        _part: u32,
+        _bone_name: &str,
+        _target: &GraphicThingInstance,
+        _target_part: u32,
+    ) {
         // C++: AttachModelInstance(CRaceData::PART_MAIN, "saddle", m_GraphicThingInstance, CRaceData::PART_MAIN);
     }
 
-    pub fn detach_model_instance(&mut self, _part: u32, _target: &GraphicThingInstance, _target_part: u32) {
+    pub fn detach_model_instance(
+        &mut self,
+        _part: u32,
+        _target: &GraphicThingInstance,
+        _target_part: u32,
+    ) {
         // C++: DetachModelInstance(CRaceData::PART_MAIN, m_GraphicThingInstance, CRaceData::PART_MAIN);
     }
 }
@@ -214,7 +236,9 @@ impl SHorse {
             return;
         }
         if let Some(actor) = &self.actor {
-            actor.borrow_mut().set_move_speed((move_speed as f32) / 100.0);
+            actor
+                .borrow_mut()
+                .set_move_speed((move_speed as f32) / 100.0);
         }
     }
 
@@ -223,7 +247,9 @@ impl SHorse {
             return;
         }
         if let Some(actor) = &self.actor {
-            actor.borrow_mut().set_attack_speed((attack_speed as f32) / 100.0);
+            actor
+                .borrow_mut()
+                .set_attack_speed((attack_speed as f32) / 100.0);
         }
     }
 }
@@ -250,7 +276,7 @@ impl InstanceBase {
             motion_mode: MotionMode::General,
             rotation_speed: 1.0,
             default_horse_rotation_speed: 1.5,
-            ms_adw_crc_affect_effect: [hit_effect_crc], 
+            ms_adw_crc_affect_effect: [hit_effect_crc],
             base_move_speed: 1.0,
             base_attack_speed: 1.0,
         }
@@ -275,10 +301,11 @@ impl InstanceBase {
         self.motion_mode = MotionMode::Horse;
         self.rotation_speed = self.default_horse_rotation_speed;
 
-        self.graphic_thing_instance.mount_horse(self.horse.get_actor_ptr());
+        self.graphic_thing_instance
+            .mount_horse(self.horse.get_actor_ptr());
         self.graphic_thing_instance.stop();
         self.graphic_thing_instance.refresh_actor_instance();
-        
+
         self.attach_horse_saddle();
     }
 
@@ -287,14 +314,16 @@ impl InstanceBase {
         self.horse.destroy();
         self.graphic_thing_instance.mount_horse(None);
     }
-    
+
     pub fn attach_horse_saddle(&mut self) {
         if !self.is_mounting_horse() {
             return;
         }
-        
+
         if let Some(actor) = self.horse.get_actor_ptr() {
-            actor.borrow_mut().attach_model_instance(0, "saddle", &self.graphic_thing_instance, 0);
+            actor
+                .borrow_mut()
+                .attach_model_instance(0, "saddle", &self.graphic_thing_instance, 0);
         }
     }
 
@@ -302,12 +331,14 @@ impl InstanceBase {
         if !self.is_mounting_horse() {
             return;
         }
-        
+
         if let Some(actor) = self.horse.get_actor_ptr() {
-            actor.borrow_mut().detach_model_instance(0, &self.graphic_thing_instance, 0);
+            actor
+                .borrow_mut()
+                .detach_model_instance(0, &self.graphic_thing_instance, 0);
         }
     }
-    
+
     pub fn set_move_speed(&mut self, move_speed: u32) {
         self.base_move_speed = (move_speed as f32) / 100.0;
         self.graphic_thing_instance.set_move_speed(move_speed);
