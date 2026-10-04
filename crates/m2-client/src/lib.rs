@@ -13,6 +13,7 @@ pub use m2_client_bridge as bridge;
 pub mod ui_buff_icons_overlay;
 pub mod full_ui_adv_13;
 
+pub mod actor_knockdown_push_physics;
 pub mod actor_appearance;
 pub mod actor_collision_adjust;
 pub mod actor_effects;

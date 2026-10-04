@@ -7,6 +7,8 @@ pub const MOTION_WALK: u8 = 2;
 pub const MOTION_RUN: u8 = 3;
 pub const MOTION_NORMAL_ATTACK: u8 = 4;
 pub const MOTION_DAMAGE: u8 = 5;
+pub const MOTION_DAMAGE_FLYING: u8 = 6;
+pub const MOTION_DAMAGE_FLYING_BACK: u8 = 9;
 pub const MOTION_DEAD: u8 = 11;
 pub const MOTION_COMBO_ATTACK: u8 = 14;
 pub const MOTION_RESPAWN: u8 = 15;
@@ -36,6 +38,12 @@ impl ActorMotionQueue {
 
         if self.cur_motion_id == MOTION_DAMAGE && self.motion_elapsed_ms < self.motion_duration_ms {
             if motion_id == MOTION_WALK || motion_id == MOTION_RUN || motion_id == MOTION_WAIT {
+                return false;
+            }
+        }
+
+        if (self.cur_motion_id == MOTION_DAMAGE_FLYING || self.cur_motion_id == MOTION_DAMAGE_FLYING_BACK) && self.motion_elapsed_ms < self.motion_duration_ms {
+            if motion_id == MOTION_WALK || motion_id == MOTION_RUN || motion_id == MOTION_WAIT || motion_id == MOTION_NORMAL_ATTACK || motion_id == MOTION_COMBO_ATTACK {
                 return false;
             }
         }
