@@ -114,7 +114,27 @@
 | 14 | `f891ddb2` | jasiu15000 | `9448445187674356597` | Dragon Soul Alchemy and Refine Window State Machine | 🟢 HARVESTED | `229bd8a` (100% PASS, 9 testow) |
 | 15 | `91e6375c` | jasiu15000 | `12138923967289509951` | Fishing and Mining Interactive Timer Engine | 🟢 HARVESTED | `7a19b41` (100% PASS, 4 testy) |
 
-- **Fala 2 (Graphics WGPU, Granny 3D, Particles, Sound & Raycasting)**: W przygotowaniu do natychmiastowego startu.
+- **Fala 2 (Graphics WGPU, Granny 3D, Particles, Sound & Raycasting)**: 15 zadan wyslanych do Google Jules Cloud (Wszystkie 15/15 aktywne i przetwarzane).
 
-- **Fala 2 (Game Systems & Combat State Machines)**: W przygotowaniu po zakonczeniu Fali 1.
-- **Fala 3 (Graphics & Visual Polish)**: W przygotowaniu po zakonczeniu Fali 2.
+### Szczegolowy Wykaz Sesji Fali 2 w Chmurze Google Jules:
+
+| # | Task ID | Konto | Jules Session ID | Tytul Zadania | Status | Obszar Architektury |
+|---|---|---|---|---|---|---|
+| 1 | `4dc6d831` | jasiu15000 | `14625844969055137324` | Cascaded Shadow Map Depth Pass and Shader Pipeline | 🔄 IN_PROGRESS | WGPU Shadow Mapping |
+| 2 | `4ab98663` | jasiu15000 | `13898411105077866219` | Multi-Texturing Array Terrain Splatting Engine | 🔄 IN_PROGRESS | WGPU Terrain Splatting |
+| 3 | `00e3bef0` | jasiu15000 | `18217670291991059970` | Water Plane Distortion and Normal Ripple Engine | 🔄 IN_PROGRESS | WGPU Water Simulation |
+| 4 | `48893d23` | jasiu15000 | `5263081582101891458` | Particle System MSE Script Graph Evaluator | 🔄 IN_PROGRESS | EffectLib Particles (.mse) |
+| 5 | `dc653434` | jasiu15000 | `5055670906451445372` | Granny 3D Skeleton Bone Attachment Hierarchy | 🔄 IN_PROGRESS | EterGrnLib Model Attach |
+| 6 | `8e631477` | jasiu15000 | `2106458635130676922` | SpeedTree Forest Billboard LOD and Wind Oscillator | 🔄 IN_PROGRESS | SpeedTree Forest & Wind |
+| 7 | `9bd461e1` | jasiu15000 | `12441683529419929158` | World Raycast Cursor Picking for Actors and Ground Items | 🔄 IN_PROGRESS | Raycast Picking & Collision |
+| 8 | `d5386b13` | jasiu15000 | `6924400558646866365` | Target Board Comprehensive Info and Health Percent View | 🔄 IN_PROGRESS | Target Board UI & HP % |
+| 9 | `92e0c6e6` | jasiu15000 | `1108687698774893646` | Full Atlas World Map and Minimap Radar Blip Manager | 🔄 IN_PROGRESS | MiniMap Radar & Atlas (M) |
+| 10 | `b4441ca1` | jasiu15000 | `4549453651092059016` | Pet Companion State Machine and Growth Engine | 🔄 IN_PROGRESS | Pet System & Growth |
+| 11 | `94d4f739` | jasiu15000 | `2385290691584097875` | Offline Shop Search and Item Catalog Viewer | 🔄 IN_PROGRESS | Offline Shop Catalog UI |
+| 12 | `5f08026c` | kowalskijanek | `14823923831614668895` | Dungeon Scoreboard and Multi-Floor Countdown Tracker | 🔄 IN_PROGRESS | Dungeon Scoreboard & Timer |
+| 13 | `7bbcc018` | kowalskijanek | `15957233690005993871` | Mounted Horse Combat Skills and Charge Physics Engine | 🔄 IN_PROGRESS | Horse Skills (121-124) |
+| 14 | `5765b74c` | kowalskijanek | `1413585298611126995` | Belt Special Inventory Slot Gate and Potion Quick Access | 🔄 IN_PROGRESS | Belt 16-Slots Gate |
+| 15 | `ac2efb14` | kowalskijanek | `13000549214173225394` | Dragon Soul Double Deck Switch and Stat Bonus Cache | 🔄 IN_PROGRESS | DS Deck 1/2 Stat Cache |
+
+- **Fala 3 (Audio System Rodio, Weather Environment & Polish)**: Planowana po zakonczeniu Fali 2.
+
