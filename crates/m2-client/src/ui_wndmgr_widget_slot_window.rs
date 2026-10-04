@@ -168,7 +168,7 @@ impl SlotWindow {
                 cell_height = cell_height.max(slot.placed_item_height as i32 * item_height);
             }
             
-            if local_x >= slot.x && local_y >= slot.y && local_x <= slot.x + cell_width && local_y <= slot.y + cell_height {
+            if local_x >= slot.x && local_y >= slot.y && local_x < slot.x + cell_width && local_y < slot.y + cell_height {
                 return Some(slot);
             }
         }
@@ -191,6 +191,26 @@ impl SlotWindow {
     
     pub fn is_selected(&self, index: u32) -> bool {
         self.selected_slots.contains(&index)
+    }
+
+    pub fn lock_slot(&mut self, index: u32) {
+        if let Some(slot) = self.get_slot_mut(index) {
+            slot.is_locked = true;
+        }
+    }
+    
+    pub fn unlock_slot(&mut self, index: u32) {
+        if let Some(slot) = self.get_slot_mut(index) {
+            slot.is_locked = false;
+        }
+    }
+    
+    pub fn is_locked(&self, index: u32) -> bool {
+        if let Some(slot) = self.get_slot(index) {
+            slot.is_locked
+        } else {
+            false
+        }
     }
 
     pub fn get_highlight_rect(&self, index: u32) -> Option<(i32, i32, i32, i32)> {

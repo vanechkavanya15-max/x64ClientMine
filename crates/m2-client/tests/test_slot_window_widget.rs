@@ -115,3 +115,68 @@ fn test_highlight_states_and_selection() {
     assert!(!window.is_selected(1));
     assert_eq!(window.selected_slots.len(), 0);
 }
+
+#[test]
+fn test_slot_locking() {
+    let mut window = SlotWindow::new();
+    window.append_slot(0, 0, 0, 32, 32);
+    
+    assert!(!window.is_locked(0));
+    window.lock_slot(0);
+    assert!(window.is_locked(0));
+    window.unlock_slot(0);
+    assert!(!window.is_locked(0));
+}
+
+#[test]
+fn test_complex_hit_testing() {
+    let mut window = SlotWindow::new();
+    
+    window.append_slot(0, 0, 0, 32, 32);
+    
+    // Set a 2x2 item in slot 0
+    let slot = window.get_slot_mut(0).unwrap();
+    slot.vnum = 123;
+    slot.placed_item_width = 2;
+    slot.placed_item_height = 2;
+    
+    // Test picking within the extended bounds (64x64)
+    let picked1 = window.get_picked_slot(16, 16);
+    assert!(picked1.is_some());
+    assert_eq!(picked1.unwrap().index, 0);
+    
+    let picked2 = window.get_picked_slot(48, 48);
+    assert!(picked2.is_some());
+    assert_eq!(picked2.unwrap().index, 0);
+    
+    // Out of extended bounds
+    let picked3 = window.get_picked_slot(70, 70);
+    assert!(picked3.is_none());
+}
+
+#[test]
+fn test_cooltime_full_coverage() {
+    let mut window = SlotWindow::new();
+    window.append_slot(0, 0, 0, 32, 32);
+    
+    // 0% completion -> Should have 10 vertices (center + top + 8 outer rim)
+    let v_0 = window.calculate_cooltime_vertices(16.0, 16.0, 16.0, 0.0, 0.0, 10.0);
+    assert_eq!(v_0.len(), 10);
+    
+    // 100% completion -> Should have 0 vertices (box is empty/invisible)
+    let v_100 = window.calculate_cooltime_vertices(16.0, 16.0, 16.0, 10.0, 0.0, 10.0);
+    assert_eq!(v_100.len(), 0);
+    
+    // 75% completion -> tri_count = 8 - 8*0.75 = 2. last percentage = 0.
+    // 2 (center + top) + 2 triangles = 4 vertices.
+    let v_75 = window.calculate_cooltime_vertices(16.0, 16.0, 16.0, 7.5, 0.0, 10.0);
+    assert_eq!(v_75.len(), 4);
+    
+    // Test that time exceeding 1.0 also yields 0
+    let v_over = window.calculate_cooltime_vertices(16.0, 16.0, 16.0, 15.0, 0.0, 10.0);
+    assert_eq!(v_over.len(), 0);
+    
+    // Test negative times yield full box
+    let v_under = window.calculate_cooltime_vertices(16.0, 16.0, 16.0, -5.0, 0.0, 10.0);
+    assert_eq!(v_under.len(), 10);
+}
