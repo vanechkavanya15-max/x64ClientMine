@@ -452,6 +452,7 @@ pub mod send_party_complete_packets;
 pub mod send_refine_complete_packets;
 pub mod send_shop_complete_packets;
 pub mod ui_clipping_alignment;
+pub mod ui_wndmgr_widget_ani_image;
 pub mod ui_editline_text_formatting;
 pub mod ui_slot_cooltime_manager;
 pub mod ui_widget_numberline;
