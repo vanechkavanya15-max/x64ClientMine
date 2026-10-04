@@ -653,3 +653,4 @@ pub mod combat_skill_engine;
 pub mod messenger_friend_roster;
 pub mod dragon_soul_deck_stat_cache;
 pub mod belt_inventory_potion_gate;
+pub mod wgpu_shadow_depth_pipeline;
