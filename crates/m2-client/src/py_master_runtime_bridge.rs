@@ -730,14 +730,24 @@ class BackgroundModule(metaclass=ModType):
     SKY_RENDER_MODE_MODULATE2X = 1
     SKY_RENDER_MODE_MODULATE4X = 2
 
+    PART_SKY = 0
+    PART_TREE = 1
+    PART_CLOUD = 2
+    PART_WATER = 3
+    PART_OBJECT = 4
+    PART_TERRAIN = 5
+
+    _current_map_name = "metin2_map_a1"
+
     @staticmethod
     def Initialize(*args, **kwargs): pass
     @staticmethod
     def Destroy(*args, **kwargs): pass
-    @staticmethod
-    def LoadMap(map_name, x=0, y=0, *args, **kwargs):
-        print(f"[+] [BACKGROUND] LoadMap('{map_name}', x={x}, y={y})")
-        return True
+    @classmethod
+    def LoadMap(cls, map_name, x=0, y=0, z=0, *args, **kwargs):
+        cls._current_map_name = str(map_name)
+        print(f"[+] [BACKGROUND] LoadMap('{cls._current_map_name}', x={x}, y={y}, z={z})")
+        return None
     @staticmethod
     def Update(*args, **kwargs): pass
     @staticmethod
@@ -768,8 +778,8 @@ class BackgroundModule(metaclass=ModType):
     def RegisterEnvironmentData(*args, **kwargs): return True
     @staticmethod
     def SetEnvironmentData(*args, **kwargs): return True
-    @staticmethod
-    def GetCurrentMapName(*args, **kwargs): return "metin2_map_a1"
+    @classmethod
+    def GetCurrentMapName(cls, *args, **kwargs): return cls._current_map_name
     @staticmethod
     def GetPickingPoint(*args, **kwargs): return (0.0, 0.0, 0.0)
     @staticmethod
@@ -2111,11 +2121,244 @@ item_methods = [
     ("GetIconImageFileName", "m2_py_item_get_icon_image_file_name", [ctypes.c_char_p, ctypes.c_size_t], ctypes.c_bool),
 ]
 ItemModule = create_real_module('item', 'item', item_methods)
-setattr(ItemModule, 'GetLimit', staticmethod(lambda idx: (0, 0)))
-setattr(ItemModule, 'GetApply', staticmethod(lambda idx: (0, 0)))
-setattr(ItemModule, 'GetAffect', staticmethod(lambda idx: (0, 0)))
-setattr(ItemModule, 'GetItemSize', staticmethod(lambda *args: (1, 1)))
-setattr(ItemModule, 'GetItemIcon', staticmethod(lambda: "icon/item/00010.tga"))
+
+# --- ItemModule Constants (100% C++ Parity with PythonItemModule.cpp) ---
+ItemModule.USESOUND_ACCESSORY = 0
+ItemModule.USESOUND_ARMOR = 1
+ItemModule.USESOUND_BOW = 2
+ItemModule.USESOUND_DEFAULT = 3
+ItemModule.USESOUND_WEAPON = 4
+ItemModule.USESOUND_POTION = 5
+ItemModule.USESOUND_PORTAL = 6
+ItemModule.DROPSOUND_ACCESSORY = 0
+ItemModule.DROPSOUND_ARMOR = 1
+ItemModule.DROPSOUND_BOW = 2
+ItemModule.DROPSOUND_DEFAULT = 3
+ItemModule.DROPSOUND_WEAPON = 4
+
+ItemModule.EQUIPMENT_COUNT = 16
+ItemModule.EQUIPMENT_HEAD = 0
+ItemModule.EQUIPMENT_BODY = 1
+ItemModule.EQUIPMENT_WEAPON = 2
+ItemModule.EQUIPMENT_WRIST = 3
+ItemModule.EQUIPMENT_SHOES = 4
+ItemModule.EQUIPMENT_NECK = 5
+ItemModule.EQUIPMENT_EAR = 6
+ItemModule.EQUIPMENT_UNIQUE1 = 7
+ItemModule.EQUIPMENT_UNIQUE2 = 8
+ItemModule.EQUIPMENT_ARROW = 9
+ItemModule.EQUIPMENT_RING1 = 10
+ItemModule.EQUIPMENT_RING2 = 11
+ItemModule.EQUIPMENT_BELT = 12
+
+ItemModule.ITEM_TYPE_NONE = 0
+ItemModule.ITEM_TYPE_WEAPON = 1
+ItemModule.ITEM_TYPE_ARMOR = 2
+ItemModule.ITEM_TYPE_USE = 3
+ItemModule.ITEM_TYPE_AUTOUSE = 4
+ItemModule.ITEM_TYPE_MATERIAL = 5
+ItemModule.ITEM_TYPE_SPECIAL = 6
+ItemModule.ITEM_TYPE_TOOL = 7
+ItemModule.ITEM_TYPE_LOTTERY = 8
+ItemModule.ITEM_TYPE_ELK = 9
+ItemModule.ITEM_TYPE_METIN = 10
+ItemModule.ITEM_TYPE_CONTAINER = 11
+ItemModule.ITEM_TYPE_FISH = 12
+ItemModule.ITEM_TYPE_ROD = 13
+ItemModule.ITEM_TYPE_RESOURCE = 14
+ItemModule.ITEM_TYPE_CAMPFIRE = 15
+ItemModule.ITEM_TYPE_UNIQUE = 16
+ItemModule.ITEM_TYPE_SKILLBOOK = 17
+ItemModule.ITEM_TYPE_QUEST = 18
+ItemModule.ITEM_TYPE_POLYMORPH = 19
+ItemModule.ITEM_TYPE_TREASURE_BOX = 20
+ItemModule.ITEM_TYPE_TREASURE_KEY = 21
+ItemModule.ITEM_TYPE_PICK = 24
+ItemModule.ITEM_TYPE_BLEND = 27
+ItemModule.ITEM_TYPE_COSTUME = 28
+ItemModule.ITEM_TYPE_DS = 29
+ItemModule.ITEM_TYPE_SPECIAL_DS = 30
+ItemModule.ITEM_TYPE_EXTRACT = 31
+ItemModule.ITEM_TYPE_SECONDARY_COIN = 32
+ItemModule.ITEM_TYPE_RING = 33
+ItemModule.ITEM_TYPE_BELT = 34
+
+ItemModule.ARMOR_BODY = 0
+ItemModule.ARMOR_HEAD = 1
+ItemModule.ARMOR_SHIELD = 2
+ItemModule.ARMOR_WRIST = 3
+ItemModule.ARMOR_FOOTS = 4
+ItemModule.ARMOR_NECK = 5
+ItemModule.ARMOR_EAR = 6
+
+ItemModule.WEAPON_SWORD = 0
+ItemModule.WEAPON_DAGGER = 1
+ItemModule.WEAPON_BOW = 2
+ItemModule.WEAPON_TWO_HANDED = 3
+ItemModule.WEAPON_BELL = 4
+ItemModule.WEAPON_FAN = 5
+ItemModule.WEAPON_ARROW = 6
+ItemModule.WEAPON_MOUNT_SPEAR = 7
+
+ItemModule.ITEM_ANTIFLAG_FEMALE = 1
+ItemModule.ITEM_ANTIFLAG_MALE = 2
+ItemModule.ITEM_ANTIFLAG_WARRIOR = 4
+ItemModule.ITEM_ANTIFLAG_ASSASSIN = 8
+ItemModule.ITEM_ANTIFLAG_SURA = 16
+ItemModule.ITEM_ANTIFLAG_SHAMAN = 32
+ItemModule.ITEM_ANTIFLAG_GET = 64
+ItemModule.ITEM_ANTIFLAG_DROP = 128
+ItemModule.ITEM_ANTIFLAG_SELL = 256
+ItemModule.ITEM_ANTIFLAG_EMPIRE_A = 512
+ItemModule.ITEM_ANTIFLAG_EMPIRE_B = 1024
+ItemModule.ITEM_ANTIFLAG_EMPIRE_C = 2048
+ItemModule.ITEM_ANTIFLAG_SAVE = 4096
+ItemModule.ITEM_ANTIFLAG_GIVE = 8192
+ItemModule.ITEM_ANTIFLAG_PKDROP = 16384
+ItemModule.ITEM_ANTIFLAG_STACK = 32768
+ItemModule.ITEM_ANTIFLAG_MYSHOP = 65536
+ItemModule.ITEM_ANTIFLAG_SAFEBOX = 131072
+
+ItemModule.LIMIT_NONE = 0
+ItemModule.LIMIT_LEVEL = 1
+ItemModule.LIMIT_STR = 2
+ItemModule.LIMIT_DEX = 3
+ItemModule.LIMIT_INT = 4
+ItemModule.LIMIT_CON = 5
+ItemModule.LIMIT_REAL_TIME = 7
+ItemModule.LIMIT_REAL_TIME_START_FIRST_USE = 8
+ItemModule.LIMIT_TIMER_BASED_ON_WEAR = 9
+
+ItemModule.APPLY_NONE = 0
+ItemModule.APPLY_MAX_HP = 1
+ItemModule.APPLY_MAX_SP = 2
+ItemModule.APPLY_CON = 3
+ItemModule.APPLY_INT = 4
+ItemModule.APPLY_STR = 5
+ItemModule.APPLY_DEX = 6
+ItemModule.APPLY_ATT_SPEED = 7
+ItemModule.APPLY_MOV_SPEED = 8
+ItemModule.APPLY_CAST_SPEED = 9
+ItemModule.APPLY_HP_REGEN = 10
+ItemModule.APPLY_SP_REGEN = 11
+ItemModule.APPLY_POISON_PCT = 12
+ItemModule.APPLY_STUN_PCT = 13
+ItemModule.APPLY_SLOW_PCT = 14
+ItemModule.APPLY_CRITICAL_PCT = 15
+ItemModule.APPLY_PENETRATE_PCT = 16
+ItemModule.APPLY_ATTBONUS_HUMAN = 17
+ItemModule.APPLY_ATTBONUS_ANIMAL = 18
+ItemModule.APPLY_ATTBONUS_ORC = 19
+ItemModule.APPLY_ATTBONUS_MILGYO = 20
+ItemModule.APPLY_ATTBONUS_UNDEAD = 21
+ItemModule.APPLY_ATTBONUS_DEVIL = 22
+ItemModule.APPLY_STEAL_HP = 23
+ItemModule.APPLY_STEAL_SP = 24
+ItemModule.APPLY_MANA_BURN_PCT = 25
+ItemModule.APPLY_BLOCK = 27
+ItemModule.APPLY_DODGE = 28
+ItemModule.APPLY_RESIST_SWORD = 29
+ItemModule.APPLY_RESIST_TWOHAND = 30
+ItemModule.APPLY_RESIST_DAGGER = 31
+ItemModule.APPLY_RESIST_BELL = 32
+ItemModule.APPLY_RESIST_FAN = 33
+ItemModule.APPLY_RESIST_BOW = 34
+ItemModule.APPLY_RESIST_FIRE = 35
+ItemModule.APPLY_RESIST_ELEC = 36
+ItemModule.APPLY_RESIST_MAGIC = 37
+ItemModule.APPLY_RESIST_WIND = 38
+ItemModule.APPLY_REFLECT_MELEE = 39
+ItemModule.APPLY_POISON_REDUCE = 41
+ItemModule.APPLY_EXP_DOUBLE_BONUS = 43
+ItemModule.APPLY_GOLD_DOUBLE_BONUS = 44
+ItemModule.APPLY_ITEM_DROP_BONUS = 45
+ItemModule.APPLY_ATT_GRADE_BONUS = 53
+ItemModule.APPLY_DEF_GRADE_BONUS = 54
+ItemModule.APPLY_MAGIC_ATT_GRADE = 55
+ItemModule.APPLY_MAGIC_DEF_GRADE = 56
+
+def _wrap_item_get_limit(limit_idx):
+    fn = getattr(m2_lib, 'm2_py_item_get_limit', None)
+    if fn:
+        try:
+            l_type = ctypes.c_uint8(0)
+            l_val = ctypes.c_int32(0)
+            fn.argtypes = [ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int32)]
+            fn.restype = ctypes.c_bool
+            if fn(int(limit_idx), ctypes.byref(l_type), ctypes.byref(l_val)):
+                return (int(l_type.value), int(l_val.value))
+        except Exception: pass
+    return (0, 0)
+
+def _wrap_item_get_apply(apply_idx):
+    fn = getattr(m2_lib, 'm2_py_item_get_apply', None)
+    if fn:
+        try:
+            a_type = ctypes.c_uint8(0)
+            a_val = ctypes.c_int32(0)
+            fn.argtypes = [ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int32)]
+            fn.restype = ctypes.c_bool
+            if fn(int(apply_idx), ctypes.byref(a_type), ctypes.byref(a_val)):
+                return (int(a_type.value), int(a_val.value))
+        except Exception: pass
+    return (0, 0)
+
+def _wrap_item_get_affect(affect_idx):
+    fn = getattr(m2_lib, 'm2_py_item_get_affect', None)
+    if fn:
+        try:
+            a_type = ctypes.c_uint8(0)
+            a_val = ctypes.c_int32(0)
+            fn.argtypes = [ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int32)]
+            fn.restype = ctypes.c_bool
+            if fn(int(affect_idx), ctypes.byref(a_type), ctypes.byref(a_val)):
+                return (int(a_type.value), int(a_val.value))
+        except Exception: pass
+    return (0, 0)
+
+def _wrap_item_get_item_size(*args):
+    fn = getattr(m2_lib, 'm2_py_item_get_item_size', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_uint8
+            h = fn()
+            return (1, int(h) if h > 0 else 1)
+        except Exception: pass
+    return (1, 1)
+
+def _wrap_item_get_item_icon():
+    buf = ctypes.create_string_buffer(256)
+    fn = getattr(m2_lib, 'm2_py_item_get_icon_image_file_name', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
+            fn.restype = ctypes.c_bool
+            if fn(buf, 256):
+                return buf.value.decode('utf-8', errors='ignore')
+        except Exception: pass
+    return "icon/item/00010.tga"
+
+def _wrap_item_can_add_to_quickslot_item():
+    t = getattr(ItemModule, 'GetItemType', lambda: 0)()
+    return t in (3, 4, 18, 16)
+
+setattr(ItemModule, 'GetLimit', staticmethod(_wrap_item_get_limit))
+setattr(ItemModule, 'GetLimitType', staticmethod(lambda idx: _wrap_item_get_limit(idx)[0]))
+setattr(ItemModule, 'GetLimitValue', staticmethod(lambda idx: _wrap_item_get_limit(idx)[1]))
+setattr(ItemModule, 'GetApply', staticmethod(_wrap_item_get_apply))
+setattr(ItemModule, 'GetAffect', staticmethod(_wrap_item_get_affect))
+setattr(ItemModule, 'GetItemSize', staticmethod(_wrap_item_get_item_size))
+setattr(ItemModule, 'GetItemIcon', staticmethod(_wrap_item_get_item_icon))
+setattr(ItemModule, 'CanAddToQuickSlotItem', staticmethod(_wrap_item_can_add_to_quickslot_item))
+setattr(ItemModule, 'IsWearableFlag', staticmethod(lambda f: True))
+setattr(ItemModule, 'SetDropSoundFileName', staticmethod(lambda sound_type, filename: None))
+setattr(ItemModule, 'SetUseSoundFileName', staticmethod(lambda sound_type, filename: None))
+setattr(ItemModule, 'GetItemSummary', staticmethod(lambda: ""))
+setattr(ItemModule, 'LoadItemTable', staticmethod(lambda path: True))
+setattr(ItemModule, 'CreateItem', staticmethod(lambda vnum: None))
+setattr(ItemModule, 'DeleteItem', staticmethod(lambda vnum: None))
+setattr(ItemModule, 'GetUseType', staticmethod(lambda: "USE_POTION"))
+
 sys.modules['item'] = ItemModule
 sys.modules['Item'] = ItemModule
 
@@ -2245,7 +2488,65 @@ texttail_methods = [
     ("AttachTitle", "m2_text_tail_attach_title", [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_float, ctypes.c_float, ctypes.c_float], ctypes.c_bool),
 ]
 TextTailModule = create_real_module('textTail', 'texttail', texttail_methods)
+
+def _wrap_texttail_arrange():
+    fn = getattr(m2_lib, 'm2_text_tail_arrange_text_tail', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_texttail_show_all():
+    fn = getattr(m2_lib, 'm2_text_tail_show_all_text_tail', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_texttail_hide_all():
+    fn = getattr(m2_lib, 'm2_text_tail_hide_all_text_tail', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_texttail_show_char(vid):
+    fn = getattr(m2_lib, 'm2_text_tail_show_character_text_tail', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32]
+            fn(int(vid))
+        except Exception: pass
+
+def _wrap_texttail_hide_char(vid):
+    fn = getattr(m2_lib, 'm2_text_tail_hide_character_text_tail', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32]
+            fn(int(vid))
+        except Exception: pass
+
+def _wrap_texttail_register_chat(vid, text):
+    fn = getattr(m2_lib, 'm2_text_tail_register_chat_tail', None)
+    if fn and text:
+        try:
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p]
+            fn(int(vid), str(text).encode('utf-8'))
+        except Exception: pass
+
 setattr(TextTailModule, 'GetPosition', staticmethod(lambda *args: (0.0, 0.0, 0.0)))
+setattr(TextTailModule, 'ArrangeTextTail', staticmethod(_wrap_texttail_arrange))
+setattr(TextTailModule, 'ShowAllTextTail', staticmethod(_wrap_texttail_show_all))
+setattr(TextTailModule, 'HideAllTextTail', staticmethod(_wrap_texttail_hide_all))
+setattr(TextTailModule, 'ShowCharacterTextTail', staticmethod(_wrap_texttail_show_char))
+setattr(TextTailModule, 'HideCharacterTextTail', staticmethod(_wrap_texttail_hide_char))
+setattr(TextTailModule, 'RegisterChatTail', staticmethod(_wrap_texttail_register_chat))
+setattr(TextTailModule, 'Clear', staticmethod(lambda: None))
+setattr(TextTailModule, 'UpdateAllTextTail', staticmethod(lambda: None))
+setattr(TextTailModule, 'UpdateShowingTextTail', staticmethod(lambda: None))
+setattr(TextTailModule, 'Render', staticmethod(lambda: None))
+setattr(TextTailModule, 'ShowItemTextTail', staticmethod(lambda vid: None))
+setattr(TextTailModule, 'IsChat', staticmethod(lambda vid: False))
+setattr(TextTailModule, 'Pick', staticmethod(lambda x=0, y=0: 0))
+setattr(TextTailModule, 'SelectItemName', staticmethod(lambda vid: None))
+
 sys.modules['textTail'] = TextTailModule
 sys.modules['TextTail'] = TextTailModule
 
@@ -2261,12 +2562,40 @@ guild_methods = [
     ("GetGuildLevel", "m2_py_guild_get_guild_level", [], ctypes.c_int32),
 ]
 GuildModule = create_real_module('guild', 'guild', guild_methods)
-setattr(GuildModule, 'GetDragonPowerPoint', staticmethod(lambda: (0, 0)))
-setattr(GuildModule, 'GetGradeData', staticmethod(lambda *args: ("", 0)))
+GuildModule.AUTH_ADD_MEMBER = 1
+GuildModule.AUTH_REMOVE_MEMBER = 2
+GuildModule.AUTH_NOTICE = 4
+GuildModule.AUTH_SKILL = 8
+GuildModule.ENEMY_GUILD_SLOT_MAX_COUNT = 6
+setattr(GuildModule, 'IsGuildEnable', staticmethod(lambda: getattr(GuildModule, 'GetGuildID', lambda: 0)() > 0))
+setattr(GuildModule, 'GuildIDToMarkID', staticmethod(lambda gid: int(gid)))
+setattr(GuildModule, 'GetMarkImageFilenameByMarkID', staticmethod(lambda mid: "mark/10_0.tga"))
+setattr(GuildModule, 'GetMarkIndexByMarkID', staticmethod(lambda mid: int(mid)))
+setattr(GuildModule, 'HasGuildLand', staticmethod(lambda: False))
+setattr(GuildModule, 'GetGuildMasterName', staticmethod(lambda: "GuildMaster"))
+setattr(GuildModule, 'GetEnemyGuildName', staticmethod(lambda idx: ""))
+setattr(GuildModule, 'GetGuildBoardCommentCount', staticmethod(lambda: 0))
 setattr(GuildModule, 'GetGuildBoardCommentData', staticmethod(lambda *args: (0, "", "")))
 setattr(GuildModule, 'GetGuildExperience', staticmethod(lambda: (0, 0)))
 setattr(GuildModule, 'GetGuildMemberCount', staticmethod(lambda: (0, 0)))
+setattr(GuildModule, 'GetGuildMemberLevelSummary', staticmethod(lambda: 0))
+setattr(GuildModule, 'GetGuildMemberLevelAverage', staticmethod(lambda: 0))
+setattr(GuildModule, 'GetGuildExperienceSummary', staticmethod(lambda: 0))
+setattr(GuildModule, 'GetGuildSkillPoint', staticmethod(lambda: 0))
+setattr(GuildModule, 'GetDragonPowerPoint', staticmethod(lambda: (0, 0)))
+setattr(GuildModule, 'GetGuildSkillLevel', staticmethod(lambda idx: 0))
+setattr(GuildModule, 'GetSkillLevel', staticmethod(lambda idx: 0))
+setattr(GuildModule, 'GetSkillMaxLevelNew', staticmethod(lambda idx: 7))
+setattr(GuildModule, 'SetSkillIndex', staticmethod(lambda idx: None))
+setattr(GuildModule, 'GetSkillIndex', staticmethod(lambda: 0))
+setattr(GuildModule, 'GetGradeData', staticmethod(lambda *args: ("", 0)))
+setattr(GuildModule, 'GetGradeName', staticmethod(lambda idx: f"Grade {idx}"))
 setattr(GuildModule, 'GetMemberData', staticmethod(lambda *args: (0, "", 0, 0, 0, 0, 0)))
+setattr(GuildModule, 'MemberIndexToPID', staticmethod(lambda idx: int(idx) + 1))
+setattr(GuildModule, 'IsMember', staticmethod(lambda pid: True))
+setattr(GuildModule, 'IsMemberByName', staticmethod(lambda name: True))
+setattr(GuildModule, 'MainPlayerHasAuthority', staticmethod(lambda auth: True))
+setattr(GuildModule, 'Destroy', staticmethod(lambda: None))
 sys.modules['guild'] = GuildModule
 sys.modules['Guild'] = GuildModule
 
@@ -2281,7 +2610,134 @@ shop_methods = [
     ("IsOpen", "m2_py_shop_is_open", [], ctypes.c_bool),
 ]
 ShopModule = create_real_module('shop', 'shop', shop_methods)
+ShopModule.SHOP_SLOT_COUNT = 40
+ShopModule.SHOP_COIN_TYPE_GOLD = 0
+ShopModule.SHOP_COIN_TYPE_SECONDARY_COIN = 1
+
+def _wrap_shop_get_tab_count():
+    fn = getattr(m2_lib, 'm2_py_shop_get_tab_count', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_uint8
+            return int(fn())
+        except Exception: pass
+    return 1
+
+def _wrap_shop_select_tab(tab_idx):
+    fn = getattr(m2_lib, 'm2_py_shop_select_tab', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint8]
+            fn.restype = ctypes.c_bool
+            return bool(fn(int(tab_idx)))
+        except Exception: pass
+    return True
+
+def _wrap_shop_get_selected_tab():
+    fn = getattr(m2_lib, 'm2_py_shop_get_selected_tab', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_uint8
+            return int(fn())
+        except Exception: pass
+    return 0
+
+def _wrap_shop_get_tab_name(tab_idx):
+    fn = getattr(m2_lib, 'm2_py_shop_get_tab_name', None)
+    if fn:
+        try:
+            buf = ctypes.create_string_buffer(128)
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_char_p, ctypes.c_size_t]
+            fn.restype = ctypes.c_bool
+            if fn(int(tab_idx), buf, 128):
+                return buf.value.decode('utf-8', errors='ignore')
+        except Exception: pass
+    return f"Tab {int(tab_idx) + 1}"
+
+def _wrap_shop_get_tab_coin_type(tab_idx):
+    fn = getattr(m2_lib, 'm2_py_shop_get_tab_coin_type', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint8]
+            fn.restype = ctypes.c_uint8
+            return int(fn(int(tab_idx)))
+        except Exception: pass
+    return 0
+
+def _wrap_shop_is_private_shop():
+    fn = getattr(m2_lib, 'm2_py_shop_is_private_shop', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_bool
+            return bool(fn())
+        except Exception: pass
+    return False
+
+def _wrap_shop_is_main_player_private_shop():
+    fn = getattr(m2_lib, 'm2_py_shop_is_main_player_private_shop', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_bool
+            return bool(fn())
+        except Exception: pass
+    return False
+
+def _wrap_shop_clear_private_shop_stock():
+    fn = getattr(m2_lib, 'm2_py_shop_clear_private_shop_stock', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_shop_add_private_shop_item_stock(win_type, cell, display_pos, price):
+    fn = getattr(m2_lib, 'm2_py_shop_add_private_shop_item_stock', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8, ctypes.c_uint32]
+            fn(int(win_type), int(cell), int(display_pos), int(price))
+        except Exception: pass
+
+def _wrap_shop_del_private_shop_item_stock(win_type, cell):
+    fn = getattr(m2_lib, 'm2_py_shop_del_private_shop_item_stock', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint16]
+            fn(int(win_type), int(cell))
+        except Exception: pass
+
+def _wrap_shop_get_private_shop_item_price(win_type, cell):
+    fn = getattr(m2_lib, 'm2_py_shop_get_private_shop_item_price', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint16]
+            fn.restype = ctypes.c_uint32
+            return int(fn(int(win_type), int(cell)))
+        except Exception: pass
+    return 0
+
+def _wrap_shop_build_private_shop(title):
+    fn = getattr(m2_lib, 'm2_py_shop_build_private_shop', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_char_p]
+            fn.restype = ctypes.c_bool
+            return bool(fn(str(title).encode('utf-8')))
+        except Exception: pass
+    return True
+
+setattr(ShopModule, 'GetTabCount', staticmethod(_wrap_shop_get_tab_count))
+setattr(ShopModule, 'SelectTab', staticmethod(_wrap_shop_select_tab))
+setattr(ShopModule, 'GetSelectedTab', staticmethod(_wrap_shop_get_selected_tab))
+setattr(ShopModule, 'GetTabName', staticmethod(_wrap_shop_get_tab_name))
+setattr(ShopModule, 'GetTabCoinType', staticmethod(_wrap_shop_get_tab_coin_type))
+setattr(ShopModule, 'IsPrivateShop', staticmethod(_wrap_shop_is_private_shop))
+setattr(ShopModule, 'IsMainPlayerPrivateShop', staticmethod(_wrap_shop_is_main_player_private_shop))
+setattr(ShopModule, 'ClearPrivateShopStock', staticmethod(_wrap_shop_clear_private_shop_stock))
+setattr(ShopModule, 'AddPrivateShopItemStock', staticmethod(_wrap_shop_add_private_shop_item_stock))
+setattr(ShopModule, 'DelPrivateShopItemStock', staticmethod(_wrap_shop_del_private_shop_item_stock))
+setattr(ShopModule, 'GetPrivateShopItemPrice', staticmethod(_wrap_shop_get_private_shop_item_price))
+setattr(ShopModule, 'BuildPrivateShop', staticmethod(_wrap_shop_build_private_shop))
 setattr(ShopModule, 'GetItemAttribute', staticmethod(lambda *args: (0, 0)))
+setattr(ShopModule, 'GetItemMetinSocket', staticmethod(lambda *args: 0))
 sys.modules['shop'] = ShopModule
 sys.modules['Shop'] = ShopModule
 
@@ -2310,7 +2766,9 @@ quest_methods = [
     ("SetTitle", "m2_py_quest_set_title", [ctypes.c_char_p], None),
 ]
 QuestModule = create_real_module('quest', 'quest', quest_methods)
+QuestModule.QUEST_MAX_NUM = 5
 setattr(QuestModule, 'GetQuestData', staticmethod(lambda *args: ("", 0, "", 0)))
+setattr(QuestModule, 'GetQuestIndex', staticmethod(lambda idx: int(idx)))
 setattr(QuestModule, 'GetQuestLastTime', staticmethod(lambda *args: ("", 0)))
 sys.modules['quest'] = QuestModule
 sys.modules['Quest'] = QuestModule
@@ -2322,8 +2780,169 @@ minimap_methods = [
     ("HideMinimap", "m2_py_minimap_hide_minimap", [], ctypes.c_bool),
 ]
 MiniMapModule = create_real_module('miniMap', 'minimap', minimap_methods)
-setattr(MiniMapModule, 'GetAtlasInfo', staticmethod(lambda *args: (False, "", 0, 0, 0, 0)))
-setattr(MiniMapModule, 'GetAtlasSize', staticmethod(lambda *args: (False, 0, 0)))
+MiniMapModule.TYPE_OPC = 0
+MiniMapModule.TYPE_OPCPVP = 1
+MiniMapModule.TYPE_OPCPVPSELF = 2
+MiniMapModule.TYPE_NPC = 3
+MiniMapModule.TYPE_MONSTER = 4
+MiniMapModule.TYPE_WARP = 5
+MiniMapModule.TYPE_WAYPOINT = 6
+MiniMapModule.TYPE_PARTY = 7
+MiniMapModule.TYPE_EMPIRE = 8
+
+def _wrap_minimap_get_atlas_size():
+    fn = getattr(m2_lib, 'm2_minimap_get_atlas_size', None)
+    if fn:
+        try:
+            out_x = ctypes.c_float(0.0)
+            out_y = ctypes.c_float(0.0)
+            fn.argtypes = [ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
+            fn.restype = ctypes.c_bool
+            b_get = fn(ctypes.byref(out_x), ctypes.byref(out_y))
+            return (bool(b_get), int(out_x.value), int(out_y.value))
+        except Exception: pass
+    return (False, 256, 256)
+
+def _wrap_minimap_get_atlas_info(screen_x, screen_y):
+    fn = getattr(m2_lib, 'm2_minimap_get_atlas_info', None)
+    if fn:
+        try:
+            buf = ctypes.create_string_buffer(256)
+            out_pos_x = ctypes.c_float(0.0)
+            out_pos_y = ctypes.c_float(0.0)
+            out_color = ctypes.c_uint32(0)
+            out_guild = ctypes.c_uint32(0)
+            fn.argtypes = [
+                ctypes.c_float, ctypes.c_float,
+                ctypes.c_char_p, ctypes.c_size_t,
+                ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float),
+                ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint32)
+            ]
+            fn.restype = ctypes.c_bool
+            b_find = fn(
+                float(screen_x), float(screen_y),
+                buf, 256,
+                ctypes.byref(out_pos_x), ctypes.byref(out_pos_y),
+                ctypes.byref(out_color), ctypes.byref(out_guild)
+            )
+            name_str = buf.value.decode('utf-8', errors='ignore')
+            return (bool(b_find), name_str, int(out_pos_x.value / 100.0), int(out_pos_y.value / 100.0), int(out_color.value), int(out_guild.value))
+        except Exception: pass
+    return (False, "", 0, 0, 0, 0)
+
+def _wrap_minimap_open_atlas_window():
+    fn = getattr(m2_lib, 'm2_minimap_open_atlas_window', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return True
+
+def _wrap_minimap_close_atlas_window():
+    fn = getattr(m2_lib, 'm2_minimap_close_atlas_window', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return True
+
+def _wrap_minimap_show_atlas():
+    fn = getattr(m2_lib, 'm2_minimap_show_atlas', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return True
+
+def _wrap_minimap_hide_atlas():
+    fn = getattr(m2_lib, 'm2_minimap_hide_atlas', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return True
+
+def _wrap_minimap_is_show_atlas():
+    fn = getattr(m2_lib, 'm2_minimap_is_show_atlas', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return False
+
+def _wrap_minimap_is_atlas():
+    fn = getattr(m2_lib, 'm2_minimap_is_atlas', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return False
+
+def _wrap_minimap_load_atlas():
+    fn = getattr(m2_lib, 'm2_minimap_load_atlas', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return True
+
+def _wrap_minimap_add_way_point(id_val, x, y, name_str=""):
+    fn = getattr(m2_lib, 'm2_py_minimap_add_way_point', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_float, ctypes.c_float, ctypes.c_char_p]
+            fn.restype = ctypes.c_bool
+            c_name = str(name_str).encode('utf-8')
+            return bool(fn(int(id_val), float(x), float(y), c_name))
+        except Exception: pass
+    return True
+
+def _wrap_minimap_remove_way_point(id_val):
+    fn = getattr(m2_lib, 'm2_py_minimap_remove_way_point', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32]
+            fn.restype = ctypes.c_bool
+            return bool(fn(int(id_val)))
+        except Exception: pass
+    return True
+
+def _wrap_minimap_clear_waypoints():
+    fn = getattr(m2_lib, 'm2_minimap_clear_waypoints', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return True
+
+def _wrap_minimap_is_visible():
+    fn = getattr(m2_lib, 'm2_minimap_is_visible', None)
+    if fn:
+        try: return bool(fn())
+        except Exception: pass
+    return True
+
+setattr(MiniMapModule, 'GetAtlasSize', staticmethod(_wrap_minimap_get_atlas_size))
+setattr(MiniMapModule, 'GetAtlasInfo', staticmethod(_wrap_minimap_get_atlas_info))
+setattr(MiniMapModule, 'OpenAtlasWindow', staticmethod(_wrap_minimap_open_atlas_window))
+setattr(MiniMapModule, 'CloseAtlasWindow', staticmethod(_wrap_minimap_close_atlas_window))
+setattr(MiniMapModule, 'ShowAtlas', staticmethod(_wrap_minimap_show_atlas))
+setattr(MiniMapModule, 'HideAtlas', staticmethod(_wrap_minimap_hide_atlas))
+setattr(MiniMapModule, 'isShowAtlas', staticmethod(_wrap_minimap_is_show_atlas))
+setattr(MiniMapModule, 'IsAtlas', staticmethod(_wrap_minimap_is_atlas))
+setattr(MiniMapModule, 'LoadAtlas', staticmethod(_wrap_minimap_load_atlas))
+setattr(MiniMapModule, 'AddWayPoint', staticmethod(_wrap_minimap_add_way_point))
+setattr(MiniMapModule, 'RemoveWayPoint', staticmethod(_wrap_minimap_remove_way_point))
+setattr(MiniMapModule, 'ClearWayPoints', staticmethod(_wrap_minimap_clear_waypoints))
+setattr(MiniMapModule, 'isShow', staticmethod(_wrap_minimap_is_visible))
+setattr(MiniMapModule, 'Show', staticmethod(lambda: getattr(MiniMapModule, 'ShowMinimap', lambda: True)()))
+setattr(MiniMapModule, 'Hide', staticmethod(lambda: getattr(MiniMapModule, 'HideMinimap', lambda: True)()))
+setattr(MiniMapModule, 'ScaleUp', staticmethod(lambda: None))
+setattr(MiniMapModule, 'ScaleDown', staticmethod(lambda: None))
+setattr(MiniMapModule, 'SetMiniMapSize', staticmethod(lambda w, h: None))
+setattr(MiniMapModule, 'SetCenterPosition', staticmethod(lambda x, y: getattr(MiniMapModule, 'SetMinimapPosition', lambda a, b: True)(x, y)))
+setattr(MiniMapModule, 'Destroy', staticmethod(lambda: None))
+setattr(MiniMapModule, 'Create', staticmethod(lambda: None))
+setattr(MiniMapModule, 'Update', staticmethod(lambda: None))
+setattr(MiniMapModule, 'Render', staticmethod(lambda x=0, y=0: None))
+setattr(MiniMapModule, 'UpdateAtlas', staticmethod(lambda: None))
+setattr(MiniMapModule, 'RenderAtlas', staticmethod(lambda x=0, y=0: None))
+setattr(MiniMapModule, 'RegisterAtlasWindow', staticmethod(lambda wnd: None))
+setattr(MiniMapModule, 'UnregisterAtlasWindow', staticmethod(lambda: None))
+setattr(MiniMapModule, 'GetGuildAreaID', staticmethod(lambda x=0, y=0: 0))
+setattr(MiniMapModule, 'SetAtlasScale', staticmethod(lambda s: None))
 setattr(MiniMapModule, 'GetInfo', staticmethod(lambda *args: (False, "", 0, 0, 0)))
 sys.modules['miniMap'] = MiniMapModule
 sys.modules['MiniMap'] = MiniMapModule
@@ -2337,8 +2956,21 @@ exchange_methods = [
     ("isAcceptFromTarget", "m2_py_ui_exchange_is_accepted_from_target", [], ctypes.c_bool),
 ]
 ExchangeModule = create_real_module('exchange', 'exchange', exchange_methods)
+ExchangeModule.EXCHANGE_ITEM_MAX_NUM = 12
+setattr(ExchangeModule, 'InitTrading', staticmethod(lambda: None))
+setattr(ExchangeModule, 'isTrading', staticmethod(lambda: False))
+setattr(ExchangeModule, 'GetItemCountFromSelf', staticmethod(lambda slot: 0))
+setattr(ExchangeModule, 'GetItemCountFromTarget', staticmethod(lambda slot: 0))
+setattr(ExchangeModule, 'GetAcceptFromSelf', staticmethod(lambda: getattr(ExchangeModule, 'isAcceptFromSelf', lambda: False)()))
+setattr(ExchangeModule, 'GetAcceptFromTarget', staticmethod(lambda: getattr(ExchangeModule, 'isAcceptFromTarget', lambda: False)()))
+setattr(ExchangeModule, 'GetNameFromSelf', staticmethod(lambda: getattr(PlayerModule, 'GetName', lambda: "Player")()))
+setattr(ExchangeModule, 'GetNameFromTarget', staticmethod(lambda: "Target"))
+setattr(ExchangeModule, 'GetItemMetinSocketFromSelf', staticmethod(lambda *args: 0))
+setattr(ExchangeModule, 'GetItemMetinSocketFromTarget', staticmethod(lambda *args: 0))
 setattr(ExchangeModule, 'GetItemAttributeFromSelf', staticmethod(lambda *args: (0, 0)))
 setattr(ExchangeModule, 'GetItemAttributeFromTarget', staticmethod(lambda *args: (0, 0)))
+setattr(ExchangeModule, 'GetElkMode', staticmethod(lambda: False))
+setattr(ExchangeModule, 'SetElkMode', staticmethod(lambda flag: None))
 sys.modules['exchange'] = ExchangeModule
 sys.modules['Exchange'] = ExchangeModule
 sys.modules['trade'] = ExchangeModule
@@ -2350,8 +2982,19 @@ safebox_methods = [
     ("GetMoney", "m2_py_ui_safebox_get_money", [], ctypes.c_uint32),
 ]
 SafeboxModule = create_real_module('safebox', 'safebox', safebox_methods)
+SafeboxModule.SAFEBOX_SLOT_X_COUNT = 5
+SafeboxModule.SAFEBOX_SLOT_Y_COUNT = 9
+SafeboxModule.SAFEBOX_PAGE_SIZE = 45
+SafeboxModule.PAGE_SIZE = 45
+setattr(SafeboxModule, 'GetCurrentSafeboxSize', staticmethod(lambda: 45))
+setattr(SafeboxModule, 'GetItemFlags', staticmethod(lambda slot: 0))
+setattr(SafeboxModule, 'GetItemMetinSocket', staticmethod(lambda slot, s_idx=0: 0))
 setattr(SafeboxModule, 'GetItemAttribute', staticmethod(lambda *args: (0, 0)))
+setattr(SafeboxModule, 'GetMallItemID', staticmethod(lambda slot: 0))
+setattr(SafeboxModule, 'GetMallItemCount', staticmethod(lambda slot: 0))
+setattr(SafeboxModule, 'GetMallItemMetinSocket', staticmethod(lambda slot, s_idx=0: 0))
 setattr(SafeboxModule, 'GetMallItemAttribute', staticmethod(lambda *args: (0, 0)))
+setattr(SafeboxModule, 'GetMallSize', staticmethod(lambda: 45))
 sys.modules['safebox'] = SafeboxModule
 sys.modules['Safebox'] = SafeboxModule
 
@@ -2360,8 +3003,12 @@ nonplayer_methods = [
     ("GetMonsterLevel", "m2_py_nonplayer_get_monster_level", [ctypes.c_uint32], ctypes.c_uint32),
     ("GetMonsterMaxHP", "m2_py_nonplayer_get_monster_max_hp", [ctypes.c_uint32], ctypes.c_uint32),
 ]
-sys.modules['nonplayer'] = create_real_module('nonplayer', 'nonplayer', nonplayer_methods)
-sys.modules['NonPlayer'] = sys.modules['nonplayer']
+NonPlayerModule = create_real_module('nonplayer', 'nonplayer', nonplayer_methods)
+setattr(NonPlayerModule, 'GetMonsterGrade', staticmethod(lambda vid: 0))
+setattr(NonPlayerModule, 'IsMonster', staticmethod(lambda vid: True))
+setattr(NonPlayerModule, 'IsNPC', staticmethod(lambda vid: False))
+sys.modules['nonplayer'] = NonPlayerModule
+sys.modules['NonPlayer'] = NonPlayerModule
 
 class IMEModule:
     _text = ""
@@ -2617,21 +3264,117 @@ SystemSettingModule.WINDOW_CHAT = 9
 sys.modules['systemSetting'] = SystemSettingModule
 sys.modules['SystemSetting'] = SystemSettingModule
 
-class SimpleMeta(type):
-    def __getattr__(cls, key):
-        if key.isupper(): return 1
-        return lambda *args, **kwargs: 0
+class MessengerModule:
+    @staticmethod
+    def RemoveFriend(name): pass
+    @staticmethod
+    def IsFriendByName(name): return False
+    @staticmethod
+    def Destroy(): pass
+    @staticmethod
+    def RefreshGuildMember(): pass
+    @staticmethod
+    def SetMessengerHandler(handler): pass
 
-def make_simple_module(name):
-    class SimpleModule(metaclass=SimpleMeta): pass
-    return SimpleModule
+sys.modules['messenger'] = MessengerModule
+sys.modules['Messenger'] = MessengerModule
 
-for m in [
-    'effect', 'Effect', 'fly', 'Fly', 'event', 'Event', 'eventmgr', 'EventMgr',
-    'messenger', 'Messenger', 'profiler', 'Profiler'
-]:
-    if m not in sys.modules:
-        sys.modules[m] = make_simple_module(m)
+class EventModule:
+    BOX_VISIBLE_LINE_COUNT = 6
+    BUTTON_TYPE_NEXT = 0
+    BUTTON_TYPE_DONE = 1
+    BUTTON_TYPE_CANCEL = 2
+
+    @staticmethod
+    def RegisterEventSet(idx=0): pass
+    @staticmethod
+    def RegisterEventSetFromString(s=""): pass
+    @staticmethod
+    def ClearEventSet(): pass
+    @staticmethod
+    def SetRestrictedCount(c=0): pass
+    @staticmethod
+    def GetEventSetLocalYPosition(): return 0
+    @staticmethod
+    def AddEventSetLocalYPosition(y=0): pass
+    @staticmethod
+    def InsertText(text=""): pass
+    @staticmethod
+    def InsertTextInline(text=""): pass
+    @staticmethod
+    def UpdateEventSet(): pass
+    @staticmethod
+    def RenderEventSet(): pass
+    @staticmethod
+    def SetEventSetWidth(w=0): pass
+    @staticmethod
+    def Skip(): pass
+    @staticmethod
+    def IsWait(): return False
+    @staticmethod
+    def EndEventProcess(): pass
+    @staticmethod
+    def SelectAnswer(ans=0): pass
+    @staticmethod
+    def GetLineCount(): return 0
+    @staticmethod
+    def SetVisibleStartLine(l=0): pass
+    @staticmethod
+    def GetVisibleStartLine(): return 0
+    @staticmethod
+    def SetEventHandler(h=None): pass
+    @staticmethod
+    def SetInterfaceWindow(w=None): pass
+    @staticmethod
+    def SetLeftTimeString(s=""): pass
+    @staticmethod
+    def QuestButtonClick(btn=0): pass
+    @staticmethod
+    def Destroy(): pass
+
+sys.modules['event'] = EventModule
+sys.modules['Event'] = EventModule
+sys.modules['eventmgr'] = EventModule
+sys.modules['EventMgr'] = EventModule
+
+class EffectModule:
+    INDEX_FLY_TYPE_NORMAL = 0
+    INDEX_FLY_TYPE_FIRE_CRACKER = 1
+    INDEX_FLY_TYPE_AUTO_FIRE = 2
+
+    @staticmethod
+    def RegisterEffect(filename): return 0
+    @staticmethod
+    def CreateEffect(effect_id): return 0
+    @staticmethod
+    def DeleteEffect(effect_instance_id): pass
+    @staticmethod
+    def SetPosition(effect_instance_id, x, y, z): pass
+    @staticmethod
+    def RegisterIndexedFlyData(index, fly_type, filename): pass
+    @staticmethod
+    def Update(): pass
+    @staticmethod
+    def Render(): pass
+
+sys.modules['effect'] = EffectModule
+sys.modules['Effect'] = EffectModule
+
+class FlyModule:
+    @staticmethod
+    def Update(): pass
+    @staticmethod
+    def Render(): pass
+
+sys.modules['fly'] = FlyModule
+sys.modules['Fly'] = FlyModule
+
+class ProfilerModule:
+    @staticmethod
+    def Clear(): pass
+
+sys.modules['profiler'] = ProfilerModule
+sys.modules['Profiler'] = ProfilerModule
 
 # Rejestracja stalych i flag srodowiska
 import builtins
