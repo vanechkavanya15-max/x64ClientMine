@@ -472,32 +472,6 @@ impl WindowManager {
         }
     }
 
-    pub fn set_focus(&mut self, handle: u32) -> (usize, usize) {
-        if self.active_window == Some(handle) {
-            return (0, 0);
-        }
-        let old_h = if let Some(old) = self.active_window {
-            self.windows.get(&old).map(|w| w.py_handler).unwrap_or(0)
-        } else {
-            0
-        };
-        self.active_window = Some(handle);
-        let new_h = self.windows.get(&handle).map(|w| w.py_handler).unwrap_or(0);
-        (old_h, new_h)
-    }
-
-    pub fn kill_focus(&mut self, handle: u32) -> usize {
-        if self.active_window == Some(handle) {
-            self.active_window = None;
-            self.windows.get(&handle).map(|w| w.py_handler).unwrap_or(0)
-        } else {
-            0
-        }
-    }
-
-    pub fn is_focus(&self, handle: u32) -> bool {
-        self.active_window == Some(handle)
-    }
 
     pub fn destroy_window(&mut self, handle: u32) {
         if let Some(win) = self.windows.remove(&handle) {
@@ -936,37 +910,5 @@ mod tests {
 }
 
 impl WindowManager {
-    pub fn attach_icon(&mut self, icon_type: u32, index: u32, slot_number: u32, width: u8, height: u8) {
-        self.is_attaching = true;
-        self.attaching_type = icon_type;
-        self.attaching_index = index;
-        self.attaching_slot_number = slot_number;
-        self.attaching_icon_width = width;
-        self.attaching_icon_height = height;
-    }
-
-    pub fn deattach_icon(&mut self) {
-        self.is_attaching = false;
-    }
-
-    pub fn set_attaching_flag(&mut self, flag: bool) {
-        self.is_attaching = flag;
-    }
-
-    pub fn get_attaching_type(&self) -> u32 {
-        self.attaching_type
-    }
-
-    pub fn get_attaching_index(&self) -> u32 {
-        self.attaching_index
-    }
-
-    pub fn get_attaching_slot_number(&self) -> u32 {
-        self.attaching_slot_number
-    }
-
-    pub fn get_attaching_icon_size(&self) -> (u8, u8) {
-        (self.attaching_icon_width, self.attaching_icon_height)
-    }
 }
 

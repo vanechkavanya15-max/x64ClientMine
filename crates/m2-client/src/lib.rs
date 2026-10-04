@@ -300,6 +300,7 @@ pub mod ui_quest_dialog;
 pub mod ui_window_chat;
 pub mod ui_window_core;
 pub mod ui_window_mgr;
+pub mod ui_wndmgr_input;
 pub mod ui_texture_mgr;
 pub mod texture_vfs_pipeline;
 pub mod ui_font_renderer;
