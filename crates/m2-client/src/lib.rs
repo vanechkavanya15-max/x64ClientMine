@@ -176,6 +176,7 @@ pub mod belt_inventory_gate_v2;
 pub mod camera_terrain_clamp_v2;
 pub mod chat_buffer_v2;
 pub mod dragon_soul_deck_v2;
+pub mod dragon_soul_refine_engine;
 pub mod event_effect_attach_v2;
 pub mod event_fly_bullet_v2;
 pub mod event_sound_trigger_v2;
