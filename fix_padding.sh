@@ -1,0 +1,1 @@
+sed -i 's/pub header: u16,/pub header: u16;\n    pub length: u16;\n    pub func: u8;\n    pub arg: u8;\n    pub rot: u8;\n    pub vid: u32;\n    pub x: i32;\n    pub y: i32;\n    pub time: u32;\n    pub duration: u32;\n}\n\n#[repr(C, packed)]\npub struct TPacketGCMove {\n    pub header: u16,\n/g' crates/m2-client/src/recv_movement.rs

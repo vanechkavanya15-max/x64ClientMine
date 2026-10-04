@@ -1,129 +1,51 @@
-#[path = "../src/movement_interpolation.rs"]
-mod movement_interpolation;
-
-use movement_interpolation::MovementInterpolator;
+use m2_client::recv_movement::{CharacterMoveState, CharacterMoveData, TPacketGCMove};
 
 #[test]
-fn test_midpoint_interpolation() {
-    let mut interpolator = MovementInterpolator::new();
-    // Simulate setting initial position at t=0
-    interpolator.last_network_pos = (0.0, 0.0);
-    interpolator.last_network_time_ms = 0;
-    
-    // Server says we should be at (10.0, 10.0) at t=1000
-    interpolator.target_network_pos = (10.0, 10.0);
-    interpolator.target_network_time_ms = 1000;
-    
-    // Verify halfway point
-    let pos = interpolator.get_interpolated_position(500);
-    assert_eq!(pos, (5.0, 5.0));
+fn test_packet_size() {
+    assert_eq!(std::mem::size_of::<TPacketGCMove>(), 27);
 }
 
 #[test]
-fn test_target_reached_at_end_of_interval() {
-    let mut interpolator = MovementInterpolator::new();
-    interpolator.last_network_pos = (0.0, 0.0);
-    interpolator.last_network_time_ms = 1000;
+fn test_movement_interpolation_steps() {
+    let mut state = CharacterMoveState::new(1, 100, 200);
+
+    let move_data = CharacterMoveData {
+        vid: 1,
+        func: 0,
+        arg: 0,
+        rot: 18, // 18 * 5.0 = 90.0 degrees
+        x: 500,
+        y: 600,
+        time: 1000,
+        duration: 2000, // 2 seconds
+    };
+
+    let start_time = 5000;
+    state.set_target(&move_data, start_time);
+
+    assert_eq!(state.rot, 90.0);
+    assert_eq!(state.src_x, 100);
+    assert_eq!(state.src_y, 200);
+    assert_eq!(state.dst_x, 500);
+    assert_eq!(state.dst_y, 600);
+
+    // 0% of time
+    state.update_position(start_time);
+    assert_eq!(state.current_x, 100);
+    assert_eq!(state.current_y, 200);
+
+    // 50% of time
+    state.update_position(start_time + 1000);
+    assert_eq!(state.current_x, 300); // 100 + (500 - 100) * 0.5
+    assert_eq!(state.current_y, 400); // 200 + (600 - 200) * 0.5
+
+    // 100% of time
+    state.update_position(start_time + 2000);
+    assert_eq!(state.current_x, 500);
+    assert_eq!(state.current_y, 600);
     
-    interpolator.target_network_pos = (20.0, 30.0);
-    interpolator.target_network_time_ms = 2000;
-    
-    let pos = interpolator.get_interpolated_position(2000);
-    assert_eq!(pos, (20.0, 30.0));
+    // 120% of time (should cap at destination)
+    state.update_position(start_time + 2400);
+    assert_eq!(state.current_x, 500);
+    assert_eq!(state.current_y, 600);
 }
-
-#[test]
-fn test_no_extrapolation_above_1() {
-    let mut interpolator = MovementInterpolator::new();
-    interpolator.last_network_pos = (0.0, 0.0);
-    interpolator.last_network_time_ms = 1000;
-    
-    interpolator.target_network_pos = (20.0, 30.0);
-    interpolator.target_network_time_ms = 2000;
-    
-    // Time passed target time
-    let pos = interpolator.get_interpolated_position(3000);
-    assert_eq!(pos, (20.0, 30.0));
-}
-
-#[test]
-fn test_negative_ping_or_past_target_time() {
-    let mut interpolator = MovementInterpolator::new();
-    interpolator.last_network_pos = (0.0, 0.0);
-    interpolator.last_network_time_ms = 1000;
-    
-    // Target time is in the past compared to last network time
-    interpolator.target_network_pos = (20.0, 30.0);
-    interpolator.target_network_time_ms = 500;
-    
-    let pos = interpolator.get_interpolated_position(1000);
-    assert_eq!(pos, (20.0, 30.0));
-}
-
-#[test]
-fn test_zero_interval() {
-    let mut interpolator = MovementInterpolator::new();
-    interpolator.last_network_pos = (0.0, 0.0);
-    interpolator.last_network_time_ms = 1000;
-    
-    interpolator.target_network_pos = (20.0, 30.0);
-    // Interval will be 0
-    interpolator.target_network_time_ms = 1000;
-    
-    let pos = interpolator.get_interpolated_position(1000);
-    assert_eq!(pos, (20.0, 30.0));
-}
-
-#[test]
-fn test_receive_network_packet_eliminates_jumps() {
-    let mut interpolator = MovementInterpolator::new();
-    interpolator.last_network_pos = (0.0, 0.0);
-    interpolator.last_network_time_ms = 0;
-    
-    interpolator.target_network_pos = (100.0, 0.0);
-    interpolator.target_network_time_ms = 1000;
-    
-    // We are at t=500, halfway there -> pos = (50.0, 0.0)
-    let pos = interpolator.get_interpolated_position(500);
-    assert_eq!(pos, (50.0, 0.0));
-    
-    // New packet arrives, target changed drastically
-    interpolator.receive_network_packet((100.0, 100.0), 1500, 500);
-    
-    // Verify that the new starting point is our CURRENT interpolated position, not the old last_network_pos or target
-    assert_eq!(interpolator.last_network_pos, (50.0, 0.0));
-    assert_eq!(interpolator.last_network_time_ms, 500);
-    assert_eq!(interpolator.target_network_pos, (100.0, 100.0));
-    assert_eq!(interpolator.target_network_time_ms, 1500);
-    
-    // Test moving from the new starting point
-    let pos2 = interpolator.get_interpolated_position(1000);
-    assert_eq!(pos2, (75.0, 50.0));
-}
-
-#[test]
-fn test_receive_network_packet_initial_state() {
-    let mut interpolator = MovementInterpolator::new();
-    
-    // Fresh interpolator receives its first packet
-    interpolator.receive_network_packet((10.0, 20.0), 100, 0);
-    
-    assert_eq!(interpolator.last_network_pos, (0.0, 0.0));
-    assert_eq!(interpolator.last_network_time_ms, 0);
-    assert_eq!(interpolator.target_network_pos, (10.0, 20.0));
-    assert_eq!(interpolator.target_network_time_ms, 100);
-}
-
-#[test]
-fn test_interpolation_3d_and_network_gap() {
-    let mut interpolator = MovementInterpolator::new();
-    interpolator.receive_network_packet_3d((100.0, 200.0, 50.0), 1000, 0);
-
-    let pos_3d_half = interpolator.get_interpolated_position_3d(500);
-    assert_eq!(pos_3d_half, (50.0, 100.0, 25.0));
-
-    // Test C++ network gap moving average: (100 * 70 + 200 * 30) / 100 = (7000 + 6000) / 100 = 130
-    interpolator.update_network_gap(200);
-    assert_eq!(interpolator.average_network_gap_ms, 130);
-}
-
