@@ -641,3 +641,4 @@ pub mod game_party_group_manager;
 pub mod trade_exchange_state_machine;
 pub mod terrain_height_evaluator;
 pub mod fishing_mining_controller;
+pub mod safebox_storage_manager;
