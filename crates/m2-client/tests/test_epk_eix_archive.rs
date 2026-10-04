@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use m2_client::vfs_epk_eix_archive_reader::{
     load_eix_index, read_epk_file_data, TEterPackIndex, COMPRESSED_TYPE_NONE, COMPRESSED_TYPE_COMPRESS,
     EPKD_FOURCC, MCOZ_FOURCC,
