@@ -522,6 +522,7 @@ pub mod audio_window_focus_guard;
 #[path = "full-audio-rodio_08.rs"]
 pub mod full_audio_rodio_08;
 pub mod ui_editline_formatter;
+pub mod ui_tooltip_item_comparison;
 #[path = "full-ui-adv_09.rs"]
 pub mod full_ui_adv_09;
 pub mod ui_py_event_dispatcher;
