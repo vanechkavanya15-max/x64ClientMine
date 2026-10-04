@@ -226,20 +226,21 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
             }
         }
         0x0302 => { // MOVE
-            if data.len() >= 25 {
-                let mut move_data = crate::recv_movement::CharacterMoveData {
-                    func: data[4],
-                    arg: data[5],
-                    rot: data[6],
-                    vid: u32::from_le_bytes(data[7..11].try_into().unwrap_or_default()),
-                    x: i32::from_le_bytes(data[11..15].try_into().unwrap_or_default()),
-                    y: i32::from_le_bytes(data[15..19].try_into().unwrap_or_default()),
-                    time: u32::from_le_bytes(data[19..23].try_into().unwrap_or_default()),
-                    duration: u32::from_le_bytes(data[23..27].try_into().unwrap_or_default()),
-                };
-                // Call manager if we had one statically, else returning true
+            if crate::recv_movement::m2_net_recv_move(data.as_ptr(), data.len()) {
+                if data.len() >= 19 {
+                    let vid = u32::from_le_bytes(data[7..11].try_into().unwrap_or_default());
+                    let x = i32::from_le_bytes(data[11..15].try_into().unwrap_or_default());
+                    let y = i32::from_le_bytes(data[15..19].try_into().unwrap_or_default());
+                    if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
+                        if let Some(actor) = state.actors.get_mut(&vid) {
+                            actor.x = x as f32;
+                            actor.y = y as f32;
+                        }
+                    }
+                }
                 return true;
             }
+            return false;
         }
         0x0306 => { // WARP
             return crate::recv_warp_phase_v2::m2_net_recv_warp(data.as_ptr(), data.len());
@@ -500,21 +501,80 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
             return crate::recv_quickslot_sync_v2::process_quickslot_swap(data.as_ptr());
         }
         0x0216 => { // STUN
+            if data.len() >= 8 {
+                let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                if let Ok(mut mgr) = get_character_manager().write() {
+                    if let Some(inst) = mgr.get_instance_mut(vid) {
+                        inst.is_stunned = true;
+                    }
+                }
+            }
             return true;
         }
         0x0217 => { // DEAD
+            if data.len() >= 8 {
+                let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
+                    if let Some(actor) = state.actors.get_mut(&vid) {
+                        actor.is_dead = true;
+                    }
+                }
+                if let Ok(mut mgr) = get_character_manager().write() {
+                    if let Some(inst) = mgr.get_instance_mut(vid) {
+                        inst.is_dead = true;
+                    }
+                }
+                push_event(GameEvent::CharacterDelete { vid });
+            }
             return true;
         }
         0x0218 => { // CHANGE_SPEED
+            if data.len() >= 10 {
+                let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                let speed = u16::from_le_bytes(data[8..10].try_into().unwrap_or_default());
+                push_event(GameEvent::TargetUpdate { id: vid as i32, x: speed as i32, y: 0 });
+            }
             return true;
         }
         0x0219 => { // WALK_MODE
+            if data.len() >= 9 {
+                let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                let walk_mode = data[8];
+                if let Ok(mut mgr) = get_character_manager().write() {
+                    if let Some(inst) = mgr.get_instance_mut(vid) {
+                        if walk_mode != 0 {
+                            inst.active_loop_motion = Some(1); // WALK
+                        }
+                    }
+                }
+            }
             return true;
         }
         0x021A | 0x021B => { // SKILL_LEVEL, SKILL_LEVEL_NEW
             return true;
         }
         0x0304 => { // SYNC_POSITION
+            if data.len() >= 4 {
+                let elem_size = 12usize; // dwVID(4) + lX(4) + lY(4)
+                let count = (data.len() - 4) / elem_size;
+                for i in 0..count {
+                    let off = 4 + i * elem_size;
+                    if off + 12 <= data.len() {
+                        let vid = u32::from_le_bytes(data[off..off+4].try_into().unwrap_or_default());
+                        let x = i32::from_le_bytes(data[off+4..off+8].try_into().unwrap_or_default());
+                        let y = i32::from_le_bytes(data[off+8..off+12].try_into().unwrap_or_default());
+                        if let Ok(mut mgr) = crate::recv_movement::MOVEMENT_MANAGER.write() {
+                            let _ = mgr.handle_sync_position(&crate::recv_movement::SyncPositionData { vid, x, y });
+                        }
+                        if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
+                            if let Some(actor) = state.actors.get_mut(&vid) {
+                                actor.x = x as f32;
+                                actor.y = y as f32;
+                            }
+                        }
+                    }
+                }
+            }
             return true;
         }
         0x0307 => { // MOTION
@@ -524,21 +584,42 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
             return true;
         }
         0x0414 => { // PVP
+            if data.len() >= 13 {
+                let vid_src = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                let _vid_dst = u32::from_le_bytes(data[8..12].try_into().unwrap_or_default());
+                let _mode = data[12];
+                let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+                if game_wnd != 0 {
+                    crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "BINARY_RecvPVP", vid_src as i32);
+                }
+            }
             return true;
         }
         0x0415 => { // DUEL_START
+            let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+            if game_wnd != 0 {
+                crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "BINARY_Duel_Start", 0);
+            }
             return true;
         }
         0x0714 | 0x0715 | 0x0716 => { // PARTY_LINK, PARTY_UNLINK, PARTY_PARAMETER
             return true;
         }
         0x0731 => { // REQUEST_MAKE_GUILD
+            let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+            if game_wnd != 0 {
+                crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "RecvGuildNameDialog", 0);
+            }
             return true;
         }
         0x0750 | 0x0751 => { // LOVER_INFO, LOVE_POINT_UPDATE
             return true;
         }
         0x0832 => { // SAFEBOX_WRONG_PASSWORD
+            let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+            if game_wnd != 0 {
+                crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "OnSafeBoxWrongPassword", 0);
+            }
             return true;
         }
         0x0841 | 0x0842 | 0x0843 => { // MALL_OPEN, MALL_SET, MALL_DEL
@@ -557,6 +638,16 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
             return true;
         }
         0x0A40 => { // MOUNT
+            if data.len() >= 12 {
+                let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                let mount_vid = u32::from_le_bytes(data[8..12].try_into().unwrap_or_default());
+                if let Ok(mut state) = GLOBAL_GAME_STATE.write() {
+                    if state.player.vid == vid {
+                        state.player.mount_vnum = mount_vid;
+                        state.player.is_mounted = mount_vid != 0;
+                    }
+                }
+            }
             return true;
         }
         0x0A41 => { // OWNERSHIP
