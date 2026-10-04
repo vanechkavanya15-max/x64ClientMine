@@ -1,0 +1,516 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /app/rust_bridge/Cargo.toml
+workspace: /app/Cargo.toml
+   Compiling m2-client v0.2.0 (/app/crates/m2-client)
+crates/m2-client/src/wgpu_water_distortion_pipeline.rs:2:12: warning: unused imports: `Vec3` and `Vec4`
+crates/m2-client/src/actor_ffi.rs:1:5: warning: unused import: `std::collections::HashMap`
+crates/m2-client/src/actor_ffi.rs:2:17: warning: unused imports: `OnceLock` and `RwLock`
+crates/m2-client/src/actor_motion_queue.rs:1:5: warning: unused import: `std::collections::HashMap`
+crates/m2-client/src/actor_motion_queue.rs:2:17: warning: unused imports: `OnceLock` and `RwLock`
+crates/m2-client/src/actor_picking.rs:2:5: warning: unused import: `std::collections::HashMap`
+crates/m2-client/src/actor_picking.rs:3:17: warning: unused imports: `OnceLock` and `RwLock`
+crates/m2-client/src/inventory_ffi.rs:1:5: warning: unused import: `std::collections::HashMap`
+crates/m2-client/src/inventory_ffi.rs:2:17: warning: unused imports: `Mutex` and `OnceLock`
+crates/m2-client/src/item_use_logic.rs:2:5: warning: unused import: `m2_client_bridge::ffi_guard::safe_ffi_call`
+crates/m2-client/src/movement_ffi.rs:3:59: warning: unused imports: `HEIGHTMAP_RAW_SIZE` and `RawHeightMap`
+crates/m2-client/src/mob_proto_binary_loader.rs:208:63: warning: unused imports: `RANK_BOSS` and `RANK_KING`
+crates/m2-client/src/mob_proto_binary_loader.rs:209:5: warning: unused import: `std::ffi::CStr`
+crates/m2-client/src/camera_terrain_clamp_v2.rs:2:5: warning: unused import: `std::panic::catch_unwind`
+crates/m2-client/src/inventory_grid_v2.rs:51:5: warning: variant `DRAGON_SOUL_INVENTORY` should have an upper camel case name: help: convert the identifier to upper camel case: `DragonSoulInventory`
+crates/m2-client/src/inventory_grid_v2.rs:52:5: warning: variant `BELT_INVENTORY` should have an upper camel case name: help: convert the identifier to upper camel case: `BeltInventory`
+crates/m2-client/src/player_stat_calc_v2.rs:56:17: warning: unnecessary parentheses around assigned value
+crates/m2-client/src/pvp_gvg_manager_v2.rs:88:31: warning: unused import: `AlignmentType`
+crates/m2-client/src/pvp_gvg_manager_v2.rs:90:5: warning: unused import: `crate::character_manager_core::get_character_manager`
+crates/m2-client/src/recv_guild_logic_v2.rs:3:5: warning: unused import: `std::ffi::CStr`
+crates/m2-client/src/speedtree_forest_renderer.rs:1:16: warning: unused imports: `c_char` and `c_void`
+crates/m2-client/src/wgpu_speedtree_wind_pipeline.rs:2:5: warning: unused import: `std::f32::consts::PI`
+crates/m2-client/src/granny_gr2_binary_parser.rs:1:5: warning: unused import: `std::convert::TryInto`
+crates/m2-client/src/mining_system.rs:6:5: warning: unused import: `std::ffi::c_char`
+crates/m2-client/src/client_thread_orchestrator.rs:1:5: warning: unused import: `std::collections::VecDeque`
+crates/m2-client/src/granny_library_loader.rs:2:28: warning: unused import: `c_int`
+crates/m2-client/src/main_binary_entry.rs:6:16: warning: unused imports: `CString`, `c_char`, and `c_void`
+crates/m2-client/src/py_bridge_chr.rs:1:60: warning: unused import: `InstanceBase`
+crates/m2-client/src/py_bridge_minimap.rs:5:92: warning: unused import: `MinimapScreenPos`
+crates/m2-client/src/py_bridge_net_runtime.rs:3:27: warning: unused import: `ToSocketAddrs`
+crates/m2-client/src/py_bridge_net_runtime.rs:9:99: warning: unused imports: `CG_CHAT` and `CG_WHISPER`
+crates/m2-client/src/py_bridge_net_runtime.rs:13:5: warning: unused imports: `HEADER_CG_ITEM_DROP2`, `HEADER_CG_ITEM_DROP`, `HEADER_CG_ITEM_MOVE`, `HEADER_CG_ITEM_USE`, and `TItemPos`
+crates/m2-client/src/py_bridge_shop.rs:1:5: warning: unused import: `std::os::raw::c_char`
+crates/m2-client/src/py_bridge_skill.rs:6:31: warning: unused imports: `PlayerClass`, `PlayerStats`, and `SkillCalculator`
+crates/m2-client/src/py_bridge_skill.rs:7:58: warning: unused imports: `SKILL_TYPE_ATTACK`, `SKILL_TYPE_BUFF`, and `SKILL_TYPE_TOGGLE`
+crates/m2-client/src/python_runtime_core.rs:2:32: warning: unused import: `CStr`
+crates/m2-client/src/python_runtime_core.rs:3:24: warning: unused import: `OnceLock`
+crates/m2-client/src/ui_window_mgr.rs:8:54: warning: unused import: `WgpuEngineContext`
+crates/m2-client/src/ui_wndmgr_input.rs:3:5: warning: unused import: `crate::ui_window_core::Window`
+crates/m2-client/src/ui_bridge_ffi.rs:6:66: warning: unused imports: `HORIZONTAL_ALIGN_LEFT` and `HORIZONTAL_ALIGN_RIGHT`
+crates/m2-client/src/vfs_pck_memory_mapped.rs:7:15: warning: unused import: `PACK_KEY_SIZE`
+crates/m2-client/src/wgpu_engine_context.rs:9:12: warning: unused imports: `Mat4`, `Quat`, and `Vec3`
+crates/m2-client/src/game_net_receiver.rs:8:17: warning: unused imports: `Arc` and `Mutex`
+crates/m2-client/src/character_create_flow.rs:1:5: warning: unused import: `std::mem::size_of`
+crates/m2-client/src/character_delete_flow.rs:1:15: warning: unused import: `Read`
+crates/m2-client/src/chat_system_network.rs:1:22: warning: unused import: `CString`
+crates/m2-client/src/ui_window_character_status.rs:1:41: warning: unused imports: `HORIZONTAL_ALIGN_CENTER` and `HORIZONTAL_ALIGN_RIGHT`
+crates/m2-client/src/ui_window_character_status.rs:3:43: warning: unused imports: `POINT_DX`, `POINT_HP`, `POINT_HT`, `POINT_IQ`, `POINT_LEVEL`, `POINT_MAX_HP`, `POINT_MAX_SP`, `POINT_SP`, and `POINT_ST`
+crates/m2-client/src/audio_engine_playback.rs:4:5: warning: unused import: `rodio::source::Source`
+crates/m2-client/src/actor_target_picking.rs:6:18: warning: unused imports: `Mat4` and `Vec4`
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:6:32: warning: unused import: `gc_opcode`
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:7:5: warning: unused import: `crate::character_manager_core::get_character_manager`
+crates/m2-client/src/py_bridge_player_native.rs:3:24: warning: unused import: `c_void`
+crates/m2-client/src/py_bridge_graphics_audio.rs:7:30: warning: unused imports: `Empire`, `TextTail`, and `Vector3`
+crates/m2-client/src/py_bridge_graphics_audio.rs:195:5: warning: unused import: `m2_audio_set_master_volume`
+crates/m2-client/src/py_event_dispatcher.rs:1:32: warning: unused import: `CStr`
+crates/m2-client/src/wgpu_terrain_splatting.rs:1:5: warning: unused import: `std::sync::Arc`
+crates/m2-client/src/wgpu_water_plane_renderer.rs:1:5: warning: unused import: `std::num::NonZeroU32`
+crates/m2-client/src/wgpu_particle_billboard_renderer.rs:1:12: warning: unused import: `Mat4`
+crates/m2-client/src/wgpu_particle_system_renderer.rs:6:5: warning: unused import: `std::f32::consts::PI`
+crates/m2-client/src/recv_character_lifecycle_complete.rs:3:17: warning: unused imports: `OnceLock` and `RwLock`
+crates/m2-client/src/recv_character_lifecycle_complete.rs:5:67: warning: unused import: `AffectFlagContainer`
+crates/m2-client/src/recv_item_trade_complete.rs:351:35: warning: unnecessary braces around assigned value
+crates/m2-client/src/game_state_unified.rs:2:17: warning: unused import: `Arc`
+crates/m2-client/src/audio_engine_playback_complete.rs:1:49: warning: unused import: `BgmState`
+crates/m2-client/src/audio_engine_playback_complete.rs:2:56: warning: unused import: `SpatialSoundOutput`
+crates/m2-client/src/audio_engine_playback_complete.rs:5:51: warning: unused import: `WavAudio`
+crates/m2-client/src/audio_engine_playback_complete.rs:6:5: warning: unused import: `crate::sound_wav_parser`
+crates/m2-client/src/audio_engine_playback_complete.rs:123:60: warning: unused import: `process_motion_sound_event`
+crates/m2-client/src/audio_engine_shutdown.rs:1:27: warning: unused imports: `Sink` and `buffer::SamplesBuffer`
+crates/m2-client/src/main_render_pipeline_composition.rs:2:66: warning: unused import: `RenderPhase`
+crates/m2-client/src/main_render_pipeline_composition.rs:4:47: warning: unused import: `EnginePhase`
+crates/m2-client/src/end_to_end_integration_test.rs:1:5: warning: unused import: `std::ffi::c_char`
+crates/m2-client/src/item_mob_proto_vfs_loader.rs:5:5: warning: unused import: `std::collections::HashMap`
+crates/m2-client/src/item_mob_proto_vfs_loader.rs:6:63: warning: unused import: `TItemTable`
+crates/m2-client/src/item_mob_proto_vfs_loader.rs:7:61: warning: unused import: `TMobTable`
+crates/m2-client/src/py_bridge_player_status.rs:4:5: warning: unused import: `std::ffi::CString`
+crates/m2-client/src/send_messenger_complete_packets.rs:2:5: warning: unused import: `std::slice`
+crates/m2-client/src/send_refine_complete_packets.rs:43:5: warning: variant `DragonSoulRefineWindow_UPGRADE` should have an upper camel case name: help: convert the identifier to upper camel case: `DragonSoulRefineWindowUpgrade`
+crates/m2-client/src/send_refine_complete_packets.rs:44:5: warning: variant `DragonSoulRefineWindow_IMPROVEMENT` should have an upper camel case name: help: convert the identifier to upper camel case: `DragonSoulRefineWindowImprovement`
+crates/m2-client/src/send_refine_complete_packets.rs:45:5: warning: variant `DragonSoulRefineWindow_REFINE` should have an upper camel case name: help: convert the identifier to upper camel case: `DragonSoulRefineWindowRefine`
+crates/m2-client/src/ui_widget_rendertarget.rs:1:5: warning: unused import: `std::sync::Arc`
+crates/m2-client/src/wgpu_ground_items_renderer.rs:1:24: warning: unused import: `Mat4`
+crates/m2-client/src/wgpu_magic_effect_mesh_pipeline.rs:4:5: warning: unused import: `wgpu::util::DeviceExt`
+crates/m2-client/src/wgpu_particle_pipeline_complete.rs:1:5: warning: unused import: `wgpu::util::DeviceExt`
+crates/m2-client/src/wgpu_pipeline_wire_complete.rs:1:5: warning: unused import: `wgpu::util::DeviceExt`
+crates/m2-client/src/wgpu_pipeline_wire_complete.rs:2:12: warning: unused imports: `Mat4`, `Vec3`, and `Vec4`
+crates/m2-client/src/wgpu_rendertarget_integration.rs:1:22: warning: unused import: `Mutex`
+crates/m2-client/src/wgpu_terrain_splat_converter.rs:1:5: warning: unused import: `std::sync::Arc`
+crates/m2-client/src/wgpu_water_mesh_integration.rs:1:5: warning: unused import: `std::cmp`
+crates/m2-client/src/wgpu_water_mesh_integration.rs:2:5: warning: unused import: `std::mem`
+crates/m2-client/src/py_bridge_chr_attach.rs:2:60: warning: unused import: `InstanceBase`
+crates/m2-client/src/py_bridge_chr_attach.rs:3:36: warning: unused import: `m2_py_chrmgr_is_selected_vid`
+crates/m2-client/src/py_bridge_chr_attach.rs:9:36: warning: unused import: `Ordering`
+crates/m2-client/src/ui_widget_bar3d.rs:1:5: warning: unused import: `std::ffi::c_char`
+crates/m2-client/src/weapon_trace_quad_generator.rs:1:18: warning: unused import: `Vec4`
+crates/m2-client/src/full_ui_adv_15.rs:2:50: warning: unused import: `ScrollBarOrientation`
+crates/m2-client/src/ui_advanced_system_validator.rs:2:48: warning: unused import: `CachedTexture`
+crates/m2-client/src/ui_advanced_system_validator.rs:3:57: warning: unused import: `RenderTarget`
+crates/m2-client/src/ui_item_tooltip_builder.rs:1:60: warning: unused import: `TooltipElement`
+crates/m2-client/src/ui_rendertarget_scene_pass.rs:3:5: warning: unused import: `std::num::NonZeroU32`
+crates/m2-client/src/character_model_vfs_loader.rs:1:5: warning: unused import: `std::sync::Arc`
+crates/m2-client/src/inventory_grid.rs:180:25: warning: unused variable: `ia`: help: if this is intentional, prefix it with an underscore: `_ia`
+crates/m2-client/src/inventory_grid.rs:181:25: warning: unused variable: `ib`: help: if this is intentional, prefix it with an underscore: `_ib`
+crates/m2-client/src/mob_proto_binary_loader.rs:128:28: warning: value assigned to `decompressed` is never read
+crates/m2-client/src/recv_actors.rs:54:9: warning: unused variable: `header`: help: if this is intentional, prefix it with an underscore: `_header`
+crates/m2-client/src/recv_actors.rs:55:9: warning: unused variable: `length`: help: if this is intentional, prefix it with an underscore: `_length`
+crates/m2-client/src/recv_actors.rs:93:9: warning: unused variable: `amount`: help: if this is intentional, prefix it with an underscore: `_amount`
+crates/m2-client/src/warp_phase_reconnect.rs:29:9: warning: unused variable: `lX`: help: if this is intentional, prefix it with an underscore: `_lX`
+crates/m2-client/src/warp_phase_reconnect.rs:30:9: warning: unused variable: `lY`: help: if this is intentional, prefix it with an underscore: `_lY`
+crates/m2-client/src/camera_terrain_clamp_v2.rs:106:18: warning: value assigned to `up` is never read
+crates/m2-client/src/inventory_grid_v2.rs:140:21: warning: unused variable: `old_item`: help: if this is intentional, prefix it with an underscore: `_old_item`
+crates/m2-client/src/recv_fly_bullet_v2.rs:46:13: warning: unused variable: `distance_xy`: help: if this is intentional, prefix it with an underscore: `_distance_xy`
+crates/m2-client/src/recv_fly_bullet_v2.rs:103:9: warning: unused variable: `header`: help: if this is intentional, prefix it with an underscore: `_header`
+crates/m2-client/src/recv_fly_bullet_v2.rs:104:9: warning: unused variable: `length`: help: if this is intentional, prefix it with an underscore: `_length`
+crates/m2-client/src/audio_mss_device.rs:212:18: warning: unused variable: `sample_handle`: help: if this is intentional, prefix it with an underscore: `_sample_handle`
+crates/m2-client/src/client_thread_orchestrator.rs:65:26: warning: unused variable: `net_cmd_rx`: help: if this is intentional, prefix it with an underscore: `_net_cmd_rx`
+crates/m2-client/src/client_thread_orchestrator.rs:66:14: warning: unused variable: `net_event_tx`: help: if this is intentional, prefix it with an underscore: `_net_event_tx`
+crates/m2-client/src/client_thread_orchestrator.rs:68:28: warning: unused variable: `asset_req_rx`: help: if this is intentional, prefix it with an underscore: `_asset_req_rx`
+crates/m2-client/src/client_thread_orchestrator.rs:69:14: warning: unused variable: `asset_event_tx`: help: if this is intentional, prefix it with an underscore: `_asset_event_tx`
+crates/m2-client/src/client_thread_orchestrator.rs:144:25: warning: value assigned to `stream` is never read
+crates/m2-client/src/client_thread_orchestrator.rs:103:14: warning: unused variable: `net_cmd_tx`: help: if this is intentional, prefix it with an underscore: `_net_cmd_tx`
+crates/m2-client/src/client_thread_orchestrator.rs:103:26: warning: unused variable: `net_cmd_rx`: help: if this is intentional, prefix it with an underscore: `_net_cmd_rx`
+crates/m2-client/src/client_thread_orchestrator.rs:104:13: warning: unused variable: `net_event_tx`: help: if this is intentional, prefix it with an underscore: `_net_event_tx`
+crates/m2-client/src/granny_file_importer.rs:38:9: warning: unused variable: `format_version`: help: if this is intentional, prefix it with an underscore: `_format_version`
+crates/m2-client/src/py_bridge_net.rs:424:38: warning: value assigned to `total_read` is never read
+crates/m2-client/src/py_bridge_net.rs:1299:9: warning: variable does not need to be mutable
+crates/m2-client/src/py_bridge_net.rs:1299:9: warning: unused variable: `out_buf`: help: if this is intentional, prefix it with an underscore: `_out_buf`
+crates/m2-client/src/py_bridge_net_runtime.rs:177:5: warning: unnecessary `unsafe` block: unnecessary `unsafe` block
+crates/m2-client/src/py_bridge_net_runtime.rs:187:5: warning: unnecessary `unsafe` block: unnecessary `unsafe` block
+crates/m2-client/src/wgpu_engine_context.rs:1788:13: warning: unused variable: `t_update_ms`: help: if this is intentional, prefix it with an underscore: `_t_update_ms`
+crates/m2-client/src/wgpu_engine_context.rs:1812:13: warning: unused variable: `t_collect_ms`: help: if this is intentional, prefix it with an underscore: `_t_collect_ms`
+crates/m2-client/src/game_net_receiver.rs:281:13: warning: variable does not need to be mutable
+crates/m2-client/src/item_proto_binary_loader.rs:118:44: warning: value assigned to `decompressed_buffer` is never read
+crates/m2-client/src/map_setting_loader.rs:202:34: warning: unused variable: `x`: help: if this is intentional, prefix it with an underscore: `_x`
+crates/m2-client/src/map_setting_loader.rs:202:42: warning: unused variable: `y`: help: if this is intentional, prefix it with an underscore: `_y`
+crates/m2-client/src/game_net_stream_dispatcher.rs:7:29: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:14:36: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:23:36: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:30:32: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:44:35: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:52:43: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:60:35: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:71:35: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:84:41: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:92:53: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher.rs:92:62: warning: unreachable pattern: no value can reach this
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:230:21: warning: variable does not need to be mutable
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:101:49: warning: unused variable: `length`: help: if this is intentional, prefix it with an underscore: `_length`
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:104:25: warning: unused variable: `pong_data`: help: if this is intentional, prefix it with an underscore: `_pong_data`
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:155:21: warning: unused variable: `vid`: help: if this is intentional, prefix it with an underscore: `_vid`
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:230:21: warning: unused variable: `move_data`: help: if this is intentional, prefix it with an underscore: `_move_data`
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:248:26: warning: unused variable: `vid`: help: if this is intentional, prefix it with an underscore: `_vid`
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:248:31: warning: unused variable: `dtype`: help: if this is intentional, prefix it with an underscore: `_dtype`
+crates/m2-client/src/game_net_stream_dispatcher_v2.rs:248:38: warning: unused variable: `dmg`: help: if this is intentional, prefix it with an underscore: `_dmg`
+crates/m2-client/src/py_bridge_graphics_audio.rs:179:13: warning: unused variable: `angle`: help: if this is intentional, prefix it with an underscore: `_angle`
+crates/m2-client/src/wgpu_particle_billboard_renderer.rs:120:25: warning: unused variable: `qc`: help: if this is intentional, prefix it with an underscore: `_qc`
+crates/m2-client/src/wgpu_particle_billboard_renderer.rs:81:25: warning: value assigned to `v3_up` is never read
+crates/m2-client/src/wgpu_particle_billboard_renderer.rs:82:28: warning: value assigned to `v3_cross` is never read
+crates/m2-client/src/wgpu_flying_projectile_renderer.rs:177:17: warning: variable does not need to be mutable
+crates/m2-client/src/wgpu_texttail_renderer.rs:316:21: warning: unused variable: `prefix`: help: if this is intentional, prefix it with an underscore: `_prefix`
+crates/m2-client/src/wgpu_camera_orbit_controller.rs:131:13: warning: variable does not need to be mutable
+crates/m2-client/src/wgpu_camera_orbit_controller.rs:136:13: warning: variable does not need to be mutable
+crates/m2-client/src/wgpu_camera_orbit_controller.rs:127:13: warning: unused variable: `cos_y`: help: if this is intentional, prefix it with an underscore: `_cos_y`
+crates/m2-client/src/wgpu_camera_orbit_controller.rs:128:13: warning: unused variable: `sin_y`: help: if this is intentional, prefix it with an underscore: `_sin_y`
+crates/m2-client/src/wgpu_skybox_renderer.rs:374:23: warning: value assigned to `ambient` is never read
+crates/m2-client/src/wgpu_skybox_renderer.rs:375:23: warning: value assigned to `diffuse` is never read
+crates/m2-client/src/wgpu_skybox_renderer.rs:376:19: warning: value assigned to `fog` is never read
+crates/m2-client/src/py_bridge_ui_subsystems.rs:188:13: warning: unused variable: `sp`: help: if this is intentional, prefix it with an underscore: `_sp`
+crates/m2-client/src/py_bridge_ui_subsystems.rs:189:25: warning: unused variable: `actor`: help: if this is intentional, prefix it with an underscore: `_actor`
+crates/m2-client/src/ui_drag_drop_system.rs:121:23: warning: unnecessary `unsafe` block: unnecessary `unsafe` block
+crates/m2-client/src/ui_widget_editline_ime.rs:303:67: warning: unused variable: `shift_down`: help: if this is intentional, prefix it with an underscore: `_shift_down`
+crates/m2-client/src/camera_controller_complete.rs:300:13: warning: variable `collision_pt` is assigned to, but never used
+crates/m2-client/src/camera_controller_complete.rs:307:17: warning: value assigned to `collision_pt` is never read
+crates/m2-client/src/py_bridge_chr_motion.rs:93:25: warning: unused variable: `inst`: help: if this is intentional, prefix it with an underscore: `_inst`
+crates/m2-client/src/py_bridge_chr_motion.rs:85:45: warning: unused variable: `motion_mode`: help: if this is intentional, prefix it with an underscore: `_motion_mode`
+crates/m2-client/src/py_bridge_player_items.rs:185:25: warning: variable does not need to be mutable
+crates/m2-client/src/ui_clipping_alignment.rs:51:27: warning: value assigned to `v_align` is never read
+crates/m2-client/src/ui_clipping_alignment.rs:68:27: warning: value assigned to `h_align` is never read
+crates/m2-client/src/ui_clipping_alignment.rs:104:29: warning: value assigned to `child_handles` is never read
+crates/m2-client/src/ui_clipping_alignment.rs:111:25: warning: value assigned to `right` is never read
+crates/m2-client/src/ui_clipping_alignment.rs:112:26: warning: value assigned to `bottom` is never read
+crates/m2-client/src/ui_widget_rendertarget.rs:76:9: warning: unused variable: `actor`: help: if this is intentional, prefix it with an underscore: `_actor`
+crates/m2-client/src/wgpu_ground_items_renderer.rs:85:17: warning: unused variable: `normal`: help: if this is intentional, prefix it with an underscore: `_normal`
+crates/m2-client/src/wgpu_ground_items_renderer.rs:180:28: warning: unused variable: `fu`: help: if this is intentional, prefix it with an underscore: `_fu`
+crates/m2-client/src/wgpu_ground_items_renderer.rs:180:42: warning: unused variable: `fv`: help: if this is intentional, prefix it with an underscore: `_fv`
+crates/m2-client/src/wgpu_ground_items_renderer.rs:180:56: warning: unused variable: `ft`: help: if this is intentional, prefix it with an underscore: `_ft`
+crates/m2-client/src/py_bridge_chr_attach.rs:28:5: warning: unused variable: `parent_part_index`: help: if this is intentional, prefix it with an underscore: `_parent_part_index`
+crates/m2-client/src/py_bridge_chr_attach.rs:31:5: warning: unused variable: `life`: help: if this is intentional, prefix it with an underscore: `_life`
+crates/m2-client/src/py_bridge_chr_attach.rs:64:5: warning: unused variable: `parent_part_index`: help: if this is intentional, prefix it with an underscore: `_parent_part_index`
+crates/m2-client/src/py_bridge_chr_attach.rs:67:5: warning: unused variable: `life`: help: if this is intentional, prefix it with an underscore: `_life`
+crates/m2-client/src/ui_widget_bar3d.rs:134:47: warning: unused variable: `py_obj`: help: if this is intentional, prefix it with an underscore: `_py_obj`
+crates/m2-client/src/guild_mark_atlas_loader.rs:91:30: warning: value assigned to `mark_width` is never read
+crates/m2-client/src/guild_mark_atlas_loader.rs:92:31: warning: value assigned to `mark_height` is never read
+crates/m2-client/src/guild_mark_atlas_loader.rs:93:29: warning: value assigned to `mark_rgba` is never read
+crates/m2-client/src/net_guild_packets.rs:96:44: warning: unused variable: `highest_index`: help: if this is intentional, prefix it with an underscore: `_highest_index`
+crates/m2-client/src/net_exchange_packets.rs:13:35: warning: variable does not need to be mutable
+crates/m2-client/src/d3d9_render_target_mgr.rs:45:5: warning: field `active_render_target` is never read
+crates/m2-client/src/d3d9_texture_factory.rs:36:5: warning: fields `width` and `height` are never read
+crates/m2-client/src/d3d9_texture_factory.rs:42:5: warning: field `format` is never read
+crates/m2-client/src/win32_window.rs:91:5: warning: fields `hwnd` and `rect` are never read
+crates/m2-client/src/secure_cipher.rs:22:8: warning: function `crypto_kx_server_session_keys` is never used
+crates/m2-client/src/secure_cipher.rs:30:8: warning: function `crypto_auth_verify` is never used
+crates/m2-client/src/item_proto_binary_loader.rs:53:8: warning: struct `CLZObjectHeader` is never constructed
+crates/m2-client/src/audio_engine_playback.rs:68:5: warning: field `listener_position` is never read
+crates/m2-client/src/wgpu_particle_system_renderer.rs:33:4: warning: function `get_time_event_blend_value_color` is never used
+crates/m2-client/src/audio_engine_playback_complete.rs:12:5: warning: field `buffer_cache` is never read
+crates/m2-client/src/ui_editline_text_formatting.rs:35:4: warning: function `get_or_create_state` is never used
+crates/m2-client/src/py_bridge_chr_attach.rs:14:8: warning: static `SELECTED_VID` is never used
+crates/m2-client/src/mob_proto_binary_loader.rs:14:9: warning: structure field `dwVnum` should have a snake case name: help: convert the identifier to snake case: `dw_vnum`
+crates/m2-client/src/mob_proto_binary_loader.rs:15:9: warning: structure field `bLevel` should have a snake case name: help: convert the identifier to snake case: `b_level`
+crates/m2-client/src/mob_proto_binary_loader.rs:21:9: warning: structure field `dwVnum` should have a snake case name: help: convert the identifier to snake case: `dw_vnum`
+crates/m2-client/src/mob_proto_binary_loader.rs:22:9: warning: structure field `szName` should have a snake case name: help: convert the identifier to snake case: `sz_name`
+crates/m2-client/src/mob_proto_binary_loader.rs:23:9: warning: structure field `szLocaleName` should have a snake case name: help: convert the identifier to snake case: `sz_locale_name`
+crates/m2-client/src/mob_proto_binary_loader.rs:25:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/mob_proto_binary_loader.rs:26:9: warning: structure field `bRank` should have a snake case name: help: convert the identifier to snake case: `b_rank`
+crates/m2-client/src/mob_proto_binary_loader.rs:27:9: warning: structure field `bBattleType` should have a snake case name: help: convert the identifier to snake case: `b_battle_type`
+crates/m2-client/src/mob_proto_binary_loader.rs:28:9: warning: structure field `bLevel` should have a snake case name: help: convert the identifier to snake case: `b_level`
+crates/m2-client/src/mob_proto_binary_loader.rs:29:9: warning: structure field `bSize` should have a snake case name: help: convert the identifier to snake case: `b_size`
+crates/m2-client/src/mob_proto_binary_loader.rs:31:9: warning: structure field `dwGoldMin` should have a snake case name: help: convert the identifier to snake case: `dw_gold_min`
+crates/m2-client/src/mob_proto_binary_loader.rs:32:9: warning: structure field `dwGoldMax` should have a snake case name: help: convert the identifier to snake case: `dw_gold_max`
+crates/m2-client/src/mob_proto_binary_loader.rs:33:9: warning: structure field `dwExp` should have a snake case name: help: convert the identifier to snake case: `dw_exp`
+crates/m2-client/src/mob_proto_binary_loader.rs:34:9: warning: structure field `dwMaxHP` should have a snake case name: help: convert the identifier to snake case: `dw_max_hp`
+crates/m2-client/src/mob_proto_binary_loader.rs:35:9: warning: structure field `bRegenCycle` should have a snake case name: help: convert the identifier to snake case: `b_regen_cycle`
+crates/m2-client/src/mob_proto_binary_loader.rs:36:9: warning: structure field `bRegenPercent` should have a snake case name: help: convert the identifier to snake case: `b_regen_percent`
+crates/m2-client/src/mob_proto_binary_loader.rs:37:9: warning: structure field `wDef` should have a snake case name: help: convert the identifier to snake case: `w_def`
+crates/m2-client/src/mob_proto_binary_loader.rs:39:9: warning: structure field `dwAIFlag` should have a snake case name: help: convert the identifier to snake case: `dw_aiflag`
+crates/m2-client/src/mob_proto_binary_loader.rs:40:9: warning: structure field `dwRaceFlag` should have a snake case name: help: convert the identifier to snake case: `dw_race_flag`
+crates/m2-client/src/mob_proto_binary_loader.rs:41:9: warning: structure field `dwImmuneFlag` should have a snake case name: help: convert the identifier to snake case: `dw_immune_flag`
+crates/m2-client/src/mob_proto_binary_loader.rs:43:9: warning: structure field `bStr` should have a snake case name: help: convert the identifier to snake case: `b_str`
+crates/m2-client/src/mob_proto_binary_loader.rs:44:9: warning: structure field `bDex` should have a snake case name: help: convert the identifier to snake case: `b_dex`
+crates/m2-client/src/mob_proto_binary_loader.rs:45:9: warning: structure field `bCon` should have a snake case name: help: convert the identifier to snake case: `b_con`
+crates/m2-client/src/mob_proto_binary_loader.rs:46:9: warning: structure field `bInt` should have a snake case name: help: convert the identifier to snake case: `b_int`
+crates/m2-client/src/mob_proto_binary_loader.rs:47:9: warning: structure field `dwDamageRange` should have a snake case name: help: convert the identifier to snake case: `dw_damage_range`
+crates/m2-client/src/mob_proto_binary_loader.rs:49:9: warning: structure field `sAttackSpeed` should have a snake case name: help: convert the identifier to snake case: `s_attack_speed`
+crates/m2-client/src/mob_proto_binary_loader.rs:50:9: warning: structure field `sMovingSpeed` should have a snake case name: help: convert the identifier to snake case: `s_moving_speed`
+crates/m2-client/src/mob_proto_binary_loader.rs:51:9: warning: structure field `bAggresiveHPPct` should have a snake case name: help: convert the identifier to snake case: `b_aggresive_hppct`
+crates/m2-client/src/mob_proto_binary_loader.rs:52:9: warning: structure field `wAggressiveSight` should have a snake case name: help: convert the identifier to snake case: `w_aggressive_sight`
+crates/m2-client/src/mob_proto_binary_loader.rs:53:9: warning: structure field `wAttackRange` should have a snake case name: help: convert the identifier to snake case: `w_attack_range`
+crates/m2-client/src/mob_proto_binary_loader.rs:55:9: warning: structure field `cEnchants` should have a snake case name: help: convert the identifier to snake case: `c_enchants`
+crates/m2-client/src/mob_proto_binary_loader.rs:56:9: warning: structure field `cResists` should have a snake case name: help: convert the identifier to snake case: `c_resists`
+crates/m2-client/src/mob_proto_binary_loader.rs:58:9: warning: structure field `dwResurrectionVnum` should have a snake case name: help: convert the identifier to snake case: `dw_resurrection_vnum`
+crates/m2-client/src/mob_proto_binary_loader.rs:59:9: warning: structure field `dwDropItemVnum` should have a snake case name: help: convert the identifier to snake case: `dw_drop_item_vnum`
+crates/m2-client/src/mob_proto_binary_loader.rs:61:9: warning: structure field `bMountCapacity` should have a snake case name: help: convert the identifier to snake case: `b_mount_capacity`
+crates/m2-client/src/mob_proto_binary_loader.rs:62:9: warning: structure field `bOnClickType` should have a snake case name: help: convert the identifier to snake case: `b_on_click_type`
+crates/m2-client/src/mob_proto_binary_loader.rs:64:9: warning: structure field `bEmpire` should have a snake case name: help: convert the identifier to snake case: `b_empire`
+crates/m2-client/src/mob_proto_binary_loader.rs:65:9: warning: structure field `szFolder` should have a snake case name: help: convert the identifier to snake case: `sz_folder`
+crates/m2-client/src/mob_proto_binary_loader.rs:66:9: warning: structure field `fDamMultiply` should have a snake case name: help: convert the identifier to snake case: `f_dam_multiply`
+crates/m2-client/src/mob_proto_binary_loader.rs:67:9: warning: structure field `dwSummonVnum` should have a snake case name: help: convert the identifier to snake case: `dw_summon_vnum`
+crates/m2-client/src/mob_proto_binary_loader.rs:68:9: warning: structure field `dwDrainSP` should have a snake case name: help: convert the identifier to snake case: `dw_drain_sp`
+crates/m2-client/src/mob_proto_binary_loader.rs:69:9: warning: structure field `dwMonsterColor` should have a snake case name: help: convert the identifier to snake case: `dw_monster_color`
+crates/m2-client/src/mob_proto_binary_loader.rs:70:9: warning: structure field `dwPolymorphItemVnum` should have a snake case name: help: convert the identifier to snake case: `dw_polymorph_item_vnum`
+crates/m2-client/src/mob_proto_binary_loader.rs:72:9: warning: structure field `Skills` should have a snake case name: help: convert the identifier to snake case (notice the capitalization): `skills`
+crates/m2-client/src/mob_proto_binary_loader.rs:74:9: warning: structure field `bBerserkPoint` should have a snake case name: help: convert the identifier to snake case: `b_berserk_point`
+crates/m2-client/src/mob_proto_binary_loader.rs:75:9: warning: structure field `bStoneSkinPoint` should have a snake case name: help: convert the identifier to snake case: `b_stone_skin_point`
+crates/m2-client/src/mob_proto_binary_loader.rs:76:9: warning: structure field `bGodSpeedPoint` should have a snake case name: help: convert the identifier to snake case: `b_god_speed_point`
+crates/m2-client/src/mob_proto_binary_loader.rs:77:9: warning: structure field `bDeathBlowPoint` should have a snake case name: help: convert the identifier to snake case: `b_death_blow_point`
+crates/m2-client/src/mob_proto_binary_loader.rs:78:9: warning: structure field `bRevivePoint` should have a snake case name: help: convert the identifier to snake case: `b_revive_point`
+crates/m2-client/src/mob_proto_binary_loader.rs:84:9: warning: structure field `dwFourCC` should have a snake case name: help: convert the identifier to snake case: `dw_four_cc`
+crates/m2-client/src/mob_proto_binary_loader.rs:85:9: warning: structure field `dwEncryptSize` should have a snake case name: help: convert the identifier to snake case: `dw_encrypt_size`
+crates/m2-client/src/mob_proto_binary_loader.rs:86:9: warning: structure field `dwCompressedSize` should have a snake case name: help: convert the identifier to snake case: `dw_compressed_size`
+crates/m2-client/src/mob_proto_binary_loader.rs:87:9: warning: structure field `dwRealSize` should have a snake case name: help: convert the identifier to snake case: `dw_real_size`
+crates/m2-client/src/mob_proto_binary_loader.rs:104:9: warning: variable `dwElements` should have a snake case name: help: convert the identifier to snake case: `dw_elements`
+crates/m2-client/src/mob_proto_binary_loader.rs:105:9: warning: variable `dwDataSize` should have a snake case name: help: convert the identifier to snake case: `dw_data_size`
+crates/m2-client/src/recv_actors.rs:56:9: warning: variable `dwVID` should have a snake case name: help: convert the identifier to snake case: `dw_vid`
+crates/m2-client/src/recv_actors.rs:61:9: warning: variable `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/recv_actors.rs:62:9: warning: variable `wRaceNum` should have a snake case name: help: convert the identifier to snake case: `w_race_num`
+crates/m2-client/src/recv_actors.rs:91:9: warning: variable `dwVID` should have a snake case name: help: convert the identifier to snake case: `dw_vid`
+crates/m2-client/src/recv_actors.rs:92:9: warning: variable `Type` should have a snake case name
+crates/m2-client/src/warp_phase_reconnect.rs:29:9: warning: variable `lX` should have a snake case name: help: convert the identifier to snake case: `l_x`
+crates/m2-client/src/warp_phase_reconnect.rs:30:9: warning: variable `lY` should have a snake case name: help: convert the identifier to snake case: `l_y`
+crates/m2-client/src/warp_phase_reconnect.rs:31:9: warning: variable `lAddr` should have a snake case name: help: convert the identifier to snake case: `l_addr`
+crates/m2-client/src/warp_phase_reconnect.rs:32:9: warning: variable `wPort` should have a snake case name: help: convert the identifier to snake case: `w_port`
+crates/m2-client/src/inventory_grid_v2.rs:8:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/inventory_grid_v2.rs:9:9: warning: structure field `sValue` should have a snake case name: help: convert the identifier to snake case: `s_value`
+crates/m2-client/src/recv_fly_bullet_v2.rs:105:9: warning: variable `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/recv_fly_bullet_v2.rs:106:9: warning: variable `dwStartVID` should have a snake case name: help: convert the identifier to snake case: `dw_start_vid`
+crates/m2-client/src/recv_fly_bullet_v2.rs:107:9: warning: variable `dwEndVID` should have a snake case name: help: convert the identifier to snake case: `dw_end_vid`
+crates/m2-client/src/recv_target_info_v2.rs:10:9: warning: structure field `dwVID` should have a snake case name: help: convert the identifier to snake case: `dw_vid`
+crates/m2-client/src/recv_target_info_v2.rs:11:9: warning: structure field `bHPPercent` should have a snake case name: help: convert the identifier to snake case: `b_hppercent`
+crates/m2-client/src/recv_warp_phase_v2.rs:31:9: warning: variable `lX` should have a snake case name: help: convert the identifier to snake case: `l_x`
+crates/m2-client/src/recv_warp_phase_v2.rs:32:9: warning: variable `lY` should have a snake case name: help: convert the identifier to snake case: `l_y`
+crates/m2-client/src/recv_warp_phase_v2.rs:33:9: warning: variable `lAddr` should have a snake case name: help: convert the identifier to snake case: `l_addr`
+crates/m2-client/src/recv_warp_phase_v2.rs:34:9: warning: variable `wPort` should have a snake case name: help: convert the identifier to snake case: `w_port`
+crates/m2-client/src/safebox_mall_manager_v2.rs:14:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/safebox_mall_manager_v2.rs:15:9: warning: structure field `sValue` should have a snake case name: help: convert the identifier to snake case: `s_value`
+crates/m2-client/src/safebox_mall_manager_v2.rs:24:9: warning: structure field `alSockets` should have a snake case name: help: convert the identifier to snake case: `al_sockets`
+crates/m2-client/src/safebox_mall_manager_v2.rs:25:9: warning: structure field `aAttr` should have a snake case name: help: convert the identifier to snake case: `a_attr`
+crates/m2-client/src/win32_window.rs:101:19: warning: function `AdjustWindowRect` should have a snake case name: help: convert the identifier to snake case: `adjust_window_rect`
+crates/m2-client/src/win32_window.rs:117:19: warning: function `RegisterClassA` should have a snake case name: help: convert the identifier to snake case: `register_class_a`
+crates/m2-client/src/win32_window.rs:121:19: warning: function `DefWindowProcA` should have a snake case name: help: convert the identifier to snake case: `def_window_proc_a`
+crates/m2-client/src/win32_window.rs:130:19: warning: function `CreateWindowExA` should have a snake case name: help: convert the identifier to snake case: `create_window_ex_a`
+crates/m2-client/src/win32_window.rs:164:19: warning: function `SetWindowTextA` should have a snake case name: help: convert the identifier to snake case: `set_window_text_a`
+crates/m2-client/src/win32_window.rs:181:19: warning: function `GetWindowLongA` should have a snake case name: help: convert the identifier to snake case: `get_window_long_a`
+crates/m2-client/src/win32_window.rs:194:19: warning: function `SetWindowLongA` should have a snake case name: help: convert the identifier to snake case: `set_window_long_a`
+crates/m2-client/src/win32_window.rs:209:19: warning: function `SetWindowPos` should have a snake case name: help: convert the identifier to snake case: `set_window_pos`
+crates/m2-client/src/win32_window.rs:227:19: warning: function `ShowWindow` should have a snake case name: help: convert the identifier to snake case: `show_window`
+crates/m2-client/src/win32_window.rs:231:19: warning: function `UpdateWindow` should have a snake case name: help: convert the identifier to snake case: `update_window`
+crates/m2-client/src/win32_window.rs:235:19: warning: function `DestroyWindow` should have a snake case name: help: convert the identifier to snake case: `destroy_window`
+crates/m2-client/src/win32_window.rs:239:19: warning: function `PostQuitMessage` should have a snake case name: help: convert the identifier to snake case: `post_quit_message`
+crates/m2-client/src/win32_window.rs:241:19: warning: function `GetLastError` should have a snake case name: help: convert the identifier to snake case: `get_last_error`
+crates/m2-client/src/win32_window.rs:245:19: warning: function `GetModuleHandleA` should have a snake case name: help: convert the identifier to snake case: `get_module_handle_a`
+crates/m2-client/src/win32_window.rs:249:19: warning: function `GetStockObject` should have a snake case name: help: convert the identifier to snake case: `get_stock_object`
+crates/m2-client/src/character_create_delete_flow.rs:52:9: warning: structure field `szPrivateCode` should have a snake case name: help: convert the identifier to snake case: `sz_private_code`
+crates/m2-client/src/character_create_delete_flow.rs:58:9: warning: structure field `dwID` should have a snake case name: help: convert the identifier to snake case: `dw_id`
+crates/m2-client/src/character_create_delete_flow.rs:59:9: warning: structure field `szName` should have a snake case name: help: convert the identifier to snake case: `sz_name`
+crates/m2-client/src/character_create_delete_flow.rs:60:9: warning: structure field `byJob` should have a snake case name: help: convert the identifier to snake case: `by_job`
+crates/m2-client/src/character_create_delete_flow.rs:61:9: warning: structure field `byLevel` should have a snake case name: help: convert the identifier to snake case: `by_level`
+crates/m2-client/src/character_create_delete_flow.rs:62:9: warning: structure field `dwPlayMinutes` should have a snake case name: help: convert the identifier to snake case: `dw_play_minutes`
+crates/m2-client/src/character_create_delete_flow.rs:63:9: warning: structure field `byST` should have a snake case name: help: convert the identifier to snake case: `by_st`
+crates/m2-client/src/character_create_delete_flow.rs:64:9: warning: structure field `byHT` should have a snake case name: help: convert the identifier to snake case: `by_ht`
+crates/m2-client/src/character_create_delete_flow.rs:65:9: warning: structure field `byDX` should have a snake case name: help: convert the identifier to snake case: `by_dx`
+crates/m2-client/src/character_create_delete_flow.rs:66:9: warning: structure field `byIQ` should have a snake case name: help: convert the identifier to snake case: `by_iq`
+crates/m2-client/src/character_create_delete_flow.rs:67:9: warning: structure field `wMainPart` should have a snake case name: help: convert the identifier to snake case: `w_main_part`
+crates/m2-client/src/character_create_delete_flow.rs:68:9: warning: structure field `bChangeName` should have a snake case name: help: convert the identifier to snake case: `b_change_name`
+crates/m2-client/src/character_create_delete_flow.rs:69:9: warning: structure field `wHairPart` should have a snake case name: help: convert the identifier to snake case: `w_hair_part`
+crates/m2-client/src/character_create_delete_flow.rs:70:9: warning: structure field `bDummy` should have a snake case name: help: convert the identifier to snake case: `b_dummy`
+crates/m2-client/src/character_create_delete_flow.rs:73:9: warning: structure field `lAddr` should have a snake case name: help: convert the identifier to snake case: `l_addr`
+crates/m2-client/src/character_create_delete_flow.rs:74:9: warning: structure field `wPort` should have a snake case name: help: convert the identifier to snake case: `w_port`
+crates/m2-client/src/character_create_delete_flow.rs:75:9: warning: structure field `bySkillGroup` should have a snake case name: help: convert the identifier to snake case: `by_skill_group`
+crates/m2-client/src/character_create_delete_flow.rs:83:9: warning: structure field `bAccountCharacterSlot` should have a snake case name: help: convert the identifier to snake case: `b_account_character_slot`
+crates/m2-client/src/character_create_delete_flow.rs:84:9: warning: structure field `kSimplePlayerInfomation` should have a snake case name: help: convert the identifier to snake case: `k_simple_player_infomation`
+crates/m2-client/src/character_create_delete_flow.rs:92:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/character_create_delete_flow.rs:155:13: warning: variable `szPrivateCode` should have a snake case name: help: convert the identifier to snake case: `sz_private_code`
+crates/m2-client/src/item_proto_binary_loader.rs:13:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/item_proto_binary_loader.rs:14:9: warning: structure field `lValue` should have a snake case name: help: convert the identifier to snake case: `l_value`
+crates/m2-client/src/item_proto_binary_loader.rs:20:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/item_proto_binary_loader.rs:21:9: warning: structure field `lValue` should have a snake case name: help: convert the identifier to snake case: `l_value`
+crates/m2-client/src/item_proto_binary_loader.rs:27:9: warning: structure field `dwVnum` should have a snake case name: help: convert the identifier to snake case: `dw_vnum`
+crates/m2-client/src/item_proto_binary_loader.rs:28:9: warning: structure field `dwVnumRange` should have a snake case name: help: convert the identifier to snake case: `dw_vnum_range`
+crates/m2-client/src/item_proto_binary_loader.rs:29:9: warning: structure field `szName` should have a snake case name: help: convert the identifier to snake case: `sz_name`
+crates/m2-client/src/item_proto_binary_loader.rs:30:9: warning: structure field `szLocaleName` should have a snake case name: help: convert the identifier to snake case: `sz_locale_name`
+crates/m2-client/src/item_proto_binary_loader.rs:31:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/item_proto_binary_loader.rs:32:9: warning: structure field `bSubType` should have a snake case name: help: convert the identifier to snake case: `b_sub_type`
+crates/m2-client/src/item_proto_binary_loader.rs:33:9: warning: structure field `bWeight` should have a snake case name: help: convert the identifier to snake case: `b_weight`
+crates/m2-client/src/item_proto_binary_loader.rs:34:9: warning: structure field `bSize` should have a snake case name: help: convert the identifier to snake case: `b_size`
+crates/m2-client/src/item_proto_binary_loader.rs:35:9: warning: structure field `dwAntiFlags` should have a snake case name: help: convert the identifier to snake case: `dw_anti_flags`
+crates/m2-client/src/item_proto_binary_loader.rs:36:9: warning: structure field `dwFlags` should have a snake case name: help: convert the identifier to snake case: `dw_flags`
+crates/m2-client/src/item_proto_binary_loader.rs:37:9: warning: structure field `dwWearFlags` should have a snake case name: help: convert the identifier to snake case: `dw_wear_flags`
+crates/m2-client/src/item_proto_binary_loader.rs:38:9: warning: structure field `dwImmuneFlag` should have a snake case name: help: convert the identifier to snake case: `dw_immune_flag`
+crates/m2-client/src/item_proto_binary_loader.rs:39:9: warning: structure field `dwIBuyItemPrice` should have a snake case name: help: convert the identifier to snake case: `dw_ibuy_item_price`
+crates/m2-client/src/item_proto_binary_loader.rs:40:9: warning: structure field `dwISellItemPrice` should have a snake case name: help: convert the identifier to snake case: `dw_isell_item_price`
+crates/m2-client/src/item_proto_binary_loader.rs:41:9: warning: structure field `aLimits` should have a snake case name: help: convert the identifier to snake case: `a_limits`
+crates/m2-client/src/item_proto_binary_loader.rs:42:9: warning: structure field `aApplies` should have a snake case name: help: convert the identifier to snake case: `a_applies`
+crates/m2-client/src/item_proto_binary_loader.rs:43:9: warning: structure field `alValues` should have a snake case name: help: convert the identifier to snake case: `al_values`
+crates/m2-client/src/item_proto_binary_loader.rs:44:9: warning: structure field `alSockets` should have a snake case name: help: convert the identifier to snake case: `al_sockets`
+crates/m2-client/src/item_proto_binary_loader.rs:45:9: warning: structure field `dwRefinedVnum` should have a snake case name: help: convert the identifier to snake case: `dw_refined_vnum`
+crates/m2-client/src/item_proto_binary_loader.rs:46:9: warning: structure field `wRefineSet` should have a snake case name: help: convert the identifier to snake case: `w_refine_set`
+crates/m2-client/src/item_proto_binary_loader.rs:47:9: warning: structure field `bAlterToMagicItemPct` should have a snake case name: help: convert the identifier to snake case: `b_alter_to_magic_item_pct`
+crates/m2-client/src/item_proto_binary_loader.rs:48:9: warning: structure field `bSpecular` should have a snake case name: help: convert the identifier to snake case: `b_specular`
+crates/m2-client/src/item_proto_binary_loader.rs:49:9: warning: structure field `bGainSocketPct` should have a snake case name: help: convert the identifier to snake case: `b_gain_socket_pct`
+crates/m2-client/src/item_proto_binary_loader.rs:54:5: warning: structure field `dwFourCC` should have a snake case name: help: convert the identifier to snake case: `dw_four_cc`
+crates/m2-client/src/item_proto_binary_loader.rs:55:5: warning: structure field `dwEncryptSize` should have a snake case name: help: convert the identifier to snake case: `dw_encrypt_size`
+crates/m2-client/src/item_proto_binary_loader.rs:56:5: warning: structure field `dwCompressedSize` should have a snake case name: help: convert the identifier to snake case: `dw_compressed_size`
+crates/m2-client/src/item_proto_binary_loader.rs:57:5: warning: structure field `dwRealSize` should have a snake case name: help: convert the identifier to snake case: `dw_real_size`
+crates/m2-client/src/recv_social_quest_complete.rs:66:9: warning: structure field `bDistributeMode` should have a snake case name: help: convert the identifier to snake case: `b_distribute_mode`
+crates/m2-client/src/recv_social_quest_complete.rs:93:9: warning: structure field `byGrade` should have a snake case name: help: convert the identifier to snake case: `by_grade`
+crates/m2-client/src/recv_social_quest_complete.rs:94:9: warning: structure field `byIsGeneral` should have a snake case name: help: convert the identifier to snake case: `by_is_general`
+crates/m2-client/src/recv_social_quest_complete.rs:95:9: warning: structure field `byJob` should have a snake case name: help: convert the identifier to snake case: `by_job`
+crates/m2-client/src/recv_social_quest_complete.rs:96:9: warning: structure field `byLevel` should have a snake case name: help: convert the identifier to snake case: `by_level`
+crates/m2-client/src/recv_social_quest_complete.rs:97:9: warning: structure field `dwOffer` should have a snake case name: help: convert the identifier to snake case: `dw_offer`
+crates/m2-client/src/recv_social_quest_complete.rs:98:9: warning: structure field `byNameFlag` should have a snake case name: help: convert the identifier to snake case: `by_name_flag`
+crates/m2-client/src/recv_social_quest_complete.rs:112:9: warning: structure field `hasLand` should have a snake case name: help: convert the identifier to snake case: `has_land`
+crates/m2-client/src/recv_social_quest_complete.rs:118:9: warning: structure field `dwGuildSelf` should have a snake case name: help: convert the identifier to snake case: `dw_guild_self`
+crates/m2-client/src/recv_social_quest_complete.rs:119:9: warning: structure field `dwGuildOpp` should have a snake case name: help: convert the identifier to snake case: `dw_guild_opp`
+crates/m2-client/src/recv_social_quest_complete.rs:120:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/recv_social_quest_complete.rs:121:9: warning: structure field `bWarState` should have a snake case name: help: convert the identifier to snake case: `b_war_state`
+crates/m2-client/src/recv_social_quest_complete.rs:127:9: warning: structure field `dwGainGuildID` should have a snake case name: help: convert the identifier to snake case: `dw_gain_guild_id`
+crates/m2-client/src/recv_social_quest_complete.rs:128:9: warning: structure field `dwOpponentGuildID` should have a snake case name: help: convert the identifier to snake case: `dw_opponent_guild_id`
+crates/m2-client/src/recv_social_quest_complete.rs:129:9: warning: structure field `lPoint` should have a snake case name: help: convert the identifier to snake case: `l_point`
+crates/m2-client/src/recv_social_quest_complete.rs:208:9: warning: structure field `requestPID` should have a snake case name: help: convert the identifier to snake case: `request_pid`
+crates/m2-client/src/game_state_unified.rs:15:9: warning: structure field `dwIndex` should have a snake case name: help: convert the identifier to snake case: `dw_index`
+crates/m2-client/src/game_state_unified.rs:16:9: warning: structure field `iType` should have a snake case name: help: convert the identifier to snake case: `i_type`
+crates/m2-client/src/game_state_unified.rs:17:9: warning: structure field `iGrade` should have a snake case name: help: convert the identifier to snake case: `i_grade`
+crates/m2-client/src/game_state_unified.rs:18:9: warning: structure field `iLevel` should have a snake case name: help: convert the identifier to snake case: `i_level`
+crates/m2-client/src/game_state_unified.rs:19:9: warning: structure field `fcurEfficientPercentage` should have a snake case name: help: convert the identifier to snake case: `fcur_efficient_percentage`
+crates/m2-client/src/game_state_unified.rs:20:9: warning: structure field `fnextEfficientPercentage` should have a snake case name: help: convert the identifier to snake case: `fnext_efficient_percentage`
+crates/m2-client/src/game_state_unified.rs:21:9: warning: structure field `isCoolTime` should have a snake case name: help: convert the identifier to snake case: `is_cool_time`
+crates/m2-client/src/game_state_unified.rs:22:9: warning: structure field `fCoolTime` should have a snake case name: help: convert the identifier to snake case: `f_cool_time`
+crates/m2-client/src/game_state_unified.rs:23:9: warning: structure field `fLastUsedTime` should have a snake case name: help: convert the identifier to snake case: `f_last_used_time`
+crates/m2-client/src/game_state_unified.rs:24:9: warning: structure field `bActive` should have a snake case name: help: convert the identifier to snake case: `b_active`
+crates/m2-client/src/game_state_unified.rs:47:9: warning: structure field `Type` should have a snake case name
+crates/m2-client/src/game_state_unified.rs:48:9: warning: structure field `Position` should have a snake case name: help: convert the identifier to snake case: `position`
+crates/m2-client/src/game_state_unified.rs:60:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/game_state_unified.rs:61:9: warning: structure field `sValue` should have a snake case name: help: convert the identifier to snake case: `s_value`
+crates/m2-client/src/game_state_unified.rs:77:9: warning: structure field `alSockets` should have a snake case name: help: convert the identifier to snake case: `al_sockets`
+crates/m2-client/src/game_state_unified.rs:78:9: warning: structure field `aAttr` should have a snake case name: help: convert the identifier to snake case: `a_attr`
+crates/m2-client/src/game_state_unified.rs:96:9: warning: structure field `dwVID` should have a snake case name: help: convert the identifier to snake case: `dw_vid`
+crates/m2-client/src/game_state_unified.rs:97:9: warning: structure field `dwPID` should have a snake case name: help: convert the identifier to snake case: `dw_pid`
+crates/m2-client/src/game_state_unified.rs:98:9: warning: structure field `strName` should have a snake case name: help: convert the identifier to snake case: `str_name`
+crates/m2-client/src/game_state_unified.rs:99:9: warning: structure field `byState` should have a snake case name: help: convert the identifier to snake case: `by_state`
+crates/m2-client/src/game_state_unified.rs:100:9: warning: structure field `byHPPercentage` should have a snake case name: help: convert the identifier to snake case: `by_hppercentage`
+crates/m2-client/src/game_state_unified.rs:101:9: warning: structure field `sAffects` should have a snake case name: help: convert the identifier to snake case: `s_affects`
+crates/m2-client/src/game_state_unified.rs:106:9: warning: structure field `dwVirtualNumber` should have a snake case name: help: convert the identifier to snake case: `dw_virtual_number`
+crates/m2-client/src/game_state_unified.rs:107:9: warning: structure field `v3EndPosition` should have a snake case name: help: convert the identifier to snake case: `v3_end_position`
+crates/m2-client/src/game_state_unified.rs:108:9: warning: structure field `v3RotationAxis` should have a snake case name: help: convert the identifier to snake case: `v3_rotation_axis`
+crates/m2-client/src/game_state_unified.rs:109:9: warning: structure field `qEnd` should have a snake case name: help: convert the identifier to snake case: `q_end`
+crates/m2-client/src/game_state_unified.rs:110:9: warning: structure field `v3Center` should have a snake case name: help: convert the identifier to snake case: `v3_center`
+crates/m2-client/src/game_state_unified.rs:112:9: warning: structure field `dwStartTime` should have a snake case name: help: convert the identifier to snake case: `dw_start_time`
+crates/m2-client/src/game_state_unified.rs:113:9: warning: structure field `dwEndTime` should have a snake case name: help: convert the identifier to snake case: `dw_end_time`
+crates/m2-client/src/game_state_unified.rs:114:9: warning: structure field `eDropSoundType` should have a snake case name: help: convert the identifier to snake case: `e_drop_sound_type`
+crates/m2-client/src/game_state_unified.rs:115:9: warning: structure field `bAnimEnded` should have a snake case name: help: convert the identifier to snake case: `b_anim_ended`
+crates/m2-client/src/game_state_unified.rs:116:9: warning: structure field `dwEffectInstanceIndex` should have a snake case name: help: convert the identifier to snake case: `dw_effect_instance_index`
+crates/m2-client/src/game_state_unified.rs:117:9: warning: structure field `stOwnership` should have a snake case name: help: convert the identifier to snake case: `st_ownership`
+crates/m2-client/src/game_state_unified.rs:122:9: warning: structure field `dwGuildID` should have a snake case name: help: convert the identifier to snake case: `dw_guild_id`
+crates/m2-client/src/game_state_unified.rs:123:9: warning: structure field `szGuildName` should have a snake case name: help: convert the identifier to snake case: `sz_guild_name`
+crates/m2-client/src/game_state_unified.rs:124:9: warning: structure field `dwMasterPID` should have a snake case name: help: convert the identifier to snake case: `dw_master_pid`
+crates/m2-client/src/game_state_unified.rs:125:9: warning: structure field `dwGuildLevel` should have a snake case name: help: convert the identifier to snake case: `dw_guild_level`
+crates/m2-client/src/game_state_unified.rs:126:9: warning: structure field `dwCurrentExperience` should have a snake case name: help: convert the identifier to snake case: `dw_current_experience`
+crates/m2-client/src/game_state_unified.rs:127:9: warning: structure field `dwCurrentMemberCount` should have a snake case name: help: convert the identifier to snake case: `dw_current_member_count`
+crates/m2-client/src/game_state_unified.rs:128:9: warning: structure field `dwMaxMemberCount` should have a snake case name: help: convert the identifier to snake case: `dw_max_member_count`
+crates/m2-client/src/game_state_unified.rs:129:9: warning: structure field `dwGuildMoney` should have a snake case name: help: convert the identifier to snake case: `dw_guild_money`
+crates/m2-client/src/game_state_unified.rs:130:9: warning: structure field `bHasLand` should have a snake case name: help: convert the identifier to snake case: `b_has_land`
+crates/m2-client/src/game_state_unified.rs:135:9: warning: structure field `aQuickSlot` should have a snake case name: help: convert the identifier to snake case: `a_quick_slot`
+crates/m2-client/src/game_state_unified.rs:136:9: warning: structure field `aSkill` should have a snake case name: help: convert the identifier to snake case: `a_skill`
+crates/m2-client/src/game_state_unified.rs:137:9: warning: structure field `m_alPoint` should have a snake case name: help: convert the identifier to snake case: `m_al_point`
+crates/m2-client/src/game_state_unified.rs:138:9: warning: structure field `lQuickPageIndex` should have a snake case name: help: convert the identifier to snake case: `l_quick_page_index`
+crates/m2-client/src/end_to_end_integration_test.rs:13:9: warning: structure field `dwID` should have a snake case name: help: convert the identifier to snake case: `dw_id`
+crates/m2-client/src/end_to_end_integration_test.rs:14:9: warning: structure field `szName` should have a snake case name: help: convert the identifier to snake case: `sz_name`
+crates/m2-client/src/end_to_end_integration_test.rs:15:9: warning: structure field `byJob` should have a snake case name: help: convert the identifier to snake case: `by_job`
+crates/m2-client/src/end_to_end_integration_test.rs:16:9: warning: structure field `byLevel` should have a snake case name: help: convert the identifier to snake case: `by_level`
+crates/m2-client/src/end_to_end_integration_test.rs:17:9: warning: structure field `dwPlayMinutes` should have a snake case name: help: convert the identifier to snake case: `dw_play_minutes`
+crates/m2-client/src/end_to_end_integration_test.rs:18:9: warning: structure field `byST` should have a snake case name: help: convert the identifier to snake case: `by_st`
+crates/m2-client/src/end_to_end_integration_test.rs:19:9: warning: structure field `byHT` should have a snake case name: help: convert the identifier to snake case: `by_ht`
+crates/m2-client/src/end_to_end_integration_test.rs:20:9: warning: structure field `byDX` should have a snake case name: help: convert the identifier to snake case: `by_dx`
+crates/m2-client/src/end_to_end_integration_test.rs:21:9: warning: structure field `byIQ` should have a snake case name: help: convert the identifier to snake case: `by_iq`
+crates/m2-client/src/end_to_end_integration_test.rs:22:9: warning: structure field `wMainPart` should have a snake case name: help: convert the identifier to snake case: `w_main_part`
+crates/m2-client/src/end_to_end_integration_test.rs:23:9: warning: structure field `byHairPart` should have a snake case name: help: convert the identifier to snake case: `by_hair_part`
+crates/m2-client/src/end_to_end_integration_test.rs:26:9: warning: structure field `lAddr` should have a snake case name: help: convert the identifier to snake case: `l_addr`
+crates/m2-client/src/end_to_end_integration_test.rs:27:9: warning: structure field `wPort` should have a snake case name: help: convert the identifier to snake case: `w_port`
+crates/m2-client/src/end_to_end_integration_test.rs:28:9: warning: structure field `bySkillGroup` should have a snake case name: help: convert the identifier to snake case: `by_skill_group`
+crates/m2-client/src/end_to_end_integration_test.rs:36:9: warning: structure field `akSimplePlayerInformation` should have a snake case name: help: convert the identifier to snake case: `ak_simple_player_information`
+crates/m2-client/src/end_to_end_integration_test.rs:57:9: warning: structure field `dwVID` should have a snake case name: help: convert the identifier to snake case: `dw_vid`
+crates/m2-client/src/end_to_end_integration_test.rs:58:9: warning: structure field `wRaceNum` should have a snake case name: help: convert the identifier to snake case: `w_race_num`
+crates/m2-client/src/end_to_end_integration_test.rs:59:9: warning: structure field `szName` should have a snake case name: help: convert the identifier to snake case: `sz_name`
+crates/m2-client/src/end_to_end_integration_test.rs:60:9: warning: structure field `szBGMName` should have a snake case name: help: convert the identifier to snake case: `sz_bgmname`
+crates/m2-client/src/end_to_end_integration_test.rs:61:9: warning: structure field `fBGMVol` should have a snake case name: help: convert the identifier to snake case: `f_bgmvol`
+crates/m2-client/src/end_to_end_integration_test.rs:62:9: warning: structure field `lX` should have a snake case name: help: convert the identifier to snake case: `l_x`
+crates/m2-client/src/end_to_end_integration_test.rs:63:9: warning: structure field `lY` should have a snake case name: help: convert the identifier to snake case: `l_y`
+crates/m2-client/src/end_to_end_integration_test.rs:64:9: warning: structure field `lZ` should have a snake case name: help: convert the identifier to snake case: `l_z`
+crates/m2-client/src/end_to_end_integration_test.rs:65:9: warning: structure field `byEmpire` should have a snake case name: help: convert the identifier to snake case: `by_empire`
+crates/m2-client/src/end_to_end_integration_test.rs:66:9: warning: structure field `bySkillGroup` should have a snake case name: help: convert the identifier to snake case: `by_skill_group`
+crates/m2-client/src/end_to_end_integration_test.rs:76:9: warning: structure field `dwVID` should have a snake case name: help: convert the identifier to snake case: `dw_vid`
+crates/m2-client/src/end_to_end_integration_test.rs:81:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/end_to_end_integration_test.rs:82:9: warning: structure field `wRaceNum` should have a snake case name: help: convert the identifier to snake case: `w_race_num`
+crates/m2-client/src/end_to_end_integration_test.rs:83:9: warning: structure field `bMovingSpeed` should have a snake case name: help: convert the identifier to snake case: `b_moving_speed`
+crates/m2-client/src/end_to_end_integration_test.rs:84:9: warning: structure field `bAttackSpeed` should have a snake case name: help: convert the identifier to snake case: `b_attack_speed`
+crates/m2-client/src/end_to_end_integration_test.rs:85:9: warning: structure field `bStateFlag` should have a snake case name: help: convert the identifier to snake case: `b_state_flag`
+crates/m2-client/src/end_to_end_integration_test.rs:86:9: warning: structure field `dwAffectFlag` should have a snake case name: help: convert the identifier to snake case: `dw_affect_flag`
+crates/m2-client/src/end_to_end_integration_test.rs:94:9: warning: structure field `bFunc` should have a snake case name: help: convert the identifier to snake case: `b_func`
+crates/m2-client/src/end_to_end_integration_test.rs:95:9: warning: structure field `bArg` should have a snake case name: help: convert the identifier to snake case: `b_arg`
+crates/m2-client/src/end_to_end_integration_test.rs:96:9: warning: structure field `bRot` should have a snake case name: help: convert the identifier to snake case: `b_rot`
+crates/m2-client/src/end_to_end_integration_test.rs:97:9: warning: structure field `dwVID` should have a snake case name: help: convert the identifier to snake case: `dw_vid`
+crates/m2-client/src/end_to_end_integration_test.rs:98:9: warning: structure field `lX` should have a snake case name: help: convert the identifier to snake case: `l_x`
+crates/m2-client/src/end_to_end_integration_test.rs:99:9: warning: structure field `lY` should have a snake case name: help: convert the identifier to snake case: `l_y`
+crates/m2-client/src/end_to_end_integration_test.rs:100:9: warning: structure field `dwTime` should have a snake case name: help: convert the identifier to snake case: `dw_time`
+crates/m2-client/src/end_to_end_integration_test.rs:101:9: warning: structure field `dwDuration` should have a snake case name: help: convert the identifier to snake case: `dw_duration`
+crates/m2-client/src/end_to_end_integration_test.rs:109:9: warning: structure field `dwVID` should have a snake case name: help: convert the identifier to snake case: `dw_vid`
+crates/m2-client/src/end_to_end_integration_test.rs:127:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/end_to_end_integration_test.rs:128:9: warning: structure field `sValue` should have a snake case name: help: convert the identifier to snake case: `s_value`
+crates/m2-client/src/end_to_end_integration_test.rs:142:9: warning: structure field `alSockets` should have a snake case name: help: convert the identifier to snake case: `al_sockets`
+crates/m2-client/src/end_to_end_integration_test.rs:143:9: warning: structure field `aAttr` should have a snake case name: help: convert the identifier to snake case: `a_attr`
+crates/m2-client/src/py_bridge_chr_runtime.rs:121:20: warning: creating a shared reference to mutable static: shared reference to mutable static
+crates/m2-client/src/py_bridge_chr_runtime.rs:125:9: warning: creating a shared reference to mutable static: shared reference to mutable static
+crates/m2-client/src/py_bridge_chr_runtime.rs:192:20: warning: creating a shared reference to mutable static: shared reference to mutable static
+crates/m2-client/src/py_bridge_chr_runtime.rs:195:9: warning: creating a shared reference to mutable static: shared reference to mutable static
+crates/m2-client/src/recv_guild_packets_complete.rs:37:9: warning: structure field `byGrade` should have a snake case name: help: convert the identifier to snake case: `by_grade`
+crates/m2-client/src/recv_guild_packets_complete.rs:38:9: warning: structure field `byIsGeneral` should have a snake case name: help: convert the identifier to snake case: `by_is_general`
+crates/m2-client/src/recv_guild_packets_complete.rs:39:9: warning: structure field `byJob` should have a snake case name: help: convert the identifier to snake case: `by_job`
+crates/m2-client/src/recv_guild_packets_complete.rs:40:9: warning: structure field `byLevel` should have a snake case name: help: convert the identifier to snake case: `by_level`
+crates/m2-client/src/recv_guild_packets_complete.rs:41:9: warning: structure field `dwOffer` should have a snake case name: help: convert the identifier to snake case: `dw_offer`
+crates/m2-client/src/recv_guild_packets_complete.rs:42:9: warning: structure field `byNameFlag` should have a snake case name: help: convert the identifier to snake case: `by_name_flag`
+crates/m2-client/src/recv_guild_packets_complete.rs:56:9: warning: structure field `hasLand` should have a snake case name: help: convert the identifier to snake case: `has_land`
+crates/m2-client/src/recv_guild_packets_complete.rs:62:9: warning: structure field `dwGuildSelf` should have a snake case name: help: convert the identifier to snake case: `dw_guild_self`
+crates/m2-client/src/recv_guild_packets_complete.rs:63:9: warning: structure field `dwGuildOpp` should have a snake case name: help: convert the identifier to snake case: `dw_guild_opp`
+crates/m2-client/src/recv_guild_packets_complete.rs:64:9: warning: structure field `bType` should have a snake case name: help: convert the identifier to snake case: `b_type`
+crates/m2-client/src/recv_guild_packets_complete.rs:65:9: warning: structure field `bWarState` should have a snake case name: help: convert the identifier to snake case: `b_war_state`
+crates/m2-client/src/recv_guild_packets_complete.rs:71:9: warning: structure field `bySkillPoint` should have a snake case name: help: convert the identifier to snake case: `by_skill_point`
+crates/m2-client/src/recv_guild_packets_complete.rs:72:9: warning: structure field `bySkillLevel` should have a snake case name: help: convert the identifier to snake case: `by_skill_level`
+crates/m2-client/src/recv_guild_packets_complete.rs:73:9: warning: structure field `wGuildPoint` should have a snake case name: help: convert the identifier to snake case: `w_guild_point`
+crates/m2-client/src/recv_guild_packets_complete.rs:74:9: warning: structure field `wMaxGuildPoint` should have a snake case name: help: convert the identifier to snake case: `w_max_guild_point`
+crates/m2-client/src/recv_guild_packets_complete.rs:80:9: warning: structure field `byGrade` should have a snake case name: help: convert the identifier to snake case: `by_grade`
+crates/m2-client/src/recv_guild_packets_complete.rs:81:9: warning: structure field `byIsGeneral` should have a snake case name: help: convert the identifier to snake case: `by_is_general`
+crates/m2-client/src/recv_guild_packets_complete.rs:82:9: warning: structure field `byJob` should have a snake case name: help: convert the identifier to snake case: `by_job`
+crates/m2-client/src/recv_guild_packets_complete.rs:83:9: warning: structure field `byLevel` should have a snake case name: help: convert the identifier to snake case: `by_level`
+crates/m2-client/src/recv_guild_packets_complete.rs:84:9: warning: structure field `dwOffer` should have a snake case name: help: convert the identifier to snake case: `dw_offer`
+crates/m2-client/src/send_item_actions_packets.rs:194:9: warning: structure field `dwTargetVID` should have a snake case name: help: convert the identifier to snake case: `dw_target_vid`
+crates/m2-client/src/send_item_actions_packets.rs:195:9: warning: structure field `ItemPos` should have a snake case name: help: convert the identifier to snake case: `item_pos`
+crates/m2-client/src/send_item_actions_packets.rs:196:9: warning: structure field `byItemCount` should have a snake case name: help: convert the identifier to snake case: `by_item_count`
+crates/m2-client/src/send_refine_complete_packets.rs:53:9: warning: structure field `bSubType` should have a snake case name: help: convert the identifier to snake case: `b_sub_type`
+crates/m2-client/src/send_refine_complete_packets.rs:54:9: warning: structure field `ItemGrid` should have a snake case name: help: convert the identifier to snake case: `item_grid`
+crates/m2-client/src/send_refine_complete_packets.rs:58:16: warning: variable `bSubType` should have a snake case name: help: convert the identifier to snake case: `b_sub_type`
+crates/m2-client/src/net_shop_private_packets.rs:37:9: warning: structure field `szSign` should have a snake case name: help: convert the identifier to snake case: `sz_sign`
+crates/m2-client/src/net_shop_private_packets.rs:38:9: warning: structure field `bCount` should have a snake case name: help: convert the identifier to snake case: `b_count`
+crates/m2-client/src/net_shop_private_packets.rs:63:5: warning: variable `c_szName` should have a snake case name: help: convert the identifier to snake case: `c_sz_name`
+crates/m2-client/src/net_shop_private_packets.rs:64:5: warning: variable `c_rSellingItemStock` should have a snake case name: help: convert the identifier to snake case: `c_r_selling_item_stock`
+crates/m2-client/src/net_shop_private_packets.rs:73:17: warning: variable `szSign` should have a snake case name: help: convert the identifier to snake case: `sz_sign`
+crates/m2-client/src/net_shop_private_packets.rs:104:47: warning: variable `bPos` should have a snake case name: help: convert the identifier to snake case: `b_pos`
+crates/m2-client/src/net_shop_private_packets.rs:116:13: warning: variable `bCount` should have a snake case name: help: convert the identifier to snake case: `b_count`
+crates/m2-client/src/net_shop_private_packets.rs:125:48: warning: variable `bySlot` should have a snake case name: help: convert the identifier to snake case: `by_slot`
+crates/m2-client/src/net_shop_private_packets.rs:143:52: warning: variable `bySlot` should have a snake case name: help: convert the identifier to snake case: `by_slot`
+crates/m2-client/src/net_shop_private_packets.rs:143:64: warning: variable `byCount` should have a snake case name: help: convert the identifier to snake case: `by_count`
+crates/m2-client/src/net_alch_refine_packets.rs:70:9: warning: structure field `bSubType` should have a snake case name: help: convert the identifier to snake case: `b_sub_type`
+crates/m2-client/src/net_alch_refine_packets.rs:71:9: warning: structure field `ItemGrid` should have a snake case name: help: convert the identifier to snake case: `item_grid`
+warning: `m2-client` (lib) generated 504 warnings (run `cargo fix --lib -p m2-client` to apply 158 suggestions)
+crates/m2-client/tests/test_water_distortion_pipeline.rs:68:23: error[E0433]: failed to resolve: could not find `MaintainBase` in `wgpu`: could not find `MaintainBase` in `wgpu`
+crates/m2-client/tests/test_water_distortion_pipeline.rs:2:5: warning: unused import: `glam::Vec4`
+crates/m2-client/tests/test_water_distortion_pipeline.rs:3:5: warning: unused import: `wgpu::util::DeviceExt`
+crates/m2-client/tests/test_water_distortion_pipeline.rs:21:64: error[E0599]: no function or associated item named `empty` found for struct `ExperimentalFeatures` in the current scope: function or associated item not found in `ExperimentalFeatures`
+crates/m2-client/tests/test_water_distortion_pipeline.rs:22:20: error[E0308]: mismatched types: expected `Trace`, found `Option<_>`
+warning: `m2-client` (test "test_water_distortion_pipeline") generated 2 warnings
+error: could not compile `m2-client` (test "test_water_distortion_pipeline") due to 3 previous errors; 2 warnings emitted

@@ -565,3 +565,4 @@ pub mod wgpu_frustum_culling_map_engine;
 pub mod wgpu_speedtree_billboard_lod;
 pub mod wgpu_actor_status_tint_renderer;
 pub mod game_notice_banner_announcement;
+pub mod wgpu_water_distortion_pipeline;
