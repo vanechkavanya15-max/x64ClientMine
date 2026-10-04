@@ -4,6 +4,7 @@ use crate::wgpu_particle_billboard_renderer::BillboardType;
 use crate::mse_script_parser::{MseTimeEventFloat, MseTimeEventColor, MseEmitterProperty, MseParticleProperty};
 use crate::event_effect_attach_v2::MotionEffectEventData;
 use glam::Vec3;
+use crate::wgpu_particle_pipeline_complete::{TPDTVertex, TPosition, TTextureCoordinate};
 
 pub fn create_particle_system_renderer(effect_data: &MseEffectData) -> WgpuParticleSystemRenderer {
     let mse_prop = &effect_data.particle_property;
@@ -90,4 +91,58 @@ pub fn spawn_particles_on_animation_event(
     }
 
     renderer
+}
+
+pub fn build_wgpu_vertex_buffer(
+    renderer: &WgpuParticleSystemRenderer,
+    camera_up: Vec3,
+    camera_cross: Vec3,
+    camera_view: Vec3,
+) -> Vec<TPDTVertex> {
+    let base_vertices = renderer.build_vertex_buffer(camera_up, camera_cross, camera_view);
+    
+    let mut tpdt_vertices = Vec::with_capacity(base_vertices.len());
+    
+    let color_events: Vec<(f32, [f32; 4])> = renderer
+        .particle_property
+        .time_event_color
+        .iter()
+        .map(|e| (e.time, [e.r, e.g, e.b, e.a]))
+        .collect();
+
+    let mut v_idx = 0;
+    for p in &renderer.particles {
+        if !p.is_alive() {
+            continue;
+        }
+            
+        let color = p.evaluate_color(&color_events);
+        
+        let r_u8 = (color[0] * 255.0).clamp(0.0, 255.0) as u32;
+        let g_u8 = (color[1] * 255.0).clamp(0.0, 255.0) as u32;
+        let b_u8 = (color[2] * 255.0).clamp(0.0, 255.0) as u32;
+        let a_u8 = (color[3] * 255.0).clamp(0.0, 255.0) as u32;
+        
+        let diffuse = (a_u8 << 24) | (r_u8 << 16) | (g_u8 << 8) | b_u8;
+        
+        for i in 0..4 {
+            let base_v = &base_vertices[v_idx + i];
+            tpdt_vertices.push(TPDTVertex {
+                position: TPosition {
+                    x: base_v.position[0],
+                    y: base_v.position[1],
+                    z: base_v.position[2],
+                },
+                diffuse,
+                tex_coord: TTextureCoordinate {
+                    u: base_v.tex_coord[0],
+                    v: base_v.tex_coord[1],
+                }
+            });
+        }
+        
+        v_idx += 4;
+    }
+    
+    tpdt_vertices
 }
