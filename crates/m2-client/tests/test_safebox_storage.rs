@@ -1,4 +1,4 @@
-use m2_client::game_safebox_storage_manager::{GameSafeboxStorageManager, TItemData};
+use m2_client::game_safebox_storage_manager::{GameSafeboxStorageManager, TItemData, TPlayerItemAttribute};
 
 #[test]
 fn test_password_verification() {
@@ -62,9 +62,21 @@ fn test_item_checkin_checkout() {
     let mut item1 = TItemData::default();
     item1.vnum = 11299;
     item1.count = 1;
+    item1.flags = 0x1;
+    item1.alSockets[0] = 500;
+    item1.alSockets[1] = 600;
+    item1.aAttr[0] = TPlayerItemAttribute { bType: 1, sValue: 50 };
     
     // Check in valid item
     assert!(manager.checkin_item(0, item1.clone()));
+    
+    // Verify properties
+    assert_eq!(manager.get_item_flags(0), Some(0x1));
+    assert_eq!(manager.get_item_metin_socket(0, 0), Some(500));
+    assert_eq!(manager.get_item_metin_socket(0, 1), Some(600));
+    assert_eq!(manager.get_item_metin_socket(0, 5), None); // out of bounds
+    assert_eq!(manager.get_item_attribute(0, 0), Some((1, 50)));
+    assert_eq!(manager.get_item_attribute(0, 1), Some((0, 0)));
     
     // Check in same slot should fail
     let mut item2 = TItemData::default();
@@ -75,6 +87,10 @@ fn test_item_checkin_checkout() {
     let checked_out = manager.checkout_item(0);
     assert!(checked_out.is_some());
     assert_eq!(checked_out.unwrap().vnum, 11299);
+    
+    // After checkout properties should be default
+    assert_eq!(manager.get_item_flags(0), Some(0));
+    assert_eq!(manager.get_item_metin_socket(0, 0), Some(0));
     
     // Check out empty slot
     assert!(manager.checkout_item(0).is_none());
@@ -99,6 +115,8 @@ fn test_safebox_pages_and_mall() {
     
     let mut item = TItemData::default();
     item.vnum = 5000;
+    item.alSockets[2] = 999;
+    item.aAttr[3] = TPlayerItemAttribute { bType: 5, sValue: 100 };
     
     manager.set_mall_item_data(5, item.clone());
     
@@ -106,6 +124,14 @@ fn test_safebox_pages_and_mall() {
     assert!(mall_item.is_some());
     assert_eq!(mall_item.unwrap().vnum, 5000);
     
+    // Verify mall properties
+    assert_eq!(manager.get_mall_item_metin_socket(5, 2), Some(999));
+    assert_eq!(manager.get_mall_item_attribute(5, 3), Some((5, 100)));
+    
     manager.del_mall_item_data(5);
     assert_eq!(manager.get_mall_item_data(5).unwrap().vnum, 0);
+    
+    // Verify properties are reset
+    assert_eq!(manager.get_mall_item_metin_socket(5, 2), Some(0));
+    assert_eq!(manager.get_mall_item_attribute(5, 3), Some((0, 0)));
 }

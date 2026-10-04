@@ -250,6 +250,119 @@ pub extern "C" fn m2_py_ui_safebox_get_size() -> usize {
     })
 }
 
+#[no_mangle]
+pub extern "C" fn m2_py_ui_safebox_get_item_flags(slot: usize) -> u32 {
+    safe_ffi_call(0, || {
+        if let Ok(manager) = G_SAFEBOX_MALL_MANAGER.read() {
+            if let Some(item) = manager.get_item_data(slot) {
+                return item.flags;
+            }
+        }
+        0
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_ui_safebox_get_item_metin_socket(slot: usize, socket_index: usize) -> i32 {
+    safe_ffi_call(0, || {
+        if let Ok(manager) = G_SAFEBOX_MALL_MANAGER.read() {
+            if let Some(item) = manager.get_item_data(slot) {
+                if socket_index < crate::safebox_mall_manager_v2::ITEM_SOCKET_SLOT_MAX_NUM {
+                    return item.alSockets[socket_index];
+                }
+            }
+        }
+        0
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_ui_safebox_get_item_attribute(slot: usize, attr_index: usize, out_type: *mut u8, out_val: *mut i16) -> bool {
+    safe_ffi_call(false, || {
+        if out_type.is_null() || out_val.is_null() { return false; }
+        if let Ok(manager) = G_SAFEBOX_MALL_MANAGER.read() {
+            if let Some(item) = manager.get_item_data(slot) {
+                if attr_index < crate::safebox_mall_manager_v2::ITEM_ATTRIBUTE_SLOT_MAX_NUM {
+                    unsafe {
+                        *out_type = item.aAttr[attr_index].bType;
+                        *out_val = item.aAttr[attr_index].sValue;
+                    }
+                    return true;
+                }
+            }
+        }
+        false
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_ui_safebox_get_mall_item_id(slot: usize) -> u32 {
+    safe_ffi_call(0, || {
+        if let Ok(manager) = G_SAFEBOX_MALL_MANAGER.read() {
+            if let Some(item) = manager.get_mall_item_data(slot) {
+                return item.vnum;
+            }
+        }
+        0
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_ui_safebox_get_mall_item_count(slot: usize) -> u8 {
+    safe_ffi_call(0, || {
+        if let Ok(manager) = G_SAFEBOX_MALL_MANAGER.read() {
+            if let Some(item) = manager.get_mall_item_data(slot) {
+                return item.count;
+            }
+        }
+        0
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_ui_safebox_get_mall_item_metin_socket(slot: usize, socket_index: usize) -> i32 {
+    safe_ffi_call(0, || {
+        if let Ok(manager) = G_SAFEBOX_MALL_MANAGER.read() {
+            if let Some(item) = manager.get_mall_item_data(slot) {
+                if socket_index < crate::safebox_mall_manager_v2::ITEM_SOCKET_SLOT_MAX_NUM {
+                    return item.alSockets[socket_index];
+                }
+            }
+        }
+        0
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_ui_safebox_get_mall_item_attribute(slot: usize, attr_index: usize, out_type: *mut u8, out_val: *mut i16) -> bool {
+    safe_ffi_call(false, || {
+        if out_type.is_null() || out_val.is_null() { return false; }
+        if let Ok(manager) = G_SAFEBOX_MALL_MANAGER.read() {
+            if let Some(item) = manager.get_mall_item_data(slot) {
+                if attr_index < crate::safebox_mall_manager_v2::ITEM_ATTRIBUTE_SLOT_MAX_NUM {
+                    unsafe {
+                        *out_type = item.aAttr[attr_index].bType;
+                        *out_val = item.aAttr[attr_index].sValue;
+                    }
+                    return true;
+                }
+            }
+        }
+        false
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_ui_safebox_get_mall_size() -> usize {
+    safe_ffi_call(0, || {
+        if let Ok(manager) = G_SAFEBOX_MALL_MANAGER.read() {
+            manager.get_mall_size()
+        } else {
+            0
+        }
+    })
+}
+
 // Exchange
 #[no_mangle]
 pub extern "C" fn m2_py_ui_exchange_get_item_vnum_from_self(slot: usize) -> u32 {

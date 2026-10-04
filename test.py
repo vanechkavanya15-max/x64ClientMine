@@ -1,1 +1,2 @@
-# dummy
+import sys
+print(sys.version)

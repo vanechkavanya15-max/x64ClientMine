@@ -164,6 +164,27 @@ impl GameSafeboxStorageManager {
         self.safebox_items[slot_index] = TItemData::default();
         Some(item)
     }
+    
+    pub fn get_item_flags(&self, slot_index: usize) -> Option<u32> {
+        self.safebox_items.get(slot_index).map(|item| item.flags)
+    }
+
+    pub fn get_item_metin_socket(&self, slot_index: usize, socket_index: usize) -> Option<i32> {
+        if socket_index >= ITEM_SOCKET_SLOT_MAX_NUM {
+            return None;
+        }
+        self.safebox_items.get(slot_index).map(|item| item.alSockets[socket_index])
+    }
+
+    pub fn get_item_attribute(&self, slot_index: usize, attr_index: usize) -> Option<(u8, i16)> {
+        if attr_index >= ITEM_ATTRIBUTE_SLOT_MAX_NUM {
+            return None;
+        }
+        self.safebox_items.get(slot_index).map(|item| {
+            let attr = &item.aAttr[attr_index];
+            (attr.bType, attr.sValue)
+        })
+    }
 
     // MALL
     pub fn open_mall(&mut self, size: usize) {
@@ -191,5 +212,22 @@ impl GameSafeboxStorageManager {
 
     pub fn get_mall_size(&self) -> usize {
         self.mall_items.len()
+    }
+    
+    pub fn get_mall_item_metin_socket(&self, slot_index: usize, socket_index: usize) -> Option<i32> {
+        if socket_index >= ITEM_SOCKET_SLOT_MAX_NUM {
+            return None;
+        }
+        self.mall_items.get(slot_index).map(|item| item.alSockets[socket_index])
+    }
+
+    pub fn get_mall_item_attribute(&self, slot_index: usize, attr_index: usize) -> Option<(u8, i16)> {
+        if attr_index >= ITEM_ATTRIBUTE_SLOT_MAX_NUM {
+            return None;
+        }
+        self.mall_items.get(slot_index).map(|item| {
+            let attr = &item.aAttr[attr_index];
+            (attr.bType, attr.sValue)
+        })
     }
 }
