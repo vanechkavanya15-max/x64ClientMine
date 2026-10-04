@@ -340,6 +340,11 @@ fn game_recv_loop(mut stream: TcpStream, mut cipher: SecureCipher) {
             }
         }
         
+        // Dynamiczne rozszerzanie bufora reasemblacji TCP dla duzych pakietow (>64KB)
+        if buf_len + 4096 >= recv_buf.len() {
+            recv_buf.resize(recv_buf.len() * 2, 0);
+        }
+
         // Odczyt danych z socketa
         match stream.read(&mut recv_buf[buf_len..]) {
             Ok(0) => {

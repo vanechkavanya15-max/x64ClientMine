@@ -1073,13 +1073,78 @@ def _wrap_net_exit_game():
 setattr(NetModule, 'ExitApplication', staticmethod(_wrap_net_exit_app))
 setattr(NetModule, 'ExitGame', staticmethod(_wrap_net_exit_game))
 setattr(NetModule, 'LogOutGame', staticmethod(_wrap_net_logout_game))
-setattr(NetModule, 'SendEmoticon', staticmethod(lambda e: None))
-setattr(NetModule, 'SendGiveItemPacket', staticmethod(lambda target_vid, w, c, count: None))
-setattr(NetModule, 'SendGoldDropPacketNew', staticmethod(lambda gold: None))
-setattr(NetModule, 'SendPartyInviteAnswerPacket', staticmethod(lambda pid, accept: None))
-setattr(NetModule, 'SendWhisperPacket', staticmethod(lambda name, msg: None))
-setattr(NetModule, 'SendCharacterPositionPacket', staticmethod(lambda x, y: None))
-setattr(NetModule, 'SendTargetPacket', staticmethod(lambda vid: None))
+def _wrap_net_send_emoticon(e):
+    fn = getattr(m2_lib, 'm2_net_SendEmoticon', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint8]
+        fn.restype = ctypes.c_bool
+        return fn(int(e))
+    return True
+
+def _wrap_net_send_give_item(target_vid, w, c, count):
+    fn = getattr(m2_lib, 'm2_net_SendGiveItemPacket', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint32, ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint8]
+        fn.restype = ctypes.c_bool
+        return fn(int(target_vid), int(w), int(c), int(count))
+    return True
+
+def _wrap_net_send_gold_drop_new(gold):
+    fn = getattr(m2_lib, 'm2_net_SendGoldDropPacketNew', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint32]
+        fn.restype = ctypes.c_bool
+        return fn(int(gold))
+    return True
+
+def _wrap_net_send_party_invite_answer(pid, accept):
+    fn = getattr(m2_lib, 'm2_net_SendPartyInviteAnswerPacket', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint32, ctypes.c_uint8]
+        fn.restype = ctypes.c_bool
+        return fn(int(pid), int(accept))
+    return True
+
+def _wrap_net_send_whisper(name, msg):
+    fn = getattr(m2_lib, 'm2_net_SendWhisperPacket', None)
+    if fn:
+        fn.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+        fn.restype = ctypes.c_bool
+        return fn(str(name).encode('utf-8'), str(msg).encode('utf-8'))
+    return True
+
+def _wrap_net_send_char_position(x, y):
+    fn = getattr(m2_lib, 'm2_net_SendCharacterPositionPacket', None)
+    if fn:
+        fn.argtypes = [ctypes.c_int32, ctypes.c_int32]
+        fn.restype = ctypes.c_bool
+        return fn(int(x), int(y))
+    return True
+
+def _wrap_net_send_target(vid):
+    fn = getattr(m2_lib, 'm2_net_SendTargetPacket', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint32]
+        fn.restype = ctypes.c_bool
+        return fn(int(vid))
+    return True
+
+def _wrap_net_send_guild_war(guild_id, war_type):
+    fn = getattr(m2_lib, 'm2_net_SendGuildWarPacket', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint32, ctypes.c_uint8]
+        fn.restype = ctypes.c_bool
+        return fn(int(guild_id), int(war_type))
+    return True
+
+setattr(NetModule, 'SendEmoticon', staticmethod(_wrap_net_send_emoticon))
+setattr(NetModule, 'SendGiveItemPacket', staticmethod(_wrap_net_send_give_item))
+setattr(NetModule, 'SendGoldDropPacketNew', staticmethod(_wrap_net_send_gold_drop_new))
+setattr(NetModule, 'SendPartyInviteAnswerPacket', staticmethod(_wrap_net_send_party_invite_answer))
+setattr(NetModule, 'SendWhisperPacket', staticmethod(_wrap_net_send_whisper))
+setattr(NetModule, 'SendCharacterPositionPacket', staticmethod(_wrap_net_send_char_position))
+setattr(NetModule, 'SendTargetPacket', staticmethod(_wrap_net_send_target))
+setattr(NetModule, 'SendGuildWarPacket', staticmethod(_wrap_net_send_guild_war))
 sys.modules['net'] = NetModule
 sys.modules['Net'] = NetModule
 

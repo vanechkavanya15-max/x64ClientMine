@@ -79,3 +79,75 @@ pub fn calculate_terrain_tile_collision_normal(player_pos: Vec3, tile_center: Ve
     let aabb_max = tile_center + Vec3::new(half_size, half_size, 0.0);
     calculate_aabb_collision_normal(player_pos, aabb_min, aabb_max)
 }
+
+/// Zgodne 1:1 z CActorInstance::__AdjustCollisionMovement z Metin2 C++.
+/// Koryguje wektor ruchu gracza przy kolizji z innym aktorem lub przeszkoda cylindryczna,
+/// realizujac plynne slizganie wzdluz obwodu kolizji.
+pub fn adjust_actor_collision_movement(
+    old_pos: Vec3,
+    cur_pos: Vec3,
+    obstacle_pos: Vec3,
+    combined_radius: f32,
+) -> Option<Vec3> {
+    let diff = cur_pos - obstacle_pos;
+    let diff_2d = Vec3::new(diff.x, diff.y, 0.0);
+    let dist_sq = diff_2d.length_squared();
+
+    if dist_sq >= combined_radius * combined_radius {
+        return None; // Brak kolizji
+    }
+
+    let dist = dist_sq.sqrt();
+    let normal = if dist > 1e-4 {
+        diff_2d / dist
+    } else {
+        Vec3::new(1.0, 0.0, 0.0)
+    };
+
+    // Wektor ruchu miedzy klatkami
+    let move_delta = cur_pos - old_pos;
+    let dot = move_delta.x * normal.x + move_delta.y * normal.y;
+
+    // Slizganie po stycznej: V_slide = V - (V dot N) * N
+    let slide_x = move_delta.x - dot * normal.x;
+    let slide_y = move_delta.y - dot * normal.y;
+
+    // Przesuniecie gracza na bezpieczny promien
+    let safe_x = obstacle_pos.x + normal.x * combined_radius + slide_x;
+    let safe_y = obstacle_pos.y + normal.y * combined_radius + slide_y;
+
+    Some(Vec3::new(safe_x, safe_y, cur_pos.z))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_adjust_actor_collision_movement_sliding() {
+        let old_pos = Vec3::new(0.0, 0.0, 0.0);
+        let cur_pos = Vec3::new(50.0, 50.0, 0.0);
+        let obstacle = Vec3::new(60.0, 50.0, 0.0);
+        let combined_radius = 50.0;
+
+        let adjusted = adjust_actor_collision_movement(old_pos, cur_pos, obstacle, combined_radius);
+        assert!(adjusted.is_some(), "Kolizja z przeszkoda musi zwrocic skorygowana pozycje");
+        let new_pos = adjusted.unwrap();
+
+        // Odleglosc od przeszkody nie moze byc mniejsza niz combined_radius
+        let dist = (Vec3::new(new_pos.x, new_pos.y, 0.0) - Vec3::new(obstacle.x, obstacle.y, 0.0)).length();
+        assert!(dist >= combined_radius - 0.01, "Pozycja po slizgu musi byc poza promien kolizji");
+    }
+
+    #[test]
+    fn test_adjust_actor_collision_no_collision() {
+        let old_pos = Vec3::new(0.0, 0.0, 0.0);
+        let cur_pos = Vec3::new(10.0, 10.0, 0.0);
+        let obstacle = Vec3::new(100.0, 100.0, 0.0);
+        let combined_radius = 50.0;
+
+        let adjusted = adjust_actor_collision_movement(old_pos, cur_pos, obstacle, combined_radius);
+        assert!(adjusted.is_none(), "Brak kolizji powinien zwrocic None");
+    }
+}
+

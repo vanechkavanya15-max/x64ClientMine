@@ -1847,6 +1847,100 @@ pub extern "C" fn m2_net_SendMyShopPacket(name: *const c_char, count: u8) -> boo
     send_raw_encrypted_packet(&pkt)
 }
 
+#[no_mangle]
+pub extern "C" fn m2_net_SendPartyInviteAnswerPacket(leader_pid: u32, accept: u8) -> bool {
+    let mut pkt = Vec::with_capacity(9);
+    pkt.extend_from_slice(&0x0702u16.to_le_bytes()); // HEADER_CG_PARTY_INVITE_ANSWER
+    pkt.extend_from_slice(&9u16.to_le_bytes());
+    pkt.extend_from_slice(&leader_pid.to_le_bytes());
+    pkt.push(accept);
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendEmoticon(emoticon_id: u8) -> bool {
+    let mut pkt = Vec::with_capacity(5);
+    pkt.extend_from_slice(&0x0A03u16.to_le_bytes()); // HEADER_CG_EMOTICON
+    pkt.extend_from_slice(&5u16.to_le_bytes());
+    pkt.push(emoticon_id);
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendGoldDropPacketNew(gold: u32) -> bool {
+    let mut pkt = Vec::with_capacity(11);
+    pkt.extend_from_slice(&0x0502u16.to_le_bytes()); // HEADER_CG_ITEM_DROP
+    pkt.extend_from_slice(&11u16.to_le_bytes());
+    pkt.push(1u8); // window_type = INVENTORY
+    pkt.extend_from_slice(&0xFFFFu16.to_le_bytes()); // special cell for gold
+    pkt.extend_from_slice(&gold.to_le_bytes());
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendGiveItemPacket(target_vid: u32, window_type: u8, cell: u16, count: u8) -> bool {
+    let mut pkt = Vec::with_capacity(12);
+    pkt.extend_from_slice(&0x0504u16.to_le_bytes()); // HEADER_CG_GIVE_ITEM
+    pkt.extend_from_slice(&12u16.to_le_bytes());
+    pkt.extend_from_slice(&target_vid.to_le_bytes());
+    pkt.push(window_type);
+    pkt.extend_from_slice(&cell.to_le_bytes());
+    pkt.push(count);
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendWhisperPacket(target_name: *const c_char, msg: *const c_char) -> bool {
+    if target_name.is_null() || msg.is_null() {
+        return false;
+    }
+    let target = unsafe { CStr::from_ptr(target_name) }.to_bytes();
+    let message = unsafe { CStr::from_ptr(msg) }.to_bytes();
+
+    let mut name_buf = [0u8; 25];
+    let copy_len = target.len().min(24);
+    name_buf[..copy_len].copy_from_slice(&target[..copy_len]);
+
+    let total_len = 4 + 25 + message.len();
+    let mut pkt = Vec::with_capacity(total_len);
+    pkt.extend_from_slice(&0x0A04u16.to_le_bytes()); // HEADER_CG_WHISPER
+    pkt.extend_from_slice(&(total_len as u16).to_le_bytes());
+    pkt.extend_from_slice(&name_buf);
+    pkt.extend_from_slice(message);
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendCharacterPositionPacket(x: i32, y: i32) -> bool {
+    let mut pkt = Vec::with_capacity(16);
+    pkt.extend_from_slice(&0x0303u16.to_le_bytes()); // HEADER_CG_SYNC_POSITION
+    pkt.extend_from_slice(&16u16.to_le_bytes());
+    let main_vid = 0u32; // will be filled or sync position of main actor
+    pkt.extend_from_slice(&main_vid.to_le_bytes());
+    pkt.extend_from_slice(&x.to_le_bytes());
+    pkt.extend_from_slice(&y.to_le_bytes());
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendTargetPacket(target_vid: u32) -> bool {
+    let mut pkt = Vec::with_capacity(8);
+    pkt.extend_from_slice(&0x0A01u16.to_le_bytes()); // HEADER_CG_TARGET
+    pkt.extend_from_slice(&8u16.to_le_bytes());
+    pkt.extend_from_slice(&target_vid.to_le_bytes());
+    send_raw_encrypted_packet(&pkt)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_net_SendGuildWarPacket(guild_id: u32, war_type: u8) -> bool {
+    let mut pkt = Vec::with_capacity(9);
+    pkt.extend_from_slice(&0x0711u16.to_le_bytes()); // HEADER_CG_GUILD
+    pkt.extend_from_slice(&9u16.to_le_bytes());
+    pkt.extend_from_slice(&guild_id.to_le_bytes());
+    pkt.push(war_type);
+    send_raw_encrypted_packet(&pkt)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

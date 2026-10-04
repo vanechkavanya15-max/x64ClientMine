@@ -635,6 +635,27 @@ pub fn dispatch_packet_extended_v2(header: u16, length: u16, data: &[u8]) -> boo
             return true;
         }
         0x0A30 | 0x0A31 => { // SPECIAL_EFFECT, SPECIFIC_EFFECT
+            if data.len() >= 8 {
+                let vid = u32::from_le_bytes(data[4..8].try_into().unwrap_or_default());
+                let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+                if game_wnd != 0 {
+                    crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "BINARY_SpecialEffect", vid as i32);
+                }
+            }
+            return true;
+        }
+        0x051F => { // DRAGON_SOUL_REFINE
+            if data.len() >= 5 {
+                let sub_type = data[4];
+                let game_wnd = crate::py_bridge_net::get_phase_window(crate::py_bridge_net::PHASE_WINDOW_GAME);
+                if game_wnd != 0 {
+                    match sub_type {
+                        0 => crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "BINARY_DragonSoulRefine_Open", 0),
+                        1 => crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "BINARY_DragonSoulRefine_Success", 0),
+                        _ => crate::py_event_dispatcher::call_python_object_method1_i32(game_wnd, "BINARY_DragonSoulRefine_Failure", 0),
+                    };
+                }
+            }
             return true;
         }
         0x0A40 => { // MOUNT
