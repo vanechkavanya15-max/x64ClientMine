@@ -1723,11 +1723,22 @@ pub fn set_max_frames_limit(limit: u64) {
     MAX_FRAMES_LIMIT.store(limit, std::sync::atomic::Ordering::SeqCst);
 }
 
+#[no_mangle]
+pub extern "C" fn m2_set_max_frames_limit(limit: u64) {
+    set_max_frames_limit(limit);
+}
+
 /// Natywna petla gry dla silnika Pure Rust - wywolywana bezposrednio lub z poziomu app.Loop()
 #[no_mangle]
 pub extern "C" fn m2_run_game_loop() -> i32 {
     println!("[+] m2_run_game_loop: rozpoczynanie natywnej petli renderowania GPU Pure Rust...");
-    let mut frame_count: u64 = 0;
+    if let Ok(val) = std::env::var("M2_MAX_FRAMES") {
+        if let Ok(limit) = val.parse::<u64>() {
+            set_max_frames_limit(limit);
+        }
+    }
+    let mut total_frames: u64 = 0;
+    let mut fps_frames: u64 = 0;
     let mut last_fps_time = std::time::Instant::now();
     let clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
 
@@ -1740,7 +1751,7 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
             break;
         }
         let limit = MAX_FRAMES_LIMIT.load(std::sync::atomic::Ordering::SeqCst);
-        if limit > 0 && frame_count >= limit {
+        if limit > 0 && total_frames >= limit {
             println!("[+] Osiagnieto zadany limit klatek ({}), bezpieczne wyjscie z petli.", limit);
             break;
         }
@@ -1925,13 +1936,14 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
             }
         }
 
-        frame_count += 1;
+        total_frames += 1;
+        fps_frames += 1;
         if last_fps_time.elapsed().as_secs() >= 5 {
             let elapsed = last_fps_time.elapsed().as_secs_f64();
-            let fps = frame_count as f64 / elapsed;
-            println!("[+] GPU Renderer: {:.1} FPS (wyrenderowano {} klatek)", fps, frame_count);
+            let fps = fps_frames as f64 / elapsed;
+            println!("[+] GPU Renderer: {:.1} FPS (wyrenderowano {} klatek)", fps, total_frames);
             last_fps_time = std::time::Instant::now();
-            frame_count = 0;
+            fps_frames = 0;
         }
 
         std::thread::sleep(std::time::Duration::from_millis(1));

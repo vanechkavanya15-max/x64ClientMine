@@ -75,4 +75,33 @@ impl SkillCalculator {
         let base_def = (stats.vit as f32) * 2.0 + 30.0;
         base_def * multiplier
     }
+
+    /// Oblicza dynamiczna formule skilla uzywajac parsera CPoly (zgodnego 1:1 z C++ EterBase/Poly)
+    pub fn calculate_dynamic_poly(formula: &str, k: f32, stats: &PlayerStats, skill_level: u8) -> f32 {
+        let mut poly = crate::cpoly_evaluator::CPoly::new();
+        poly.set_str(formula);
+        poly.set_var("k", k as f64);
+        poly.set_var("lv", skill_level as f64);
+        poly.set_var("str", stats.str as f64);
+        poly.set_var("dex", stats.dex as f64);
+        poly.set_var("int", stats.int as f64);
+        poly.set_var("vit", stats.vit as f64);
+        poly.set_var("con", stats.vit as f64);
+        poly.eval() as f32
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dynamic_cpoly_skill_calculation() {
+        let stats = PlayerStats { str: 90, dex: 40, int: 20, vit: 90 };
+        // Typowa formula z Metin2 skill_table: (str*2 + dex)*k + 100
+        let formula = "(str*2 + dex)*k + 100";
+        let res = SkillCalculator::calculate_dynamic_poly(formula, 1.5, &stats, 20);
+        // (90*2 + 40)*1.5 + 100 = 220 * 1.5 + 100 = 330 + 100 = 430
+        assert!((res - 430.0).abs() < 1e-3);
+    }
 }

@@ -671,3 +671,7 @@ pub mod wgpu_terrain_array_splatter;
 pub mod game_net_stream_dispatcher_wire_all;
 pub mod map_warp_phase_coordinator;
 pub mod py_bridge_texttail_runtime_complete;
+pub mod send_missing_cg_packets;
+pub mod wgpu_raycast_picker;
+pub mod bvh_building_collision;
+pub mod chrmgr_registration_bridge;

@@ -1995,13 +1995,45 @@ class ChrmgrModule:
     def LoadLocalRaceData(race=0, path="", *args, **kwargs):
         return ChrmgrModule.LoadRaceData(race, path)
     @staticmethod
-    def RegisterAttachingBoneName(race=0, part=0, bone="", *args, **kwargs): pass
+    def RegisterAttachingBoneName(race=0, part=0, bone="", *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_attaching_bone_name', None)
+        if fn and bone:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                return fn(int(race), int(part), str(bone).encode('utf-8'))
+            except Exception: pass
+        return True
     @staticmethod
-    def RegisterMotionMode(race=0, mode=0, *args, **kwargs): pass
+    def RegisterMotionMode(race=0, mode=0, *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_motion_mode', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+                fn.restype = ctypes.c_bool
+                return fn(int(race), int(mode))
+            except Exception: pass
+        return True
     @staticmethod
-    def SetMotionRandomWeight(race=0, mode=0, motion=0, weight=0, *args, **kwargs): pass
+    def SetMotionRandomWeight(race=0, mode=0, motion=0, weight=0, *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_set_motion_random_weight', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32]
+                fn.restype = ctypes.c_bool
+                return fn(int(race), int(mode), int(motion), int(weight))
+            except Exception: pass
+        return True
     @staticmethod
-    def RegisterNormalAttack(race=0, mode=0, count=0, *args, **kwargs): pass
+    def RegisterNormalAttack(race=0, mode=0, count=0, *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_normal_attack', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32]
+                fn.restype = ctypes.c_bool
+                return fn(int(race), int(mode), int(count))
+            except Exception: pass
+        return True
     @staticmethod
     def ReserveComboAttack(vid=0, combo=0, *args, **kwargs): pass
     @staticmethod
@@ -2009,13 +2041,45 @@ class ChrmgrModule:
     @staticmethod
     def ReserveComboAttackNew(vid=0, combo=0, *args, **kwargs): pass
     @staticmethod
-    def RegisterComboAttackNew(race=0, mode=0, combo=0, count=0, *args, **kwargs): pass
+    def RegisterComboAttackNew(race=0, mode=0, combo=0, count=0, *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_combo_attack_new', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32]
+                fn.restype = ctypes.c_bool
+                return fn(int(race), int(mode), int(combo), int(count))
+            except Exception: pass
+        return True
     @staticmethod
-    def RegisterMotionData(race=0, mode=0, motion=0, path="", *args, **kwargs): pass
+    def RegisterMotionData(race=0, mode=0, motion=0, path="", *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_motion_data', None)
+        if fn and path:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                return fn(int(race), int(mode), int(motion), str(path).encode('utf-8'))
+            except Exception: pass
+        return True
     @staticmethod
-    def RegisterRaceName(race=0, name="", *args, **kwargs): pass
+    def RegisterRaceName(race=0, name="", *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_race_name', None)
+        if fn and name:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                return fn(int(race), str(name).encode('utf-8'))
+            except Exception: pass
+        return True
     @staticmethod
-    def RegisterRaceSrcName(name="", src="", *args, **kwargs): pass
+    def RegisterRaceSrcName(name="", src="", *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_race_src_name', None)
+        if fn and name and src:
+            try:
+                fn.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                return fn(str(name).encode('utf-8'), str(src).encode('utf-8'))
+            except Exception: pass
+        return True
     @staticmethod
     def RegisterCacheMotionData(race=0, mode=0, motion=0, path="", weight=0, *args, **kwargs): pass
     @staticmethod
@@ -2025,9 +2089,29 @@ class ChrmgrModule:
     @staticmethod
     def IsPossibleEmoticon(vid=0, *args, **kwargs): return True
     @staticmethod
-    def RegisterEffect(etype=0, bone="", file="", *args, **kwargs): pass
+    def RegisterEffect(etype=0, bone="", file="", *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_effect', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                b_str = str(bone).encode('utf-8') if bone else b""
+                f_str = str(file).encode('utf-8') if file else b""
+                return fn(int(etype), b_str, f_str)
+            except Exception: pass
+        return True
     @staticmethod
-    def RegisterCacheEffect(etype=0, bone="", file="", *args, **kwargs): pass
+    def RegisterCacheEffect(etype=0, bone="", file="", *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_cache_effect', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                b_str = str(bone).encode('utf-8') if bone else b""
+                f_str = str(file).encode('utf-8') if file else b""
+                return fn(int(etype), b_str, f_str)
+            except Exception: pass
+        return True
     @staticmethod
     def RegisterPointEffect(point=0, file="", *args, **kwargs): pass
     @staticmethod
@@ -2037,17 +2121,57 @@ class ChrmgrModule:
     @staticmethod
     def SetMovingSpeed(speed=100, *args, **kwargs): pass
     @staticmethod
-    def SetDustGap(gap=0, *args, **kwargs): pass
+    def SetDustGap(gap=0, *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_set_dust_gap', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32]
+                fn.restype = ctypes.c_bool
+                return fn(int(gap))
+            except Exception: pass
+        return True
     @staticmethod
-    def SetHorseDustGap(gap=0, *args, **kwargs): pass
+    def SetHorseDustGap(gap=0, *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_set_horse_dust_gap', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32]
+                fn.restype = ctypes.c_bool
+                return fn(int(gap))
+            except Exception: pass
+        return True
     @staticmethod
-    def RegisterTitleName(index=0, name="", *args, **kwargs): pass
+    def RegisterTitleName(index=0, name="", *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_title_name', None)
+        if fn and name:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                return fn(int(index), str(name).encode('utf-8'))
+            except Exception: pass
+        return True
     @staticmethod
     def RefreshAllPCTextTail(*args, **kwargs): pass
     @staticmethod
-    def RegisterNameColor(index=0, r=0, g=0, b=0, *args, **kwargs): pass
+    def RegisterNameColor(index=0, r=0, g=0, b=0, *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_name_color', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8]
+                fn.restype = ctypes.c_bool
+                return fn(int(index), int(r), int(g), int(b))
+            except Exception: pass
+        return True
     @staticmethod
-    def RegisterTitleColor(index=0, r=0, g=0, b=0, *args, **kwargs): pass
+    def RegisterTitleColor(index=0, r=0, g=0, b=0, *args, **kwargs):
+        fn = getattr(m2_lib, 'm2_py_chrmgr_register_title_color', None)
+        if fn:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8]
+                fn.restype = ctypes.c_bool
+                return fn(int(index), int(r), int(g), int(b))
+            except Exception: pass
+        return True
 
 ChrmgrModule.NAMECOLOR_MOB = 6
 ChrmgrModule.NAMECOLOR_NPC = 7

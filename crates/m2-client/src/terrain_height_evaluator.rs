@@ -154,3 +154,25 @@ pub extern "C" fn m2_terrain_get_height_precise(evaluator: *const TerrainHeightE
     let eval = unsafe { &*evaluator };
     eval.get_height(x, y)
 }
+
+use std::sync::{OnceLock, RwLock};
+
+static ACTIVE_TERRAIN_EVALUATOR: OnceLock<RwLock<Option<TerrainHeightEvaluator>>> = OnceLock::new();
+
+pub fn set_active_terrain_evaluator(eval: TerrainHeightEvaluator) {
+    let lock = ACTIVE_TERRAIN_EVALUATOR.get_or_init(|| RwLock::new(None));
+    if let Ok(mut guard) = lock.write() {
+        *guard = Some(eval);
+    }
+}
+
+pub fn get_terrain_height_at(x: f32, y: f32) -> f32 {
+    if let Some(lock) = ACTIVE_TERRAIN_EVALUATOR.get() {
+        if let Ok(guard) = lock.read() {
+            if let Some(ref eval) = *guard {
+                return eval.get_height(x, y);
+            }
+        }
+    }
+    0.0
+}

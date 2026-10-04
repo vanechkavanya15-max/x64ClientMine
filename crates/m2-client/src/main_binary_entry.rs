@@ -162,6 +162,7 @@ impl Metin2Engine {
     
     pub fn load_config(&mut self, config: AppConfig) {
         if let Some(f) = config.max_frames {
+            std::env::set_var("M2_MAX_FRAMES", f.to_string());
             crate::wgpu_engine_context::set_max_frames_limit(f);
         }
         self.config = config;
