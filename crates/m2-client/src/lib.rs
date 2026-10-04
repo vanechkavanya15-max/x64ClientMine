@@ -479,6 +479,7 @@ pub mod wgpu_skybox_integration;
 pub mod wgpu_terrain_mesh_wire;
 pub mod wgpu_terrain_splat_converter;
 pub mod wgpu_water_mesh_integration;
+pub mod wgpu_terrain_decal_projector;
 
 // --- Parity Wave 2 Modules ---
 pub mod gpu_frame_diagnostics;
