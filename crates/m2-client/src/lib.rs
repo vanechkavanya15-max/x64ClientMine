@@ -620,3 +620,4 @@ pub mod py_bridge_app_browser_complete;
 pub mod game_character_stat_calculator;
 pub mod game_offline_shop_search_engine;
 pub mod game_pet_evolution_system;
+pub mod game_equipment_gem_socket_engine;
