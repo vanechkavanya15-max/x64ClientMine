@@ -29,14 +29,12 @@ impl Default for DungeonQuestInstance {
 }
 
 pub struct DungeonTrackingManager {
-    quests: HashMap<u32, DungeonQuestInstance>,
+    quests: Vec<DungeonQuestInstance>,
 }
 
 impl DungeonTrackingManager {
     pub fn new() -> Self {
-        Self {
-            quests: HashMap::new(),
-        }
+        Self { quests: Vec::new() }
     }
 
     pub fn clear(&mut self) {
@@ -52,59 +50,63 @@ impl DungeonTrackingManager {
     }
 
     pub fn register_quest_instance(&mut self, mut instance: DungeonQuestInstance) {
+        self.delete_quest_instance(instance.index);
         instance.start_time = self.get_current_second();
-        self.quests.insert(instance.index, instance);
+        self.quests.push(instance);
     }
 
     pub fn delete_quest_instance(&mut self, index: u32) {
-        self.quests.remove(&index);
+        if let Some(pos) = self.quests.iter().position(|q| q.index == index) {
+            self.quests.remove(pos);
+        }
     }
 
     pub fn is_quest(&self, index: u32) -> bool {
-        self.quests.contains_key(&index)
+        self.quests.iter().any(|q| q.index == index)
     }
 
     pub fn make_quest(&mut self, index: u32) {
+        self.delete_quest_instance(index);
         let mut instance = DungeonQuestInstance::default();
         instance.index = index;
         instance.start_time = self.get_current_second();
-        self.quests.insert(index, instance);
+        self.quests.push(instance);
     }
 
     pub fn set_quest_title(&mut self, index: u32, title: &str) {
-        if let Some(quest) = self.quests.get_mut(&index) {
+        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
             quest.title = title.to_string();
         }
     }
 
     pub fn set_quest_clock_name(&mut self, index: u32, clock_name: &str) {
-        if let Some(quest) = self.quests.get_mut(&index) {
+        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
             quest.clock_name = clock_name.to_string();
         }
     }
 
     pub fn set_quest_counter_name(&mut self, index: u32, counter_name: &str) {
-        if let Some(quest) = self.quests.get_mut(&index) {
+        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
             quest.counter_name = counter_name.to_string();
         }
     }
 
     pub fn set_quest_clock_value(&mut self, index: u32, clock_value: i32) {
         let current_time = self.get_current_second();
-        if let Some(quest) = self.quests.get_mut(&index) {
+        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
             quest.clock_value = clock_value;
             quest.start_time = current_time;
         }
     }
 
     pub fn set_quest_counter_value(&mut self, index: u32, counter_value: i32) {
-        if let Some(quest) = self.quests.get_mut(&index) {
+        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
             quest.counter_value = counter_value;
         }
     }
 
     pub fn set_quest_icon_file_name(&mut self, index: u32, icon_file_name: &str) {
-        if let Some(quest) = self.quests.get_mut(&index) {
+        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
             quest.icon_file_name = icon_file_name.to_string();
         }
     }
@@ -114,11 +116,15 @@ impl DungeonTrackingManager {
     }
 
     pub fn get_quest_instance(&self, index: u32) -> Option<&DungeonQuestInstance> {
-        self.quests.get(&index)
+        self.quests.iter().find(|q| q.index == index)
+    }
+
+    pub fn get_quest_instance_by_array_index(&self, array_index: usize) -> Option<&DungeonQuestInstance> {
+        self.quests.get(array_index)
     }
     
-    pub fn get_quest_last_time(&self, index: u32) -> Option<(String, i32)> {
-        if let Some(quest) = self.quests.get(&index) {
+    pub fn get_quest_last_time(&self, array_index: usize) -> Option<(String, i32)> {
+        if let Some(quest) = self.quests.get(array_index) {
             let mut last_time = 0;
             if quest.clock_value >= 0 {
                 last_time = (quest.start_time + quest.clock_value) - self.get_current_second();
