@@ -132,3 +132,25 @@ fn test_reassemble_1_byte_fragments() {
 
     assert!(reassembler.read_packet().is_none(), "No more packets should be available");
 }
+
+#[test]
+fn test_reassemble_invalid_packet_length() {
+    let mut reassembler = TcpStreamReassembler::new(1024);
+
+    // Build a mock packet with an invalid length (e.g., 2) specifically for a dynamic packet
+    let invalid_len: u16 = 2; // Less than 4, invalid
+    let mut packet_data = Vec::new();
+    packet_data.extend_from_slice(&HEADER_GC_CHAT.to_le_bytes());
+    packet_data.extend_from_slice(&invalid_len.to_le_bytes());
+    packet_data.extend_from_slice(b"dummy data"); // some extra payload
+
+    let starting_length = packet_data.len();
+    reassembler.write(&packet_data);
+    assert_eq!(reassembler.len(), starting_length);
+
+    // When attempting to read, it should detect invalid length and consume 1 byte to attempt recovery
+    assert!(reassembler.read_packet().is_none(), "Should not return a packet for invalid length");
+
+    // The buffer should have consumed exactly 1 byte
+    assert_eq!(reassembler.len(), starting_length - 1);
+}

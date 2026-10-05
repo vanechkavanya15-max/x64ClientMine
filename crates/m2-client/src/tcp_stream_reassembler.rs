@@ -45,6 +45,36 @@ impl TcpStreamReassembler {
         self.count += data.len();
     }
 
+    /// Returns the number of bytes currently in the buffer
+    pub fn len(&self) -> usize {
+        self.count
+    }
+
+    /// Returns whether the buffer is currently empty
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
+    /// Reads a statically sized array of bytes from the ring buffer without consuming them.
+    fn peek_array<const N: usize>(&self) -> Option<[u8; N]> {
+        if self.count < N {
+            return None;
+        }
+
+        let cap = self.buffer.len();
+        let end_space = cap - self.head;
+        let mut result = [0u8; N];
+
+        if N <= end_space {
+            result.copy_from_slice(&self.buffer[self.head..self.head + N]);
+        } else {
+            result[..end_space].copy_from_slice(&self.buffer[self.head..cap]);
+            result[end_space..].copy_from_slice(&self.buffer[0..N - end_space]);
+        }
+
+        Some(result)
+    }
+
     /// Reads a specific number of bytes from the ring buffer without consuming them.
     fn peek_bytes(&self, size: usize) -> Option<Vec<u8>> {
         if self.count < size {
@@ -77,13 +107,10 @@ impl TcpStreamReassembler {
     /// Attempts to read the next complete packet from the buffer.
     pub fn read_packet(&mut self) -> Option<Vec<u8>> {
         // We need at least 4 bytes to parse header and length
-        let header_data = self.peek_bytes(4)?;
+        let header_data = self.peek_array::<4>()?;
 
-        let header_bytes = [header_data[0], header_data[1]];
-        let header = u16::from_le_bytes(header_bytes);
-
-        let length_bytes = [header_data[2], header_data[3]];
-        let packet_length = u16::from_le_bytes(length_bytes) as usize;
+        let header = u16::from_le_bytes([header_data[0], header_data[1]]);
+        let packet_length = u16::from_le_bytes([header_data[2], header_data[3]]) as usize;
 
         if header == 0x0603 || header == 0x0519 {
             // These are dynamically sized packets (HEADER_GC_CHAT, HEADER_GC_QUICKSLOT_ADD).
