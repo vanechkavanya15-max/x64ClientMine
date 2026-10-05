@@ -21,12 +21,14 @@ impl PixelPosition {
 }
 
 pub fn get_degree_from_position(x: f32, y: f32) -> f32 {
-    let len = (x * x + y * y).sqrt();
+    let fx = x.floor();
+    let fy = y.floor();
+    let len = (fx * fx + fy * fy).sqrt();
     if len < 1e-5 {
         return 0.0;
     }
-    let dx = x / len;
-    let dy = y / len;
+    let dx = fx / len;
+    let dy = fy / len;
 
     // Dot product with (0, -1)
     let dot = -dy;
