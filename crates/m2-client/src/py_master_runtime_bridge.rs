@@ -924,6 +924,7 @@ def _app_loop():
 
 setattr(AppModule, 'Create', staticmethod(_app_create))
 setattr(AppModule, 'Loop', staticmethod(_app_loop))
+setattr(AppModule, 'GetRenderTime', staticmethod(lambda *args, **kwargs: (0.0, 0)))
 sys.modules['app'] = AppModule
 sys.modules['App'] = AppModule
 
