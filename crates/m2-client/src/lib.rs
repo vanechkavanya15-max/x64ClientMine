@@ -5,6 +5,7 @@
 
 //! Czysty silnik logiki biznesowej, walki, fizyki i ekwipunku w Rust.
 pub mod atlas_radar_blip_manager;
+pub mod wgpu_dual_texture_armor_pipeline;
 pub mod combat_combo_chain;
 pub mod wgpu_shadow_pcf_pipeline;
 pub mod wgpu_shadow_terrain_integrator;

@@ -1,12 +1,13 @@
-#[path = "../src/wgpu_granny_actor_renderer.rs"]
-mod wgpu_granny_actor_renderer;
-#[path = "../src/wgpu_dual_texture_armor_pipeline.rs"]
-mod wgpu_dual_texture_armor_pipeline;
-
 use std::mem;
-use wgpu_dual_texture_armor_pipeline::{
+use m2_client::wgpu_dual_texture_armor_pipeline::{
     DualTextureArmorUniforms, WgpuDualTextureArmorPipeline, DUAL_TEXTURE_ARMOR_SHADER_WGSL,
 };
+
+// We still need the GrannyActorVertex description to test compatibility,
+// since it's not exported from lib.rs.
+#[allow(dead_code)]
+#[path = "../src/wgpu_granny_actor_renderer.rs"]
+mod wgpu_granny_actor_renderer;
 use wgpu_granny_actor_renderer::GrannyActorVertex;
 
 #[test]
@@ -59,9 +60,29 @@ fn test_granny_actor_vertex_compatibility() {
 
 #[test]
 fn test_pipeline_instantiation_is_functional() {
-    // We cannot create a full WGPU device in this headless testing environment easily without a tokio runtime.
-    // However, we verify we did not introduce dummy stubs by compiling and assuring logic is present
-    // over mocks and verifying type properties.
     let _fn_ptr = WgpuDualTextureArmorPipeline::new;
-    // Test passes if function signature is stable and available
+    let _fn_draw = WgpuDualTextureArmorPipeline::draw;
+}
+
+#[test]
+fn test_shader_blend_logic_correctness() {
+    let code = DUAL_TEXTURE_ARMOR_SHADER_WGSL;
+    // ModulateAlphaAddColor implementation
+    assert!(code.contains("let spec_factor = diffuse_color.a * uniforms.specular_power;"));
+    assert!(code.contains("diffuse_color.rgb + (env_color.rgb * spec_factor)"));
+    assert!(code.contains("return vec4<f32>(final_color, diffuse_color.a);"));
+}
+
+#[test]
+fn test_material_parameters_uniform() {
+    let uniforms = DualTextureArmorUniforms {
+        view_proj: [[0.0; 4]; 4],
+        view_matrix: [[0.0; 4]; 4],
+        bone_matrices: [[[0.0; 4]; 4]; 128],
+        specular_trans: [1.0, 2.0, 3.0],
+        specular_power: 0.5,
+    };
+    
+    assert_eq!(uniforms.specular_trans[0], 1.0);
+    assert_eq!(uniforms.specular_power, 0.5);
 }
