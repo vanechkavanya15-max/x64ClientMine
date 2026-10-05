@@ -197,3 +197,4 @@ pub fn parse_property_script(content: &str) -> Result<(u32, ParsedProperty), Str
         _ => Err(format!("Unknown PropertyType: {}", property_type)),
     }
 }
+// property_script_prb_parser implementation complete

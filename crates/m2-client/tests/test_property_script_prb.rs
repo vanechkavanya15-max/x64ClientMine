@@ -163,3 +163,4 @@ BuildingFile		"d:/ymir work/zone/b/building.gr2"
     let parsed = parse_property_script(content).expect("Failed to parse building");
     assert_eq!(parsed.0, 123456789);
 }
+// test_property_script_prb implementation complete
