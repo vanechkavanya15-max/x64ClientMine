@@ -71,6 +71,8 @@ fn test_item_checkin_checkout() {
     assert!(manager.checkin_item(0, item1.clone()));
     
     // Verify properties
+    assert_eq!(manager.get_item_id(0), Some(11299));
+    assert_eq!(manager.get_item_count(0), Some(1));
     assert_eq!(manager.get_item_flags(0), Some(0x1));
     assert_eq!(manager.get_item_metin_socket(0, 0), Some(500));
     assert_eq!(manager.get_item_metin_socket(0, 1), Some(600));
@@ -125,6 +127,8 @@ fn test_safebox_pages_and_mall() {
     assert_eq!(mall_item.unwrap().vnum, 5000);
     
     // Verify mall properties
+    assert_eq!(manager.get_mall_item_id(5), Some(5000));
+    assert_eq!(manager.get_mall_item_count(5), Some(0)); // default count
     assert_eq!(manager.get_mall_item_metin_socket(5, 2), Some(999));
     assert_eq!(manager.get_mall_item_attribute(5, 3), Some((5, 100)));
     
