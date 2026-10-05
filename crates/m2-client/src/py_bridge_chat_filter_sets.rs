@@ -37,9 +37,22 @@ impl Default for ChatSet {
 }
 
 static CHAT_SET_MAP: OnceLock<RwLock<HashMap<u32, ChatSet>>> = OnceLock::new();
+static ACTIVE_CHAT_SET: OnceLock<RwLock<u32>> = OnceLock::new();
 
 pub fn get_chat_set_map() -> &'static RwLock<HashMap<u32, ChatSet>> {
     CHAT_SET_MAP.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+pub fn get_active_chat_set() -> &'static RwLock<u32> {
+    ACTIVE_CHAT_SET.get_or_init(|| RwLock::new(0))
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_chat_set_chat_set(id: u32) {
+    safe_ffi_call((), || {
+        let mut active = get_active_chat_set().write().unwrap();
+        *active = id;
+    })
 }
 
 #[no_mangle]
