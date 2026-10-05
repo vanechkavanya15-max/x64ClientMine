@@ -124,7 +124,7 @@ fn get_affect_description(affect: &AffectData, skill_level: f64) -> String {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_skill_get_skill_name_v2(skill_index: u32) -> *const c_char {
+pub extern "C" fn m2_py_skill_get_skill_name(skill_index: u32) -> *const c_char {
     let mut table = get_table();
     if let Some(skill) = table.skills.get(&skill_index) {
         let name = skill.name.clone();
@@ -135,7 +135,7 @@ pub extern "C" fn m2_py_skill_get_skill_name_v2(skill_index: u32) -> *const c_ch
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_skill_get_skill_description_v2(skill_index: u32) -> *const c_char {
+pub extern "C" fn m2_py_skill_get_skill_description(skill_index: u32) -> *const c_char {
     let mut table = get_table();
     if let Some(skill) = table.skills.get(&skill_index) {
         let desc = skill.description.clone();
@@ -146,7 +146,7 @@ pub extern "C" fn m2_py_skill_get_skill_description_v2(skill_index: u32) -> *con
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_skill_get_skill_type_v2(skill_index: u32) -> u8 {
+pub extern "C" fn m2_py_skill_get_skill_type(skill_index: u32) -> u8 {
     let table = get_table();
     if let Some(skill) = table.get_skill(skill_index) {
         skill.skill_type
@@ -208,10 +208,13 @@ pub extern "C" fn m2_py_skill_can_use_skill_v2(skill_index: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_skill_can_use_weapon_v2(skill_index: u32, weapon_type: u32) -> bool {
+pub extern "C" fn m2_py_skill_can_use_weapon(skill_index: u32, weapon_type: u32) -> bool {
     let table = get_table();
     if let Some(skill) = table.skills.get(&skill_index) {
-        if skill.need_weapon == 0 {
+        // CPythonSkill::SSkillData::CanUseWeaponType
+        // SKILL_ATTRIBUTE_WEAPON_LIMITATION = (1 << 2)
+        let weapon_limitation = 1 << 2;
+        if (skill.skill_attribute & weapon_limitation) == 0 {
             return true;
         }
         return (skill.need_weapon & (1 << weapon_type)) != 0;

@@ -166,7 +166,7 @@ fn test_py_skill_data_table_affect_power() {
 
 #[test]
 fn test_py_skill_data_table_can_use_skill() {
-    use m2_client::py_bridge_skill_data_table::{get_table, SkillDataTableEntry, m2_py_skill_can_use_skill_v2};
+    use m2_client::py_bridge_skill_data_table::{get_table, SkillDataTableEntry, m2_py_skill_can_use_skill};
 
     let mut table = get_table();
     table.register_skill(SkillDataTableEntry {
@@ -195,8 +195,29 @@ fn test_py_skill_data_table_can_use_skill() {
 }
 
 #[test]
+fn test_py_skill_data_table_get_name_and_desc() {
+    use m2_client::py_bridge_skill_data_table::{get_table, SkillDataTableEntry, m2_py_skill_get_skill_name, m2_py_skill_get_skill_description, m2_py_skill_get_skill_type};
+
+    let mut table = get_table();
+    table.register_skill(SkillDataTableEntry {
+        skill_vnum: 156,
+        skill_type: 2,
+        name: "Heal".to_string(),
+        description: "Restores HP".to_string(),
+        affects: vec![],
+        skill_attribute: 0,
+        need_weapon: 0,
+    });
+    drop(table);
+
+    assert_eq!(get_str_from_ptr(m2_py_skill_get_skill_name(156)), "Heal");
+    assert_eq!(get_str_from_ptr(m2_py_skill_get_skill_description(156)), "Restores HP");
+    assert_eq!(m2_py_skill_get_skill_type(156), 2);
+}
+
+#[test]
 fn test_py_skill_data_table_can_use_weapon() {
-    use m2_client::py_bridge_skill_data_table::{get_table, SkillDataTableEntry, m2_py_skill_can_use_weapon_v2};
+    use m2_client::py_bridge_skill_data_table::{get_table, SkillDataTableEntry, m2_py_skill_can_use_weapon};
 
     let mut table = get_table();
     table.register_skill(SkillDataTableEntry {
@@ -205,7 +226,7 @@ fn test_py_skill_data_table_can_use_weapon() {
         name: "Sword Only Skill".to_string(),
         description: "".to_string(),
         affects: vec![],
-        skill_attribute: 0,
+        skill_attribute: 1 << 2, // SKILL_ATTRIBUTE_WEAPON_LIMITATION
         need_weapon: 1 << 1, // Let's say 1 is Sword
     });
     
@@ -215,12 +236,12 @@ fn test_py_skill_data_table_can_use_weapon() {
         name: "Any Weapon Skill".to_string(),
         description: "".to_string(),
         affects: vec![],
-        skill_attribute: 0,
+        skill_attribute: 0, // No WEAPON_LIMITATION
         need_weapon: 0, // Any
     });
     drop(table);
 
-    assert_eq!(m2_py_skill_can_use_weapon_v2(154, 1), true);  // Sword
-    assert_eq!(m2_py_skill_can_use_weapon_v2(154, 2), false); // Dagger
-    assert_eq!(m2_py_skill_can_use_weapon_v2(155, 5), true);  // Any
+    assert_eq!(m2_py_skill_can_use_weapon(154, 1), true);  // Sword
+    assert_eq!(m2_py_skill_can_use_weapon(154, 2), false); // Dagger
+    assert_eq!(m2_py_skill_can_use_weapon(155, 5), true);  // Any
 }

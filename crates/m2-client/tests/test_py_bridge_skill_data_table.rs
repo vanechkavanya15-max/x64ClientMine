@@ -20,6 +20,7 @@ fn test_get_skill_name_and_desc() {
         description: "Test Desc".to_string(),
         affects: vec![],
         skill_attribute: 0,
+        need_weapon: 0,
     });
     drop(table);
 
@@ -44,6 +45,7 @@ fn test_affect_description() {
             }
         ],
         skill_attribute: 0,
+        need_weapon: 0,
     });
     drop(table);
 
@@ -62,6 +64,7 @@ fn test_can_use_skill() {
         description: "".to_string(),
         affects: vec![],
         skill_attribute: 0, // Not passive
+        need_weapon: 0,
     });
     
     table.register_skill(SkillDataTableEntry {
@@ -71,6 +74,7 @@ fn test_can_use_skill() {
         description: "".to_string(),
         affects: vec![],
         skill_attribute: 1 << 17, // SKILL_ATTRIBUTE_PASSIVE
+        need_weapon: 0,
     });
     drop(table);
 
