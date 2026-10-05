@@ -138,6 +138,18 @@ pub const AVAILABLE_RULE_BY_GRADE: [u8; BELT_INVENTORY_SLOT_COUNT as usize] = [
 ];
 
 #[no_mangle]
+pub extern "C" fn m2_py_player_is_equipping_belt() -> bool {
+    safe_ffi_call(false, || {
+        let state = GLOBAL_GAME_STATE.read().unwrap();
+        if let Some(item) = state.get_item(WINDOW_EQUIPMENT, EQUIPMENT_BELT) {
+            item.count > 0
+        } else {
+            false
+        }
+    })
+}
+
+#[no_mangle]
 pub extern "C" fn m2_py_player_is_available_belt_inventory_cell(pos: i32) -> bool {
     safe_ffi_call(false, || {
         let state = GLOBAL_GAME_STATE.read().unwrap();
