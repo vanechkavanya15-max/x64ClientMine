@@ -347,6 +347,11 @@ extern "system" fn def_window_proc(hwnd: WindowHandle, msg: u32, w_param: usize,
             }
             0
         }
+        0x0014 => { // WM_ERASEBKGND
+            // Zwracamy 1 (niezerowa wartosc) informujac system Windows, ze tlo jest obslugiwane przez potok GPU.
+            // Zapobiega to zamalowywaniu powierzchni DirectX 12 przez pedzel GDI.
+            1
+        }
         _ => unsafe {
             sys::DefWindowProcA(hwnd, msg, w_param, l_param)
         }
@@ -367,7 +372,7 @@ pub fn create_game_window(config: &WindowConfig) -> Result<WindowHandle, String>
             h_instance,
             h_icon: ptr::null_mut(),
             h_cursor: ptr::null_mut(),
-            hbr_background: sys::GetStockObject(4), // BLACK_BRUSH (4)
+            hbr_background: ptr::null_mut(), // Null brush dla czystego potoku swapchain DirectX 12 / Vulkan
             lpsz_menu_name: ptr::null(),
             lpsz_class_name: class_name.as_ptr(),
         };

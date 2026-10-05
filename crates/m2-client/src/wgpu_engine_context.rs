@@ -1746,6 +1746,11 @@ pub extern "C" fn m2_set_max_frames_limit(limit: u64) {
 #[no_mangle]
 pub extern "C" fn m2_run_game_loop() -> i32 {
     println!("[+] m2_run_game_loop: rozpoczynanie natywnej petli renderowania GPU Pure Rust...");
+    if GLOBAL_WGPU_CONTEXT.get().is_none() {
+        eprintln!("[-] OSTRZEZENIE: GLOBAL_WGPU_CONTEXT jest None w tym module (brak zainicjalizowanego kontekstu GPU)!");
+    } else {
+        println!("[+] GLOBAL_WGPU_CONTEXT pomyslnie zweryfikowany w module renderujacym.");
+    }
     if let Ok(val) = std::env::var("M2_MAX_FRAMES") {
         if let Ok(limit) = val.parse::<u64>() {
             set_max_frames_limit(limit);

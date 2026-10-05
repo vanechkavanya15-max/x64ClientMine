@@ -565,3 +565,20 @@ else:
         Ok(())
     }
 }
+
+/// Glowny punkt wejsciowy wywolywany przez binary runner (m2_client.exe)
+/// Dzieki temu caly silnik, okno Win32, kontekst GPU i Python Master Bridge dzialaja
+/// w JEDNEJ wspoldzielonej instancji dynamicznej (m2_client.dll), eliminujac problem
+/// rozdzielenia pamieci statycznej pomiedzy procesem a DLL-ka Pythona.
+#[no_mangle]
+pub extern "C" fn m2_client_main_interactive() -> i32 {
+    let args: Vec<String> = std::env::args().collect();
+    let config = AppConfig::parse_args(&args[1..]);
+    let mut engine = Metin2Engine::new();
+    if let Err(e) = engine.run_interactive(config) {
+        eprintln!("Bledne zakonczenie dzialania silnika: {:?}", e);
+        return 1;
+    }
+    0
+}
+
