@@ -128,7 +128,7 @@ fn test_parse_message_tags() {
     
     // Malformed tag tests
     let malformed1 = "Just a string with |H but no h";
-    let (d1, l1) = parse_message_tags(malformed1);
+    let (_d1, _l1) = parse_message_tags(malformed1);
     // Based on the implemented parser, it might not restore perfectly if it gets stuck, 
     // but let's test what the parser does. In reality we just need it not to panic.
     // If we want it to perfectly recover, we'd need a more complex state machine. 

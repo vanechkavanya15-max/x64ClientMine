@@ -11,6 +11,7 @@ pub struct WhisperLine {
     pub message: String,
     pub sender: Option<String>,
     pub display_text: String,
+    pub links: Vec<ParsedHyperlink>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -164,7 +165,7 @@ pub extern "C" fn m2_py_chat_append_whisper(
             }
         }
 
-        let (display_text, _links) = parse_message_tags(msg_text);
+        let (display_text, links) = parse_message_tags(msg_text);
 
         let mut map = match get_whisper_manager().lock() {
             Ok(m) => m,
@@ -181,6 +182,7 @@ pub extern "C" fn m2_py_chat_append_whisper(
             name: name_str,
             message: msg_str,
             sender,
+            links,
             display_text,
         });
 
