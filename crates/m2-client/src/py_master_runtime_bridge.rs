@@ -2577,9 +2577,19 @@ class ChrmgrModule:
         return True
 
     @staticmethod
-    def LoadRaceData(race=0, path="", *args, **kwargs):
-        target_race = int(race) if race else ChrmgrModule._active_race
-        full_path = (ChrmgrModule._path_name + str(path)) if path else ""
+    def LoadRaceData(*args, **kwargs):
+        if not args: return True
+        if len(args) == 1:
+            target_race = ChrmgrModule._active_race
+            path = str(args[0])
+        else:
+            if isinstance(args[0], int) or (isinstance(args[0], str) and args[0].isdigit()):
+                target_race = int(args[0])
+                path = str(args[1]) if len(args) > 1 else str(args[0])
+            else:
+                target_race = ChrmgrModule._active_race
+                path = str(args[0])
+        full_path = (ChrmgrModule._path_name + path) if ChrmgrModule._path_name and not path.startswith("d:/") and not path.startswith(ChrmgrModule._path_name) and not path.startswith("msm/") else path
         fn = getattr(m2_lib, 'm2_py_chrmgr_load_race_data', None)
         if fn and full_path:
             try:
@@ -2590,10 +2600,40 @@ class ChrmgrModule:
         return True
 
     @staticmethod
-    def LoadLocalRaceData(race=0, path="", *args, **kwargs):
-        return ChrmgrModule.LoadRaceData(race, path)
+    def LoadLocalRaceData(*args, **kwargs):
+        if not args: return True
+        if len(args) == 1:
+            target_race = ChrmgrModule._active_race
+            path = str(args[0])
+        else:
+            if isinstance(args[0], int) or (isinstance(args[0], str) and args[0].isdigit()):
+                target_race = int(args[0])
+                path = str(args[1]) if len(args) > 1 else str(args[0])
+            else:
+                target_race = ChrmgrModule._active_race
+                path = str(args[0])
+        fn = getattr(m2_lib, 'm2_py_chrmgr_load_race_data', None)
+        if fn and path:
+            try:
+                fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p]
+                fn.restype = ctypes.c_bool
+                return fn(int(target_race), str(path).encode('utf-8'))
+            except Exception: pass
+        return True
+
     @staticmethod
-    def RegisterAttachingBoneName(race=0, part=0, bone="", *args, **kwargs):
+    def RegisterAttachingBoneName(*args, **kwargs):
+        if not args: return True
+        if len(args) == 2:
+            race = ChrmgrModule._active_race
+            part = int(args[0])
+            bone = str(args[1])
+        elif len(args) >= 3:
+            race = int(args[0])
+            part = int(args[1])
+            bone = str(args[2])
+        else:
+            return True
         fn = getattr(m2_lib, 'm2_py_chrmgr_register_attaching_bone_name', None)
         if fn and bone:
             try:
@@ -2602,8 +2642,16 @@ class ChrmgrModule:
                 return fn(int(race), int(part), str(bone).encode('utf-8'))
             except Exception: pass
         return True
+
     @staticmethod
-    def RegisterMotionMode(race=0, mode=0, *args, **kwargs):
+    def RegisterMotionMode(*args, **kwargs):
+        if not args: return True
+        if len(args) == 1:
+            race = ChrmgrModule._active_race
+            mode = int(args[0])
+        else:
+            race = int(args[0])
+            mode = int(args[1])
         fn = getattr(m2_lib, 'm2_py_chrmgr_register_motion_mode', None)
         if fn:
             try:
@@ -2612,8 +2660,21 @@ class ChrmgrModule:
                 return fn(int(race), int(mode))
             except Exception: pass
         return True
+
     @staticmethod
-    def SetMotionRandomWeight(race=0, mode=0, motion=0, weight=0, *args, **kwargs):
+    def SetMotionRandomWeight(*args, **kwargs):
+        if len(args) == 4:
+            race = ChrmgrModule._active_race
+            mode = int(args[0])
+            motion = int(args[1])
+            weight = int(args[3])
+        elif len(args) >= 5:
+            race = int(args[0])
+            mode = int(args[1])
+            motion = int(args[2])
+            weight = int(args[4])
+        else:
+            return True
         fn = getattr(m2_lib, 'm2_py_chrmgr_set_motion_random_weight', None)
         if fn:
             try:
@@ -2622,8 +2683,19 @@ class ChrmgrModule:
                 return fn(int(race), int(mode), int(motion), int(weight))
             except Exception: pass
         return True
+
     @staticmethod
-    def RegisterNormalAttack(race=0, mode=0, count=0, *args, **kwargs):
+    def RegisterNormalAttack(*args, **kwargs):
+        if len(args) == 2:
+            race = ChrmgrModule._active_race
+            mode = int(args[0])
+            count = int(args[1])
+        elif len(args) >= 3:
+            race = int(args[0])
+            mode = int(args[1])
+            count = int(args[2])
+        else:
+            return True
         fn = getattr(m2_lib, 'm2_py_chrmgr_register_normal_attack', None)
         if fn:
             try:
@@ -2632,14 +2704,28 @@ class ChrmgrModule:
                 return fn(int(race), int(mode), int(count))
             except Exception: pass
         return True
+
     @staticmethod
     def ReserveComboAttack(vid=0, combo=0, *args, **kwargs): pass
     @staticmethod
     def RegisterComboAttack(race=0, mode=0, combo=0, count=0, *args, **kwargs): pass
     @staticmethod
     def ReserveComboAttackNew(vid=0, combo=0, *args, **kwargs): pass
+
     @staticmethod
-    def RegisterComboAttackNew(race=0, mode=0, combo=0, count=0, *args, **kwargs):
+    def RegisterComboAttackNew(*args, **kwargs):
+        if len(args) == 4:
+            race = ChrmgrModule._active_race
+            mode = int(args[0])
+            combo = int(args[1])
+            count = int(args[3])
+        elif len(args) >= 5:
+            race = int(args[0])
+            mode = int(args[1])
+            combo = int(args[2])
+            count = int(args[4])
+        else:
+            return True
         fn = getattr(m2_lib, 'm2_py_chrmgr_register_combo_attack_new', None)
         if fn:
             try:
@@ -2648,16 +2734,31 @@ class ChrmgrModule:
                 return fn(int(race), int(mode), int(combo), int(count))
             except Exception: pass
         return True
+
     @staticmethod
-    def RegisterMotionData(race=0, mode=0, motion=0, path="", *args, **kwargs):
+    def RegisterMotionData(*args, **kwargs):
+        if len(args) >= 3 and isinstance(args[2], str):
+            race = ChrmgrModule._active_race
+            mode = int(args[0])
+            motion = int(args[1])
+            path = str(args[2])
+        elif len(args) >= 4 and isinstance(args[3], str):
+            race = int(args[0])
+            mode = int(args[1])
+            motion = int(args[2])
+            path = str(args[3])
+        else:
+            return True
+        full_path = (ChrmgrModule._path_name + path) if ChrmgrModule._path_name and not path.startswith("d:/") and not path.startswith(ChrmgrModule._path_name) else path
         fn = getattr(m2_lib, 'm2_py_chrmgr_register_motion_data', None)
-        if fn and path:
+        if fn and full_path:
             try:
                 fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_char_p]
                 fn.restype = ctypes.c_bool
-                return fn(int(race), int(mode), int(motion), str(path).encode('utf-8'))
+                return fn(int(race), int(mode), int(motion), str(full_path).encode('utf-8'))
             except Exception: pass
         return True
+
     @staticmethod
     def RegisterRaceName(race=0, name="", *args, **kwargs):
         fn = getattr(m2_lib, 'm2_py_chrmgr_register_race_name', None)
@@ -2668,6 +2769,7 @@ class ChrmgrModule:
                 return fn(int(race), str(name).encode('utf-8'))
             except Exception: pass
         return True
+
     @staticmethod
     def RegisterRaceSrcName(name="", src="", *args, **kwargs):
         fn = getattr(m2_lib, 'm2_py_chrmgr_register_race_src_name', None)
@@ -2678,16 +2780,30 @@ class ChrmgrModule:
                 return fn(str(name).encode('utf-8'), str(src).encode('utf-8'))
             except Exception: pass
         return True
+
     @staticmethod
-    def RegisterCacheMotionData(race=0, mode=0, motion=0, path="", weight=0, *args, **kwargs): pass
+    def RegisterCacheMotionData(*args, **kwargs):
+        return ChrmgrModule.RegisterMotionData(*args, **kwargs)
+
     @staticmethod
     def SetAffect(race=0, affect=0, file="", *args, **kwargs): pass
     @staticmethod
     def SetEmoticon(vid=0, emoticon=0, *args, **kwargs): pass
     @staticmethod
     def IsPossibleEmoticon(vid=0, *args, **kwargs): return True
+
     @staticmethod
-    def RegisterEffect(etype=0, bone="", file="", *args, **kwargs):
+    def RegisterEffect(*args, **kwargs):
+        if len(args) >= 3:
+            etype = int(args[0])
+            bone = str(args[1])
+            file = str(args[2])
+        elif len(args) == 2:
+            etype = int(args[0])
+            bone = ""
+            file = str(args[1])
+        else:
+            return True
         fn = getattr(m2_lib, 'm2_py_chrmgr_register_effect', None)
         if fn:
             try:
@@ -2698,18 +2814,10 @@ class ChrmgrModule:
                 return fn(int(etype), b_str, f_str)
             except Exception: pass
         return True
+
     @staticmethod
-    def RegisterCacheEffect(etype=0, bone="", file="", *args, **kwargs):
-        fn = getattr(m2_lib, 'm2_py_chrmgr_register_cache_effect', None)
-        if fn:
-            try:
-                fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_char_p]
-                fn.restype = ctypes.c_bool
-                b_str = str(bone).encode('utf-8') if bone else b""
-                f_str = str(file).encode('utf-8') if file else b""
-                return fn(int(etype), b_str, f_str)
-            except Exception: pass
-        return True
+    def RegisterCacheEffect(*args, **kwargs):
+        return ChrmgrModule.RegisterEffect(*args, **kwargs)
     @staticmethod
     def RegisterPointEffect(point=0, file="", *args, **kwargs): pass
     @staticmethod

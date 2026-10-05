@@ -433,65 +433,65 @@ class ChrmgrModule:
         except Exception: pass
         return -1
     @staticmethod
-    def SetShapeModel(shape=0, path="", *args, **kwargs): pass
+    def SetShapeModel(*args, **kwargs): pass
     @staticmethod
-    def AppendShapeSkin(shape=0, part=0, path="", *args, **kwargs): pass
+    def AppendShapeSkin(*args, **kwargs): pass
     @staticmethod
-    def SetPathName(path="", *args, **kwargs): pass
+    def SetPathName(*args, **kwargs): pass
     @staticmethod
-    def LoadRaceData(race=0, path="", *args, **kwargs): return True
+    def LoadRaceData(*args, **kwargs): return True
     @staticmethod
-    def LoadLocalRaceData(race=0, path="", *args, **kwargs): return True
+    def LoadLocalRaceData(*args, **kwargs): return True
     @staticmethod
-    def CreateRace(race=0, *args, **kwargs): return True
+    def CreateRace(*args, **kwargs): return True
     @staticmethod
-    def SelectRace(race=0, *args, **kwargs): return True
+    def SelectRace(*args, **kwargs): return True
     @staticmethod
-    def RegisterAttachingBoneName(race=0, part=0, bone="", *args, **kwargs): pass
+    def RegisterAttachingBoneName(*args, **kwargs): pass
     @staticmethod
-    def RegisterMotionMode(race=0, mode=0, *args, **kwargs): pass
+    def RegisterMotionMode(*args, **kwargs): pass
     @staticmethod
-    def SetMotionRandomWeight(race=0, mode=0, motion=0, weight=0, *args, **kwargs): pass
+    def SetMotionRandomWeight(*args, **kwargs): pass
     @staticmethod
-    def RegisterNormalAttack(race=0, mode=0, count=0, *args, **kwargs): pass
+    def RegisterNormalAttack(*args, **kwargs): pass
     @staticmethod
-    def ReserveComboAttack(vid=0, combo=0, *args, **kwargs): pass
+    def ReserveComboAttack(*args, **kwargs): pass
     @staticmethod
-    def RegisterComboAttack(race=0, mode=0, combo=0, count=0, *args, **kwargs): pass
+    def RegisterComboAttack(*args, **kwargs): pass
     @staticmethod
-    def ReserveComboAttackNew(vid=0, combo=0, *args, **kwargs): pass
+    def ReserveComboAttackNew(*args, **kwargs): pass
     @staticmethod
-    def RegisterComboAttackNew(race=0, mode=0, combo=0, count=0, *args, **kwargs): pass
+    def RegisterComboAttackNew(*args, **kwargs): pass
     @staticmethod
-    def RegisterMotionData(race=0, mode=0, motion=0, path="", *args, **kwargs): pass
+    def RegisterMotionData(*args, **kwargs): pass
     @staticmethod
-    def RegisterRaceName(race=0, name="", *args, **kwargs): pass
+    def RegisterRaceName(*args, **kwargs): pass
     @staticmethod
-    def RegisterRaceSrcName(name="", src="", *args, **kwargs): pass
+    def RegisterRaceSrcName(*args, **kwargs): pass
     @staticmethod
-    def RegisterCacheMotionData(race=0, mode=0, motion=0, path="", weight=0, *args, **kwargs): pass
+    def RegisterCacheMotionData(*args, **kwargs): pass
     @staticmethod
-    def SetAffect(race=0, affect=0, file="", *args, **kwargs): pass
+    def SetAffect(*args, **kwargs): pass
     @staticmethod
-    def SetEmoticon(vid=0, emoticon=0, *args, **kwargs): pass
+    def SetEmoticon(*args, **kwargs): pass
     @staticmethod
-    def IsPossibleEmoticon(vid=0, *args, **kwargs): return True
+    def IsPossibleEmoticon(*args, **kwargs): return True
     @staticmethod
-    def RegisterEffect(etype=0, bone="", file="", *args, **kwargs): pass
+    def RegisterEffect(*args, **kwargs): pass
     @staticmethod
-    def RegisterCacheEffect(etype=0, bone="", file="", *args, **kwargs): pass
+    def RegisterCacheEffect(*args, **kwargs): pass
     @staticmethod
-    def RegisterPointEffect(point=0, file="", *args, **kwargs): pass
+    def RegisterPointEffect(*args, **kwargs): pass
     @staticmethod
-    def ShowPointEffect(vid=0, point=0, *args, **kwargs): pass
+    def ShowPointEffect(*args, **kwargs): pass
     @staticmethod
-    def ToggleDirectionLine(enable=0, *args, **kwargs): pass
+    def ToggleDirectionLine(*args, **kwargs): pass
     @staticmethod
-    def SetMovingSpeed(speed=100, *args, **kwargs): pass
+    def SetMovingSpeed(*args, **kwargs): pass
     @staticmethod
-    def SetDustGap(gap=0, *args, **kwargs): pass
+    def SetDustGap(*args, **kwargs): pass
     @staticmethod
-    def SetHorseDustGap(gap=0, *args, **kwargs): pass
+    def SetHorseDustGap(*args, **kwargs): pass
     @staticmethod
     def RegisterTitleName(index=0, name="", *args, **kwargs): pass
     @staticmethod
