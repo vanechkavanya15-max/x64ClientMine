@@ -143,7 +143,7 @@ impl GamePhaseOrchestrator {
     pub fn set_handshake_phase(&mut self) {
         self.transition_to(ClientPhase::Handshake);
         self.is_online = true; // Zgodnie z SetGameOnline()
-        
+
         if !self.ui_manager.direct_enter_mode {
             // C++: PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_LOGIN], "OnHandShake", Py_BuildValue("()"));
             self.ui_manager.set_phase_window(PhaseWindow::Login, 1);
@@ -153,8 +153,8 @@ impl GamePhaseOrchestrator {
     pub fn set_login_phase(&mut self) {
         self.transition_to(ClientPhase::Login);
         if !self.ui_manager.direct_enter_mode {
-             // C++: PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_LOGIN], "OnLoginStart", Py_BuildValue("()"));
-             self.ui_manager.set_phase_window(PhaseWindow::Login, 1);
+            // C++: PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_LOGIN], "OnLoginStart", Py_BuildValue("()"));
+            self.ui_manager.set_phase_window(PhaseWindow::Login, 1);
         }
     }
 
@@ -186,7 +186,7 @@ impl GamePhaseOrchestrator {
         // Zwykle oznacza powrót do loginu / offline i wyczyszczenie okien
         self.set_offline_phase();
         self.ui_manager.clear_all_windows();
-        
+
         // C++: PyCallClassMemberFunc(m_poHandler, "SetLoginPhase", Py_BuildValue("()"));
         // W naszym orchestratorze symulujemy to przejscie:
         self.set_login_phase();
@@ -202,7 +202,7 @@ impl GamePhaseOrchestrator {
             self.set_login_phase();
         }
     }
-    
+
     // Przebieg pelnego logowania
     pub fn execute_phase_progression_step(&mut self) -> bool {
         match self.current_phase {
@@ -216,7 +216,7 @@ impl GamePhaseOrchestrator {
             }
             ClientPhase::Login => {
                 if self.ui_manager.direct_enter_mode {
-                    // W C++ przy direct enter wysyla paczke logowania i nie przechodzi do select. 
+                    // W C++ przy direct enter wysyla paczke logowania i nie przechodzi do select.
                     // Po zalogowaniu od razu Loading
                     self.set_loading_phase();
                 } else {
