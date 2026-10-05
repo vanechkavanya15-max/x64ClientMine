@@ -226,8 +226,8 @@ impl TerrainDecalProjector {
 
         let get_uv = |v: Vec3| -> [f32; 2] {
             let diff = v - self.center;
-            let u = -diff.dot(self.binormal) * inv_h + 0.5;
-            let v_coord = -diff.dot(self.tangent) * inv_w + 0.5;
+            let u = -diff.dot(self.binormal) * inv_w + 0.5;
+            let v_coord = -diff.dot(self.tangent) * inv_h + 0.5;
             [u, v_coord]
         };
 
