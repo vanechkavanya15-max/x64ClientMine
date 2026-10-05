@@ -1,5 +1,5 @@
 use glam::Vec3;
-use m2_client::wgpu_bone_cloth_simple_physics::{BoneClothSimulation, MassPoint, DistanceConstraint};
+use m2_client::wgpu_bone_cloth_simple_physics::BoneClothSimulation;
 
 #[test]
 fn test_verlet_integration() {
