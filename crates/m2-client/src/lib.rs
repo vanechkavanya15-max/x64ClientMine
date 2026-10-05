@@ -113,6 +113,7 @@ pub mod map_setting_parser;
 pub mod pathfinding_astar;
 pub mod sound_ambience_manager;
 pub mod sound_bgm_manager;
+pub mod wgpu_water_dudv_distortion;
 pub mod sound_buffer_cache;
 pub mod sound_debouncer;
 pub mod sound_event_mapper;
