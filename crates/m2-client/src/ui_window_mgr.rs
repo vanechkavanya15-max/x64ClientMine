@@ -512,13 +512,28 @@ impl WindowManager {
     }
 
     /// Pobiera lub tworzy biala teksture 1x1 do rysowania jednolitych paskow i linii
+    pub fn get_or_create_white_texture_with_ctx(&mut self, ctx: &crate::wgpu_engine_context::WgpuEngineContext) -> Option<Arc<GpuTexture>> {
+        if let Some(ref t) = self.white_dummy_tex {
+            return Some(t.clone());
+        }
+
+        let white_pixel = [255u8, 255u8, 255u8, 255u8];
+        if let Ok(tex) = ctx.create_texture_from_rgba(&white_pixel, 1, 1, Some("UI White Tex")) {
+            let arc_tex = Arc::new(tex);
+            self.white_dummy_tex = Some(arc_tex.clone());
+            Some(arc_tex)
+        } else {
+            None
+        }
+    }
+
     pub fn get_or_create_white_texture(&mut self) -> Option<Arc<GpuTexture>> {
         if let Some(ref t) = self.white_dummy_tex {
             return Some(t.clone());
         }
 
         let wgpu_guard = crate::wgpu_engine_context::GLOBAL_WGPU_CONTEXT.get()?;
-        let ctx_mutex = wgpu_guard.lock().ok()?;
+        let ctx_mutex = wgpu_guard.try_lock().ok()?;
         let ctx = ctx_mutex.as_ref()?;
 
         let white_pixel = [255u8, 255u8, 255u8, 255u8];

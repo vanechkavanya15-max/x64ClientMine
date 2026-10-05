@@ -1740,7 +1740,7 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
     let mut total_frames: u64 = 0;
     let mut fps_frames: u64 = 0;
     let mut last_fps_time = std::time::Instant::now();
-    let clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
+    let clear_color = wgpu::Color { r: 0.25, g: 0.45, b: 0.75, a: 1.0 };
 
     let mut composition: Option<crate::main_render_pipeline_composition::MainRenderPipelineComposition> = None;
     let mut pipeline_mgr: Option<crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager> = None;
@@ -1895,7 +1895,7 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
                         let proj = glam::Mat4::perspective_rh(50.0f32.to_radians(), aspect, 10.0, 15000.0);
                         let view_proj = proj * view;
 
-                        let white_tex_opt = crate::ui_window_mgr::get_window_manager().get_or_create_white_texture();
+                        let white_tex_opt = crate::ui_window_mgr::get_window_manager().get_or_create_white_texture_with_ctx(ctx);
                         let texttail_batches = if let Some(white_tex) = white_tex_opt {
                             crate::wgpu_texttail_renderer::collect_text_tail_render_batches(0.016, &view_proj, w, h, white_tex)
                         } else {
@@ -1921,7 +1921,8 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
                         }
 
                         if let (Some(ref mut comp), Some(ref pm)) = (&mut composition, &pipeline_mgr) {
-                            if let Err(_e) = comp.execute_frame(ctx, pm, clear_color, &batches) {
+                            if let Err(e) = comp.execute_frame(ctx, pm, clear_color, &batches) {
+                                eprintln!("[-] Blad comp.execute_frame: {}, uzycie fallback renderera", e);
                                 let _ = ctx.render_frame_with_character_and_quads(clear_color, player_pos, player_rot, &batches);
                             }
                         } else {
