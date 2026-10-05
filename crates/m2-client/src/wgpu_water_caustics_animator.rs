@@ -1,6 +1,7 @@
 pub struct WgpuWaterCausticsAnimator {
     pub num_frames: u32,
     pub frame_duration_ms: u32,
+    pub base_path: String,
 }
 
 impl Default for WgpuWaterCausticsAnimator {
@@ -8,15 +9,17 @@ impl Default for WgpuWaterCausticsAnimator {
         Self {
             num_frames: 30,
             frame_duration_ms: 70,
+            base_path: "d:/ymir Work/special/water/".to_string(),
         }
     }
 }
 
 impl WgpuWaterCausticsAnimator {
-    pub fn new(num_frames: u32, frame_duration_ms: u32) -> Self {
+    pub fn new(num_frames: u32, frame_duration_ms: u32, base_path: Option<String>) -> Self {
         Self {
             num_frames,
             frame_duration_ms,
+            base_path: base_path.unwrap_or_else(|| "d:/ymir Work/special/water/".to_string()),
         }
     }
 
@@ -33,11 +36,11 @@ impl WgpuWaterCausticsAnimator {
         max_depth: f32,
         water_transparency: f32,
     ) -> f32 {
-        if max_depth <= 0.0 {
+        if max_depth <= f32::EPSILON {
             return 0.0;
         }
 
-        if water_depth <= 0.0 {
+        if water_depth <= f32::EPSILON {
             return water_transparency;
         }
 
@@ -47,7 +50,7 @@ impl WgpuWaterCausticsAnimator {
 
     pub fn get_texture_path(&self, time_ms: u32) -> String {
         let frame = self.get_current_frame(time_ms);
-        format!("d:/ymir Work/special/water/{:02}.dds", frame + 1)
+        format!("{}{:02}.dds", self.base_path, frame + 1)
     }
 }
 

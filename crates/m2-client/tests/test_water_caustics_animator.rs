@@ -5,6 +5,18 @@ fn test_default_initialization() {
     let animator = WgpuWaterCausticsAnimator::default();
     assert_eq!(animator.num_frames, 30);
     assert_eq!(animator.frame_duration_ms, 70);
+    assert_eq!(animator.base_path, "d:/ymir Work/special/water/");
+}
+
+#[test]
+fn test_custom_initialization() {
+    let animator = WgpuWaterCausticsAnimator::new(20, 50, Some("custom/path/".to_string()));
+    assert_eq!(animator.num_frames, 20);
+    assert_eq!(animator.frame_duration_ms, 50);
+    assert_eq!(animator.base_path, "custom/path/");
+    
+    let animator2 = WgpuWaterCausticsAnimator::new(20, 50, None);
+    assert_eq!(animator2.base_path, "d:/ymir Work/special/water/");
 }
 
 #[test]
@@ -42,6 +54,10 @@ fn test_calculate_intensity() {
 
     // Beyond max depth -> zero intensity
     assert_eq!(animator.calculate_intensity(15.0, 10.0, 0.8), 0.0);
+    
+    // Testing EPSILON bounds
+    assert_eq!(animator.calculate_intensity(f32::EPSILON / 2.0, 10.0, 0.8), 0.8); // effectively 0 depth
+    assert_eq!(animator.calculate_intensity(5.0, f32::EPSILON / 2.0, 0.8), 0.0); // effectively 0 max depth
 }
 
 #[test]
@@ -59,6 +75,10 @@ fn test_get_texture_path() {
 
     // time_ms = 2100 (30 frames * 70ms) -> frame 0 -> 01.dds (Wrap around)
     assert_eq!(animator.get_texture_path(2100), "d:/ymir Work/special/water/01.dds");
+    
+    // With custom path
+    let custom_animator = WgpuWaterCausticsAnimator::new(10, 100, Some("test/".to_string()));
+    assert_eq!(custom_animator.get_texture_path(0), "test/01.dds");
 }
 
 #[test]
@@ -98,10 +118,10 @@ fn test_water_height_animator() {
 #[test]
 fn test_edge_cases() {
     // Zero frames or zero duration
-    let animator_zero_frames = WgpuWaterCausticsAnimator::new(0, 70);
+    let animator_zero_frames = WgpuWaterCausticsAnimator::new(0, 70, None);
     assert_eq!(animator_zero_frames.get_current_frame(100), 0);
 
-    let animator_zero_duration = WgpuWaterCausticsAnimator::new(30, 0);
+    let animator_zero_duration = WgpuWaterCausticsAnimator::new(30, 0, None);
     assert_eq!(animator_zero_duration.get_current_frame(100), 0);
 
     // Zero or negative max depth for intensity
