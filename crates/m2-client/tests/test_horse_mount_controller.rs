@@ -107,3 +107,48 @@ fn test_movement_speed_and_attack_logic() {
     instance.mount_horse(20104);
     assert!(instance.can_attack_horse_level());
 }
+
+#[test]
+fn test_dismount_horse_resets_motion_mode() {
+    let mut instance = InstanceBase::new(12345);
+    
+    // Ustaw sztucznie złą pozycję, by sprawdzić resetowanie
+    instance.rotation_speed = 5.0;
+    instance.motion_mode = MotionMode::Horse;
+
+    // Wejscie i zejscie na konia powinno zresetować motion i rotacje do stanu defaultowego
+    instance.mount_horse(20101);
+    
+    assert_eq!(instance.motion_mode, MotionMode::Horse);
+    assert_eq!(instance.rotation_speed, instance.default_horse_rotation_speed);
+    
+    instance.dismount_horse();
+    
+    assert_eq!(instance.motion_mode, MotionMode::General);
+    assert_eq!(instance.rotation_speed, 1.0);
+}
+
+#[test]
+fn test_saddle_attachment() {
+    let mut instance = InstanceBase::new(12345);
+
+    // Dosiadamy konia
+    instance.mount_horse(20101);
+
+    // Sprawdzamy, czy saddle został dodany do attach_models
+    if let Some(actor) = instance.horse.get_actor_ptr() {
+        assert!(actor.borrow().attached_models.contains(&"saddle".to_string()));
+    } else {
+        panic!("Horse actor nie istnieje po mount_horse");
+    }
+
+    // Zsiadamy z konia, powinno usunąć siodło
+    instance.detach_horse_saddle();
+    
+    // Siodlo jest detachowane jeszcze kiedy obiekt horse.actor istnieje
+    if let Some(actor) = instance.horse.get_actor_ptr() {
+        assert!(actor.borrow().attached_models.is_empty());
+    } else {
+        panic!("Horse actor zniknął za wcześnie");
+    }
+}

@@ -27,6 +27,7 @@ pub struct GraphicThingInstance {
     pub horse: Option<Rc<RefCell<HorseActorInstance>>>,
     pub move_speed: f32,
     pub attack_speed: f32,
+    pub attached_models: Vec<String>,
 }
 
 impl GraphicThingInstance {
@@ -38,6 +39,7 @@ impl GraphicThingInstance {
             horse: None,
             move_speed: 1.0,
             attack_speed: 1.0,
+            attached_models: Vec::new(),
         }
     }
 
@@ -68,22 +70,23 @@ impl GraphicThingInstance {
     pub fn attach_model_instance(
         &mut self,
         _part: u32,
-        _bone_name: &str,
+        bone_name: &str,
         _target: &GraphicThingInstance,
         _target_part: u32,
     ) {
-        // C++: AttachModelInstance(CRaceData::PART_MAIN, "saddle", m_GraphicThingInstance, CRaceData::PART_MAIN);
-        // This is a placeholder since the full WGPU Granny actor renderer logic
-        // for attaching parts is handled elsewhere (wgpu_actor_attachment_wiring)
+        if !self.attached_models.iter().any(|b| b == bone_name) {
+            self.attached_models.push(bone_name.to_string());
+        }
     }
 
     pub fn detach_model_instance(
         &mut self,
         _part: u32,
+        bone_name: &str,
         _target: &GraphicThingInstance,
         _target_part: u32,
     ) {
-        // C++: DetachModelInstance(CRaceData::PART_MAIN, m_GraphicThingInstance, CRaceData::PART_MAIN);
+        self.attached_models.retain(|b| b != bone_name);
     }
 }
 
@@ -93,6 +96,7 @@ pub struct HorseActorInstance {
     pub hit_effect: u32,
     pub move_speed: f32,
     pub attack_speed: f32,
+    pub attached_models: Vec<String>,
 }
 
 impl HorseActorInstance {
@@ -103,6 +107,7 @@ impl HorseActorInstance {
             hit_effect: 0,
             move_speed: 1.0,
             attack_speed: 1.0,
+            attached_models: Vec::new(),
         }
     }
 
@@ -121,20 +126,23 @@ impl HorseActorInstance {
     pub fn attach_model_instance(
         &mut self,
         _part: u32,
-        _bone_name: &str,
+        bone_name: &str,
         _target: &GraphicThingInstance,
         _target_part: u32,
     ) {
-        // C++: AttachModelInstance(CRaceData::PART_MAIN, "saddle", m_GraphicThingInstance, CRaceData::PART_MAIN);
+        if !self.attached_models.iter().any(|b| b == bone_name) {
+            self.attached_models.push(bone_name.to_string());
+        }
     }
 
     pub fn detach_model_instance(
         &mut self,
         _part: u32,
+        bone_name: &str,
         _target: &GraphicThingInstance,
         _target_part: u32,
     ) {
-        // C++: DetachModelInstance(CRaceData::PART_MAIN, m_GraphicThingInstance, CRaceData::PART_MAIN);
+        self.attached_models.retain(|b| b != bone_name);
     }
 }
 
@@ -182,31 +190,13 @@ impl SHorse {
         if let Some(actor) = &self.actor {
             let mount = actor.borrow().get_race();
             match mount {
-                20101 | 20102 | 20103 => return 1,
-                20104 | 20105 | 20106 => return 2,
-                20107 | 20108 | 20109 | 20110 | 20111 | 20112 | 20113 | 20114 | 20115 | 20116
-                | 20117 | 20118 | 20120 | 20121 | 20122 | 20123 | 20124 | 20125 => return 3,
-                20119 | 20219 | 20220 | 20221 | 20222 => return 2,
+                20101..=20103 => return 1,
+                20104..=20106 => return 2,
+                20107..=20118 | 20120..=20125 => return 3,
+                20119 | 20219..=20222 => return 2,
+                20205..=20208 | 20214 | 20217 | 20224 | 20229 => return 2,
+                20209..=20212 | 20215 | 20218 | 20220 | 20225 | 20230 => return 3,
                 _ => {}
-            }
-
-            if (20205 <= mount && mount <= 20208)
-                || mount == 20214
-                || mount == 20217
-                || mount == 20224
-                || mount == 20229
-            {
-                return 2;
-            }
-
-            if (20209 <= mount && mount <= 20212)
-                || mount == 20215
-                || mount == 20218
-                || mount == 20220
-                || mount == 20225
-                || mount == 20230
-            {
-                return 3;
             }
         }
         0
@@ -215,17 +205,10 @@ impl SHorse {
     pub fn is_new_mount(&self) -> bool {
         if let Some(actor) = &self.actor {
             let mount = actor.borrow().get_race();
-
-            if (20205 <= mount && mount <= 20208) || mount == 20214 || mount == 20217 {
-                return true;
-            }
-
-            if (20209 <= mount && mount <= 20212)
-                || mount == 20215
-                || mount == 20218
-                || mount == 20220
-            {
-                return true;
+            match mount {
+                20205..=20208 | 20214 | 20217 => return true,
+                20209..=20212 | 20215 | 20218 | 20220 => return true,
+                _ => {}
             }
         }
         false
@@ -313,6 +296,8 @@ impl InstanceBase {
         self.detach_horse_saddle();
         self.horse.destroy();
         self.graphic_thing_instance.mount_horse(None);
+        self.motion_mode = MotionMode::General;
+        self.rotation_speed = 1.0;
     }
 
     pub fn attach_horse_saddle(&mut self) {
@@ -335,7 +320,7 @@ impl InstanceBase {
         if let Some(actor) = self.horse.get_actor_ptr() {
             actor
                 .borrow_mut()
-                .detach_model_instance(0, &self.graphic_thing_instance, 0);
+                .detach_model_instance(0, "saddle", &self.graphic_thing_instance, 0);
         }
     }
 
