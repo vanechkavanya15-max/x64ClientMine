@@ -2209,17 +2209,17 @@ def _wrap_player_get_guild_id():
 
 setattr(PlayerModule, 'ClearSkillDict', staticmethod(_player_clear_skill_dict))
 setattr(PlayerModule, 'SetSkill', staticmethod(_player_set_skill))
-setattr(PlayerModule, 'EndKeyWalkingImmediately', staticmethod(lambda: None))
-setattr(PlayerModule, 'EndMouseWalking', staticmethod(lambda: None))
-setattr(PlayerModule, 'StartMouseWalking', staticmethod(lambda: None))
+setattr(PlayerModule, 'EndKeyWalkingImmediately', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'EndMouseWalking', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'StartMouseWalking', staticmethod(lambda *args, **kwargs: None))
 setattr(PlayerModule, 'IsMainCharacterIndex', staticmethod(_player_is_main_character_index))
 setattr(PlayerModule, 'IsMountingHorse', staticmethod(_player_is_mounting_horse))
 setattr(PlayerModule, 'SetAttackKeyState', staticmethod(_player_set_attack_key_state))
-setattr(PlayerModule, 'SetSingleDIKKeyState', staticmethod(lambda key, state: None))
-setattr(PlayerModule, 'SetMouseState', staticmethod(lambda s: None))
-setattr(PlayerModule, 'SetMouseMiddleButtonState', staticmethod(lambda s: None))
-setattr(PlayerModule, 'SetMouseFunc', staticmethod(lambda f: None))
-setattr(PlayerModule, 'GetMouseFunc', staticmethod(lambda: 0))
+setattr(PlayerModule, 'SetSingleDIKKeyState', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'SetMouseState', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'SetMouseMiddleButtonState', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'SetMouseFunc', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'GetMouseFunc', staticmethod(lambda *args, **kwargs: 0))
 setattr(PlayerModule, 'SetGameWindow', staticmethod(_player_set_game_window))
 setattr(PlayerModule, 'GetGameWindow', staticmethod(_player_get_game_window))
 setattr(PlayerModule, 'SetQuickPage', staticmethod(_player_set_quick_page))
@@ -2228,25 +2228,25 @@ setattr(PlayerModule, 'RequestUseLocalQuickSlot', staticmethod(_player_request_u
 setattr(PlayerModule, 'RequestDeleteGlobalQuickSlot', staticmethod(_player_request_delete_global_quick_slot))
 setattr(PlayerModule, 'RequestAddLocalQuickSlot', staticmethod(_player_request_add_local_quick_slot))
 setattr(PlayerModule, 'RequestMoveGlobalQuickSlotToLocalQuickSlot', staticmethod(_player_request_move_global_quick_slot))
-setattr(PlayerModule, 'LocalQuickSlotIndexToGlobalQuickSlotIndex', staticmethod(lambda s: int(s) + _player_quick_page * 8))
-setattr(PlayerModule, 'ResetCameraRotation', staticmethod(lambda: None))
-setattr(PlayerModule, 'ClickSkillSlot', staticmethod(lambda slot: None))
-setattr(PlayerModule, 'ChangeCurrentSkillNumberOnly', staticmethod(lambda idx: None))
+setattr(PlayerModule, 'LocalQuickSlotIndexToGlobalQuickSlotIndex', staticmethod(lambda s=0, *args, **kwargs: int(s) + _player_quick_page * 8))
+setattr(PlayerModule, 'ResetCameraRotation', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'ClickSkillSlot', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'ChangeCurrentSkillNumberOnly', staticmethod(lambda *args, **kwargs: None))
 setattr(PlayerModule, 'ComboAttack', staticmethod(_wrap_player_combo_attack))
-setattr(PlayerModule, 'Clear', staticmethod(lambda: None))
+setattr(PlayerModule, 'Clear', staticmethod(lambda *args, **kwargs: None))
 setattr(PlayerModule, 'ClearTarget', staticmethod(_wrap_player_clear_target))
-setattr(PlayerModule, 'SetPlayTime', staticmethod(lambda t: None))
+setattr(PlayerModule, 'SetPlayTime', staticmethod(lambda *args, **kwargs: None))
 setattr(PlayerModule, 'GetGuildID', staticmethod(_wrap_player_get_guild_id))
-setattr(PlayerModule, 'CanAttackInstance', staticmethod(lambda vid: True))
-setattr(PlayerModule, 'IsActingEmotion', staticmethod(lambda: False))
-setattr(PlayerModule, 'ActEmotion', staticmethod(lambda e: None))
-setattr(PlayerModule, 'ShowPlayer', staticmethod(lambda: None))
-setattr(PlayerModule, 'HidePlayer', staticmethod(lambda: None))
-setattr(PlayerModule, 'SetAutoCameraRotationSpeed', staticmethod(lambda s: None))
-setattr(PlayerModule, 'SetQuickCameraMode', staticmethod(lambda f: None))
-setattr(PlayerModule, 'RemoveQuickSlotByValue', staticmethod(lambda v: None))
-setattr(PlayerModule, 'isItem', staticmethod(lambda s: True))
-setattr(PlayerModule, 'IsObserverMode', staticmethod(lambda: False))
+setattr(PlayerModule, 'CanAttackInstance', staticmethod(lambda *args, **kwargs: True))
+setattr(PlayerModule, 'IsActingEmotion', staticmethod(lambda *args, **kwargs: False))
+setattr(PlayerModule, 'ActEmotion', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'ShowPlayer', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'HidePlayer', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'SetAutoCameraRotationSpeed', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'SetQuickCameraMode', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'RemoveQuickSlotByValue', staticmethod(lambda *args, **kwargs: None))
+setattr(PlayerModule, 'isItem', staticmethod(lambda *args, **kwargs: True))
+setattr(PlayerModule, 'IsObserverMode', staticmethod(lambda *args, **kwargs: False))
 
 sys.modules['player'] = PlayerModule
 sys.modules['Player'] = PlayerModule
@@ -4714,25 +4714,47 @@ sys.modules['Event'] = EventModule
 sys.modules['eventmgr'] = EventModule
 sys.modules['EventMgr'] = EventModule
 
-class EffectModule:
+class EffectMeta(type):
+    def __getattr__(cls, name):
+        return 0
+
+class EffectModule(metaclass=EffectMeta):
     INDEX_FLY_TYPE_NORMAL = 0
     INDEX_FLY_TYPE_FIRE_CRACKER = 1
     INDEX_FLY_TYPE_AUTO_FIRE = 2
 
+    FLY_NONE = 0
+    FLY_EXP = 1
+    FLY_HP_MEDIUM = 2
+    FLY_HP_BIG = 3
+    FLY_SP_SMALL = 4
+    FLY_SP_MEDIUM = 5
+    FLY_SP_BIG = 6
+    FLY_FIREWORK1 = 7
+    FLY_FIREWORK2 = 8
+    FLY_FIREWORK3 = 9
+    FLY_FIREWORK4 = 10
+    FLY_FIREWORK5 = 11
+    FLY_FIREWORK6 = 12
+    FLY_FIREWORK_XMAS = 13
+    FLY_CHAIN_LIGHTNING = 14
+    FLY_HP_SMALL = 15
+    FLY_SKILL_MUYEONG = 16
+
     @staticmethod
-    def RegisterEffect(filename): return 0
+    def RegisterEffect(*args, **kwargs): return 0
     @staticmethod
-    def CreateEffect(effect_id): return 0
+    def CreateEffect(*args, **kwargs): return 0
     @staticmethod
-    def DeleteEffect(effect_instance_id): pass
+    def DeleteEffect(*args, **kwargs): pass
     @staticmethod
-    def SetPosition(effect_instance_id, x, y, z): pass
+    def SetPosition(*args, **kwargs): pass
     @staticmethod
-    def RegisterIndexedFlyData(index, fly_type, filename): pass
+    def RegisterIndexedFlyData(*args, **kwargs): pass
     @staticmethod
-    def Update(): pass
+    def Update(*args, **kwargs): pass
     @staticmethod
-    def Render(): pass
+    def Render(*args, **kwargs): pass
 
 sys.modules['effect'] = EffectModule
 sys.modules['Effect'] = EffectModule
