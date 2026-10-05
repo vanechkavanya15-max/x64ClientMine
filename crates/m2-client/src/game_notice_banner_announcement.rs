@@ -141,31 +141,37 @@ impl NoticeBannerSystem {
         self.notice_queue.clear();
         self.big_notice_queue.clear();
     }
+    
+    pub fn get_active_notices(&self) -> Vec<&BannerAnnouncement> {
+        self.active_banners.iter().filter(|b| b.banner_type == BannerType::Notice).collect()
+    }
+    
+    pub fn get_active_big_notices(&self) -> Vec<&BannerAnnouncement> {
+        self.active_banners.iter().filter(|b| b.banner_type == BannerType::BigNotice).collect()
+    }
 
     fn update_active_banners(&mut self, current_timestamp: u32) {
         // Process standard notices
-        while let Some(_) = self.notice_queue.front() {
+        while !self.notice_queue.is_empty() {
             let current_count = self.active_banners.iter().filter(|b| b.banner_type == BannerType::Notice).count();
-            if current_count < self.max_active_notices {
-                if let Some(mut banner) = self.notice_queue.pop_front() {
-                    banner.timestamp = current_timestamp;
-                    self.active_banners.push(banner);
-                }
-            } else {
+            if current_count >= self.max_active_notices {
                 break;
+            }
+            if let Some(mut banner) = self.notice_queue.pop_front() {
+                banner.timestamp = current_timestamp;
+                self.active_banners.push(banner);
             }
         }
         
         // Process big notices
-        while let Some(_) = self.big_notice_queue.front() {
+        while !self.big_notice_queue.is_empty() {
             let current_count = self.active_banners.iter().filter(|b| b.banner_type == BannerType::BigNotice).count();
-            if current_count < self.max_active_big_notices {
-                if let Some(mut banner) = self.big_notice_queue.pop_front() {
-                    banner.timestamp = current_timestamp;
-                    self.active_banners.push(banner);
-                }
-            } else {
+            if current_count >= self.max_active_big_notices {
                 break;
+            }
+            if let Some(mut banner) = self.big_notice_queue.pop_front() {
+                banner.timestamp = current_timestamp;
+                self.active_banners.push(banner);
             }
         }
     }

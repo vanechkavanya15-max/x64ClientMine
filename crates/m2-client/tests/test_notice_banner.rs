@@ -144,3 +144,21 @@ fn test_clear_system() {
     assert_eq!(system.notice_queue.len(), 0);
     assert_eq!(system.big_notice_queue.len(), 0);
 }
+
+#[test]
+fn test_get_active_notices_split() {
+    let mut system = NoticeBannerSystem::new();
+    system.append_notice("Notice 1".to_string(), 1000);
+    system.append_notice("Notice 2".to_string(), 1000);
+    system.append_big_notice("Big 1".to_string(), 1000);
+    
+    let notices = system.get_active_notices();
+    let big_notices = system.get_active_big_notices();
+    
+    assert_eq!(notices.len(), 2);
+    assert_eq!(notices[0].text, "Notice 1");
+    assert_eq!(notices[1].text, "Notice 2");
+    
+    assert_eq!(big_notices.len(), 1);
+    assert_eq!(big_notices[0].text, "Big 1");
+}
