@@ -148,16 +148,19 @@
 
 ## 6. STATYSTYKI SUMARYCZNE REPOZYTORIUM RUST (`crates/m2-client`)
 - **Laczna liczba plikow .rs:** 730 plikow
-- **Laczna liczba zaimplementowanych i zharvestowanych modulow:** 96 zadan produkcyjnych
-- **Wynik testow jednostkowych:** 69/69 testow cargo PASS (100% sukcesu, 0 bledow)
+- **Laczna liczba zaimplementowanych i zharvestowanych modulow:** 98 zadan produkcyjnych
+- **Wynik testow jednostkowych:** 74/74 testow cargo PASS (100% sukcesu, 0 bledow)
 - **Nowo wdrozone podsystemy (Full Parity):**
   - `msm_equipment_registry.rs`: dynamiczny rejestr zbroi, broni i wlosow na podstawie .msm.
-  - `melee_combat_hit_resolver.rs`: sferyczny hit-test oreza miecza, stozek katowy ataku i fizyka odrzutu (knockback).
+  - `melee_combat_hit_resolver.rs` & `combat_combo_chain.rs`: sferyczny hit-test oreza miecza, stozek katowy ataku, fizyka odrzutu (knockback) oraz bufor pre-input combo (350ms window).
+  - `engine_sliding_collision_movement.rs`: zsuwanie gracza wzdluz scian i przeszkod (1:1 z `CActorInstance::__AdjustCollisionMovement`).
+  - `py_bridge_net.rs` & `py_master_runtime_bridge.rs`: eliminacja atrap pakietow w `NetModule` (SendPartyInviteAnswer, SendEmoticon, SendGoldDropPacketNew, SendGiveItemPacket, SendWhisperPacket, SendCharacterPositionPacket, SendTargetPacket, SendGuildWarPacket).
+  - `game_net_receiver.rs` & `game_net_stream_dispatcher_v2.rs`: dynamiczny bufor reasemblacji TCP (>64KB) oraz obsluga GC SPECIAL_EFFECT, SPECIFIC_EFFECT i DRAGON_SOUL_REFINE.
   - `vfs_motion_sound_player.rs`: odtwarzacz dzwiekow z plikow .mss powiazany z klatkami animacji z VFS.
   - `actor_mount_synchronizer.rs`: synchronizacja dosiadania konia/wierzchowca (1:1 z ActorInstanceMount.cpp).
   - `ui_widget_slotwindow.rs` & `ui_window_mgr.rs`: zegar chlodzenia slotow (wachlarz cooldownu) oraz obcinanie nozycowe (scissor clipping).
-- **Stan wdrozenia produkcyjnego:** W pelni skompilowane binaria release (`m2_client.exe` 29.3MB, `m2_client.dll` 29.3MB) wdrozone do `E:\m2dev-client-src-main\m2dev-client-main\`
+- **Stan wdrozenia produkcyjnego:** W pelni skompilowane binaria release (`m2_client.exe` 29.4MB, `m2_client.dll` 29.4MB) wdrozone do `E:\m2dev-client-src-main\m2dev-client-main\`
 - **Weryfikacja uruchomieniowa:** Przetestowano faze LOGIN oraz pelna faze GAME 3D (WGPU DirectX 12, ~600 FPS, VFS 91 archiwow, 298 okien UI, 100% stabilnosci).
-- **Stan galezi main:** Gotowa do zatwierdzenia i pushu na GitHub origin/main.
+- **Stan galezi main:** Zatwierdzony i wypchniety na GitHub origin/main (commit `ff2a603`).
 
 
