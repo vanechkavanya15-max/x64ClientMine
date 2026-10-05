@@ -146,7 +146,7 @@ pub extern "C" fn m2_py_skill_get_skill_description(skill_index: u32) -> *const 
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_skill_get_skill_type(skill_index: u32) -> u8 {
+pub extern "C" fn m2_py_skill_get_skill_type_v2(skill_index: u32) -> u8 {
     let table = get_table();
     if let Some(skill) = table.get_skill(skill_index) {
         skill.skill_type

@@ -249,7 +249,13 @@ def _py_event_dispatch_1_str(handle, method_ptr, arg_ptr):
             arg = arg_ptr.decode('utf-8', 'ignore') if arg_ptr else ""
             fn = getattr(obj, m, None)
             if fn and callable(fn):
-                fn(arg)
+                try:
+                    fn(arg)
+                except TypeError:
+                    try:
+                        fn()
+                    except Exception as e2:
+                        print(f"[-] PY_EVENT_1_STR fallback error in {m}: {e2}")
     except Exception as e:
         m = method_ptr.decode('utf-8', 'ignore') if method_ptr else ""
         print(f"[-] PY_EVENT_1_STR EXCEPTION in {m}: {e}")
@@ -263,7 +269,13 @@ def _py_event_dispatch_1_i32(handle, method_ptr, val):
             m = method_ptr.decode('utf-8', 'ignore')
             fn = getattr(obj, m, None)
             if fn and callable(fn):
-                fn(int(val))
+                try:
+                    fn(int(val))
+                except TypeError:
+                    try:
+                        fn()
+                    except Exception as e2:
+                        print(f"[-] PY_EVENT_1_I32 fallback error in {m}: {e2}")
     except Exception as e:
         m = method_ptr.decode('utf-8', 'ignore') if method_ptr else ""
         print(f"[-] PY_EVENT_1_I32 EXCEPTION in {m}: {e}")
@@ -279,7 +291,16 @@ def _py_event_dispatch_2_i32(handle, method_ptr, x, y):
             fn = getattr(obj, m, None)
             if fn and callable(fn):
                 print(f"[PY_EVENT] Executing {type(obj).__name__}.{m}({x}, {y})...")
-                fn(int(x), int(y))
+                try:
+                    fn(int(x), int(y))
+                except TypeError:
+                    try:
+                        fn()
+                    except TypeError:
+                        try:
+                            fn(int(x))
+                        except Exception as e2:
+                            print(f"[-] PY_EVENT fallback error on {type(obj).__name__}.{m}: {e2}")
                 print(f"[PY_EVENT] Finished {type(obj).__name__}.{m}!")
             else:
                 print(f"[-] PY_EVENT: method '{m}' not found or not callable on {type(obj).__name__}")
