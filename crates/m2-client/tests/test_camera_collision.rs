@@ -104,3 +104,23 @@ fn test_smooth_zoom_out_after_collision() {
     
     assert!((current_dist - (col_dist + 10.0)).abs() < 1e-3, "Płynny zoom po uwolnieniu nie działa: {}", current_dist);
 }
+
+#[test]
+fn test_set_target_distance() {
+    let mut resolver = CameraCollisionResolver::new(1000.0, 50.0);
+    resolver.set_target_distance(500.0);
+    
+    // Ziemia głęboko pod celem
+    let get_terrain = |_x: f32, _y: f32| -> f32 { -10000.0 };
+    let get_object = |_s: Vec3, _e: Vec3| -> Option<Vec3> { None };
+
+    let target = Vec3::new(0.0, 0.0, 0.0);
+    let camera_dir = Vec3::new(0.0, -1.0, 1.0).normalize();
+    
+    // Zoom in toward new target distance
+    resolver.update(target, camera_dir, 0.1, &get_terrain, &get_object);
+    
+    // Start current_distance is 1000.0, zoom_speed is 50.0. After 0.1s it moves by 5.0
+    let dist = resolver.get_current_distance();
+    assert!((dist - 995.0).abs() < 1e-3, "Target distance not updated correctly: {}", dist);
+}

@@ -90,7 +90,6 @@ impl CameraCollisionResolver {
         }
     }
 
-    #[allow(dead_code)]
     pub fn set_target_distance(&mut self, distance: f32) {
         self.target_distance = distance;
     }
