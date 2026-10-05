@@ -225,4 +225,40 @@ impl WgpuWaterDistortionPipeline {
     pub fn update_uniforms(&self, queue: &wgpu::Queue, uniforms: &WaterUniforms) {
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(std::slice::from_ref(uniforms)));
     }
+
+    pub fn create_bind_group(
+        &self,
+        device: &wgpu::Device,
+        dudv_map: &wgpu::TextureView,
+        dudv_sampler: &wgpu::Sampler,
+        normal_map: &wgpu::TextureView,
+        normal_sampler: &wgpu::Sampler,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Water Distortion Bind Group"),
+            layout: &self.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: self.uniform_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(dudv_map),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(dudv_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(normal_map),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::Sampler(normal_sampler),
+                },
+            ],
+        })
+    }
 }

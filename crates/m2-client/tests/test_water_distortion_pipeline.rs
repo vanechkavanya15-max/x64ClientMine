@@ -62,3 +62,62 @@ fn test_uniform_updates() {
     device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
 }
 
+#[test]
+fn test_bind_group_creation() {
+    let (device, _queue) = create_headless_device();
+    let surface_format = wgpu::TextureFormat::Rgba8UnormSrgb;
+    let pipeline = WgpuWaterDistortionPipeline::new(&device, surface_format);
+
+    // Create a dummy 1x1 texture for DUDV
+    let dudv_texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("DUDV Texture"),
+        size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    let dudv_view = dudv_texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let dudv_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("DUDV Sampler"),
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::MipmapFilterMode::Linear,
+        ..Default::default()
+    });
+
+    // Create a dummy 1x1 texture for Normal map
+    let normal_texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Normal Texture"),
+        size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    let normal_view = normal_texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let normal_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("Normal Sampler"),
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::MipmapFilterMode::Linear,
+        ..Default::default()
+    });
+
+    // Create the bind group
+    let _bind_group = pipeline.create_bind_group(
+        &device,
+        &dudv_view,
+        &dudv_sampler,
+        &normal_view,
+        &normal_sampler,
+    );
+    
+    // Test passes if create_bind_group doesn't panic on validation.
+    device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
+}
+
