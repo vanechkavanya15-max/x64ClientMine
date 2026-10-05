@@ -228,3 +228,72 @@ fn test_build_wgpu_vertex_buffer_color_interpolation() {
     assert_eq!(r, 255);
     assert_eq!(g, 0);
 }
+
+#[test]
+fn test_spawning_shapes() {
+    let mut effect_data = MseEffectData {
+        emitter_property: MseEmitterProperty::default(),
+        particle_property: MseParticleProperty::default(),
+    };
+    effect_data.emitter_property.max_emission_count = 10;
+    effect_data.emitter_property.cycle_length = 2.0;
+    effect_data.emitter_property.cycle_loop_enable = false;
+    effect_data.emitter_property.time_event_emission_count_per_second.push(
+        MseTimeEventFloat { time: 0.0, value: 100.0 }
+    );
+    effect_data.emitter_property.time_event_life_time.push(
+        MseTimeEventFloat { time: 0.0, value: 5.0 }
+    );
+    
+    // 0 = POINT
+    effect_data.emitter_property.emitter_shape = 0;
+    let mut renderer = create_particle_system_renderer(&effect_data);
+    simulate_particle_system(&mut renderer, 0.1, 1);
+    for p in &renderer.particles {
+        assert_eq!(p.position.0, 0.0);
+        assert_eq!(p.position.1, 0.0);
+        assert_eq!(p.position.2, 0.0);
+    }
+    
+    // 2 = SQUARE
+    effect_data.emitter_property.emitter_shape = 2;
+    effect_data.emitter_property.emitting_size = [10.0, 20.0, 30.0];
+    let mut renderer2 = create_particle_system_renderer(&effect_data);
+    simulate_particle_system(&mut renderer2, 0.1, 1);
+    for p in &renderer2.particles {
+        assert!(p.position.0 >= -5.0 && p.position.0 <= 5.0);
+        assert!(p.position.1 >= -10.0 && p.position.1 <= 10.0);
+        assert!(p.position.2 >= -15.0 && p.position.2 <= 15.0);
+    }
+}
+
+#[test]
+fn test_advanced_emitter_types() {
+    let mut effect_data = MseEffectData {
+        emitter_property: MseEmitterProperty::default(),
+        particle_property: MseParticleProperty::default(),
+    };
+    effect_data.emitter_property.max_emission_count = 10;
+    effect_data.emitter_property.cycle_length = 2.0;
+    effect_data.emitter_property.time_event_emission_count_per_second.push(
+        MseTimeEventFloat { time: 0.0, value: 100.0 }
+    );
+    effect_data.emitter_property.time_event_life_time.push(
+        MseTimeEventFloat { time: 0.0, value: 5.0 }
+    );
+    effect_data.emitter_property.time_event_emitting_velocity.push(
+        MseTimeEventFloat { time: 0.0, value: 1.0 } // Scale velocity by 1 for simplicity
+    );
+    
+    // SHAPE = POINT, ADVANCED = OUTER (1)
+    effect_data.emitter_property.emitter_shape = 0;
+    effect_data.emitter_property.emitter_advanced_type = 1;
+    let mut renderer = create_particle_system_renderer(&effect_data);
+    simulate_particle_system(&mut renderer, 0.1, 1);
+    for p in &renderer.particles {
+        // Point outer generates random velocity in [-100, 100] per axis
+        assert!(p.velocity.0 >= -100.0 && p.velocity.0 <= 100.0);
+        assert!(p.velocity.1 >= -100.0 && p.velocity.1 <= 100.0);
+        assert!(p.velocity.2 >= -100.0 && p.velocity.2 <= 100.0);
+    }
+}

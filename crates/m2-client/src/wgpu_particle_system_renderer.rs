@@ -1,4 +1,5 @@
 use glam::{Vec2, Vec3};
+use rand::Rng;
 use wgpu;
 use crate::mse_script_parser::{MseEmitterProperty, MseTimeEventFloat, MseTimeEventColor};
 use crate::wgpu_particle_billboard_renderer::{ParticleVertex, BillboardType, ParticleBillboardRenderer};
@@ -205,24 +206,132 @@ impl WgpuParticleSystemRenderer {
             }
         }
 
+        let mut rng = rand::thread_rng();
+
         for _ in 0..emit_count {
             let lifetime = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_life_time);
-            let mut p = ParticleInstance::new(lifetime);
             
-            p.position = (0.0, 0.0, 0.0);
+            let size_x = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_size_x);
+            let size_y = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_size_y);
             
-            // Velocity
-            let velocity = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_emitting_velocity);
+            let mut p = ParticleInstance::new(lifetime, size_x, size_y);
+            
+            let emitting_size = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_emitting_size);
+            
+            let mut pos = Vec3::ZERO;
+            
+            match self.emitter_property.emitter_shape {
+                0 => { // POINT
+                    // (0,0,0) is default
+                }
+                1 => { // ELLIPSE
+                    let mut x = rng.gen_range(-500.0..=500.0);
+                    let mut y = rng.gen_range(-500.0..=500.0);
+                    let mut p_pos = Vec3::new(x, y, 0.0);
+                    if p_pos.length_squared() > 0.0 {
+                        p_pos = p_pos.normalize();
+                    }
+                    
+                    if self.emitter_property.emit_from_edge_flag {
+                        p_pos *= self.emitter_property.emitting_radius + emitting_size;
+                    } else {
+                        let r = rng.gen_range(0.0..=(self.emitter_property.emitting_radius.max(0.0001)));
+                        p_pos *= r + emitting_size;
+                    }
+                    pos = p_pos;
+                }
+                2 => { // SQUARE
+                    let hx = self.emitter_property.emitting_size[0] / 2.0;
+                    let hy = self.emitter_property.emitting_size[1] / 2.0;
+                    let hz = self.emitter_property.emitting_size[2] / 2.0;
+                    
+                    let rx = rng.gen_range(-hx..=hx) + emitting_size;
+                    let ry = rng.gen_range(-hy..=hy) + emitting_size;
+                    let rz = rng.gen_range(-hz..=hz) + emitting_size;
+                    
+                    pos = Vec3::new(rx, ry, rz);
+                }
+                3 => { // SPHERE
+                    let mut x = rng.gen_range(-500.0..=500.0);
+                    let mut y = rng.gen_range(-500.0..=500.0);
+                    let mut z = rng.gen_range(-500.0..=500.0);
+                    let mut p_pos = Vec3::new(x, y, z);
+                    if p_pos.length_squared() > 0.0 {
+                        p_pos = p_pos.normalize();
+                    }
+                    
+                    if self.emitter_property.emit_from_edge_flag {
+                        p_pos *= self.emitter_property.emitting_radius + emitting_size;
+                    } else {
+                        let r = rng.gen_range(0.0..=(self.emitter_property.emitting_radius.max(0.0001)));
+                        p_pos *= r + emitting_size;
+                    }
+                    pos = p_pos;
+                }
+                _ => {}
+            }
+            
+            p.position = (pos.x, pos.y, pos.z);
+            
+            let mut vel = Vec3::ZERO;
+            
+            match self.emitter_property.emitter_advanced_type {
+                1 => { // OUTER
+                    if self.emitter_property.emitter_shape == 0 {
+                        vel.x = rng.gen_range(-100.0..=100.0);
+                        vel.y = rng.gen_range(-100.0..=100.0);
+                        vel.z = rng.gen_range(-100.0..=100.0);
+                    } else {
+                        if pos.length_squared() > 0.0 {
+                            vel = pos.normalize() * 100.0;
+                        }
+                    }
+                }
+                2 => { // INNER
+                    if pos.length_squared() > 0.0 {
+                        vel = pos.normalize() * -100.0;
+                    }
+                }
+                _ => { // FREE (or default)
+                    
+                }
+            }
+            
             let dir_x = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_emitting_direction_x);
             let dir_y = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_emitting_direction_y);
             let dir_z = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_emitting_direction_z);
             
-            p.velocity.0 = dir_x * velocity;
-            p.velocity.1 = dir_y * velocity;
-            p.velocity.2 = dir_z * velocity;
+            let mut emit_dir = Vec3::new(dir_x, dir_y, dir_z);
+            if self.emitter_property.emitting_direction[0] > 0.0 {
+                let d = self.emitter_property.emitting_direction[0] / 2.0;
+                emit_dir.x += rng.gen_range(-d..=d) * 1000.0;
+            }
+            if self.emitter_property.emitting_direction[1] > 0.0 {
+                let d = self.emitter_property.emitting_direction[1] / 2.0;
+                emit_dir.y += rng.gen_range(-d..=d) * 1000.0;
+            }
+            if self.emitter_property.emitting_direction[2] > 0.0 {
+                let d = self.emitter_property.emitting_direction[2] / 2.0;
+                emit_dir.z += rng.gen_range(-d..=d) * 1000.0;
+            }
             
-            // Initial Rotation (for Billboard)
-            p.rotation = self.particle_property.rotation_random_starting_begin;
+            vel += emit_dir;
+            
+            let velocity_factor = get_time_event_blend_value_f32(self.local_time, &self.emitter_property.time_event_emitting_velocity);
+            vel *= velocity_factor;
+            
+            p.velocity = (vel.x, vel.y, vel.z);
+            
+            let rot_begin = self.particle_property.rotation_random_starting_begin;
+            let rot_end = self.particle_property.rotation_random_starting_end;
+            
+            if rot_begin < rot_end {
+                p.rotation = rng.gen_range(rot_begin..=rot_end);
+            } else if rot_begin > rot_end {
+                p.rotation = rng.gen_range(rot_end..=rot_begin);
+            } else {
+                p.rotation = rot_begin;
+            }
             
             p.age = 0.0;
             self.particles.push(p);

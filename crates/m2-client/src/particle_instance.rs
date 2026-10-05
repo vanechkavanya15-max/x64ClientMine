@@ -10,7 +10,7 @@ pub struct ParticleInstance {
 }
 
 impl ParticleInstance {
-    pub fn new(lifetime: f32) -> Self {
+    pub fn new(lifetime: f32, base_scale_x: f32, base_scale_y: f32) -> Self {
         Self {
             position: (0.0, 0.0, 0.0),
             velocity: (0.0, 0.0, 0.0),
@@ -18,7 +18,7 @@ impl ParticleInstance {
             lifetime,
             rotation: 0.0,
             rotation_speed: 0.0,
-            base_scale: (1.0, 1.0),
+            base_scale: (base_scale_x, base_scale_y),
         }
     }
 
