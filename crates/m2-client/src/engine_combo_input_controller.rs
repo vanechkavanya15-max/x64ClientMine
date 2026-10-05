@@ -20,7 +20,20 @@ impl EngineComboInputController {
     }
 
     pub fn trigger_single_attack(&mut self) -> bool {
-        self.combo_state.input_combo_attack_command()
+        let old_index = self.combo_state.cur_combo_index;
+        let mut triggered = self.combo_state.input_combo_attack_command();
+        
+        if old_index != 0 {
+            self.combo_state.combo_process();
+        }
+        
+        if self.combo_state.cur_combo_index > old_index && self.combo_state.cur_combo_index != 1 {
+            self.combo_state.attacking_elapsed_time = 0.0;
+            self.next_combo_triggered = true;
+            triggered = true;
+        }
+        
+        triggered
     }
 
     pub fn set_motion_data(&mut self, motion_data: RaceMotionData) {

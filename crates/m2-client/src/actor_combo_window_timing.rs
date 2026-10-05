@@ -125,6 +125,20 @@ impl ActorComboState {
                         return;
                     }
                 }
+            } else {
+                if let Some(ref motion_data) = self.cur_race_motion_data {
+                    if motion_data.is_combo_input_time_data() {
+                        if elapsed_time > motion_data.get_combo_input_end_time() {
+                            self.clear_combo();
+                            return;
+                        }
+                    } else {
+                        if elapsed_time > motion_data.get_motion_duration() {
+                            self.clear_combo();
+                            return;
+                        }
+                    }
+                }
             }
         } else {
             self.is_pre_input = false;
