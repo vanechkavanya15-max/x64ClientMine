@@ -4,6 +4,12 @@ pub struct AudioSpatial3DEngine {
     listener_up: [f32; 3],
 }
 
+impl Default for AudioSpatial3DEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioSpatial3DEngine {
     pub fn new() -> Self {
         Self {
