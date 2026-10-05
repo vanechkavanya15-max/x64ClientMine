@@ -98,3 +98,35 @@ fn test_frustum_sphere() {
     // Partial sphere intersecting near plane
     assert_eq!(frustum.test_sphere(Vec3::new(0.0, 0.0, -0.1), 0.5), ViewState::Partial);
 }
+
+#[test]
+fn test_frustum_aabb_large_spanning() {
+    let mut frustum = FrustumCullingMapEngine::new();
+    let view = Mat4::look_at_rh(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
+    let proj = Mat4::perspective_rh(std::f32::consts::PI / 4.0, 1.0, 0.1, 100.0);
+    frustum.build_view_frustum(proj * view);
+    
+    // AABB that completely engulfs the entire frustum view space
+    let aabb = Aabb {
+        min: Vec3::new(-1000.0, -1000.0, -1000.0),
+        max: Vec3::new(1000.0, 1000.0, 1000.0),
+    };
+    
+    assert_eq!(frustum.test_aabb(&aabb), ViewState::Partial);
+}
+
+#[test]
+fn test_frustum_aabb_behind_near_plane() {
+    let mut frustum = FrustumCullingMapEngine::new();
+    let view = Mat4::look_at_rh(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
+    let proj = Mat4::perspective_rh(std::f32::consts::PI / 4.0, 1.0, 0.1, 100.0);
+    frustum.build_view_frustum(proj * view);
+    
+    // AABB strictly behind the camera (z > 0.0 in camera space)
+    let aabb = Aabb {
+        min: Vec3::new(-5.0, -5.0, 1.0),
+        max: Vec3::new(5.0, 5.0, 5.0),
+    };
+    
+    assert_eq!(frustum.test_aabb(&aabb), ViewState::Outside);
+}

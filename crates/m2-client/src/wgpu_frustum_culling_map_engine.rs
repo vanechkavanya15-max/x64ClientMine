@@ -1,4 +1,6 @@
 use glam::{Mat4, Vec3, Vec4};
+use m2_client_bridge::ffi_guard::safe_ffi_call;
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewState {
@@ -123,3 +125,62 @@ impl FrustumCullingMapEngine {
         self.test_aabb(&aabb) == ViewState::Outside
     }
 }
+
+static GLOBAL_FRUSTUM: OnceLock<Mutex<FrustumCullingMapEngine>> = OnceLock::new();
+
+fn get_frustum() -> std::sync::MutexGuard<'static, FrustumCullingMapEngine> {
+    GLOBAL_FRUSTUM
+        .get_or_init(|| Mutex::new(FrustumCullingMapEngine::new()))
+        .lock()
+        .unwrap()
+}
+
+#[no_mangle]
+pub extern "C" fn m2_frustum_build(mat_16_floats: *const f32) -> bool {
+    safe_ffi_call(false, || {
+        if mat_16_floats.is_null() {
+            return false;
+        }
+        
+        let slice = unsafe { std::slice::from_raw_parts(mat_16_floats, 16) };
+        let mat = Mat4::from_cols_array(slice.try_into().unwrap());
+        
+        let mut frustum = get_frustum();
+        frustum.build_view_frustum(mat);
+        true
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_frustum_test_sphere(cx: f32, cy: f32, cz: f32, radius: f32) -> i32 {
+    safe_ffi_call(-1, || {
+        let frustum = get_frustum();
+        let result = frustum.test_sphere(Vec3::new(cx, cy, cz), radius);
+        match result {
+            ViewState::Outside => -1,
+            ViewState::Partial => 0,
+            ViewState::Inside => 1,
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn m2_frustum_test_aabb(
+    min_x: f32, min_y: f32, min_z: f32, 
+    max_x: f32, max_y: f32, max_z: f32
+) -> i32 {
+    safe_ffi_call(-1, || {
+        let frustum = get_frustum();
+        let aabb = Aabb {
+            min: Vec3::new(min_x, min_y, min_z),
+            max: Vec3::new(max_x, max_y, max_z),
+        };
+        let result = frustum.test_aabb(&aabb);
+        match result {
+            ViewState::Outside => -1,
+            ViewState::Partial => 0,
+            ViewState::Inside => 1,
+        }
+    })
+}
+
