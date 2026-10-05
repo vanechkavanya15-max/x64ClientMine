@@ -1,4 +1,3 @@
-use glam::{Vec3, Vec2};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]
