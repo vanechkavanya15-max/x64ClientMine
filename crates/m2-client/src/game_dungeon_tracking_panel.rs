@@ -1,15 +1,12 @@
-use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
 pub struct DungeonQuestInstance {
     pub index: u32,
-    pub icon_file_name: String,
-    pub title: String,
-    pub clock_name: String,
-    pub counter_name: String,
-    pub clock_value: i32,
-    pub counter_value: i32,
+    pub active_goal: String,
+    pub monsters_killed: u32,
+    pub monsters_total: u32,
+    pub time_limit_seconds: i32,
     pub start_time: i32,
 }
 
@@ -17,12 +14,10 @@ impl Default for DungeonQuestInstance {
     fn default() -> Self {
         Self {
             index: 0,
-            icon_file_name: String::new(),
-            title: String::new(),
-            clock_name: String::new(),
-            counter_name: String::new(),
-            clock_value: 0,
-            counter_value: 0,
+            active_goal: String::new(),
+            monsters_killed: 0,
+            monsters_total: 0,
+            time_limit_seconds: 0,
             start_time: 0,
         }
     }
@@ -73,41 +68,61 @@ impl DungeonTrackingManager {
         self.quests.push(instance);
     }
 
-    pub fn set_quest_title(&mut self, index: u32, title: &str) {
+    // 3. Wskaznik aktywnego celu (znajdz klucz, zniszcz kamien metin, pokonaj bossa)
+    pub fn set_active_goal(&mut self, index: u32, goal: &str) {
         if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
-            quest.title = title.to_string();
+            quest.active_goal = goal.to_string();
         }
     }
 
-    pub fn set_quest_clock_name(&mut self, index: u32, clock_name: &str) {
-        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
-            quest.clock_name = clock_name.to_string();
+    pub fn get_active_goal(&self, index: u32) -> String {
+        if let Some(quest) = self.quests.iter().find(|q| q.index == index) {
+            quest.active_goal.clone()
+        } else {
+            String::new()
         }
     }
 
-    pub fn set_quest_counter_name(&mut self, index: u32, counter_name: &str) {
-        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
-            quest.counter_name = counter_name.to_string();
-        }
-    }
-
-    pub fn set_quest_clock_value(&mut self, index: u32, clock_value: i32) {
+    // 1. Odliczanie czasu do konca pietra (countdown timer)
+    pub fn set_countdown_timer(&mut self, index: u32, seconds: i32) {
         let current_time = self.get_current_second();
         if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
-            quest.clock_value = clock_value;
+            quest.time_limit_seconds = seconds;
             quest.start_time = current_time;
         }
     }
 
-    pub fn set_quest_counter_value(&mut self, index: u32, counter_value: i32) {
+    pub fn get_time_left(&self, index: u32) -> i32 {
+        if let Some(quest) = self.quests.iter().find(|q| q.index == index) {
+            if quest.time_limit_seconds <= 0 {
+                return 0;
+            }
+            let elapsed = self.get_current_second() - quest.start_time;
+            let remaining = quest.time_limit_seconds - elapsed;
+            if remaining > 0 {
+                return remaining;
+            }
+        }
+        0
+    }
+
+    pub fn get_formatted_time_left(&self, index: u32) -> String {
+        format_time(self.get_time_left(index))
+    }
+
+    // 2. Pasek zliczonych potworow do pokonania (np. 45/100 mobow)
+    pub fn set_monster_progress(&mut self, index: u32, killed: u32, total: u32) {
         if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
-            quest.counter_value = counter_value;
+            quest.monsters_killed = killed;
+            quest.monsters_total = total;
         }
     }
 
-    pub fn set_quest_icon_file_name(&mut self, index: u32, icon_file_name: &str) {
-        if let Some(quest) = self.quests.iter_mut().find(|q| q.index == index) {
-            quest.icon_file_name = icon_file_name.to_string();
+    pub fn get_formatted_monster_progress(&self, index: u32) -> String {
+        if let Some(quest) = self.quests.iter().find(|q| q.index == index) {
+            format!("{}/{} mobow", quest.monsters_killed, quest.monsters_total)
+        } else {
+            "0/0 mobow".to_string()
         }
     }
 
@@ -122,22 +137,10 @@ impl DungeonTrackingManager {
     pub fn get_quest_instance_by_array_index(&self, array_index: usize) -> Option<&DungeonQuestInstance> {
         self.quests.get(array_index)
     }
-    
-    pub fn get_quest_last_time(&self, array_index: usize) -> Option<(String, i32)> {
-        if let Some(quest) = self.quests.get(array_index) {
-            let mut last_time = 0;
-            if quest.clock_value >= 0 {
-                last_time = (quest.start_time + quest.clock_value) - self.get_current_second();
-            }
-            Some((quest.clock_name.clone(), last_time))
-        } else {
-            None
-        }
-    }
 }
 
 pub fn format_time(seconds: i32) -> String {
-    if seconds < 0 {
+    if seconds <= 0 {
         return "00:00".to_string();
     }
     let mins = seconds / 60;
