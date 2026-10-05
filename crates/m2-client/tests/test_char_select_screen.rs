@@ -143,3 +143,17 @@ fn test_char_select_handle_button_click() {
     // Unknown button
     assert_eq!(screen.handle_button_click("UnknownButton"), false);
 }
+
+#[test]
+fn test_char_select_screen_update_empty_slot() {
+    let mut screen = CharacterSelectScreen::new();
+    
+    // Slot 0 is empty by default
+    screen.select_slot(0);
+    assert_eq!(screen.selected_slot, None);
+    
+    // Camera should not rotate if no character is selected
+    screen.camera_rotation = 45.0;
+    screen.update(1.0);
+    assert_eq!(screen.camera_rotation, 45.0);
+}

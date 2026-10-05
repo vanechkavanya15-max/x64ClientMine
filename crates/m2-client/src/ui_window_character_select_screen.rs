@@ -68,8 +68,8 @@ impl CharacterSelectScreen {
                     self.selected_slot = Some(index);
                     self.camera_rotation = 0.0;
                     
-                    // Zamiast stuba - symulacja animacji "IntroWait" lub podobnej 
-                    // wzorowanej na zachowaniu z CPythonNetworkStreamPhaseSelect
+                    // Trigger the MOTION_INTRO_WAIT (1) animation upon character selection,
+                    // matching the C++ client behavior.
                     if let Some(mut chr_mgr) = crate::character_manager_core::get_character_manager().write().ok() {
                          if let Some(main_actor) = chr_mgr.get_main_instance() {
                               let vid = main_actor.vid;
