@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // Zaimplementowano wylacznie w celach zaspokojenia interfejsu sieciowego (CG) klienta gry Metin2
 // Odpowiada za wysylanie pakietow akcji zwiazanych z przedmiotami.
 

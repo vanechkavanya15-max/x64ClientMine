@@ -2,16 +2,15 @@
 mod py_bridge_minimap_atlas_renderer;
 
 use py_bridge_minimap_atlas_renderer::*;
+use std::ffi::CString;
 
 #[test]
 fn test_check_bounds_helpers() {
-    // Player bounds (exact same logic as original: - check_width < real_x < + check_width)
     assert!(check_player_bounds(100.0, 100.0, 100.0, 100.0, 5.0, 5.0)); // Center
     assert!(check_player_bounds(100.0, 100.0, 96.0, 96.0, 5.0, 5.0));   // Inner edge
     assert!(!check_player_bounds(100.0, 100.0, 105.0, 105.0, 5.0, 5.0));// Outer edge
     assert!(!check_player_bounds(100.0, 100.0, 95.0, 95.0, 5.0, 5.0));  // Outer edge
 
-    // Mark bounds (logic: - check_width / 2.0 < real_x < + check_width)
     assert!(check_mark_bounds(100.0, 100.0, 100.0, 100.0, 5.0, 5.0)); // Center
     assert!(check_mark_bounds(100.0, 100.0, 98.0, 98.0, 5.0, 5.0));   // Inner left/top edge
     assert!(!check_mark_bounds(100.0, 100.0, 97.0, 97.0, 5.0, 5.0));  // Outer left/top edge (100 - 2.5 = 97.5)
@@ -42,10 +41,6 @@ fn test_compute_offsets() {
         atlas_max_y: 1024.0,
         ..Default::default()
     };
-    
-    // Scale will be 256/1024 = 0.25
-    // Scaled Map Width = 1024 * 0.25 = 256
-    // Offset = (256 - 256) * 0.5 = 0.0
     compute_atlas_centering_offsets(&mut state);
     
     assert!((state.atlas_offset_x - 0.0).abs() < f32::EPSILON);
@@ -58,11 +53,7 @@ fn test_compute_offsets() {
         atlas_max_y: 1024.0, // Scale Y dominates: 256/1024 = 0.25
         ..Default::default()
     };
-
     compute_atlas_centering_offsets(&mut state2);
-    // Scale will be min(256/512, 256/1024) = 0.25
-    // Scaled Map Width = 512 * 0.25 = 128
-    // Offset X = (256 - 128) * 0.5 = 64.0
     assert!((state2.atlas_offset_x - 64.0).abs() < f32::EPSILON);
 }
 
@@ -88,10 +79,7 @@ fn test_coordinate_transform_precision() {
 
 #[test]
 fn test_atlas_info_hit_testing_player() {
-    // Tests for player hit-testing would need character_manager initialized, 
-    // but the #[cfg(not(test))] mock logic in our hit-tester allows us to bypass the real singleton access during isolated tests.
-    // We can verify this via compilation. The actual logic runs over `character_manager_core` properly when not in `test`.
-    assert!(true); // Ensures the test harness doesn't complain about an empty test
+    assert!(true); 
 }
 
 #[test]
@@ -104,16 +92,11 @@ fn test_atlas_info_hit_testing_marks() {
     state.atlas_max_x = 1024.0;
     state.atlas_max_y = 1024.0;
     compute_atlas_centering_offsets(&mut state);
-    
-    state.npcs.push(AtlasMarkInfo {
-        x: 100.0,
-        y: 100.0,
-        screen_x: 0.0,
-        screen_y: 0.0,
-        text: "Test NPC".to_string(),
-    });
-    
+    state.npcs.clear();
     drop(state);
+
+    let name = CString::new("Test NPC").unwrap();
+    m2_minimap_register_atlas_mark(1, name.as_ptr() as *const u8, name.as_bytes().len(), 100, 100);
 
     let mut out_str = [0u8; 128];
     let mut out_x = 0.0;
@@ -141,17 +124,19 @@ fn test_atlas_info_hit_testing_guilds() {
     let mut state = get_atlas_state().write().unwrap();
     state.atlas_screen_x = 10.0;
     state.atlas_screen_y = 10.0;
-    state.guilds.push(GuildAreaInfo {
-        guild_id: 1,
-        lx: 50,
-        ly: 50,
-        lwidth: 100,
-        lheight: 100,
-        fsx_render: 0.0,
-        fsy_render: 0.0,
-        fex_render: 20.0,
-        fey_render: 20.0,
-    });
+    state.guilds.clear();
+    drop(state);
+
+    m2_minimap_register_guild_area(1, 50, 50, 100, 100);
+
+    let mut state = get_atlas_state().write().unwrap();
+    // Simulate render values being updated because they rely on atlas scaling
+    if let Some(guild) = state.guilds.first_mut() {
+        guild.fsx_render = 0.0;
+        guild.fsy_render = 0.0;
+        guild.fex_render = 20.0;
+        guild.fey_render = 20.0;
+    }
     drop(state);
 
     let mut out_str = [0u8; 128];
@@ -173,7 +158,7 @@ fn test_atlas_info_hit_testing_guilds() {
     assert_eq!(out_y, 100.0);
     
     let text = unsafe { std::ffi::CStr::from_ptr(out_str.as_ptr() as *const i8).to_string_lossy() };
-    assert_eq!(text, "empty_guild_area"); // Becuase of cfg test macro mock
+    assert_eq!(text, "empty_guild_area"); // Because of cfg test macro mock
 }
 
 #[test]
@@ -186,6 +171,7 @@ fn test_atlas_info_hit_testing_waypoints() {
     state.atlas_max_x = 1024.0;
     state.atlas_max_y = 1024.0;
     compute_atlas_centering_offsets(&mut state);
+    state.waypoints.clear();
     
     // Waypoint with 0.0 screen coords should be ignored
     state.waypoints.push(AtlasMarkInfo {
@@ -217,12 +203,6 @@ fn test_atlas_info_hit_testing_waypoints() {
     let ax = state_read.atlas_screen_x;
     let ay = state_read.atlas_screen_y;
     
-    // We want real_x = 50, real_y = 50.
-    // m2_minimap_get_atlas_info takes screen_x and computes:
-    // local_x = screen_x - ax
-    // real_x = atlas_to_global(local_x)
-    // To go backwards: local_x = global_to_atlas(real_x). screen_x = local_x + ax.
-    
     let (lx1, ly1) = global_to_atlas(50, 50, &state_read);
     let screen_x1 = lx1 + ax;
     let screen_y1 = ly1 + ay;
@@ -239,8 +219,6 @@ fn test_atlas_info_hit_testing_waypoints() {
         &mut out_x, &mut out_y,
         &mut out_color, &mut out_guild
     );
-    // Should not hit because wp1 has screen_x=0.0 and screen_y=0.0
-    // Ensure we handle floating point precision by forcing local=tx1 since screen=tx1+ax.
     assert!(!hit1, "Should not hit waypoint with screen_x/y <= 0.0");
 
     let hit2 = m2_minimap_get_atlas_info(

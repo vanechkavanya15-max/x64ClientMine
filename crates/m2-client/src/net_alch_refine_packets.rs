@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use std::mem;
 
 pub const HEADER_CG_REFINE: u16 = 0x050C;

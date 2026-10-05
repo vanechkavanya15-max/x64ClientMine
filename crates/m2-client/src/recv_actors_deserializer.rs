@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use m2_client_bridge::state::game_state::{Actor, GLOBAL_GAME_STATE};
 use std::mem::size_of;
 

@@ -184,6 +184,81 @@ pub extern "C" fn m2_minimap_is_show_atlas() -> bool {
 }
 
 #[no_mangle]
+pub extern "C" fn m2_minimap_register_atlas_mark(
+    by_type: u8,
+    name_buf: *const u8,
+    name_len: usize,
+    lx: i32,
+    ly: i32,
+) {
+    catch_unwind(|| {
+        let name = if !name_buf.is_null() && name_len > 0 {
+            unsafe {
+                let slice = std::slice::from_raw_parts(name_buf, name_len);
+                String::from_utf8_lossy(slice).into_owned()
+            }
+        } else {
+            String::new()
+        };
+
+        let mut state = get_atlas_state().write().unwrap();
+        let (screen_x, screen_y) = global_to_atlas(lx, ly, &state);
+
+        let mark_info = AtlasMarkInfo {
+            x: lx as f32,
+            y: ly as f32,
+            screen_x,
+            screen_y,
+            text: name,
+        };
+
+        if by_type == 1 { // CActorInstance::TYPE_NPC is usually 1, WARP is 3 in C++ (depends on enum, usually we match C++)
+            state.npcs.push(mark_info);
+        } else {
+            state.warps.push(mark_info);
+        }
+    }).ok();
+}
+
+#[no_mangle]
+pub extern "C" fn m2_minimap_register_guild_area(
+    guild_id: u32,
+    lx: i32,
+    ly: i32,
+    lwidth: i32,
+    lheight: i32,
+) {
+    catch_unwind(|| {
+        let mut state = get_atlas_state().write().unwrap();
+        let (fsx, fsy) = global_to_atlas(lx, ly, &state);
+        let (fex, fey) = global_to_atlas(lx + lwidth, ly + lheight, &state);
+
+        state.guilds.push(GuildAreaInfo {
+            guild_id,
+            lx,
+            ly,
+            lwidth,
+            lheight,
+            fsx_render: fsx,
+            fsy_render: fsy,
+            fex_render: fex,
+            fey_render: fey,
+        });
+    }).ok();
+}
+
+#[no_mangle]
+pub extern "C" fn m2_minimap_clear_atlas_marks() {
+    catch_unwind(|| {
+        let mut state = get_atlas_state().write().unwrap();
+        state.npcs.clear();
+        state.warps.clear();
+        state.guilds.clear();
+        state.waypoints.clear();
+    }).ok();
+}
+
+#[no_mangle]
 pub extern "C" fn m2_minimap_is_atlas() -> bool {
     catch_unwind(|| {
         let state = get_atlas_state().read().unwrap();

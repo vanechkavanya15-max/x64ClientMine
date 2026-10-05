@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use std::mem::size_of;
 
 use crate::net_shop_private_packets::{HEADER_CG_SHOP, SHOP_SUB_BUY, TPacketCGShop};

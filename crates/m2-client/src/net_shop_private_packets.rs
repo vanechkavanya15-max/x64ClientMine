@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 use crate::ui_bridge_ffi::ACTIVE_GAME_SOCKET;
 use std::ffi::CStr;

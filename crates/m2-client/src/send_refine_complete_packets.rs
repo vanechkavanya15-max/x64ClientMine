@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use std::mem;
 
 pub const HEADER_CG_REFINE: u16 = 0x0520;// Wait, the prompt says CG_REFINE (0x0520). I will use it. 
