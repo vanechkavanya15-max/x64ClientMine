@@ -35,6 +35,10 @@ impl TerrainVertex {
 }
 
 pub fn generate_terrain_mesh(height_map: &RawHeightMap) -> Vec<TerrainVertex> {
+    generate_terrain_mesh_at(height_map, 0.0, 0.0)
+}
+
+pub fn generate_terrain_mesh_at(height_map: &RawHeightMap, center_x: f32, center_y: f32) -> Vec<TerrainVertex> {
     let mut vertices = Vec::new();
     
     // Safety check for empty or invalid height map
@@ -49,11 +53,11 @@ pub fn generate_terrain_mesh(height_map: &RawHeightMap) -> Vec<TerrainVertex> {
 
     for y in 0..h {
         for x in 0..w {
-            let px0 = x as f32 * CELL_SIZE - offset_x;
-            let py0 = y as f32 * CELL_SIZE - offset_y;
+            let px0 = x as f32 * CELL_SIZE - offset_x + center_x;
+            let py0 = y as f32 * CELL_SIZE - offset_y + center_y;
             
-            let px1 = (x + 1) as f32 * CELL_SIZE - offset_x;
-            let py1 = (y + 1) as f32 * CELL_SIZE - offset_y;
+            let px1 = (x + 1) as f32 * CELL_SIZE - offset_x + center_x;
+            let py1 = (y + 1) as f32 * CELL_SIZE - offset_y + center_y;
 
             let z00 = height_map.get_height(x, y);
             let z10 = height_map.get_height(x + 1, y);

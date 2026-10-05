@@ -613,19 +613,23 @@ pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTe
 
         match win.window_type {
             WindowType::Bar | WindowType::Box => {
-                if let Some(tex) = white_tex {
-                    let mut q = Quad2D::new(gx as f32, gy as f32, w as f32, h as f32);
-                    q.color = win.color;
-                    add_quad(batches, tex.clone(), q);
+                if win.color[3] > 0.001 {
+                    if let Some(tex) = white_tex {
+                        let mut q = Quad2D::new(gx as f32, gy as f32, w as f32, h as f32);
+                        q.color = win.color;
+                        add_quad(batches, tex.clone(), q);
+                    }
                 }
             }
             WindowType::Line => {
-                if let Some(tex) = white_tex {
-                    let line_w = if w > 0 { w as f32 } else { 1.0 };
-                    let line_h = if h > 0 { h as f32 } else { 1.0 };
-                    let mut q = Quad2D::new(gx as f32, gy as f32, line_w, line_h);
-                    q.color = win.color;
-                    add_quad(batches, tex.clone(), q);
+                if win.color[3] > 0.001 {
+                    if let Some(tex) = white_tex {
+                        let line_w = if w > 0 { w as f32 } else { 1.0 };
+                        let line_h = if h > 0 { h as f32 } else { 1.0 };
+                        let mut q = Quad2D::new(gx as f32, gy as f32, line_w, line_h);
+                        q.color = win.color;
+                        add_quad(batches, tex.clone(), q);
+                    }
                 }
             }
             WindowType::ImageBox | WindowType::ExpandedImageBox => {

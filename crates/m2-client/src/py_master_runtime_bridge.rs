@@ -1494,7 +1494,7 @@ def _wrap_wndmgr_set_font_color(handle, *args):
         r = ((c >> 16) & 0xFF) / 255.0
         g = ((c >> 8) & 0xFF) / 255.0
         b = (c & 0xFF) / 255.0
-        return fn(h, r, g, b, a if a > 0 else 1.0)
+        return fn(h, r, g, b, a)
     elif len(args) == 3:
         r, g, b = float(args[0]), float(args[1]), float(args[2])
         return fn(h, r, g, b, 1.0)
@@ -1516,7 +1516,7 @@ def _wrap_wndmgr_set_color(handle, *args):
         r = ((c >> 16) & 0xFF) / 255.0
         g = ((c >> 8) & 0xFF) / 255.0
         b = (c & 0xFF) / 255.0
-        return fn(h, r, g, b, a if a > 0 else 1.0)
+        return fn(h, r, g, b, a)
     elif len(args) == 3:
         r, g, b = float(args[0]), float(args[1]), float(args[2])
         return fn(h, r, g, b, 1.0)

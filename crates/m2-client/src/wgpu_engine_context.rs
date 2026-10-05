@@ -1927,7 +1927,7 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
 
                         if pipeline_mgr.is_none() {
                             let color_format = ctx.config.as_ref().map(|c| c.format).unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
-                            let pm = crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager::new_with_format(&ctx.device, ctx.width, ctx.height, color_format);
+                            let pm = crate::wgpu_render_pipeline_mgr::WgpuRenderPipelineManager::new_with_format_and_pos(&ctx.device, ctx.width, ctx.height, color_format, player_pos[0], player_pos[1]);
                             pipeline_mgr = Some(pm);
                             let win_cfg = crate::client_engine_main::WindowConfig {
                                 width: ctx.width,
@@ -1937,6 +1937,26 @@ pub extern "C" fn m2_run_game_loop() -> i32 {
                             };
                             composition = Some(crate::main_render_pipeline_composition::MainRenderPipelineComposition::new(win_cfg));
                             println!("[+] Aktywowano pelny potok 3D (Skybox, Teren, Woda, Modele, Czasteczki, TextTail) w fazie GAME!");
+                        }
+
+                        // Aktualizacja uniformow postaci i kamery dla biezacej klatki
+                        ctx.update_character_uniforms(player_pos, player_rot, aspect);
+
+                        // Aktualizacja bufora skyboxa z macierza obrotu kamery (bez translacji)
+                        if let Some(ref pm) = pipeline_mgr {
+                            if let Some(ref sb_buf) = pm.skybox_uniform_buffer {
+                                let view_no_trans = glam::Mat4::look_at_rh(glam::Vec3::ZERO, target - eye, up);
+                                let skybox_view_proj = (proj * view_no_trans).to_cols_array_2d();
+                                let env_uniforms = crate::wgpu_skybox_lighting::EnvironmentUniforms {
+                                    skybox_view_proj,
+                                    sun_direction: [0.577, -0.577, 0.577, 0.0],
+                                    ambient_color: [0.45, 0.50, 0.60, 1.0],
+                                    diffuse_color: [0.95, 0.90, 0.85, 1.0],
+                                    fog_color: [0.70, 0.75, 0.85, 1.0],
+                                    fog_params: [2400.0, 25600.0, 0.001, 1.0],
+                                };
+                                ctx.queue.write_buffer(sb_buf, 0, bytemuck::bytes_of(&env_uniforms));
+                            }
                         }
 
                         if let (Some(ref mut comp), Some(ref pm)) = (&mut composition, &pipeline_mgr) {

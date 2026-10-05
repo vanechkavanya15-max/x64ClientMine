@@ -153,6 +153,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let sky_color = in.color;
     
     // Blend diffuse texture with vertex color as done in C++
+    if (tex_color.a < 0.05) {
+        let horizon_color = vec4<f32>(0.72, 0.82, 0.94, 1.0);
+        let zenith_color = vec4<f32>(0.28, 0.48, 0.82, 1.0);
+        let t = clamp(in.tex_coord.y, 0.0, 1.0);
+        let grad = mix(zenith_color, horizon_color, t);
+        return grad * sky_color;
+    }
     return tex_color * sky_color;
 }
 "#;
@@ -177,11 +184,18 @@ impl SkyboxRenderer {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let initial_env = EnvironmentUniforms {
+            skybox_view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
+            sun_direction: [0.577, -0.577, 0.577, 0.0],
+            ambient_color: [0.45, 0.50, 0.60, 1.0],
+            diffuse_color: [0.95, 0.90, 0.85, 1.0],
+            fog_color: [0.70, 0.75, 0.85, 1.0],
+            fog_params: [2400.0, 25600.0, 0.001, 1.0],
+        };
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Skybox Uniform Buffer"),
-            size: std::mem::size_of::<EnvironmentUniforms>() as wgpu::BufferAddress,
+            contents: bytemuck::bytes_of(&initial_env),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
         });
 
         let uniform_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

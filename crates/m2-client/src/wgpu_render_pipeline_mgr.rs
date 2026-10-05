@@ -24,6 +24,7 @@ pub struct WgpuRenderPipelineManager {
     pub skybox_vertex_buffer: Option<wgpu::Buffer>,
     pub skybox_index_buffer: Option<wgpu::Buffer>,
     pub skybox_index_count: u32,
+    pub skybox_uniform_buffer: Option<wgpu::Buffer>,
     pub terrain_pipeline: Option<wgpu::RenderPipeline>,
     pub water_pipeline: Option<wgpu::RenderPipeline>,
     pub water_bind_group: Option<wgpu::BindGroup>,
@@ -77,6 +78,17 @@ impl WgpuRenderPipelineManager {
         height: u32,
         surface_format: wgpu::TextureFormat,
     ) -> Self {
+        Self::new_with_format_and_pos(device, width, height, surface_format, 0.0, 0.0)
+    }
+
+    pub fn new_with_format_and_pos(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        surface_format: wgpu::TextureFormat,
+        center_x: f32,
+        center_y: f32,
+    ) -> Self {
         let size = wgpu::Extent3d {
             width: width.max(1),
             height: height.max(1),
@@ -122,6 +134,7 @@ impl WgpuRenderPipelineManager {
         let skybox_vertex_buffer = Some(skybox_renderer.vertex_buffer);
         let skybox_index_buffer = Some(skybox_renderer.index_buffer);
         let skybox_index_count = skybox_renderer.index_count;
+        let skybox_uniform_buffer = Some(skybox_renderer.uniform_buffer);
 
         // 2. Inicjalizacja terrain_pipeline oraz bufora wierzcholkow terenu
         let terrain_pipeline = Some(crate::wgpu_terrain_renderer::create_terrain_pipeline(
@@ -135,7 +148,7 @@ impl WgpuRenderPipelineManager {
         } else {
             let heights = vec![0.0f32; 33 * 33];
             let raw_map = crate::terrain_height_patch::RawHeightMap::new(33, 33, heights);
-            let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh(&raw_map);
+            let verts = crate::wgpu_terrain_renderer::generate_terrain_mesh_at(&raw_map, center_x, center_y);
             let count = verts.len() as u32;
             let buf = if !verts.is_empty() {
                 Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -189,13 +202,14 @@ impl WgpuRenderPipelineManager {
         let water_pipeline = Some(water_renderer.pipeline);
         let water_bind_group = Some(water_renderer.bind_group);
 
+        let w_rad = 30000.0f32;
         let water_verts = [
-            crate::wgpu_water_plane_renderer::WaterVertex { position: [-5000.0, -5000.0, 0.0], diffuse: 0xFFFFFFFF },
-            crate::wgpu_water_plane_renderer::WaterVertex { position: [ 5000.0, -5000.0, 0.0], diffuse: 0xFFFFFFFF },
-            crate::wgpu_water_plane_renderer::WaterVertex { position: [ 5000.0,  5000.0, 0.0], diffuse: 0xFFFFFFFF },
-            crate::wgpu_water_plane_renderer::WaterVertex { position: [-5000.0, -5000.0, 0.0], diffuse: 0xFFFFFFFF },
-            crate::wgpu_water_plane_renderer::WaterVertex { position: [ 5000.0,  5000.0, 0.0], diffuse: 0xFFFFFFFF },
-            crate::wgpu_water_plane_renderer::WaterVertex { position: [-5000.0,  5000.0, 0.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [center_x - w_rad, center_y - w_rad, -20.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [center_x + w_rad, center_y - w_rad, -20.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [center_x + w_rad, center_y + w_rad, -20.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [center_x - w_rad, center_y - w_rad, -20.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [center_x + w_rad, center_y + w_rad, -20.0], diffuse: 0xFFFFFFFF },
+            crate::wgpu_water_plane_renderer::WaterVertex { position: [center_x - w_rad, center_y + w_rad, -20.0], diffuse: 0xFFFFFFFF },
         ];
         let water_vertex_buffer = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Water Plane Vertex Buffer"),
@@ -277,6 +291,7 @@ impl WgpuRenderPipelineManager {
             skybox_vertex_buffer,
             skybox_index_buffer,
             skybox_index_count,
+            skybox_uniform_buffer,
             terrain_pipeline,
             water_pipeline,
             water_bind_group,
