@@ -221,6 +221,27 @@ pub extern "C" fn m2_py_background_get_picking_point(
     m2_picker_pick_ground_position(screen_x, screen_y, 1024.0, 768.0, out_x, out_y, out_z)
 }
 
+#[no_mangle]
+pub extern "C" fn m2_chr_Pick() -> u32 {
+    let (mut cx, mut cy) = (512, 384);
+    if let Ok(state) = crate::py_bridge_app_cursor::PY_APP_CURSOR.lock() {
+        cx = state.mouse_x;
+        cy = state.mouse_y;
+    }
+    let ray = screen_coords_to_ray(cx as f32, cy as f32, 1024.0, 768.0);
+    if let Ok(mgr) = crate::character_manager_core::get_character_manager().read() {
+        let targets: Vec<ActorPickTarget> = mgr.alive_instances.values().map(|a| ActorPickTarget {
+            vid: a.vid,
+            center: Vec3::new(a.x, a.y, a.z + 100.0),
+            radius: 80.0,
+        }).collect();
+        if let Some(vid) = pick_closest_actor(&ray, &targets) {
+            return vid;
+        }
+    }
+    crate::py_bridge_chr_transforms::m2_chr_get_selected_instance_vid()
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -11,6 +11,7 @@ pub mod wgpu_shadow_terrain_integrator;
 pub mod engine_root_motion_actor_sync;
 pub mod ui_wndmgr_geometry;
 pub mod ui_number_line_widget;
+pub mod encoding_converter;
 pub mod py_master_runtime_bridge;
 pub mod game_auto_hunt_ai;
 pub mod wgpu_camera_shake_fx;
