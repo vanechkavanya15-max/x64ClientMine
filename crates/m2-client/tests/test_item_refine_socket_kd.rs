@@ -3,7 +3,6 @@ use std::sync::{Mutex, OnceLock};
 use m2_client::py_bridge_item_native::get_item_native_manager;
 use m2_client::inventory_grid_v2::{get_inventory_sys, WindowType, ItemData};
 use m2_client::item_proto_binary_loader::{TItemTable, TItemLimit, TItemApply};
-use m2_client::py_bridge_item::ItemApply;
 use m2_client::py_bridge_player_items::{
     ATTACH_METIN_CANT, ATTACH_METIN_OK, ATTACH_METIN_NOT_MATCHABLE_ITEM,
     ATTACH_METIN_NO_MATCHABLE_SOCKET, ATTACH_METIN_NOT_EXIST_GOLD_SOCKET,

@@ -72,7 +72,11 @@ pub extern "C" fn m2_py_player_can_attach_metin(metin_vnum: u32, target_w: u8, t
         let mut b_not_exist_gold_socket = false;
 
         for i in 0..ITEM_SOCKET_SLOT_MAX_NUM {
-            let dw_socket_type = target_sockets[i];
+            let dw_socket_type = if i >= 3 {
+                0
+            } else {
+                target_sockets[i]
+            };
 
             if metin_sub_type == METIN_NORMAL {
                 if dw_socket_type == METIN_SOCKET_TYPE_SILVER || dw_socket_type == METIN_SOCKET_TYPE_GOLD {
