@@ -121,7 +121,8 @@ impl AudioUiSoundEffectsDispatcher {
         sink.set_volume(1.0);
         sink.append(decoder);
 
-        sink.sleep_until_end();
+        // Zwracamy sink bez blokowania, aby caller mógł nim zarządzać (zgodnie ze strukturą testów).
+        // detach() odbiera własność, co powoduje błąd z Ok(sink).
 
         Ok(sink)
     }
