@@ -18,9 +18,23 @@ impl TileCoord {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct TerrainPatchData {
+    pub coord: TileCoord,
+    pub map_id: u32,
+    pub area_property_path: String,
+    pub height_raw_path: String,
+    pub splat_path: String,
+    pub attr_path: String,
+    pub water_path: String,
+    pub shadow_tex_path: String,
+    pub shadow_map_path: String,
+    pub mini_map_tex_path: String,
+}
+
 pub struct AreaLoaderThread {
     load_queue: Arc<Mutex<VecDeque<TileCoord>>>,
-    completed_queue: Arc<Mutex<VecDeque<TileCoord>>>,
+    completed_queue: Arc<Mutex<VecDeque<TerrainPatchData>>>,
     shutdown_flag: Arc<AtomicBool>,
     current_center: Arc<Mutex<Option<TileCoord>>>,
     worker_handle: Option<thread::JoinHandle<()>>,
@@ -30,7 +44,7 @@ pub struct AreaLoaderThread {
 impl AreaLoaderThread {
     pub fn new() -> Self {
         let load_queue: Arc<Mutex<VecDeque<TileCoord>>> = Arc::new(Mutex::new(VecDeque::new()));
-        let completed_queue: Arc<Mutex<VecDeque<TileCoord>>> = Arc::new(Mutex::new(VecDeque::new()));
+        let completed_queue: Arc<Mutex<VecDeque<TerrainPatchData>>> = Arc::new(Mutex::new(VecDeque::new()));
         let shutdown_flag = Arc::new(AtomicBool::new(false));
         let current_center: Arc<Mutex<Option<TileCoord>>> = Arc::new(Mutex::new(None));
         let condvar = Arc::new(Condvar::new());
@@ -71,7 +85,7 @@ impl AreaLoaderThread {
                         let map_id = tile.get_map_id();
                         let map_name = format!("metin2_map_test_{}", map_id);
 
-                        let _filename = format!("{}\\{:06}\\AreaProperty.txt", map_name, map_id);
+                        let area_property_path = format!("{}\\{:06}\\AreaProperty.txt", map_name, map_id);
                         
                         // Simulate AreaProperty.txt parsing mimicking LoadMultipleTextData in C++
                         let mut script_type = String::new();
@@ -84,28 +98,28 @@ impl AreaLoaderThread {
                         }
 
                         if script_type == "AreaProperty" && !area_name.is_empty() {
-                            let _raw_height_fieldname = format!("{}\\{:06}\\height.raw", map_name, map_id);
-                            let _splat_name = format!("{}\\{:06}\\tile.raw", map_name, map_id);
-                            let _attr_map_name = format!("{}\\{:06}\\attr.atr", map_name, map_id);
-                            let _water_map_name = format!("{}\\{:06}\\water.wtr", map_name, map_id);
-                            let _shadow_tex_name = format!("{}\\{:06}\\shadowmap.dds", map_name, map_id);
-                            let _shadow_map_name = format!("{}\\{:06}\\shadowmap.raw", map_name, map_id);
-                            let _mini_map_tex_name = format!("{}\\{:06}\\minimap.dds", map_name, map_id);
+                            let height_raw_path = format!("{}\\{:06}\\height.raw", map_name, map_id);
+                            let splat_path = format!("{}\\{:06}\\tile.raw", map_name, map_id);
+                            let attr_path = format!("{}\\{:06}\\attr.atr", map_name, map_id);
+                            let water_path = format!("{}\\{:06}\\water.wtr", map_name, map_id);
+                            let shadow_tex_path = format!("{}\\{:06}\\shadowmap.dds", map_name, map_id);
+                            let shadow_map_path = format!("{}\\{:06}\\shadowmap.raw", map_name, map_id);
+                            let mini_map_tex_path = format!("{}\\{:06}\\minimap.dds", map_name, map_id);
 
-                            // Simulate the file loading steps that would typically follow:
-                            // pTerrain->CopySettingFromGlobalSetting();
-                            // pTerrain->LoadWaterMap(szWaterMapName);
-                            // pTerrain->LoadHeightMap(szRawHeightFieldname);
-                            // pTerrain->LoadAttrMap(szAttrMapName);
-                            // pTerrain->RAW_LoadTileMap(szSplatName, true);
-                            // pTerrain->LoadShadowTexture(szShadowTexName);
-                            // pTerrain->LoadShadowMap(szShadowMapName);
-                            // pTerrain->LoadMiniMapTexture(szMiniMapTexName);
-                            // pTerrain->SetName(c_rstrAreaName.c_str());
-                            // pTerrain->CalculateTerrainPatch();
-                            // pTerrain->SetReady();
+                            let patch_data = TerrainPatchData {
+                                coord: tile,
+                                map_id,
+                                area_property_path,
+                                height_raw_path,
+                                splat_path,
+                                attr_path,
+                                water_path,
+                                shadow_tex_path,
+                                shadow_map_path,
+                                mini_map_tex_path,
+                            };
 
-                            worker_completed_queue.lock().unwrap().push_back(tile);
+                            worker_completed_queue.lock().unwrap().push_back(patch_data);
                         }
                     }
                 }
@@ -159,7 +173,7 @@ impl AreaLoaderThread {
         self.condvar.notify_all();
     }
 
-    pub fn fetch_completed(&self) -> Option<TileCoord> {
+    pub fn fetch_completed(&self) -> Option<TerrainPatchData> {
         self.completed_queue.lock().unwrap().pop_front()
     }
 
