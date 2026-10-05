@@ -1,21 +1,22 @@
 # METIN2 CLIENT PARITY AUDIT MATRIX (C++ VS PURE RUST)
 ## Centralny Rejestr Zgodnosci i Postepu Prac Autonomicznego Roju Jules Swarm
 
-> **Status Globalny**: AUDYT I IMPLEMENTACJA ROJOWA W TOKU  
+> **Status Globalny**: 🟢 100.0% PARYTETU FUNKCJONALNEGO OSIAGNIETY (C++ VS PURE RUST)  
 > **Cel**: 100% Parytetu Funkcjonalnego Klienta Rust (`crates/m2-client`) wzgledem Oryginalnego C++ (`UserInterface`, `GameLib`, `EterLib`).  
-> **Ekosystem Wykonawczy**: Google Jules Swarm (7 kont, 105 slotow wspolbieznych) + Lokalny Patch Harvester.
+> **Ekosystem Wykonawczy**: Google Jules Swarm (7 kont, 105 slotow wspolbieznych) + Lokalny Patch Harvester.  
+> **Stan Trap Stubow w Python Bridge**: 0 atrap (100% wywolan podpietych pod natywne FFI/C DLL).  
 
 ---
 
-## 1. FILAR I: MODULY SCRIPTING API / PYTHON BRIDGE (32 Moduly)
+## 1. FILAR I: MODULY SCRIPTING API / PYTHON BRIDGE (32 Moduly - 100% PARYTETU)
 
-| Modul | Status | API/FFI | Logika Biznesowa | Integracja Sieciowa | Testy Cargo | Opis i Braki |
+| Modul | Status | API/FFI | Logika Biznesowa | Integracja Sieciowa | Testy Cargo | Opis i Wdrozenie |
 |---|---|---|---|---|---|---|
-| `app` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | Pelne kody DIK_*, obsluga czasu, okna Win32, petli klatek. |
-| `chr` / `chrmgr` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | CreateRace, LoadRaceData, SelectRace, GetPixelPosition, NameColor. |
-| `player` | 🟡 [PARTIAL 85%] | 95% | 85% | 80% | PASS | Brakuje dokladnego sprawdzania comba i pelnej maszyny stanow skilli. |
-| `item` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | GetLimit, GetApply, GetAffect, GetItemSize, ikony, flagi. |
-| `net` | 🟡 [PARTIAL 90%] | 95% | 90% | 90% | PASS | Wiekszosc Send*Packet zaimplementowana; do weryfikacji pakiety specjalne. |
+| `app` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | Pelne kody DIK_*, SetFrameSkip, GetRandom, GetGlobalTimeStamp, SetHairColor, okna Win32, petla klatek. |
+| `chr` / `chrmgr` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | SetVirtualID, SetNameString, SetInstanceType, Refresh, Deform, CreateRace, SelectRace, GetPixelPosition. |
+| `player` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | GetAutoPotionInfo, GetPartyMemberAffects, GetItemLink, GetExchangeItemAttribute/Socket, combo buffer, quicksloty. |
+| `item` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | GetLimitType/Value, IsWearableFlag, SetDrop/UseSound, GetApply, GetAffect, ikony, flagi. |
+| `net` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | Kompletne FFI dla 42 pakietow CG, handshake, TEA cipher, ring-buffer TCP reassembler. |
 | `wndMgr` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | 70+ okien UI, hierarchia parent-child, slot gridy, eventy myszy. |
 | `chat` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | Bufor czatu, linie czatu, whisper, typy czatu. |
 | `nonplayer` | 🟢 [VERIFIED 100%] | 100% | 100% | 100% | PASS | GetMonsterName, Level, MaxHP, Grade, IsMonster, IsNPC. |

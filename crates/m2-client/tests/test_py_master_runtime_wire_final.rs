@@ -20,12 +20,8 @@ fn test_app_module_lambdas_replaced() {
     Python::with_gil(|py| {
         let sys = py.import_bound("sys").unwrap();
         let modules = sys.getattr("modules").unwrap();
-        let app_module = modules.get_item("app").unwrap().unwrap();
+        let app_module = modules.get_item("app").unwrap();
 
-        // Check if the functions are no longer lambda (in Python, lambdas are functions, C-FFI are builtin_function_or_method or staticmethod wrapping CFuncPtr)
-        // A simple test: GetRandom was lambda a,b: randint. Now it's mapped to FFI.
-        // Let's call it and see if it works without raising.
-        
         // 1. GetRandom
         let args = PyTuple::new_bound(py, &[1, 10]);
         let rand_val: i32 = app_module.call_method1("GetRandom", args).unwrap().extract().unwrap();

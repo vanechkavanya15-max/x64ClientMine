@@ -7,68 +7,9 @@ use m2_client_bridge::ffi_guard::safe_ffi_call;
 use m2_client_bridge::state::game_state::GLOBAL_GAME_STATE;
 use crate::recv_exchange_logic_v2::{get_exchange_logic, EXCHANGE_ITEM_MAX_NUM, ITEM_SOCKET_SLOT_MAX_NUM, ITEM_ATTRIBUTE_SLOT_MAX_NUM};
 
-#[derive(Debug, Clone, Copy)]
-pub struct AutoPotionInfo {
-    pub activated: bool,
-    pub current_amount: u32,
-    pub total_amount: u32,
-    pub inventory_slot_index: i32,
-}
+pub use crate::game_auto_potion_manager::{m2_py_player_get_auto_potion_info, m2_py_player_set_auto_potion_info};
 
-impl Default for AutoPotionInfo {
-    fn default() -> Self {
-        Self {
-            activated: false,
-            current_amount: 0,
-            total_amount: 0,
-            inventory_slot_index: -1,
-        }
-    }
-}
-
-pub static AUTO_POTION_INFO: Lazy<RwLock<HashMap<u32, AutoPotionInfo>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 pub static PARTY_AFFECTS: Lazy<RwLock<HashMap<u32, [i16; 7]>>> = Lazy::new(|| RwLock::new(HashMap::new()));
-
-#[no_mangle]
-pub extern "C" fn m2_py_player_set_auto_potion_info(
-    potion_type: u32,
-    activated: bool,
-    current: u32,
-    total: u32,
-    slot: i32,
-) -> bool {
-    safe_ffi_call(false, || {
-        let mut map = AUTO_POTION_INFO.write().unwrap();
-        map.insert(potion_type, AutoPotionInfo {
-            activated,
-            current_amount: current,
-            total_amount: total,
-            inventory_slot_index: slot,
-        });
-        true
-    })
-}
-
-#[no_mangle]
-pub extern "C" fn m2_py_player_get_auto_potion_info(
-    potion_type: u32,
-    out_activated: *mut bool,
-    out_current: *mut u32,
-    out_total: *mut u32,
-    out_slot: *mut i32,
-) -> bool {
-    safe_ffi_call(false, || {
-        let map = AUTO_POTION_INFO.read().unwrap();
-        let info = map.get(&potion_type).copied().unwrap_or_default();
-        unsafe {
-            if !out_activated.is_null() { *out_activated = info.activated; }
-            if !out_current.is_null() { *out_current = info.current_amount; }
-            if !out_total.is_null() { *out_total = info.total_amount; }
-            if !out_slot.is_null() { *out_slot = info.inventory_slot_index; }
-        }
-        true
-    })
-}
 
 #[no_mangle]
 pub extern "C" fn m2_py_player_set_party_member_affects(
@@ -83,7 +24,7 @@ pub extern "C" fn m2_py_player_set_party_member_affects(
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_player_get_party_member_affects(
+pub extern "C" fn m2_py_player_get_party_member_affects_by_vid(
     vid: u32,
     out_a0: *mut i16, out_a1: *mut i16, out_a2: *mut i16, out_a3: *mut i16,
     out_a4: *mut i16, out_a5: *mut i16, out_a6: *mut i16

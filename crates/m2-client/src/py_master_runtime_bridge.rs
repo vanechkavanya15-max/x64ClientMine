@@ -51,20 +51,49 @@ unsafe fn get_py_sym(name: &str) -> *mut std::ffi::c_void {
 }
 
 unsafe fn call_py_run_simple_string(command: *const std::ffi::c_char) -> std::ffi::c_int {
+    let ensure_ptr = get_py_sym("PyGILState_Ensure");
+    let release_ptr = get_py_sym("PyGILState_Release");
+    let gstate = if !ensure_ptr.is_null() {
+        let ensure_fn: extern "C" fn() -> i32 = std::mem::transmute(ensure_ptr);
+        ensure_fn()
+    } else {
+        0
+    };
+
     let ptr = get_py_sym("PyRun_SimpleString");
-    if !ptr.is_null() {
+    let res = if !ptr.is_null() {
         let func: extern "C" fn(*const std::ffi::c_char) -> std::ffi::c_int = std::mem::transmute(ptr);
         func(command)
     } else {
         -1
+    };
+
+    if !release_ptr.is_null() {
+        let release_fn: extern "C" fn(i32) = std::mem::transmute(release_ptr);
+        release_fn(gstate);
     }
+
+    res
 }
 
 unsafe fn call_py_err_print() {
+    let ensure_ptr = get_py_sym("PyGILState_Ensure");
+    let release_ptr = get_py_sym("PyGILState_Release");
+    let gstate = if !ensure_ptr.is_null() {
+        let ensure_fn: extern "C" fn() -> i32 = std::mem::transmute(ensure_ptr);
+        ensure_fn()
+    } else {
+        0
+    };
+
     let occurred_ptr = get_py_sym("PyErr_Occurred");
     if !occurred_ptr.is_null() {
         let occurred_fn: extern "C" fn() -> *mut std::ffi::c_void = std::mem::transmute(occurred_ptr);
-        if occurred_fn().is_null() {
+        if !occurred_fn().is_null() {
+            if !release_ptr.is_null() {
+                let release_fn: extern "C" fn(i32) = std::mem::transmute(release_ptr);
+                release_fn(gstate);
+            }
             return;
         }
     }
@@ -73,10 +102,53 @@ unsafe fn call_py_err_print() {
         let func: extern "C" fn() = std::mem::transmute(ptr);
         func();
     }
+
+    if !release_ptr.is_null() {
+        let release_fn: extern "C" fn(i32) = std::mem::transmute(release_ptr);
+        release_fn(gstate);
+    }
 }
 
 /// Inicjalizuje i wstrzykuje pelne 32 moduly Metin2 do runtime Pythona przed uruchomieniem system.py
 pub fn inject_master_runtime_modules() -> Result<(), String> {
+    let wire_ptrs_script = format!(
+        r#"
+_NATIVE_WIRE_PTRS = {{
+    'm2_app_set_frame_skip': {},
+    'm2_app_get_random': {},
+    'm2_app_get_global_time_stamp': {},
+    'm2_app_set_hair_color_enable': {},
+    'm2_app_set_armor_specular_enable': {},
+    'm2_app_set_weapon_specular_enable': {},
+    'm2_app_set_camera_max_distance': {},
+    'm2_app_set_default_font_name': {},
+    'm2_app_set_guild_mark_path': {},
+    'm2_app_set_guild_symbol_path': {},
+    'm2_app_set_center_position': {},
+    'm2_app_get_image_info_width': {},
+    'm2_app_get_image_info_height': {},
+    'm2_app_get_image_info_valid': {},
+    'm2_app_is_exist_file': {},
+    'm2_app_get_locale_name': {},
+}}
+"#,
+        crate::py_master_runtime_wire_final::m2_app_set_frame_skip as usize,
+        crate::py_master_runtime_wire_final::m2_app_get_random as usize,
+        crate::py_master_runtime_wire_final::m2_app_get_global_time_stamp as usize,
+        crate::py_master_runtime_wire_final::m2_app_set_hair_color_enable as usize,
+        crate::py_master_runtime_wire_final::m2_app_set_armor_specular_enable as usize,
+        crate::py_master_runtime_wire_final::m2_app_set_weapon_specular_enable as usize,
+        crate::py_master_runtime_wire_final::m2_app_set_camera_max_distance as usize,
+        crate::py_master_runtime_wire_final::m2_app_set_default_font_name as usize,
+        crate::py_master_runtime_wire_final::m2_app_set_guild_mark_path as usize,
+        crate::py_master_runtime_wire_final::m2_app_set_guild_symbol_path as usize,
+        crate::py_master_runtime_wire_final::m2_app_set_center_position as usize,
+        crate::py_master_runtime_wire_final::m2_app_get_image_info_width as usize,
+        crate::py_master_runtime_wire_final::m2_app_get_image_info_height as usize,
+        crate::py_master_runtime_wire_final::m2_app_get_image_info_valid as usize,
+        crate::py_master_runtime_wire_final::m2_app_is_exist_file as usize,
+        crate::py_master_runtime_wire_final::m2_app_get_locale_name as usize,
+    );
     let py_script = r#"
 import sys
 import ctypes
@@ -135,6 +207,21 @@ else:
             m2_lib = ctypes.CDLL(None)
         except Exception:
             pass
+
+def _get_wire_fn(name, argtypes, restype=None):
+    try:
+        addr = _NATIVE_WIRE_PTRS.get(name, 0)
+        if addr != 0:
+            return ctypes.CFUNCTYPE(restype, *argtypes)(addr)
+    except Exception:
+        pass
+    if m2_lib:
+        fn = getattr(m2_lib, name, None)
+        if fn:
+            fn.argtypes = argtypes
+            if restype: fn.restype = restype
+            return fn
+    return None
 
 _OBJECT_REGISTRY = {}
 _py_handlers = {}
@@ -659,27 +746,124 @@ def _app_get_cursor_position():
     return (0, 0)
 
 setattr(AppModule, 'Abort', staticmethod(_app_abort))
-setattr(AppModule, 'SetFrameSkip', staticmethod(lambda *args: None))
-setattr(AppModule, 'GetRandom', staticmethod(lambda a, b: random.randint(int(a), int(b))))
-setattr(AppModule, 'GetGlobalTimeStamp', staticmethod(lambda: int(time.time())))
+def _wrap_app_set_frame_skip(enable=1):
+    fn = _get_wire_fn('m2_app_set_frame_skip', [ctypes.c_int32], None)
+    if fn:
+        try:
+            fn(int(bool(enable)))
+        except Exception: pass
+
+def _wrap_app_get_random(a, b):
+    fn = _get_wire_fn('m2_app_get_random', [ctypes.c_int32, ctypes.c_int32], ctypes.c_int32)
+    if fn:
+        try:
+            return int(fn(int(a), int(b)))
+        except Exception: pass
+    return random.randint(int(a), int(b))
+
+def _wrap_app_get_global_time_stamp():
+    fn = _get_wire_fn('m2_app_get_global_time_stamp', [], ctypes.c_int32)
+    if fn:
+        try:
+            return int(fn())
+        except Exception: pass
+    return int(time.time())
+
+def _wrap_app_set_hair_color_enable(enable=1):
+    fn = _get_wire_fn('m2_app_set_hair_color_enable', [ctypes.c_int32], None)
+    if fn:
+        try:
+            fn(int(bool(enable)))
+        except Exception: pass
+
+def _wrap_app_set_armor_specular_enable(enable=1):
+    fn = _get_wire_fn('m2_app_set_armor_specular_enable', [ctypes.c_int32], None)
+    if fn:
+        try:
+            fn(int(bool(enable)))
+        except Exception: pass
+
+def _wrap_app_set_weapon_specular_enable(enable=1):
+    fn = _get_wire_fn('m2_app_set_weapon_specular_enable', [ctypes.c_int32], None)
+    if fn:
+        try:
+            fn(int(bool(enable)))
+        except Exception: pass
+
+def _wrap_app_set_camera_max_distance(d=2500.0):
+    fn = _get_wire_fn('m2_app_set_camera_max_distance', [ctypes.c_float], None)
+    if fn:
+        try:
+            fn(float(d))
+        except Exception: pass
+
+def _wrap_app_set_default_font_name(name=""):
+    fn = _get_wire_fn('m2_app_set_default_font_name', [ctypes.c_char_p], None)
+    if fn:
+        try:
+            fn(name.encode('utf-8') if isinstance(name, str) else name)
+        except Exception: pass
+
+def _wrap_app_set_guild_mark_path(p=""):
+    fn = _get_wire_fn('m2_app_set_guild_mark_path', [ctypes.c_char_p], None)
+    if fn:
+        try:
+            fn(p.encode('utf-8') if isinstance(p, str) else p)
+        except Exception: pass
+
+def _wrap_app_set_guild_symbol_path(p=""):
+    fn = _get_wire_fn('m2_app_set_guild_symbol_path', [ctypes.c_char_p], None)
+    if fn:
+        try:
+            fn(p.encode('utf-8') if isinstance(p, str) else p)
+        except Exception: pass
+
+setattr(AppModule, 'SetFrameSkip', staticmethod(_wrap_app_set_frame_skip))
+setattr(AppModule, 'GetRandom', staticmethod(_wrap_app_get_random))
+setattr(AppModule, 'GetGlobalTimeStamp', staticmethod(_wrap_app_get_global_time_stamp))
 setattr(AppModule, 'SetMouseHandler', staticmethod(lambda handler=None: None))
-setattr(AppModule, 'SetHairColorEnable', staticmethod(lambda *args: None))
-setattr(AppModule, 'SetArmorSpecularEnable', staticmethod(lambda *args: None))
-setattr(AppModule, 'SetWeaponSpecularEnable', staticmethod(lambda *args: None))
-setattr(AppModule, 'SetCameraMaxDistance', staticmethod(lambda d: None))
-setattr(AppModule, 'SetDefaultFontName', staticmethod(lambda name: None))
-setattr(AppModule, 'SetGuildMarkPath', staticmethod(lambda path: None))
-setattr(AppModule, 'SetGuildSymbolPath', staticmethod(lambda path: None))
-setattr(AppModule, 'GetLocaleName', staticmethod(lambda: "en"))
+setattr(AppModule, 'SetHairColorEnable', staticmethod(_wrap_app_set_hair_color_enable))
+setattr(AppModule, 'SetArmorSpecularEnable', staticmethod(_wrap_app_set_armor_specular_enable))
+setattr(AppModule, 'SetWeaponSpecularEnable', staticmethod(_wrap_app_set_weapon_specular_enable))
+setattr(AppModule, 'SetCameraMaxDistance', staticmethod(_wrap_app_set_camera_max_distance))
+setattr(AppModule, 'SetDefaultFontName', staticmethod(_wrap_app_set_default_font_name))
+setattr(AppModule, 'SetGuildMarkPath', staticmethod(_wrap_app_set_guild_mark_path))
+setattr(AppModule, 'SetGuildSymbolPath', staticmethod(_wrap_app_set_guild_symbol_path))
+def _wrap_app_get_locale_name():
+    fn = _get_wire_fn('m2_app_get_locale_name', [], ctypes.c_char_p)
+    if fn:
+        try:
+            res = fn()
+            if res:
+                return res.decode('utf-8', 'ignore')
+        except Exception: pass
+    return "en"
+
+def _wrap_app_is_exist_file(f):
+    fn = _get_wire_fn('m2_app_is_exist_file', [ctypes.c_char_p], ctypes.c_int32)
+    if fn:
+        try:
+            return int(fn(f.encode('utf-8') if isinstance(f, str) else f))
+        except Exception: pass
+    return int(PackModule.Exist(f)) if hasattr(PackModule, 'Exist') else 0
+
+def _wrap_app_set_center_position(*args):
+    fn = _get_wire_fn('m2_app_set_center_position', [ctypes.c_float, ctypes.c_float, ctypes.c_float], None)
+    if fn and len(args) >= 3:
+        try:
+            fn(float(args[0]), float(args[1]), float(args[2]))
+        except Exception: pass
+
+setattr(AppModule, 'GetLocaleName', staticmethod(_wrap_app_get_locale_name))
 setattr(AppModule, 'GetLocalePath', staticmethod(lambda: "locale/en"))
 setattr(AppModule, 'GetLocalePathCommon', staticmethod(lambda: "locale/common"))
 setattr(AppModule, 'IsRTL', staticmethod(lambda *a: False))
-setattr(AppModule, 'IsExistFile', staticmethod(lambda f: PackModule.Exist(f)))
-setattr(AppModule, 'IsFileExist', staticmethod(lambda f: PackModule.Exist(f)))
+setattr(AppModule, 'IsExistFile', staticmethod(_wrap_app_is_exist_file))
+setattr(AppModule, 'IsFileExist', staticmethod(_wrap_app_is_exist_file))
 setattr(AppModule, 'SetSoftwareCursor', staticmethod(lambda: None))
 setattr(AppModule, 'SetHardwareCursor', staticmethod(lambda: None))
 setattr(AppModule, 'GetCursorPosition', staticmethod(_app_get_cursor_position))
-setattr(AppModule, 'SetCenterPosition', staticmethod(lambda *args: None))
+setattr(AppModule, 'SetCenterPosition', staticmethod(_wrap_app_set_center_position))
 def _app_get_camera():
     if m2_lib:
         d = m2_lib.m2_app_get_camera_distance() if hasattr(m2_lib, 'm2_app_get_camera_distance') else 1000.0
@@ -711,7 +895,22 @@ setattr(AppModule, 'GetCameraRotation', staticmethod(lambda: _app_get_camera()[2
 setattr(AppModule, 'PitchCamera', staticmethod(_app_pitch_camera))
 setattr(AppModule, 'RotateCamera', staticmethod(_app_rotate_camera))
 setattr(AppModule, 'ZoomCamera', staticmethod(_app_zoom_camera))
-setattr(AppModule, 'GetImageInfo', staticmethod(lambda path: (False, 0, 0)))
+def _wrap_app_get_image_info(path):
+    fn_valid = _get_wire_fn('m2_app_get_image_info_valid', [ctypes.c_char_p], ctypes.c_int32)
+    fn_w = _get_wire_fn('m2_app_get_image_info_width', [ctypes.c_char_p], ctypes.c_int32)
+    fn_h = _get_wire_fn('m2_app_get_image_info_height', [ctypes.c_char_p], ctypes.c_int32)
+    if fn_valid and fn_w and fn_h:
+        try:
+            c_p = path.encode('utf-8') if isinstance(path, str) else path
+            valid = bool(fn_valid(c_p))
+            if valid:
+                return (True, int(fn_w(c_p)), int(fn_h(c_p)))
+            else:
+                return (False, 0, 0)
+        except Exception: pass
+    return (False, 0, 0)
+
+setattr(AppModule, 'GetImageInfo', staticmethod(_wrap_app_get_image_info))
 
 def _app_create(title, w, h, fullscreen=1):
     print(f"[+] [APP] Create('{title}', {w}x{h}, fullscreen={fullscreen})")
@@ -1727,10 +1926,35 @@ def _wrap_player_get_alignment_data():
 setattr(PlayerModule, 'GetAlignmentData', staticmethod(_wrap_player_get_alignment_data))
 
 # AutoPotionInfo: Py_BuildValue("biii", ...) -> (bool, int, int, int)
-setattr(PlayerModule, 'GetAutoPotionInfo', staticmethod(lambda t: (False, 0, 0, 0)))
+def _wrap_player_get_auto_potion_info(potion_type=0):
+    fn = getattr(m2_lib, 'm2_py_player_get_auto_potion_info', None)
+    if fn:
+        try:
+            act = ctypes.c_bool(False)
+            cur = ctypes.c_int32(0)
+            tot = ctypes.c_int32(0)
+            slot = ctypes.c_int32(0)
+            fn.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_bool), ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32)]
+            fn.restype = ctypes.c_bool
+            if fn(int(potion_type), ctypes.byref(act), ctypes.byref(cur), ctypes.byref(tot), ctypes.byref(slot)):
+                return (act.value, cur.value, tot.value, slot.value)
+        except Exception: pass
+    return (False, 0, 0, 0)
+setattr(PlayerModule, 'GetAutoPotionInfo', staticmethod(_wrap_player_get_auto_potion_info))
 
-# PartyMemberAffects: zwraca liste
-setattr(PlayerModule, 'GetPartyMemberAffects', staticmethod(lambda pid: []))
+# PartyMemberAffects: zwraca liste 7 intow
+def _wrap_player_get_party_member_affects(pid=0):
+    fn = getattr(m2_lib, 'm2_py_player_get_party_member_affects', None)
+    if fn:
+        try:
+            buf = (ctypes.c_int32 * 7)()
+            fn.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_int32)]
+            fn.restype = ctypes.c_bool
+            if fn(int(pid), buf):
+                return list(buf)
+        except Exception: pass
+    return [0, 0, 0, 0, 0, 0, 0]
+setattr(PlayerModule, 'GetPartyMemberAffects', staticmethod(_wrap_player_get_party_member_affects))
 
 # GetItemMetinSocket: Py_BuildValue("i", dwMetinSocketValue) -> int
 def _wrap_player_get_item_metin_socket(w=1, c=0, idx=0):
@@ -1748,15 +1972,72 @@ def _wrap_player_get_item_metin_socket(w=1, c=0, idx=0):
 setattr(PlayerModule, 'GetItemMetinSocket', staticmethod(_wrap_player_get_item_metin_socket))
 
 # GetItemLink: Py_BuildValue("s", ...) -> str
-setattr(PlayerModule, 'GetItemLink', staticmethod(lambda w, c: ""))
+def _wrap_player_get_item_link(w=1, c=0):
+    fn = getattr(m2_lib, 'm2_py_player_get_item_link', None)
+    if fn:
+        try:
+            buf = ctypes.create_string_buffer(512)
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint16, ctypes.c_char_p, ctypes.c_size_t]
+            fn.restype = ctypes.c_bool
+            if fn(int(w), int(c), buf, ctypes.c_size_t(512)):
+                return buf.value.decode('utf-8', errors='ignore')
+        except Exception: pass
+    return ""
+setattr(PlayerModule, 'GetItemLink', staticmethod(_wrap_player_get_item_link))
 
 # Exchange: tuple returns
-setattr(PlayerModule, 'GetExchangeItemAttribute', staticmethod(lambda owner, pos, idx: (0, 0)))
-setattr(PlayerModule, 'GetExchangeItemMetinSocket', staticmethod(lambda owner, pos, idx: 0))
+def _wrap_player_get_exchange_item_attribute(owner=0, pos=0, idx=0):
+    fn = getattr(m2_lib, 'm2_py_player_get_exchange_item_attribute', None)
+    if fn:
+        try:
+            t = ctypes.c_uint8(0)
+            v = ctypes.c_int16(0)
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int16)]
+            fn.restype = ctypes.c_bool
+            if fn(int(owner), int(pos), int(idx), ctypes.byref(t), ctypes.byref(v)):
+                return (t.value, v.value)
+        except Exception: pass
+    return (0, 0)
+setattr(PlayerModule, 'GetExchangeItemAttribute', staticmethod(_wrap_player_get_exchange_item_attribute))
+
+def _wrap_player_get_exchange_item_metin_socket(owner=0, pos=0, idx=0):
+    fn = getattr(m2_lib, 'm2_py_player_get_exchange_item_metin_socket', None)
+    if fn:
+        try:
+            s = ctypes.c_uint32(0)
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint32)]
+            fn.restype = ctypes.c_bool
+            if fn(int(owner), int(pos), int(idx), ctypes.byref(s)):
+                return s.value
+        except Exception: pass
+    return 0
+setattr(PlayerModule, 'GetExchangeItemMetinSocket', staticmethod(_wrap_player_get_exchange_item_metin_socket))
 
 # Shop
-setattr(PlayerModule, 'GetShopItemAttribute', staticmethod(lambda pos, idx: (0, 0)))
-setattr(PlayerModule, 'GetShopItemMetinSocket', staticmethod(lambda pos, idx: 0))
+def _wrap_player_get_shop_item_attribute(pos=0, idx=0):
+    fn = getattr(m2_lib, 'm2_shop_get_item_attribute', None)
+    if fn:
+        try:
+            t = ctypes.c_uint8(0)
+            v = ctypes.c_int16(0)
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_int16)]
+            fn.restype = ctypes.c_bool
+            if fn(int(pos), int(idx), ctypes.byref(t), ctypes.byref(v)):
+                return (t.value, v.value)
+        except Exception: pass
+    return (0, 0)
+setattr(PlayerModule, 'GetShopItemAttribute', staticmethod(_wrap_player_get_shop_item_attribute))
+
+def _wrap_player_get_shop_item_metin_socket(pos=0, idx=0):
+    fn = getattr(m2_lib, 'm2_shop_get_item_metin_socket', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint8, ctypes.c_uint8]
+            fn.restype = ctypes.c_uint32
+            return int(fn(int(pos), int(idx)))
+        except Exception: pass
+    return 0
+setattr(PlayerModule, 'GetShopItemMetinSocket', staticmethod(_wrap_player_get_shop_item_metin_socket))
 
 # Safebox / Mall
 setattr(PlayerModule, 'GetSafeboxItemAttribute', staticmethod(lambda pos, idx: (0, 0)))
@@ -2027,9 +2308,53 @@ def _wrap_chr_get_pixel_position(vid=0):
     return (0.0, 0.0, 0.0)
 
 setattr(ChrModule, 'GetPixelPosition', staticmethod(_wrap_chr_get_pixel_position))
-setattr(ChrModule, 'SetVirtualID', staticmethod(lambda id: None))
-setattr(ChrModule, 'SetNameString', staticmethod(lambda name: None))
-setattr(ChrModule, 'SetInstanceType', staticmethod(lambda t: None))
+
+def _wrap_chr_set_virtual_id(vid=0):
+    fn = getattr(m2_lib, 'm2_chr_set_virtual_id', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32]
+            fn.restype = ctypes.c_bool
+            fn(int(vid))
+        except Exception: pass
+
+def _wrap_chr_set_name_string(name=""):
+    fn = getattr(m2_lib, 'm2_chr_set_name_string', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_char_p]
+            fn.restype = ctypes.c_bool
+            fn(name.encode('utf-8') if isinstance(name, str) else name)
+        except Exception: pass
+
+def _wrap_chr_set_instance_type(t=0):
+    fn = getattr(m2_lib, 'm2_chr_set_instance_type', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_int32]
+            fn.restype = ctypes.c_bool
+            fn(int(t))
+        except Exception: pass
+
+def _wrap_chr_refresh():
+    fn = getattr(m2_lib, 'm2_chr_refresh_selected', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_bool
+            fn()
+        except Exception: pass
+
+def _wrap_chr_deform():
+    fn = getattr(m2_lib, 'm2_chr_deform_selected', None)
+    if fn:
+        try:
+            fn.restype = ctypes.c_bool
+            fn()
+        except Exception: pass
+
+setattr(ChrModule, 'SetVirtualID', staticmethod(_wrap_chr_set_virtual_id))
+setattr(ChrModule, 'SetNameString', staticmethod(_wrap_chr_set_name_string))
+setattr(ChrModule, 'SetInstanceType', staticmethod(_wrap_chr_set_instance_type))
 def _wrap_chr_set_direction(d):
     fn = getattr(m2_lib, 'm2_chr_set_direction', None)
     if fn:
@@ -2089,8 +2414,8 @@ def _wrap_chr_get_virtual_number():
     return 0
 
 setattr(ChrModule, 'SetDirection', staticmethod(_wrap_chr_set_direction))
-setattr(ChrModule, 'Refresh', staticmethod(lambda: None))
-setattr(ChrModule, 'Deform', staticmethod(lambda: None))
+setattr(ChrModule, 'Refresh', staticmethod(_wrap_chr_refresh))
+setattr(ChrModule, 'Deform', staticmethod(_wrap_chr_deform))
 setattr(ChrModule, 'Render', staticmethod(lambda: None))
 setattr(ChrModule, 'RenderCollision', staticmethod(lambda: None))
 setattr(ChrModule, 'Revive', staticmethod(_wrap_chr_revive))
@@ -2802,12 +3127,52 @@ grp_methods = [
     ("RenderLine", "m2_grp_render_line", [ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_float], ctypes.c_bool),
 ]
 GrpModule = create_real_module('grp', 'grp', grp_methods)
-setattr(GrpModule, 'GenerateColor', staticmethod(lambda r, g, b, a=1.0: ((int(a * 255) & 0xff) << 24) | ((int(r * 255) & 0xff) << 16) | ((int(g * 255) & 0xff) << 8) | (int(b * 255) & 0xff)))
-setattr(GrpModule, 'ClearDepthBuffer', staticmethod(lambda: None))
-setattr(GrpModule, 'SetGameRenderState', staticmethod(lambda: None))
-setattr(GrpModule, 'SetInterfaceRenderState', staticmethod(lambda: None))
-setattr(GrpModule, 'PushState', staticmethod(lambda: None))
-setattr(GrpModule, 'PopState', staticmethod(lambda: None))
+def _wrap_grp_generate_color(r=1.0, g=1.0, b=1.0, a=1.0):
+    fn = getattr(m2_lib, 'm2_grp_generate_color', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_float]
+            fn.restype = ctypes.c_uint32
+            return int(fn(float(r), float(g), float(b), float(a)))
+        except Exception: pass
+    return ((int(a * 255) & 0xff) << 24) | ((int(r * 255) & 0xff) << 16) | ((int(g * 255) & 0xff) << 8) | (int(b * 255) & 0xff)
+
+def _wrap_grp_clear_depth_buffer():
+    fn = getattr(m2_lib, 'm2_grp_clear_depth_buffer', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_grp_set_game_render_state():
+    fn = getattr(m2_lib, 'm2_grp_set_game_render_state', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_grp_set_interface_render_state():
+    fn = getattr(m2_lib, 'm2_grp_set_interface_render_state', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_grp_push_state():
+    fn = getattr(m2_lib, 'm2_grp_push_state', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+def _wrap_grp_pop_state():
+    fn = getattr(m2_lib, 'm2_grp_pop_state', None)
+    if fn:
+        try: fn()
+        except Exception: pass
+
+setattr(GrpModule, 'GenerateColor', staticmethod(_wrap_grp_generate_color))
+setattr(GrpModule, 'ClearDepthBuffer', staticmethod(_wrap_grp_clear_depth_buffer))
+setattr(GrpModule, 'SetGameRenderState', staticmethod(_wrap_grp_set_game_render_state))
+setattr(GrpModule, 'SetInterfaceRenderState', staticmethod(_wrap_grp_set_interface_render_state))
+setattr(GrpModule, 'PushState', staticmethod(_wrap_grp_push_state))
+setattr(GrpModule, 'PopState', staticmethod(_wrap_grp_pop_state))
 setattr(GrpModule, 'PushMatrix', staticmethod(lambda: None))
 setattr(GrpModule, 'PopMatrix', staticmethod(lambda: None))
 setattr(GrpModule, 'Translate', staticmethod(lambda *args: None))
@@ -3288,8 +3653,8 @@ setattr(ShopModule, 'AddPrivateShopItemStock', staticmethod(_wrap_shop_add_priva
 setattr(ShopModule, 'DelPrivateShopItemStock', staticmethod(_wrap_shop_del_private_shop_item_stock))
 setattr(ShopModule, 'GetPrivateShopItemPrice', staticmethod(_wrap_shop_get_private_shop_item_price))
 setattr(ShopModule, 'BuildPrivateShop', staticmethod(_wrap_shop_build_private_shop))
-setattr(ShopModule, 'GetItemAttribute', staticmethod(lambda *args: (0, 0)))
-setattr(ShopModule, 'GetItemMetinSocket', staticmethod(lambda *args: 0))
+setattr(ShopModule, 'GetItemAttribute', staticmethod(_wrap_player_get_shop_item_attribute))
+setattr(ShopModule, 'GetItemMetinSocket', staticmethod(_wrap_player_get_shop_item_metin_socket))
 sys.modules['shop'] = ShopModule
 sys.modules['Shop'] = ShopModule
 
@@ -3304,8 +3669,36 @@ skill_methods = [
     ("GetSkillDescription", "m2_py_skill_get_description", [ctypes.c_uint32], ctypes.c_char_p),
 ]
 SkillModule = create_real_module('skill', 'skill', skill_methods)
-setattr(SkillModule, 'GetNewAffectData', staticmethod(lambda *args: ("", 0.0, 0.0)))
-setattr(SkillModule, 'GetSkillRequireStatData', staticmethod(lambda *args: (0, 0)))
+
+def _wrap_skill_get_require_stat_data(skill_index=0, stat_index=0):
+    fn = getattr(m2_lib, 'm2_skill_get_require_stat_data', None)
+    if fn:
+        try:
+            p = ctypes.c_uint8(0)
+            lvl = ctypes.c_uint8(0)
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_uint8)]
+            fn.restype = ctypes.c_bool
+            if fn(int(skill_index), int(stat_index), ctypes.byref(p), ctypes.byref(lvl)):
+                return (p.value, lvl.value)
+        except Exception: pass
+    return (0, 0)
+
+def _wrap_skill_get_new_affect_data(skill_index=0, affect_index=0, skill_level=1.0):
+    fn = getattr(m2_lib, 'm2_skill_get_new_affect_data', None)
+    if fn:
+        try:
+            buf = ctypes.create_string_buffer(64)
+            min_v = ctypes.c_float(0.0)
+            max_v = ctypes.c_float(0.0)
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_float, ctypes.c_char_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
+            fn.restype = ctypes.c_bool
+            if fn(int(skill_index), int(affect_index), float(skill_level), buf, ctypes.c_size_t(64), ctypes.byref(min_v), ctypes.byref(max_v)):
+                return (buf.value.decode('utf-8', errors='ignore'), min_v.value, max_v.value)
+        except Exception: pass
+    return ("", 0.0, 0.0)
+
+setattr(SkillModule, 'GetNewAffectData', staticmethod(_wrap_skill_get_new_affect_data))
+setattr(SkillModule, 'GetSkillRequireStatData', staticmethod(_wrap_skill_get_require_stat_data))
 setattr(SkillModule, 'GetSkillRequirementData', staticmethod(lambda *args: ("", 0)))
 sys.modules['skill'] = SkillModule
 sys.modules['Skill'] = SkillModule
@@ -3321,7 +3714,21 @@ QuestModule = create_real_module('quest', 'quest', quest_methods)
 QuestModule.QUEST_MAX_NUM = 5
 setattr(QuestModule, 'GetQuestData', staticmethod(lambda *args: ("", 0, "", 0)))
 setattr(QuestModule, 'GetQuestIndex', staticmethod(lambda idx: int(idx)))
-setattr(QuestModule, 'GetQuestLastTime', staticmethod(lambda *args: ("", 0)))
+
+def _wrap_quest_get_quest_last_time(idx=0):
+    fn = getattr(m2_lib, 'm2_quest_get_last_time', None)
+    if fn:
+        try:
+            buf = ctypes.create_string_buffer(64)
+            lt = ctypes.c_int32(0)
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_int32)]
+            fn.restype = ctypes.c_bool
+            if fn(int(idx), buf, ctypes.c_size_t(64), ctypes.byref(lt)):
+                return (buf.value.decode('utf-8', errors='ignore'), lt.value)
+        except Exception: pass
+    return ("", 0)
+
+setattr(QuestModule, 'GetQuestLastTime', staticmethod(_wrap_quest_get_quest_last_time))
 sys.modules['quest'] = QuestModule
 sys.modules['Quest'] = QuestModule
 
@@ -3836,9 +4243,39 @@ nonplayer_methods = [
     ("GetMonsterMaxHP", "m2_py_nonplayer_get_monster_max_hp", [ctypes.c_uint32], ctypes.c_uint32),
 ]
 NonPlayerModule = create_real_module('nonplayer', 'nonplayer', nonplayer_methods)
-setattr(NonPlayerModule, 'GetMonsterGrade', staticmethod(lambda vid: 0))
-setattr(NonPlayerModule, 'IsMonster', staticmethod(lambda vid: True))
-setattr(NonPlayerModule, 'IsNPC', staticmethod(lambda vid: False))
+def _wrap_nonplayer_get_monster_grade(vnum=0):
+    fn = getattr(m2_lib, 'm2_nonplayer_get_monster_grade', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32]
+            fn.restype = ctypes.c_uint8
+            return int(fn(int(vnum)))
+        except Exception: pass
+    return 0
+
+def _wrap_nonplayer_is_monster(vnum=0):
+    fn = getattr(m2_lib, 'm2_nonplayer_is_monster', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32]
+            fn.restype = ctypes.c_bool
+            return bool(fn(int(vnum)))
+        except Exception: pass
+    return True
+
+def _wrap_nonplayer_is_npc(vnum=0):
+    fn = getattr(m2_lib, 'm2_nonplayer_is_npc', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32]
+            fn.restype = ctypes.c_bool
+            return bool(fn(int(vnum)))
+        except Exception: pass
+    return False
+
+setattr(NonPlayerModule, 'GetMonsterGrade', staticmethod(_wrap_nonplayer_get_monster_grade))
+setattr(NonPlayerModule, 'IsMonster', staticmethod(_wrap_nonplayer_is_monster))
+setattr(NonPlayerModule, 'IsNPC', staticmethod(_wrap_nonplayer_is_npc))
 sys.modules['nonplayer'] = NonPlayerModule
 sys.modules['NonPlayer'] = NonPlayerModule
 
@@ -4233,7 +4670,9 @@ patch_pack_file_class()
 print("[+] [RUST-PYTHON MASTER BRIDGE] Pomyslnie zainicjalizowano wszystkie 32 moduly Metin2 z pelnym FFI!")
 "#;
 
-    let c_code = match CString::new(py_script) {
+    let full_script = format!("{}
+{}", wire_ptrs_script, py_script);
+    let c_code = match CString::new(full_script) {
         Ok(c) => c,
         Err(e) => return Err(format!("Failed to create CString: {}", e)),
     };

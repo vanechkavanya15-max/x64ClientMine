@@ -1,6 +1,6 @@
-use m2_client::chat_buffer_v2::get_chat_buffer;
+use m2_client::chat_buffer_v2::{get_chat_buffer, append_whisper};
 use m2_client::py_bridge_chat_minimap::{
-    get_minimap_module_state, m2_py_chat_append_chat_v2, m2_py_chat_append_whisper,
+    get_minimap_module_state, m2_py_chat_append_chat_v2,
     m2_py_chat_get_line, m2_py_chat_get_line_count, m2_py_minimap_add_waypoint,
     m2_py_minimap_clear_waypoints, m2_py_minimap_hide_minimap, m2_py_minimap_set_minimap_position,
     m2_py_minimap_set_scale, m2_py_minimap_show_minimap,
@@ -29,10 +29,7 @@ fn test_append_chat_v2() {
 fn test_append_whisper() {
     get_chat_buffer().lock().unwrap().clear();
 
-    let sender = CString::new("Jules").unwrap();
-    let msg = CString::new("Hi there").unwrap();
-
-    let result = m2_py_chat_append_whisper(7, sender.as_ptr(), msg.as_ptr());
+    let result = append_whisper("Jules", "Hi there");
     assert!(result, "Expected whisper append to succeed");
 
     let buffer = get_chat_buffer().lock().unwrap();
@@ -50,9 +47,7 @@ fn test_get_line_count_and_get_line() {
     let text = CString::new("First message").unwrap();
     m2_py_chat_append_chat_v2(0, text.as_ptr());
 
-    let sender = CString::new("Alice").unwrap();
-    let msg = CString::new("Second message").unwrap();
-    m2_py_chat_append_whisper(7, sender.as_ptr(), msg.as_ptr());
+    append_whisper("Alice", "Second message");
 
     let count = m2_py_chat_get_line_count();
     assert_eq!(count, 2);

@@ -688,3 +688,8 @@ pub mod py_bridge_player_affects;
 pub mod py_bridge_guild_marks;
 pub mod py_bridge_texttail_query;
 pub mod py_master_runtime_wire_final;
+pub mod py_bridge_app_config;
+pub mod py_bridge_chr_transforms;
+pub mod py_bridge_skills_formulas;
+pub mod py_bridge_nonplayer_shop;
+pub mod py_bridge_grp_wgpu;

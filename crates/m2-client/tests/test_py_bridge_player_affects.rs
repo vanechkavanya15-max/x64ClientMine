@@ -1,9 +1,7 @@
-use std::ffi::CStr;
-use std::os::raw::c_char;
 
 use m2_client::py_bridge_player_affects::{
     m2_py_player_get_auto_potion_info, m2_py_player_set_auto_potion_info,
-    m2_py_player_get_party_member_affects, m2_py_player_set_party_member_affects,
+    m2_py_player_get_party_member_affects_by_vid, m2_py_player_set_party_member_affects,
     m2_py_player_get_exchange_item_attribute, m2_py_player_get_exchange_item_metin_socket,
 };
 
@@ -42,14 +40,16 @@ fn test_auto_potion_info() {
     
     // Test for nonexistent type
     let mut null_act = true;
-    assert!(m2_py_player_get_auto_potion_info(
-        999,
-        &mut null_act,
-        std::ptr::null_mut(),
-        std::ptr::null_mut(),
-        std::ptr::null_mut(),
-    ));
-    assert_eq!(null_act, false); // Default initialized is false
+    assert_eq!(
+        m2_py_player_get_auto_potion_info(
+            999,
+            &mut null_act,
+            &mut out_cur,
+            &mut out_tot,
+            &mut out_slot,
+        ),
+        false
+    );
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn test_party_member_affects() {
     let mut a0 = 0; let mut a1 = 0; let mut a2 = 0; let mut a3 = 0;
     let mut a4 = 0; let mut a5 = 0; let mut a6 = 0;
     
-    assert!(m2_py_player_get_party_member_affects(
+    assert!(m2_py_player_get_party_member_affects_by_vid(
         vid,
         &mut a0, &mut a1, &mut a2, &mut a3, &mut a4, &mut a5, &mut a6
     ));
@@ -74,7 +74,7 @@ fn test_party_member_affects() {
     
     // Test for nonexistent vid
     assert_eq!(
-        m2_py_player_get_party_member_affects(
+        m2_py_player_get_party_member_affects_by_vid(
             99999,
             &mut a0, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(),
             std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(),
@@ -88,7 +88,7 @@ fn test_exchange_item_inspection() {
     // Modify logic for test
     {
         let mut logic = get_exchange_logic().write().unwrap();
-        logic.state = ExchangeState::TradeWindowOpen;
+        logic.state = ExchangeState::Open;
         logic.self_data.item_metin[0][0] = 555;
         logic.self_data.item_attr[0][0].b_type = 12;
         logic.self_data.item_attr[0][0].s_value = 100;
