@@ -35,6 +35,17 @@ pub struct ConfiguredSkill {
     pub last_used: Option<Instant>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct PlayerState {
+    pub x: f32,
+    pub y: f32,
+    pub is_dead: bool,
+    pub is_sleeping: bool,
+    pub is_charging_skill: bool,
+    pub is_mounting_horse: bool,
+    pub can_attack_horse_level: bool,
+}
+
 pub struct AutoHuntAiManager {
     pub state: AutoHuntState,
     pub target_vid: Option<u32>,
@@ -124,15 +135,34 @@ impl AutoHuntAiManager {
 
     pub fn update(
         &mut self,
-        player_x: f32,
-        player_y: f32,
+        player: &PlayerState,
         monsters: &[MonsterTarget],
         current_time: Instant,
     ) -> AutoHuntAction {
+        if player.is_dead {
+            self.target_vid = None;
+            self.state = AutoHuntState::Idle;
+            return AutoHuntAction::None;
+        }
+
+        if player.is_charging_skill {
+            return AutoHuntAction::None;
+        }
+
+        if player.is_sleeping {
+            return AutoHuntAction::None;
+        }
+
+        if player.is_mounting_horse && !player.can_attack_horse_level {
+            self.target_vid = None;
+            self.state = AutoHuntState::Search;
+            return AutoHuntAction::None;
+        }
+
         match self.state {
             AutoHuntState::Idle => AutoHuntAction::None,
             AutoHuntState::Search => {
-                if let Some(target) = self.find_optimal_target(player_x, player_y, monsters) {
+                if let Some(target) = self.find_optimal_target(player.x, player.y, monsters) {
                     self.target_vid = Some(target.vid);
                     self.state = AutoHuntState::Approach;
                     return AutoHuntAction::SetTarget(target.vid);
@@ -157,7 +187,7 @@ impl AutoHuntAiManager {
                             return AutoHuntAction::None;
                         }
 
-                        let dist = Self::calculate_distance(player_x, player_y, monster.x, monster.y);
+                        let dist = Self::calculate_distance(player.x, player.y, monster.x, monster.y);
                         
                         if dist <= self.weapon_range {
                             self.state = AutoHuntState::Attack;
@@ -192,7 +222,7 @@ impl AutoHuntAiManager {
                             return AutoHuntAction::None;
                         }
 
-                        let dist = Self::calculate_distance(player_x, player_y, monster.x, monster.y);
+                        let dist = Self::calculate_distance(player.x, player.y, monster.x, monster.y);
                         
                         if dist > self.weapon_range {
                             self.state = AutoHuntState::Approach;

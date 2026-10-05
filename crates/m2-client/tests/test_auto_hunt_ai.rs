@@ -1,4 +1,4 @@
-use m2_client::game_auto_hunt_ai::{AutoHuntAction, AutoHuntAiManager, AutoHuntState, MonsterTarget};
+use m2_client::game_auto_hunt_ai::{AutoHuntAction, AutoHuntAiManager, AutoHuntState, MonsterTarget, PlayerState};
 use std::time::{Duration, Instant};
 
 #[test]
@@ -18,19 +18,22 @@ fn test_ai_state_transitions() {
         is_dead: false,
     }];
     let time = Instant::now();
+    let mut player = PlayerState::default();
 
     // From Search -> Approach
-    let action = ai.update(0.0, 0.0, &monsters, time);
+    let action = ai.update(&player, &monsters, time);
     assert_eq!(action, AutoHuntAction::SetTarget(101));
     assert_eq!(ai.state, AutoHuntState::Approach);
 
     // From Approach -> Approach (MoveTo)
-    let action = ai.update(0.0, 0.0, &monsters, time);
+    let action = ai.update(&player, &monsters, time);
     assert_eq!(action, AutoHuntAction::MoveTo(1000.0, 1000.0));
     assert_eq!(ai.state, AutoHuntState::Approach);
 
     // From Approach -> Attack
-    let action = ai.update(900.0, 1000.0, &monsters, time); // 100 dist
+    player.x = 900.0;
+    player.y = 1000.0;
+    let action = ai.update(&player, &monsters, time); // 100 dist
     assert_eq!(action, AutoHuntAction::StartAttack(101));
     assert_eq!(ai.state, AutoHuntState::Attack);
 
@@ -79,9 +82,10 @@ fn test_ai_optimal_target_selection() {
     ];
 
     let time = Instant::now();
-    let action = ai.update(0.0, 0.0, &monsters, time);
+    let player = PlayerState::default();
+    let action = ai.update(&player, &monsters, time);
 
-    // Should pick 3 because HP weight makes its score lowest (902 vs 1000 for vid 2)
+    // Should pick 3 because HP weight makes its lowest (902 vs 1000 for vid 2)
     assert_eq!(action, AutoHuntAction::SetTarget(3));
 }
 
@@ -101,22 +105,23 @@ fn test_ai_skill_usage() {
     }];
     
     let time = Instant::now();
+    let player = PlayerState::default();
 
     // Search
-    ai.update(0.0, 0.0, &monsters, time);
+    ai.update(&player, &monsters, time);
     // Approach -> Attack
-    ai.update(0.0, 0.0, &monsters, time);
+    ai.update(&player, &monsters, time);
 
     // In Attack state: first use skill
-    let action1 = ai.update(0.0, 0.0, &monsters, time);
+    let action1 = ai.update(&player, &monsters, time);
     assert_eq!(action1, AutoHuntAction::UseSkill(50));
 
     // Next frame: skill on CD, combo attack
-    let action2 = ai.update(0.0, 0.0, &monsters, time);
+    let action2 = ai.update(&player, &monsters, time);
     assert_eq!(action2, AutoHuntAction::ComboAttack(99));
 
     // Time passes: CD over
-    let action3 = ai.update(0.0, 0.0, &monsters, time + Duration::from_secs(6));
+    let action3 = ai.update(&player, &monsters, time + Duration::from_secs(6));
     assert_eq!(action3, AutoHuntAction::UseSkill(50));
 }
 
@@ -134,18 +139,64 @@ fn test_ai_target_death() {
         is_dead: false,
     }];
     let time = Instant::now();
+    let player = PlayerState::default();
 
     // Search
-    ai.update(0.0, 0.0, &monsters, time);
+    ai.update(&player, &monsters, time);
     // Approach -> Attack
-    ai.update(0.0, 0.0, &monsters, time);
+    ai.update(&player, &monsters, time);
 
     // Target dies
     monsters[0].hp = 0;
     monsters[0].is_dead = true;
 
     // AI should transition back to search and do nothing
-    let action = ai.update(0.0, 0.0, &monsters, time);
+    let action = ai.update(&player, &monsters, time);
     assert_eq!(action, AutoHuntAction::None);
     assert_eq!(ai.state, AutoHuntState::Search);
+}
+
+#[test]
+fn test_ai_player_edge_cases() {
+    let mut ai = AutoHuntAiManager::new(1500.0, 200.0);
+    ai.start();
+
+    let monsters = vec![MonsterTarget {
+        vid: 7,
+        x: 100.0,
+        y: 0.0,
+        hp: 100,
+        max_hp: 100,
+        is_dead: false,
+    }];
+    let time = Instant::now();
+    let mut player = PlayerState::default();
+
+    // Sleeping
+    player.is_sleeping = true;
+    let action = ai.update(&player, &monsters, time);
+    assert_eq!(action, AutoHuntAction::None);
+    assert_eq!(ai.state, AutoHuntState::Search); // Remains unchanged
+    player.is_sleeping = false;
+
+    // Charging skill
+    player.is_charging_skill = true;
+    let action = ai.update(&player, &monsters, time);
+    assert_eq!(action, AutoHuntAction::None);
+    assert_eq!(ai.state, AutoHuntState::Search); // Remains unchanged
+    player.is_charging_skill = false;
+
+    // Horse mounting without attack skill
+    player.is_mounting_horse = true;
+    player.can_attack_horse_level = false;
+    let action = ai.update(&player, &monsters, time);
+    assert_eq!(action, AutoHuntAction::None); // Transitions to search due to logic
+    assert_eq!(ai.state, AutoHuntState::Search);
+    player.is_mounting_horse = false;
+    
+    // Death
+    player.is_dead = true;
+    let action = ai.update(&player, &monsters, time);
+    assert_eq!(action, AutoHuntAction::None);
+    assert_eq!(ai.state, AutoHuntState::Idle); // Transitions to Idle and clears target
 }
