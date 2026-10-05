@@ -3,7 +3,8 @@ use std::time::{Instant, Duration};
 
 #[test]
 fn test_default_values() {
-    let mut manager = GameAutoPotionManager::new();
+    let _a = &AUTO_POTION_MANAGER;
+    let manager = GameAutoPotionManager::new();
     let hp_info = manager.get_info(0).unwrap();
     assert!(!hp_info.is_activated);
     assert_eq!(hp_info.current_amount, 0);

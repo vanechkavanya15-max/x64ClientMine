@@ -1943,6 +1943,26 @@ def _wrap_player_get_auto_potion_info(potion_type=0):
         except Exception: pass
     return (False, 0, 0, 0)
 setattr(PlayerModule, 'GetAutoPotionInfo', staticmethod(_wrap_player_get_auto_potion_info))
+# SetAutoPotionInfo
+def _wrap_player_set_auto_potion_info(potion_type, is_activated, current_amount, total_amount, inventory_slot_index):
+    fn = getattr(m2_lib, 'm2_py_player_set_auto_potion_info', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_bool, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32]
+            fn.restype = ctypes.c_bool
+            fn(int(potion_type), bool(is_activated), int(current_amount), int(total_amount), int(inventory_slot_index))
+        except Exception: pass
+setattr(PlayerModule, 'SetAutoPotionInfo', staticmethod(_wrap_player_set_auto_potion_info))
+# UpdateAutoPotion
+def _wrap_player_update_auto_potion(hp_pct, sp_pct):
+    fn = getattr(m2_lib, 'm2_py_player_update_auto_potion', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_float, ctypes.c_float]
+            fn.restype = None
+            fn(float(hp_pct), float(sp_pct))
+        except Exception: pass
+setattr(PlayerModule, 'UpdateAutoPotion', staticmethod(_wrap_player_update_auto_potion))
 
 # PartyMemberAffects: zwraca liste 7 intow
 def _wrap_player_get_party_member_affects(pid=0):

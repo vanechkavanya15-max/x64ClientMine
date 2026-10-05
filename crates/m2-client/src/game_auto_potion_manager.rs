@@ -150,3 +150,20 @@ pub extern "C" fn m2_py_player_get_auto_potion_info(
     }
     false
 }
+
+extern "C" {
+    fn m2_net_SendItemUsePacket(slot: u16) -> bool;
+}
+
+#[no_mangle]
+pub extern "C" fn m2_py_player_update_auto_potion(hp_pct: f32, sp_pct: f32) {
+    if let Ok(mut manager) = AUTO_POTION_MANAGER.lock() {
+        let (hp_trigger, sp_trigger) = manager.update(hp_pct, sp_pct);
+        if let Some(slot) = hp_trigger {
+            unsafe { m2_net_SendItemUsePacket(slot); }
+        }
+        if let Some(slot) = sp_trigger {
+            unsafe { m2_net_SendItemUsePacket(slot); }
+        }
+    }
+}
