@@ -684,3 +684,4 @@ pub mod melee_combat_hit_resolver;
 pub mod vfs_motion_sound_player;
 pub mod actor_mount_synchronizer;
 pub mod py_bridge_player_affects;
+pub mod py_bridge_guild_marks;
