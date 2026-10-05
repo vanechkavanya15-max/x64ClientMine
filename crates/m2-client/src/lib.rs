@@ -687,3 +687,4 @@ pub mod actor_mount_synchronizer;
 pub mod py_bridge_player_affects;
 pub mod py_bridge_guild_marks;
 pub mod py_bridge_texttail_query;
+pub mod py_master_runtime_wire_final;
