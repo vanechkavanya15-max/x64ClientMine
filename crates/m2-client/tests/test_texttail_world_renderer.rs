@@ -157,3 +157,26 @@ fn test_z_order_sorting() {
         panic!("Expected Closer text second");
     }
 }
+
+#[test]
+fn test_clear_text_tails() {
+    let mut renderer = TextTailWorldRenderer::new();
+
+    renderer.add_text_tail(TextTailData {
+        id: 1,
+        position: Vec3::ZERO,
+        height_offset: 10.0,
+        name: "TestPlayer".to_string(),
+        guild_name: None,
+        kingdom_color: None,
+        level: None,
+        hp_percent: None,
+        color: Color::new(1.0, 1.0, 1.0, 1.0),
+    });
+
+    assert_eq!(renderer.text_tails.len(), 1);
+
+    renderer.clear();
+
+    assert_eq!(renderer.text_tails.len(), 0);
+}

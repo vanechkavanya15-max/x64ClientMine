@@ -13,6 +13,18 @@ impl Color {
     pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
+
+    pub const fn white() -> Self {
+        Self::new(1.0, 1.0, 1.0, 1.0)
+    }
+
+    pub const fn black() -> Self {
+        Self::new(0.0, 0.0, 0.0, 1.0)
+    }
+
+    pub const fn red() -> Self {
+        Self::new(1.0, 0.0, 0.0, 1.0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,6 +77,10 @@ impl TextTailWorldRenderer {
 
     pub fn remove_text_tail(&mut self, id: u32) {
         self.text_tails.remove(&id);
+    }
+
+    pub fn clear(&mut self) {
+        self.text_tails.clear();
     }
 
     /// Projects a 3D world position (with height offset) to 2D screen coordinates.
@@ -131,7 +147,7 @@ impl TextTailWorldRenderer {
 
             // 1. Guild Name (if exists)
             if let Some(guild) = &p.data.guild_name {
-                let color = p.data.kingdom_color.clone().unwrap_or(Color::new(1.0, 1.0, 1.0, 1.0));
+                let color = p.data.kingdom_color.clone().unwrap_or(Color::white());
                 elements.push(RenderElement::Text {
                     x: p.x,
                     y: current_y,
@@ -173,7 +189,7 @@ impl TextTailWorldRenderer {
                     z: p.z,
                     width: bar_width,
                     height: bar_height,
-                    color: Color::new(0.0, 0.0, 0.0, 1.0),
+                    color: Color::black(),
                 });
 
                 // Fill
@@ -184,7 +200,7 @@ impl TextTailWorldRenderer {
                     z: p.z,
                     width: fill_width,
                     height: bar_height,
-                    color: Color::new(1.0, 0.0, 0.0, 1.0),
+                    color: Color::red(),
                 });
             }
         }
