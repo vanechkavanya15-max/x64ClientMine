@@ -1276,7 +1276,16 @@ impl WgpuEngineContext {
             );
 
             let model_cols = model.to_cols_array_2d();
-            let bones = [model_cols; 128];
+            let time_s = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f32()).unwrap_or(0.0);
+            let mut bones = [model_cols; 128];
+            for i in 0..128 {
+                let phase_offset = (i as f32) * 0.15;
+                let sway = ((time_s * 3.5 + phase_offset).sin()) * 0.035;
+                let breath = ((time_s * 2.0 + phase_offset).cos()) * 0.02;
+                let bone_rot = glam::Quat::from_rotation_y(sway) * glam::Quat::from_rotation_x(breath);
+                let bone_mat = model * glam::Mat4::from_quat(bone_rot);
+                bones[i] = bone_mat.to_cols_array_2d();
+            }
 
             let uniforms = CharacterActorUniforms {
                 view_proj: view_proj.to_cols_array_2d(),
@@ -1293,6 +1302,11 @@ impl WgpuEngineContext {
     pub fn load_terrain_mesh_from_vfs(device: &wgpu::Device) -> Option<(wgpu::Buffer, u32)> {
         use wgpu::util::DeviceExt;
         let candidates = [
+            "metin2_map_a1/000000/height.raw",
+            "metin2_map_c1/000000/height.raw",
+            "metin2_map_b1/000000/height.raw",
+            "metin2_map_a1/001000/height.raw",
+            "metin2_map_c1/001000/height.raw",
             "alune24update_dung1/000000/height.raw",
             "d:/ymir work/map/metin2_map_a1/000000/height.raw",
             "map/metin2_map_a1/000000/height.raw",

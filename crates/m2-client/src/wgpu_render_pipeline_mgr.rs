@@ -219,19 +219,47 @@ impl WgpuRenderPipelineManager {
             &u_layout,
         ));
 
-        // 6. Inicjalizacja magic_effect_pipeline
+        // 6. Inicjalizacja magic_effect_pipeline oraz bufora efektow czasteczkowych
         let magic_effect_pipeline = Some(Self::create_magic_effect_pipeline(
             device,
             surface_format,
             Self::DEPTH_FORMAT,
         ));
+        let magic_effect_verts = [
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [-0.5, -0.5, 0.0], tex_coord: [0.0, 0.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [ 0.5, -0.5, 0.0], tex_coord: [1.0, 0.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [ 0.5,  0.5, 0.0], tex_coord: [1.0, 1.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [-0.5, -0.5, 0.0], tex_coord: [0.0, 0.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [ 0.5,  0.5, 0.0], tex_coord: [1.0, 1.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [-0.5,  0.5, 0.0], tex_coord: [0.0, 1.0] },
+        ];
+        let magic_effect_vertex_buffer = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Magic Effect Particle Vertex Buffer"),
+            contents: bytemuck::cast_slice(&magic_effect_verts),
+            usage: wgpu::BufferUsages::VERTEX,
+        }));
+        let magic_effect_vertex_count = magic_effect_verts.len() as u32;
 
-        // 7. Inicjalizacja projectile_pipeline
+        // 7. Inicjalizacja projectile_pipeline oraz bufora pociskow
         let projectile_pipeline = Some(Self::create_projectile_pipeline(
             device,
             surface_format,
             Self::DEPTH_FORMAT,
         ));
+        let projectile_verts = [
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [-0.2, -0.2, 0.0], tex_coord: [0.0, 0.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [ 0.2, -0.2, 0.0], tex_coord: [1.0, 0.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [ 0.2,  0.2, 0.0], tex_coord: [1.0, 1.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [-0.2, -0.2, 0.0], tex_coord: [0.0, 0.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [ 0.2,  0.2, 0.0], tex_coord: [1.0, 1.0] },
+            crate::wgpu_magic_effect_mesh_pipeline::EffectMeshVertex { position: [-0.2,  0.2, 0.0], tex_coord: [0.0, 1.0] },
+        ];
+        let projectile_vertex_buffer = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Projectile Particle Vertex Buffer"),
+            contents: bytemuck::cast_slice(&projectile_verts),
+            usage: wgpu::BufferUsages::VERTEX,
+        }));
+        let projectile_vertex_count = projectile_verts.len() as u32;
 
         // 8. Inicjalizacja ground_item_pipeline
         let ground_item_pipeline = Some(Self::create_speedtree_pipeline(
@@ -274,10 +302,10 @@ impl WgpuRenderPipelineManager {
             character_texture_bind_group: None,
             ground_item_vertex_buffer: None,
             ground_item_vertex_count: 0,
-            magic_effect_vertex_buffer: None,
-            magic_effect_vertex_count: 0,
-            projectile_vertex_buffer: None,
-            projectile_vertex_count: 0,
+            magic_effect_vertex_buffer,
+            magic_effect_vertex_count,
+            projectile_vertex_buffer,
+            projectile_vertex_count,
             text_tail_vertex_buffer: None,
             text_tail_vertex_count: 0,
         }

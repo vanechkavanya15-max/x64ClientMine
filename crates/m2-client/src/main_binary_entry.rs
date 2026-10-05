@@ -383,6 +383,10 @@ impl Metin2Engine {
         // Inicjalizacja natywnego interfejsu logowania (ThinBoard, lista serwerow, kanaly, flagi, przyciski)
         crate::ui_bridge_ffi::m2_ui_setup_default_login_ui(self.width, self.height);
 
+        // Inicjalizacja podsystemu audio 3D i muzyki BGM Pure Rust
+        let _ = crate::sound_ffi::m2_audio_init();
+        println!("[+] Podsystem audio Pure Rust (3D Spatial Audio & BGM) zainicjalizowany!");
+
         self.state = EngineState::PacksLoaded;
         Ok(())
     }

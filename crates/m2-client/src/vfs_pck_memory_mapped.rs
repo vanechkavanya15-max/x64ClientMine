@@ -442,4 +442,23 @@ mod inspect_tests {
             }
         }
     }
+
+    #[test]
+    fn inspect_map_and_granny() {
+        for pack_name in ["OutdoorA1.pck", "PC.pck", "Effect.pck", "Sound.pck"] {
+            let path = format!("E:/m2dev-client-src-main/m2dev-client-main/pack/{}", pack_name);
+            if let Ok(arch) = mount_archive(&path) {
+                println!("=== PACK: {} (entries: {}) ===", pack_name, arch.entries.len());
+                for (i, entry) in arch.entries.iter().take(10).enumerate() {
+                    println!("  [{}] {}", i, entry.get_file_name());
+                }
+                for entry in &arch.entries {
+                    let name = entry.get_file_name();
+                    if name.ends_with("height.raw") || name.ends_with("Setting.txt") {
+                        println!("  -> TERRAIN MATCH: {}", name);
+                    }
+                }
+            }
+        }
+    }
 }
