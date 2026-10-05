@@ -22,6 +22,7 @@ pub struct KnockbackPhysicsEngine {
     pub original_position: Vec3,
     pub blending_time: f32,
     pub remaining_time: f32,
+    pub knockdown_rotation: f32,
 }
 
 impl KnockbackPhysicsEngine {
@@ -39,6 +40,7 @@ impl KnockbackPhysicsEngine {
             original_position: position,
             blending_time: 0.0,
             remaining_time: 0.0,
+            knockdown_rotation: 0.0,
         }
     }
 
@@ -118,10 +120,17 @@ impl KnockbackPhysicsEngine {
 
         if dot < 0.0 {
             self.motion_state = KnockbackMotionState::DamageFlying;
+            // Face the attacker
+            self.knockdown_rotation = attacker_rotation_deg + 180.0;
         } else {
             self.motion_state = KnockbackMotionState::DamageFlyingBack;
+            // Face the same direction as the attack is pushing
+            self.knockdown_rotation = attacker_rotation_deg;
         }
         
+        // Normalize rotation to 0..360 safely using rem_euclid
+        self.knockdown_rotation = self.knockdown_rotation.rem_euclid(360.0);
+
         // typical knockback sequence delay for standing up
         self.stand_up_timer = self.blending_time + 1.0; 
     }
@@ -139,6 +148,13 @@ impl KnockbackPhysicsEngine {
                 // Value = start + (end - start) * (1 - (1 - progress)^2)
                 let ease_out_progress = 1.0 - (1.0 - progress) * (1.0 - progress);
                 self.position = self.original_position + (self.target_position - self.original_position) * ease_out_progress;
+
+                // Add gravity arc (parabola) over the z axis for knockdown effect
+                if matches!(self.motion_state, KnockbackMotionState::DamageFlying | KnockbackMotionState::DamageFlyingBack) {
+                    let arc_height = 150.0; // max height of jump in units
+                    let z_offset = arc_height * (1.0 - (2.0 * progress - 1.0).powi(2));
+                    self.position.z = self.original_position.z + z_offset.max(0.0);
+                }
             }
         }
 
