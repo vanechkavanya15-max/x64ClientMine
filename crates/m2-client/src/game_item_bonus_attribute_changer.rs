@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
@@ -24,7 +23,15 @@ impl BonusAttributeChanger {
             possible_attributes: Vec::new(),
         }
     }
+}
 
+impl Default for BonusAttributeChanger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BonusAttributeChanger {
     pub fn with_possible_attributes(attributes: Vec<AttributeProbability>) -> Self {
         Self {
             possible_attributes: attributes,
@@ -47,15 +54,11 @@ impl BonusAttributeChanger {
         }
 
         // Musimy uniknąć dodania bonusu, który już istnieje.
-        let existing_types: HashSet<u8> = attributes[0..5]
-            .iter()
-            .map(|a| a.attr_type)
-            .filter(|&t| t != APPLY_NONE)
-            .collect();
-
         let available_attrs: Vec<&AttributeProbability> = self.possible_attributes
             .iter()
-            .filter(|a| !existing_types.contains(&a.attr_type))
+            .filter(|a| {
+                !attributes[0..5].iter().any(|attr| attr.attr_type == a.attr_type && attr.attr_type != APPLY_NONE)
+            })
             .collect();
 
         if available_attrs.is_empty() {
@@ -86,15 +89,11 @@ impl BonusAttributeChanger {
             None => return false,
         };
         
-        let existing_types: HashSet<u8> = attributes[5..=6]
-            .iter()
-            .map(|a| a.attr_type)
-            .filter(|&t| t != APPLY_NONE)
-            .collect();
-
         let available_attrs: Vec<&AttributeProbability> = self.possible_attributes
             .iter()
-            .filter(|a| !existing_types.contains(&a.attr_type))
+            .filter(|a| {
+                !attributes[5..=6].iter().any(|attr| attr.attr_type == a.attr_type && attr.attr_type != APPLY_NONE)
+            })
             .collect();
 
         if available_attrs.is_empty() {
@@ -132,12 +131,10 @@ impl BonusAttributeChanger {
             return false; // Nie ma wystarczającej liczby unikalnych bonusów
         }
 
-        for i in 0..count {
-            let attr = &shuffled_attrs[i];
-            let value = rng.gen_range(attr.min_value..=attr.max_value);
-            
-            attributes[i] = ItemAttribute {
-                attr_type: attr.attr_type,
+        for (attr_dest, attr_src) in attributes[0..count].iter_mut().zip(shuffled_attrs.iter()) {
+            let value = rng.gen_range(attr_src.min_value..=attr_src.max_value);
+            *attr_dest = ItemAttribute {
+                attr_type: attr_src.attr_type,
                 value,
             };
         }
@@ -164,12 +161,10 @@ impl BonusAttributeChanger {
             return false; // Nie udało się wylosować
         }
 
-        for i in 0..count {
-            let attr = &shuffled_attrs[i];
-            let value = rng.gen_range(attr.min_value..=attr.max_value);
-            
-            attributes[5 + i] = ItemAttribute {
-                attr_type: attr.attr_type,
+        for (attr_dest, attr_src) in attributes[5..5+count].iter_mut().zip(shuffled_attrs.iter()) {
+            let value = rng.gen_range(attr_src.min_value..=attr_src.max_value);
+            *attr_dest = ItemAttribute {
+                attr_type: attr_src.attr_type,
                 value,
             };
         }

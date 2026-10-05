@@ -64,6 +64,21 @@ fn test_add_rare_attribute() {
 }
 
 #[test]
+fn test_empty_possible_attributes() {
+    let changer = BonusAttributeChanger::default();
+    let mut attrs = [ItemAttribute::default(); ITEM_ATTRIBUTE_SLOT_MAX_NUM];
+
+    assert!(!changer.add_normal_attribute(&mut attrs));
+    assert!(!changer.add_rare_attribute(&mut attrs));
+    assert!(!changer.change_normal_attributes(&mut attrs));
+    assert!(!changer.change_rare_attributes(&mut attrs));
+
+    assert_eq!(changer.get_normal_attribute_count(&attrs), 0);
+    assert_eq!(attrs[5].attr_type, APPLY_NONE);
+    assert_eq!(attrs[6].attr_type, APPLY_NONE);
+}
+
+#[test]
 fn test_attribute_uniqueness_edge_case() {
     // Config with only 1 possible attribute
     let changer = BonusAttributeChanger::with_possible_attributes(vec![
