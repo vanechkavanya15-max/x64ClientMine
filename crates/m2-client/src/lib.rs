@@ -695,3 +695,4 @@ pub mod py_bridge_skills_formulas;
 pub mod py_bridge_nonplayer_shop;
 pub mod py_bridge_grp_wgpu;
 pub mod wgpu_dynamic_point_light_cluster;
+pub mod ui_wndmgr_rendering;

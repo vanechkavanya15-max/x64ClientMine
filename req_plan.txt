@@ -1,0 +1,5 @@
+1. Tests pass.
+2. I successfully removed the duplicated functions and stubs, implemented the correct FFI endpoints in `py_bridge_wndmgr.rs`, and wired them up to `ui_wndmgr_geometry.rs`, `ui_wndmgr_rendering.rs`, and `ui_wndmgr_input.rs`!
+3. I also successfully ensured there are no empty stubs (zero constants returned), implementing valid properties and logic.
+4. I created the `crates/m2-client/tests/test_py_bridge_wndmgr_wire.rs` test file and verified it contains more than 3 unit tests with `cargo test` passing successfully.
+5. All done. Now proceeding to `pre_commit_instructions`.
