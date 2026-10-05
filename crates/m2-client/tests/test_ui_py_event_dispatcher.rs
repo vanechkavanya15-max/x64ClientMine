@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 /// A mock Python class used for testing the dispatcher callbacks.
 #[pyclass]
-struct MockWindow {
+pub struct MockWindow {
     pub update_called: Arc<Mutex<bool>>,
     pub render_called: Arc<Mutex<bool>>,
     pub key_down_called: Arc<Mutex<Option<u32>>>,

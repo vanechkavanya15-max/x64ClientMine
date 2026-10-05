@@ -112,6 +112,11 @@ impl EditLineWidget {
     }
 
     pub fn insert_text(&mut self, text: &str) {
+        // Check if pasting a hyperlink (contains |H tag)
+        if text.contains("|H") {
+            self.cursor_pos = self.text.len();
+        }
+
         self.delete_selection();
         for c in text.chars() {
             if self.text.len() < self.max_length {
