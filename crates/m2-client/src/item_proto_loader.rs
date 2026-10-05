@@ -11,6 +11,7 @@ pub struct ItemProto {
     pub icon_image: String,
     pub limits: [crate::py_bridge_item::ItemLimit; 2],
     pub applies: [crate::py_bridge_item::ItemApply; 3],
+    pub wear_flags: u32,
 }
 
 pub fn load_item_protos() -> HashMap<u32, ItemProto> {

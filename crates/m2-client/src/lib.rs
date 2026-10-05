@@ -310,6 +310,7 @@ pub mod py_bridge_chr;
 pub mod py_bridge_exchange;
 pub mod py_bridge_guild;
 pub mod py_bridge_item;
+pub mod py_bridge_item_limits;
 pub mod py_bridge_minimap;
 pub mod py_bridge_net;
 pub mod py_bridge_net_runtime;

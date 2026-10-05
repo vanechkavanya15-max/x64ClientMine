@@ -5,6 +5,8 @@ use crate::item_proto_loader::{ItemProto, load_item_protos};
 pub struct ItemManager {
     pub items: HashMap<u32, ItemProto>,
     pub selected_vnum: u32,
+    pub use_sound_filenames: HashMap<u32, String>,
+    pub drop_sound_filenames: HashMap<u32, String>,
 }
 
 impl ItemManager {
@@ -13,6 +15,8 @@ impl ItemManager {
         Self {
             items,
             selected_vnum: 0,
+            use_sound_filenames: HashMap::new(),
+            drop_sound_filenames: HashMap::new(),
         }
     }
 
