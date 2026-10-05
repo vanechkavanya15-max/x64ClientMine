@@ -3,7 +3,10 @@ use m2_client::py_bridge_quest_runtime_complete::{
     m2_py_quest_make_quest, m2_py_quest_delete_quest,
     m2_py_quest_set_quest_title, m2_py_quest_set_quest_counter_name,
     m2_py_quest_set_quest_counter_value, m2_py_quest_get_quest_data,
-    m2_py_quest_get_quest_name,
+    m2_py_quest_get_quest_name, m2_py_quest_get_quest_icon_file_name,
+    m2_py_quest_set_quest_icon_file_name, m2_py_quest_get_quest_index,
+    m2_py_quest_set_quest_clock_name, m2_py_quest_set_quest_clock_value,
+    m2_py_quest_get_quest_last_time
 };
 use std::ffi::CString;
 
@@ -68,6 +71,43 @@ fn test_quest_runtime_names_and_icons() {
     assert_eq!(name_str, "Epic Quest");
 
     // Setup clear state again
+    let _ = m2_py_quest_clear();
+}
+
+#[test]
+fn test_quest_runtime_advanced_fields() {
+    let _ = m2_py_quest_clear();
+
+    m2_py_quest_make_quest(303);
+    
+    // Icon test
+    let icon_c = CString::new("scroll_open.tga").unwrap();
+    m2_py_quest_set_quest_icon_file_name(303, icon_c.as_ptr());
+
+    let mut icon_buf = [0i8; 256];
+    let res = m2_py_quest_get_quest_icon_file_name(0, icon_buf.as_mut_ptr(), icon_buf.len());
+    assert!(res);
+    let icon_str = unsafe { std::ffi::CStr::from_ptr(icon_buf.as_ptr()) }.to_str().unwrap();
+    assert_eq!(icon_str, "scroll_open.tga");
+
+    // Index test
+    assert_eq!(m2_py_quest_get_quest_index(0), 303);
+
+    // Clock test
+    let clock_name_c = CString::new("Time Left").unwrap();
+    m2_py_quest_set_quest_clock_name(303, clock_name_c.as_ptr());
+    m2_py_quest_set_quest_clock_value(303, 100);
+
+    let mut clock_buf = [0i8; 256];
+    let mut last_time = 0;
+    let res = m2_py_quest_get_quest_last_time(0, clock_buf.as_mut_ptr(), clock_buf.len(), &mut last_time);
+    assert!(res);
+    
+    let clock_str = unsafe { std::ffi::CStr::from_ptr(clock_buf.as_ptr()) }.to_str().unwrap();
+    assert_eq!(clock_str, "Time Left");
+    // Depending on when it is run, last_time should be around 100
+    assert!(last_time >= 99 && last_time <= 100);
+
     let _ = m2_py_quest_clear();
 }
 
