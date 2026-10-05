@@ -105,10 +105,11 @@ impl GameHorseCombatSkillManager {
         is_mounting: bool,
         is_hand_mode: bool,
     ) -> bool {
-        if is_mounting {
-            if is_hand_mode {
-                return false;
-            }
+        if !is_mounting {
+            return false;
+        }
+        if is_hand_mode {
+            return false;
         }
         true
     }

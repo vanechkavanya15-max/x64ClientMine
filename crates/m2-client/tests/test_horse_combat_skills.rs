@@ -82,3 +82,32 @@ fn test_is_horse_combo() {
     assert_eq!(GameHorseCombatSkillManager::is_horse_combo(124), false);
     assert_eq!(GameHorseCombatSkillManager::is_horse_combo(1), false);
 }
+
+#[test]
+fn test_is_horse_combo_attack() {
+    // Nie jestesmy na koniu, nie mozna atakowac
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo_attack(false, false), false);
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo_attack(false, true), false);
+    
+    // Jestesmy na koniu, ale nie mamy broni (hand mode)
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo_attack(true, true), false);
+    
+    // Jestesmy na koniu i mamy bron
+    assert_eq!(GameHorseCombatSkillManager::is_horse_combo_attack(true, false), true);
+}
+
+#[test]
+fn test_is_using_charge_skill() {
+    // Ma buff (dash affect) -> uzywa szarzy
+    assert_eq!(GameHorseCombatSkillManager::is_using_charge_skill(true, false, 0), true);
+    assert_eq!(GameHorseCombatSkillManager::is_using_charge_skill(true, true, 122), true);
+    
+    // Nie ma buffa i skill nie jest "reserved mode"
+    assert_eq!(GameHorseCombatSkillManager::is_using_charge_skill(false, false, 122), false);
+    
+    // Nie ma buffa, jest "reserved mode", i skill to Charge
+    assert_eq!(GameHorseCombatSkillManager::is_using_charge_skill(false, true, 122), true);
+    
+    // Nie ma buffa, jest "reserved mode", ale skill to NIE Charge
+    assert_eq!(GameHorseCombatSkillManager::is_using_charge_skill(false, true, 121), false);
+}
