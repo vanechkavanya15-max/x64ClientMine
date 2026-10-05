@@ -3814,25 +3814,77 @@ sys.modules['Skill'] = SkillModule
 
 quest_methods = [
     ("GetQuestCount", "m2_py_quest_get_quest_count", [], ctypes.c_uint32),
-    ("GetQuestName", "m2_py_quest_get_quest_name", [ctypes.c_uint32], ctypes.c_char_p),
+    
     ("Clear", "m2_py_quest_clear", [], None),
     ("SetSkin", "m2_py_quest_set_skin", [ctypes.c_uint8], None),
     ("SetTitle", "m2_py_quest_set_title", [ctypes.c_char_p], None),
 ]
 QuestModule = create_real_module('quest', 'quest', quest_methods)
-QuestModule.QUEST_MAX_NUM = 5
-setattr(QuestModule, 'GetQuestData', staticmethod(lambda *args: ("", 0, "", 0)))
-setattr(QuestModule, 'GetQuestIndex', staticmethod(lambda idx: int(idx)))
-
-def _wrap_quest_get_quest_last_time(idx=0):
-    fn = getattr(m2_lib, 'm2_quest_get_last_time', None)
+def _wrap_quest_get_quest_icon_file_name(idx=0):
+    fn = getattr(m2_lib, 'm2_py_quest_get_quest_icon_file_name', None)
     if fn:
         try:
-            buf = ctypes.create_string_buffer(64)
+            name_buf = ctypes.create_string_buffer(256)
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t]
+            fn.restype = ctypes.c_bool
+            if fn(int(idx), name_buf, ctypes.c_size_t(256)):
+                return name_buf.value.decode('utf-8', 'ignore')
+        except Exception: pass
+    return ""
+    
+setattr(QuestModule, 'GetQuestIconFileName', staticmethod(_wrap_quest_get_quest_icon_file_name))
+def _wrap_quest_get_quest_name(idx=0):
+    fn = getattr(m2_lib, 'm2_py_quest_get_quest_name', None)
+    if fn:
+        try:
+            name_buf = ctypes.create_string_buffer(256)
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t]
+            fn.restype = ctypes.c_bool
+            if fn(int(idx), name_buf, ctypes.c_size_t(256)):
+                return name_buf.value.decode('utf-8', 'ignore')
+        except Exception: pass
+    return ""
+    
+setattr(QuestModule, 'GetQuestName', staticmethod(_wrap_quest_get_quest_name))
+QuestModule.QUEST_MAX_NUM = 5
+def _wrap_quest_get_quest_data(idx=0):
+    fn = getattr(m2_lib, 'm2_py_quest_get_quest_data', None)
+    if fn:
+        try:
+            title_buf = ctypes.create_string_buffer(256)
+            counter_name_buf = ctypes.create_string_buffer(256)
+            counter_val = ctypes.c_int32(0)
+            
+            fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_int32)]
+            fn.restype = ctypes.c_bool
+            
+            if fn(int(idx), title_buf, ctypes.c_size_t(256), counter_name_buf, ctypes.c_size_t(256), ctypes.byref(counter_val)):
+                return (title_buf.value.decode('utf-8', 'ignore'), 0, counter_name_buf.value.decode('utf-8', 'ignore'), counter_val.value)
+        except Exception: pass
+    return ("", 0, "", 0)
+
+setattr(QuestModule, 'GetQuestData', staticmethod(_wrap_quest_get_quest_data))
+def _wrap_quest_get_quest_index(idx=0):
+    fn = getattr(m2_lib, 'm2_py_quest_get_quest_index', None)
+    if fn:
+        try:
+            fn.argtypes = [ctypes.c_uint32]
+            fn.restype = ctypes.c_uint32
+            return int(fn(int(idx)))
+        except Exception: pass
+    return 0
+    
+setattr(QuestModule, 'GetQuestIndex', staticmethod(_wrap_quest_get_quest_index))
+
+def _wrap_quest_get_quest_last_time(idx=0):
+    fn = getattr(m2_lib, 'm2_py_quest_get_quest_last_time', None)
+    if fn:
+        try:
+            buf = ctypes.create_string_buffer(256)
             lt = ctypes.c_int32(0)
             fn.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_int32)]
             fn.restype = ctypes.c_bool
-            if fn(int(idx), buf, ctypes.c_size_t(64), ctypes.byref(lt)):
+            if fn(int(idx), buf, ctypes.c_size_t(256), ctypes.byref(lt)):
                 return (buf.value.decode('utf-8', errors='ignore'), lt.value)
         except Exception: pass
     return ("", 0)

@@ -1,10 +1,10 @@
 //! C-FFI bridge and runtime state for Python `quest` module exports.
 
-use std::ffi::{CStr, c_char};
-use std::sync::{Mutex, OnceLock};
-use m2_client_bridge::ffi_guard::safe_ffi_call;
 use crate::app_timing_clock;
 use crate::ui_quest_dialog::get_ui_quest_dialog;
+use m2_client_bridge::ffi_guard::safe_ffi_call;
+use std::ffi::{c_char, CStr};
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, Clone, Default)]
 pub struct QuestInstance {
@@ -56,7 +56,7 @@ impl QuestRuntimeState {
     pub fn get_quest_instance_ptr_mut(&mut self, index: u32) -> Option<&mut QuestInstance> {
         self.instances.iter_mut().find(|inst| inst.index == index)
     }
-    
+
     pub fn get_quest_instance_by_array_index(&self, array_index: usize) -> Option<&QuestInstance> {
         self.instances.get(array_index)
     }
@@ -101,7 +101,11 @@ pub extern "C" fn m2_py_quest_delete_quest(index: u32) {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_quest_get_quest_name(array_index: u32, out_name: *mut c_char, out_len: usize) -> bool {
+pub extern "C" fn m2_py_quest_get_quest_name(
+    array_index: u32,
+    out_name: *mut c_char,
+    out_len: usize,
+) -> bool {
     safe_ffi_call(false, || {
         if out_name.is_null() || out_len == 0 {
             return false;
@@ -113,7 +117,11 @@ pub extern "C" fn m2_py_quest_get_quest_name(array_index: u32, out_name: *mut c_
                     return false;
                 }
                 unsafe {
-                    std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const c_char, out_name, bytes.len());
+                    std::ptr::copy_nonoverlapping(
+                        bytes.as_ptr() as *const c_char,
+                        out_name,
+                        bytes.len(),
+                    );
                     *out_name.add(bytes.len()) = 0;
                 }
                 return true;
@@ -124,7 +132,11 @@ pub extern "C" fn m2_py_quest_get_quest_name(array_index: u32, out_name: *mut c_
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_quest_get_quest_icon_file_name(array_index: u32, out_name: *mut c_char, out_len: usize) -> bool {
+pub extern "C" fn m2_py_quest_get_quest_icon_file_name(
+    array_index: u32,
+    out_name: *mut c_char,
+    out_len: usize,
+) -> bool {
     safe_ffi_call(false, || {
         if out_name.is_null() || out_len == 0 {
             return false;
@@ -136,7 +148,11 @@ pub extern "C" fn m2_py_quest_get_quest_icon_file_name(array_index: u32, out_nam
                     return false;
                 }
                 unsafe {
-                    std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const c_char, out_name, bytes.len());
+                    std::ptr::copy_nonoverlapping(
+                        bytes.as_ptr() as *const c_char,
+                        out_name,
+                        bytes.len(),
+                    );
                     *out_name.add(bytes.len()) = 0;
                 }
                 return true;
@@ -156,15 +172,20 @@ pub extern "C" fn m2_py_quest_get_quest_data(
     out_counter_value: *mut i32,
 ) -> bool {
     safe_ffi_call(false, || {
-        if out_title.is_null() || out_title_len == 0 || out_counter_name.is_null() || out_counter_name_len == 0 || out_counter_value.is_null() {
+        if out_title.is_null()
+            || out_title_len == 0
+            || out_counter_name.is_null()
+            || out_counter_name_len == 0
+            || out_counter_value.is_null()
+        {
             return false;
         }
-        
+
         let state_guard = match get_quest_runtime_state().lock() {
             Ok(guard) => guard,
             Err(_) => return false,
         };
-        
+
         // Match CPythonQuest::GetQuestInstancePtr which expects the array index, not dwIndex!
         // Wait, python module uses GetQuestInstancePtr which does array index lookup, not ID lookup?
         // Let's check PythonQuest.cpp
@@ -177,29 +198,37 @@ pub extern "C" fn m2_py_quest_get_quest_data(
         if index as usize >= state_guard.instances.len() {
             return false;
         }
-        
+
         let instance = &state_guard.instances[index as usize];
-        
+
         let title_bytes = instance.title.as_bytes();
         if title_bytes.len() >= out_title_len {
             return false;
         }
         unsafe {
-            std::ptr::copy_nonoverlapping(title_bytes.as_ptr() as *const c_char, out_title, title_bytes.len());
+            std::ptr::copy_nonoverlapping(
+                title_bytes.as_ptr() as *const c_char,
+                out_title,
+                title_bytes.len(),
+            );
             *out_title.add(title_bytes.len()) = 0;
         }
-        
+
         let counter_name_bytes = instance.counter_name.as_bytes();
         if counter_name_bytes.len() >= out_counter_name_len {
             return false;
         }
         unsafe {
-            std::ptr::copy_nonoverlapping(counter_name_bytes.as_ptr() as *const c_char, out_counter_name, counter_name_bytes.len());
+            std::ptr::copy_nonoverlapping(
+                counter_name_bytes.as_ptr() as *const c_char,
+                out_counter_name,
+                counter_name_bytes.len(),
+            );
             *out_counter_name.add(counter_name_bytes.len()) = 0;
-            
+
             *out_counter_value = instance.counter_value;
         }
-        
+
         true
     })
 }
@@ -227,37 +256,41 @@ pub extern "C" fn m2_py_quest_get_quest_last_time(
         if out_clock_name.is_null() || out_clock_name_len == 0 || out_last_time.is_null() {
             return false;
         }
-        
+
         let state = match get_quest_runtime_state().lock() {
             Ok(guard) => guard,
             Err(_) => return false,
         };
-        
+
         if array_index as usize >= state.instances.len() {
             return false;
         }
-        
+
         let instance = &state.instances[array_index as usize];
-        
+
         let clock_name_bytes = instance.clock_name.as_bytes();
         if clock_name_bytes.len() >= out_clock_name_len {
             return false;
         }
         unsafe {
-            std::ptr::copy_nonoverlapping(clock_name_bytes.as_ptr() as *const c_char, out_clock_name, clock_name_bytes.len());
+            std::ptr::copy_nonoverlapping(
+                clock_name_bytes.as_ptr() as *const c_char,
+                out_clock_name,
+                clock_name_bytes.len(),
+            );
             *out_clock_name.add(clock_name_bytes.len()) = 0;
         }
-        
+
         let mut last_time = 0;
         if instance.clock_value >= 0 {
             let current_sec = app_timing_clock::m2_get_time() as i32 / 1000;
             last_time = (instance.start_time + instance.clock_value) - current_sec;
         }
-        
+
         unsafe {
             *out_last_time = last_time;
         }
-        
+
         true
     })
 }
@@ -277,7 +310,9 @@ pub extern "C" fn m2_py_quest_set_quest_title(index: u32, title: *const c_char) 
         if title.is_null() {
             return;
         }
-        let title_str = unsafe { CStr::from_ptr(title) }.to_string_lossy().into_owned();
+        let title_str = unsafe { CStr::from_ptr(title) }
+            .to_string_lossy()
+            .into_owned();
         if let Ok(mut state) = get_quest_runtime_state().lock() {
             if let Some(inst) = state.get_quest_instance_ptr_mut(index) {
                 inst.title = title_str;
@@ -292,7 +327,9 @@ pub extern "C" fn m2_py_quest_set_quest_clock_name(index: u32, name: *const c_ch
         if name.is_null() {
             return;
         }
-        let name_str = unsafe { CStr::from_ptr(name) }.to_string_lossy().into_owned();
+        let name_str = unsafe { CStr::from_ptr(name) }
+            .to_string_lossy()
+            .into_owned();
         if let Ok(mut state) = get_quest_runtime_state().lock() {
             if let Some(inst) = state.get_quest_instance_ptr_mut(index) {
                 inst.clock_name = name_str;
@@ -307,7 +344,9 @@ pub extern "C" fn m2_py_quest_set_quest_counter_name(index: u32, name: *const c_
         if name.is_null() {
             return;
         }
-        let name_str = unsafe { CStr::from_ptr(name) }.to_string_lossy().into_owned();
+        let name_str = unsafe { CStr::from_ptr(name) }
+            .to_string_lossy()
+            .into_owned();
         if let Ok(mut state) = get_quest_runtime_state().lock() {
             if let Some(inst) = state.get_quest_instance_ptr_mut(index) {
                 inst.counter_name = name_str;
@@ -345,7 +384,9 @@ pub extern "C" fn m2_py_quest_set_quest_icon_file_name(index: u32, file_name: *c
         if file_name.is_null() {
             return;
         }
-        let file_name_str = unsafe { CStr::from_ptr(file_name) }.to_string_lossy().into_owned();
+        let file_name_str = unsafe { CStr::from_ptr(file_name) }
+            .to_string_lossy()
+            .into_owned();
         if let Ok(mut state) = get_quest_runtime_state().lock() {
             if let Some(inst) = state.get_quest_instance_ptr_mut(index) {
                 inst.icon_file_name = file_name_str;
