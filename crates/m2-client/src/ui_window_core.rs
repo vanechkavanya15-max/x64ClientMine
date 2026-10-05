@@ -71,6 +71,10 @@ pub struct Window {
     pub flags: u32,
     pub clip_rect: Option<[f32; 4]>,
     pub scissor_enabled: bool,
+    
+    // Geometry extensions
+    pub show_cursor: bool,
+    pub stored_position: Option<(i32, i32)>,
 }
 
 impl Window {
@@ -107,6 +111,8 @@ impl Window {
             flags: 0,
             clip_rect: None,
             scissor_enabled: false,
+            show_cursor: false,
+            stored_position: None,
         }
     }
 

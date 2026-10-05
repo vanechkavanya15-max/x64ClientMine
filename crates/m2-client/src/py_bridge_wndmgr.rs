@@ -285,10 +285,7 @@ pub extern "C" fn wndMgr_GetWindowHeight(handle: u32) -> i32 {
         .unwrap_or(768)
 }
 
-#[no_mangle]
-pub extern "C" fn wndMgr_GetWindowLocalPosition(handle: u32, out_x: *mut i32, out_y: *mut i32) {
-    wndMgr_GetLocalPosition(handle, out_x, out_y);
-}
+
 
 #[no_mangle]
 pub extern "C" fn wndMgr_GetWindowGlobalPosition(handle: u32, out_x: *mut i32, out_y: *mut i32) {
@@ -408,15 +405,7 @@ pub extern "C" fn wndMgr_GetName(handle: u32) -> *const c_char {
     EMPTY.as_ptr() as *const c_char
 }
 
-#[no_mangle]
-pub extern "C" fn wndMgr_GetChildCount(handle: u32) -> i32 {
-    let wm = get_window_manager();
-    if let Some(win) = wm.windows.get(&handle) {
-        win.children.len() as i32
-    } else {
-        0
-    }
-}
+
 
 #[no_mangle]
 pub extern "C" fn wndMgr_IsIn(handle: u32) -> bool {
@@ -526,11 +515,9 @@ pub extern "C" fn wndMgr_GetCursorPosition(handle: u32) -> i32 {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn wndMgr_ShowCursor(_handle: u32) {}
 
-#[no_mangle]
-pub extern "C" fn wndMgr_HideCursor(_handle: u32) {}
+
+
 
 static AUTO_PICKUP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static FOV_LEVEL: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(30.0f32.to_bits());
