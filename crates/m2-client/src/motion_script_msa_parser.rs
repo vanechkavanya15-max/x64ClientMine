@@ -236,6 +236,18 @@ pub struct HitTimePosition {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
+pub struct SphereData {
+    pub radius: f32,
+    pub position: [f32; 3],
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CollisionData {
+    pub collision_type: i32,
+    pub sphere_data: Vec<SphereData>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct HitData {
     pub attack_start_time: f32,
     pub attack_end_time: f32,
@@ -326,6 +338,7 @@ pub enum MotionEventData {
         duration_time: f32,
         is_enable_hit_process: bool,
         attack_data: MotionAttackData,
+        collision_data: Option<CollisionData>,
     },
 }
 
@@ -539,6 +552,22 @@ pub fn parse_msa_script(content: &str) -> Result<MotionScript, String> {
                                 hit.weapon_length = ev_child.get_token_float("weaponlength").unwrap_or(0.0);
                                 attack_data.hit_data.push(hit);
                             }
+                            
+                            let mut collision_data = None;
+                            if let Some(col_type) = ev_child.get_token_i32("collisiontype") {
+                                let mut col = CollisionData::default();
+                                col.collision_type = col_type;
+                                
+                                for sph_child in &ev_child.children {
+                                    if sph_child.name.to_lowercase() == "spheredata" || sph_child.name.to_lowercase().starts_with("spheredata") {
+                                        let mut sph = SphereData::default();
+                                        sph.radius = sph_child.get_token_float("radius").unwrap_or(0.0);
+                                        sph.position = sph_child.get_token_position("position").unwrap_or([0.0, 0.0, 0.0]);
+                                        col.sphere_data.push(sph);
+                                    }
+                                }
+                                collision_data = Some(col);
+                            }
 
                             script.events.push(MotionEventData::SpecialAttacking {
                                 frame,
@@ -546,6 +575,7 @@ pub fn parse_msa_script(content: &str) -> Result<MotionScript, String> {
                                 duration_time,
                                 is_enable_hit_process,
                                 attack_data,
+                                collision_data,
                             });
                         }
                         MotionEventType::CharacterShow => {

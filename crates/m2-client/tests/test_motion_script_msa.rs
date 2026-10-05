@@ -192,6 +192,19 @@ fn test_msa_combo_loop_and_special_attacking_event() {
                     AttackingEndTime 0.4
                     AttackingBone "Bip01 R Foot"
                 }
+                
+                CollisionType 3
+                SphereDataCount 2
+                Group SphereData00
+                {
+                    Radius 50.0
+                    Position 10.0 20.0 30.0
+                }
+                Group SphereData01
+                {
+                    Radius 25.0
+                    Position 0.0 0.0 5.0
+                }
             }
         }
     "#;
@@ -210,7 +223,7 @@ fn test_msa_combo_loop_and_special_attacking_event() {
 
     assert_eq!(res.events.len(), 1);
     match &res.events[0] {
-        MotionEventData::SpecialAttacking { frame, starting_time, duration_time, is_enable_hit_process, attack_data } => {
+        MotionEventData::SpecialAttacking { frame, starting_time, duration_time, is_enable_hit_process, attack_data, collision_data } => {
             assert_eq!(*frame, 12); // 0.2 * 60 = 12
             assert_eq!(*starting_time, 0.2);
             assert_eq!(*duration_time, 0.5);
@@ -223,6 +236,14 @@ fn test_msa_combo_loop_and_special_attacking_event() {
             assert_eq!(attack_data.hit_data[0].attack_start_time, 0.2);
             assert_eq!(attack_data.hit_data[0].attack_end_time, 0.4);
             assert_eq!(attack_data.hit_data[0].bone_name, "Bip01 R Foot");
+            
+            let col = collision_data.as_ref().expect("Expected collision data");
+            assert_eq!(col.collision_type, 3);
+            assert_eq!(col.sphere_data.len(), 2);
+            assert_eq!(col.sphere_data[0].radius, 50.0);
+            assert_eq!(col.sphere_data[0].position, [10.0, 20.0, 30.0]);
+            assert_eq!(col.sphere_data[1].radius, 25.0);
+            assert_eq!(col.sphere_data[1].position, [0.0, 0.0, 5.0]);
         }
         _ => panic!("Expected SpecialAttacking event"),
     }
