@@ -175,11 +175,8 @@ pub extern "C" fn m2_text_tail_arrange_text_tail() {
                     None => break,
                 };
 
-                for j in 0..item_vids.len() {
+                for j in 0..i {
                     let vid_compare = item_vids[j];
-                    if vid_compare == vid_insert {
-                        continue;
-                    }
 
                     if let Some(compare_tail) = state.item_text_tail_map.get(&vid_compare) {
                         if insert_tail.is_in(compare_tail) {

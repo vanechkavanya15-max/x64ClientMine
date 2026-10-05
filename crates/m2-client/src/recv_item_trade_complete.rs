@@ -348,7 +348,7 @@ pub extern "C" fn m2_net_recv_shop(buf: *const u8, len: usize) -> bool {
                 }
                 let start_ex = unsafe { &*(payload as *const TPacketGCShopStartEx) };
                 let tab_count = { start_ex.shop_tab_count };
-                state.owner_vid = { start_ex.owner_vid };
+                state.owner_vid = start_ex.owner_vid ;
                 state.tabs.clear();
                 
                 let mut read_pos = mem::size_of::<TPacketGCShopStartEx>();

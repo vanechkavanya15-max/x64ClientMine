@@ -95,7 +95,7 @@ impl FishingMiningController {
             }
             FISHING_SUB_HEADER_HIT => {
                 self.fishing_state = FishingState::Hit;
-                self.hit_window_ms = {packet.info};
+                self.hit_window_ms = packet.info ;
             }
             FISHING_SUB_HEADER_SUCCESS => {
                 self.fishing_state = FishingState::Done;

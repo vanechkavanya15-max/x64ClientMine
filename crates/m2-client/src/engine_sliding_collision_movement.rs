@@ -60,8 +60,8 @@ pub fn calculate_aabb_collision_normal(player_pos: Vec3, aabb_min: Vec3, aabb_ma
 
     let mut normal = Vec3::ZERO;
 
-    let x_ratio = if extents.x > 0.0 { (local_pos.x.abs() / extents.x) } else { 0.0 };
-    let y_ratio = if extents.y > 0.0 { (local_pos.y.abs() / extents.y) } else { 0.0 };
+    let x_ratio = if extents.x > 0.0 { local_pos.x.abs() / extents.x  } else { 0.0 };
+    let y_ratio = if extents.y > 0.0 { local_pos.y.abs() / extents.y  } else { 0.0 };
 
     if x_ratio >= y_ratio {
         normal.x = if local_pos.x >= 0.0 { 1.0 } else { -1.0 };

@@ -53,7 +53,7 @@ impl PlayerStatCalc {
     }
 
     pub fn evasion(&self) -> i64 {
-        let d = (self.dex.max(0) as i64);
+        let d = self.dex.max(0) as i64 ;
         (30 * (2 * d + 5)) / (d + 95)
     }
 }
