@@ -1,7 +1,5 @@
 // ui_wndmgr_widget_ani_image.rs - AniImageBox UI widget implementation for Metin2 Pure Rust
 
-use rand::Rng;
-
 #[derive(Clone)]
 pub struct AniImageBoxWidget {
     pub images: Vec<String>,
@@ -48,12 +46,6 @@ impl AniImageBoxWidget {
 
     pub fn append_image(&mut self, image_path: &str) {
         self.images.push(image_path.to_string());
-        if self.images.len() == 1 {
-            self.current_frame = 0;
-        } else {
-            let mut rng = rand::thread_rng();
-            self.current_frame = rng.gen_range(0..self.images.len());
-        }
     }
 
     pub fn reset_frame(&mut self) {
