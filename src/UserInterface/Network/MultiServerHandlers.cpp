@@ -8,6 +8,8 @@ void CPythonNetworkStream::SetServerMode(Network::ServerType type)
 	Network::MultiServerManager::Instance().SetServerType(type);
 	Tracef("[MULTI-SERVER] Switched active server profile to: %s\n", Network::ServerTypeToString(type));
 
+	SetBeaviumMode(type == Network::ServerType::Beavium);
+
 	if (type == Network::ServerType::Beavium)
 	{
 		RegisterBeaviumHandlers();

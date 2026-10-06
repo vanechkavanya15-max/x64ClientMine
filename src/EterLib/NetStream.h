@@ -91,7 +91,7 @@ class CNetworkStream
 		uint32_t			m_dwSentPacketSeq = 0;
 
 	protected:
-		bool		m_isBeaviumMode = true;
+		bool		m_isBeaviumMode = false;
 		bool		m_isBeaviumAead = false;
 		bool		m_isAccountConnector = false;
 		uint8_t		m_beaviumRxKey[32] = {};

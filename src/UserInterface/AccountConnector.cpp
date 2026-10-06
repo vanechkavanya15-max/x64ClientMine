@@ -43,13 +43,20 @@ bool CAccountConnector::Connect(const char * c_szAddr, int iPort, const char * c
 	{
 		Network::MultiServerManager::Instance().SetServerType(Network::ServerType::Beavium);
 		CPythonNetworkStream::Instance().SetServerMode(Network::ServerType::Beavium);
+		SetBeaviumMode(true);
 		Tracef("[MULTI-SERVER] CAccountConnector detected Beavium server (port %d, ip %s)\n", iAccountPort, c_szAccountAddr);
 	}
 	else if (iAccountPort == 11000 || (c_szAccountAddr && (strstr(c_szAccountAddr, "127.0.0.1") || strstr(c_szAccountAddr, "192.168.") || strstr(c_szAccountAddr, "localhost"))))
 	{
 		Network::MultiServerManager::Instance().SetServerType(Network::ServerType::Official);
 		CPythonNetworkStream::Instance().SetServerMode(Network::ServerType::Official);
+		SetBeaviumMode(false);
 		Tracef("[MULTI-SERVER] CAccountConnector detected Official server (port %d, ip %s)\n", iAccountPort, c_szAccountAddr);
+	}
+	else
+	{
+		bool isBeavium = Network::MultiServerManager::Instance().IsBeavium();
+		SetBeaviumMode(isBeavium);
 	}
 
 	return CNetworkStream::Connect(c_szAccountAddr, iAccountPort);

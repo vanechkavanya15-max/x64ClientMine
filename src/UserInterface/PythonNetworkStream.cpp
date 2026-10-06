@@ -296,6 +296,12 @@ bool CPythonNetworkStream::Connect(const char* c_szAddr, int port, int limitSec)
 	if (c_szAddr && strlen(c_szAddr) > 0)
 		m_serverIP = c_szAddr;
 	m_serverPort = port;
+
+	bool isBeavium = (port == 11001 || (port >= 20101 && port <= 20501) ||
+		(c_szAddr && strstr(c_szAddr, "51.83.150.")) ||
+		Network::MultiServerManager::Instance().IsBeavium());
+
+	SetBeaviumMode(isBeavium);
 	return CNetworkStream::Connect(c_szAddr, port, limitSec);
 }
 
