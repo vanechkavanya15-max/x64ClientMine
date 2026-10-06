@@ -1,5 +1,1 @@
-import os
-print("Checking crates/m2-client/src/full-map-stream_14.rs")
-print(os.path.exists("crates/m2-client/src/full-map-stream_14.rs"))
-print("Checking crates/m2-client/src/map_coordinate_transformer.rs")
-print(os.path.exists("crates/m2-client/src/map_coordinate_transformer.rs"))
+print("Agent explicitly asked to implement TPacketGCParty with subheaders and roles, but Metin2 source code has TPacketGCPartyUpdate/TPacketGCPartyInvite etc. I should re-read carefully.")
