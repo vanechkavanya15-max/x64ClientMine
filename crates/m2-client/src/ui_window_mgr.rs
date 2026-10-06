@@ -328,6 +328,16 @@ impl WindowManager {
                 }
             }
 
+            // Flaga FLAG_NOT_PICK (1 << 9) - okno jest przezroczyste dla myszy
+            if (win.flags & (1 << 9)) != 0 {
+                return None;
+            }
+
+            // TextLine jest domyslnie przezroczysty dla klikniec myszy (pozwala klikac przycisk pod nim)
+            if win.window_type == WindowType::TextLine {
+                return None;
+            }
+
             // Sprawdz samo okno
             if mx >= gx && mx <= gx + gw && my >= gy && my <= gy + gh {
                 Some(handle)
@@ -383,8 +393,25 @@ impl WindowManager {
         }
     }
 
+    /// Pomocnik do bubbling zdarzen myszy w gore hierarchii (np. TextLine/ImageBox -> Button)
+    pub fn bubble_to_clickable(&self, handle: u32) -> u32 {
+        let mut curr = handle;
+        while let Some(win) = self.windows.get(&curr) {
+            if matches!(win.window_type, WindowType::Button | WindowType::RadioButton | WindowType::ToggleButton) {
+                return curr;
+            }
+            if let Some(p) = win.parent {
+                curr = p;
+            } else {
+                break;
+            }
+        }
+        handle
+    }
+
     pub fn handle_mouse_down(&mut self, mx: i32, my: i32, screen_w: i32, screen_h: i32) -> Option<u32> {
-        let hit = self.pick_window(mx, my, screen_w, screen_h)?;
+        let raw_hit = self.pick_window(mx, my, screen_w, screen_h)?;
+        let hit = self.bubble_to_clickable(raw_hit);
         self.capture_window = Some(hit);
         self.active_window = Some(hit);
         if let Some(win) = self.windows.get_mut(&hit) {
@@ -409,7 +436,7 @@ impl WindowManager {
     }
 
     pub fn handle_mouse_up(&mut self, mx: i32, my: i32, screen_w: i32, screen_h: i32) -> Option<u32> {
-        let hit = self.pick_window(mx, my, screen_w, screen_h);
+        let hit = self.pick_window(mx, my, screen_w, screen_h).map(|h| self.bubble_to_clickable(h));
         for win in self.windows.values_mut() {
             win.is_pressed = false;
         }
