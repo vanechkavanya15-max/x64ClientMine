@@ -345,54 +345,8 @@ void CPythonNetworkStream::__RecvCharacterUpdatePacket(SNetworkUpdateActorData *
 	}
 }
 
-bool CPythonNetworkStream::RecvCharacterDeletePacket()
-{
-	TPacketGCCharacterDelete chrDelPacket;
-
-	if (!Recv(sizeof(chrDelPacket), &chrDelPacket))
-	{
-		TraceError("CPythonNetworkStream::RecvCharacterDeletePacket - Recv Error");
-		return false;
-	}
-
-	m_rokNetActorMgr->RemoveActor(chrDelPacket.dwVID);
-
-	// 캐릭터가 사라질때 개인 상점도 없애줍니다.
-	// Key Check 를 하기때문에 없어도 상관은 없습니다.
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], 
-		"BINARY_PrivateShop_Disappear", 
-		Py_BuildValue("(i)", chrDelPacket.dwVID)
-	);
-
-	return true;
-}
-
-
-bool CPythonNetworkStream::RecvCharacterMovePacket()
-{
-	TPacketGCMove kMovePacket;
-	if (!Recv(sizeof(TPacketGCMove), &kMovePacket))
-	{
-		Tracen("CPythonNetworkStream::RecvCharacterMovePacket - PACKET READ ERROR");
-		return false;
-	}
-
-	__GlobalPositionToLocalPosition(kMovePacket.lX, kMovePacket.lY);
-
-	SNetworkMoveActorData kNetMoveActorData;
-	kNetMoveActorData.m_dwArg=kMovePacket.bArg;
-	kNetMoveActorData.m_dwFunc=kMovePacket.bFunc;
-	kNetMoveActorData.m_dwTime=kMovePacket.dwTime;
-	kNetMoveActorData.m_dwVID=kMovePacket.dwVID;
-	kNetMoveActorData.m_fRot=kMovePacket.bRot*5.0f;
-	kNetMoveActorData.m_lPosX=kMovePacket.lX;
-	kNetMoveActorData.m_lPosY=kMovePacket.lY;
-	kNetMoveActorData.m_dwDuration=kMovePacket.dwDuration;
-
-	m_rokNetActorMgr->MoveActor(kNetMoveActorData);
-
-	return true;
-}
+// RecvCharacterDeletePacket moved to Network/Handlers/ActorDelHandler.cpp
+// RecvCharacterMovePacket moved to Network/Handlers/RecvMoveHandler.cpp
 
 bool CPythonNetworkStream::__RecvCharacterAddBeavium()
 {
@@ -433,19 +387,7 @@ bool CPythonNetworkStream::__RecvCharacterAddBeavium()
 	return true;
 }
 
-bool CPythonNetworkStream::__RecvCharacterDelBeavium()
-{
-	Beavium::TPacketGCCharacterDelBeavium chrDelPacket;
-	if (!Recv(sizeof(chrDelPacket), &chrDelPacket))
-	{
-		TraceError("[BEAVIUM] RecvCharacterDel - PACKET READ ERROR");
-		return false;
-	}
-
-	m_rokNetActorMgr->RemoveActor(chrDelPacket.dwVID);
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_PrivateShop_Disappear", Py_BuildValue("(i)", chrDelPacket.dwVID));
-	return true;
-}
+// __RecvCharacterDelBeavium moved to Network/Handlers/ActorDelHandler.cpp
 
 bool CPythonNetworkStream::__RecvCharacterMoveBeavium()
 {

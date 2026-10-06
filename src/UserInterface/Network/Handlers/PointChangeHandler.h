@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-struct TPacketGCPointChange;
+#include "../../Packet.h"
 
 /**
  * @brief Class responsible for handling PointChange packets.

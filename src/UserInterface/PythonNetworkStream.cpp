@@ -753,14 +753,8 @@ CPythonNetworkStream::CPythonNetworkStream()
 	std::fill(m_apoPhaseWnd, m_apoPhaseWnd+PHASE_WINDOW_NUM, (PyObject*)NULL);
 	m_poSerCommandParserWnd = NULL;
 
-	// Register packet handlers for all phases
-	// Note: GameHandlers must be registered before LoadingHandlers (loading copies game handlers as fallback)
-	RegisterOfflineHandlers();
-	RegisterHandshakeHandlers();
-	RegisterLoginHandlers();
-	RegisterSelectHandlers();
-	RegisterGameHandlers();
-	RegisterLoadingHandlers();
+	// Multi-Server Profile Setup: Register handlers based on active profile (Official vs Beavium)
+	SetServerMode(Network::MultiServerManager::Instance().GetServerType());
 
 	SetOffLinePhase();
 }
@@ -884,27 +878,38 @@ void CPythonNetworkStream::OnConnectSuccess()
 {
 	CNetworkStream::OnConnectSuccess();
 
-	Tracef("[BEAVIUM] CPythonNetworkStream::OnConnectSuccess (phase=%s, loginKey64=0x%016llX, gameToken64=0x%016llX)\n",
-		m_strPhase.c_str(), (unsigned long long)m_loginKey64, (unsigned long long)m_gameToken64);
-
-	if ("Loading" == m_strPhase)
+	if (GetServerMode() == Network::ServerType::Beavium)
 	{
-		Beavium::TPacketCGLogin2Beavium loginPacket;
-		memset(&loginPacket, 0, sizeof(loginPacket));
-		loginPacket.header = Beavium::CG::LOGIN2; // 0x68
-		strncpy(loginPacket.username, m_stID.c_str(), sizeof(loginPacket.username) - 1);
-		loginPacket.nullByte = 0;
-		loginPacket.loginKey = m_gameToken64 != 0 ? m_gameToken64 : m_loginKey64;
-		memcpy(loginPacket.clientKey, Beavium::DefaultClientKey, 16);
+		Tracef("[BEAVIUM] CPythonNetworkStream::OnConnectSuccess (phase=%s, loginKey64=0x%016llX, gameToken64=0x%016llX)\n",
+			m_strPhase.c_str(), (unsigned long long)m_loginKey64, (unsigned long long)m_gameToken64);
 
-		Tracef("[BEAVIUM] Sending Login2 (0x68, 56B) to Game Server with token=0x%016llX\n",
-			(unsigned long long)loginPacket.loginKey);
-		Send(sizeof(loginPacket), &loginPacket);
-		__SendInternalBuffer();
+		if ("Loading" == m_strPhase)
+		{
+			Beavium::TPacketCGLogin2Beavium loginPacket;
+			memset(&loginPacket, 0, sizeof(loginPacket));
+			loginPacket.header = Beavium::CG::LOGIN2; // 0x68
+			strncpy(loginPacket.username, m_stID.c_str(), sizeof(loginPacket.username) - 1);
+			loginPacket.nullByte = 0;
+			loginPacket.loginKey = m_gameToken64 != 0 ? m_gameToken64 : m_loginKey64;
+			memcpy(loginPacket.clientKey, Beavium::DefaultClientKey, 16);
+
+			Tracef("[BEAVIUM] Sending Login2 (0x68, 56B) to Game Server with token=0x%016llX\n",
+				(unsigned long long)loginPacket.loginKey);
+			Send(sizeof(loginPacket), &loginPacket);
+			__SendInternalBuffer();
+		}
+		else if ("Login" == m_strPhase || m_strPhase.empty() || "OffLine" == m_strPhase)
+		{
+			SetLoginPhase();
+		}
 	}
-	else if ("Login" == m_strPhase || m_strPhase.empty() || "OffLine" == m_strPhase)
+	else
 	{
-		SetLoginPhase();
+		Tracef("[OFFICIAL] CPythonNetworkStream::OnConnectSuccess (phase=%s)\n", m_strPhase.c_str());
+		if ("Login" == m_strPhase || m_strPhase.empty() || "OffLine" == m_strPhase)
+		{
+			SetLoginPhase();
+		}
 	}
 }
 

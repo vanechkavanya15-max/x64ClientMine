@@ -57,6 +57,24 @@ bool CPythonNetworkStream::SendSelectCharacterPacket(BYTE Index)
 	if (Index >= PLAYER_PER_ACCOUNT4)
 		return false;
 
+	if (GetServerMode() != Network::ServerType::Beavium)
+	{
+		TPacketCGSelectCharacter SelectCharacterPacket;
+		SelectCharacterPacket.header = CG::CHARACTER_SELECT;
+		SelectCharacterPacket.length = sizeof(SelectCharacterPacket);
+		SelectCharacterPacket.player_index = Index;
+
+		Tracef("[OFFICIAL] Sending CharacterSelect (0x%04X, slot=%u)\n", SelectCharacterPacket.header, Index);
+
+		if (!Send(sizeof(TPacketCGSelectCharacter), &SelectCharacterPacket))
+		{
+			Tracen("SendSelectCharacterPacket - Error");
+			return false;
+		}
+
+		return true;
+	}
+
 	uint32_t charId = m_akSimplePlayerInfo[Index].dwID;
 	uint16_t port = m_akSimplePlayerInfo[Index].wPort;
 	if (port == 0)

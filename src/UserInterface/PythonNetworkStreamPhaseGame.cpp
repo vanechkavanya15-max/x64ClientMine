@@ -519,63 +519,7 @@ bool CPythonNetworkStream::RecvDuelStartPacket()
 	return true;
 }
 
-bool CPythonNetworkStream::RecvPVPPacket()
-{
-	TPacketGCPVP kPVPPacket;
-	if (!Recv(sizeof(kPVPPacket), &kPVPPacket))
-		return false;
-
-	CPythonCharacterManager & rkChrMgr = CPythonCharacterManager::Instance();
-	CPythonPlayer & rkPlayer = CPythonPlayer::Instance();
-
-	switch (kPVPPacket.bMode)
-	{
-		case PVP_MODE_AGREE:
-			rkChrMgr.RemovePVPKey(kPVPPacket.dwVIDSrc, kPVPPacket.dwVIDDst);
-
-			// 상대가 나(Dst)에게 동의를 구했을때
-			if (rkPlayer.IsMainCharacterIndex(kPVPPacket.dwVIDDst))
-				rkPlayer.RememberChallengeInstance(kPVPPacket.dwVIDSrc);
-
-			// 상대에게 동의를 구한 동안에는 대결 불능
-			if (rkPlayer.IsMainCharacterIndex(kPVPPacket.dwVIDSrc))
-				rkPlayer.RememberCantFightInstance(kPVPPacket.dwVIDDst);
-			break;
-		case PVP_MODE_REVENGE:
-		{
-			rkChrMgr.RemovePVPKey(kPVPPacket.dwVIDSrc, kPVPPacket.dwVIDDst);
-
-			DWORD dwKiller = kPVPPacket.dwVIDSrc;
-			DWORD dwVictim = kPVPPacket.dwVIDDst;
-
-			// 내(victim)가 상대에게 복수할 수 있을때
-			if (rkPlayer.IsMainCharacterIndex(dwVictim))
-				rkPlayer.RememberRevengeInstance(dwKiller);
-
-			// 상대(victim)가 나에게 복수하는 동안에는 대결 불능
-			if (rkPlayer.IsMainCharacterIndex(dwKiller))
-				rkPlayer.RememberCantFightInstance(dwVictim);
-			break;
-		}
-
-		case PVP_MODE_FIGHT:
-			rkChrMgr.InsertPVPKey(kPVPPacket.dwVIDSrc, kPVPPacket.dwVIDDst);
-			rkPlayer.ForgetInstance(kPVPPacket.dwVIDSrc);
-			rkPlayer.ForgetInstance(kPVPPacket.dwVIDDst);
-			break;
-		case PVP_MODE_NONE:
-			rkChrMgr.RemovePVPKey(kPVPPacket.dwVIDSrc, kPVPPacket.dwVIDDst);
-			rkPlayer.ForgetInstance(kPVPPacket.dwVIDSrc);
-			rkPlayer.ForgetInstance(kPVPPacket.dwVIDDst);
-			break;
-	}
-
-	// NOTE : PVP 토글시 TargetBoard 를 업데이트 합니다.
-	__RefreshTargetBoardByVID(kPVPPacket.dwVIDSrc);
-	__RefreshTargetBoardByVID(kPVPPacket.dwVIDDst);
-
-	return true;
-}
+// RecvPVPPacket moved to Network/Handlers/PvpHandler.cpp
 
 // DELETEME
 /*
@@ -671,44 +615,107 @@ bool CPythonNetworkStream::SendCharacterStatePacket(const TPixelPosition& c_rkPP
 	else if (fDstRot > 360.0f)
 		fDstRot = fmodf(fDstRot, 360.0f);
 
-	int32_t lX = static_cast<int32_t>(c_rkPPosDst.x);
-	int32_t lY = static_cast<int32_t>(c_rkPPosDst.y);
-	__LocalPositionToGlobalPosition(lX, lY);
-
-	Beavium::TPacketCGMoveBeavium kMovePacket;
-	memset(&kMovePacket, 0, sizeof(kMovePacket));
-	kMovePacket.header = Beavium::CG::MOVE; // 0x07
-	kMovePacket.bFunc = static_cast<uint8_t>(eFunc);
-	kMovePacket.wArg = static_cast<uint16_t>(uArg);
-	kMovePacket.dwRot = Beavium::EncodeRotationMicrodegrees(fDstRot);
-	kMovePacket.lX = lX;
-	kMovePacket.lY = lY;
-	kMovePacket.dwTime = ELTimer_GetServerMSec();
-	kMovePacket.dwExtra = 0;
-
-	if (!Send(sizeof(kMovePacket), &kMovePacket))
+	if (GetServerMode() == Network::ServerType::Beavium)
 	{
-		Tracenf("[BEAVIUM] SendCharacterStatePacket error (x=%d, y=%d, rot=%f)", lX, lY, fDstRot);
-		return false;
-	}
+		int32_t lX = static_cast<int32_t>(c_rkPPosDst.x);
+		int32_t lY = static_cast<int32_t>(c_rkPPosDst.y);
+		__LocalPositionToGlobalPosition(lX, lY);
 
-	return true;
+		Beavium::TPacketCGMoveBeavium kMovePacket;
+		memset(&kMovePacket, 0, sizeof(kMovePacket));
+		kMovePacket.header = Beavium::CG::MOVE; // 0x07
+		kMovePacket.bFunc = static_cast<uint8_t>(eFunc);
+		kMovePacket.wArg = static_cast<uint16_t>(uArg);
+		kMovePacket.dwRot = Beavium::EncodeRotationMicrodegrees(fDstRot);
+		kMovePacket.lX = lX;
+		kMovePacket.lY = lY;
+		kMovePacket.dwTime = ELTimer_GetServerMSec();
+		kMovePacket.dwExtra = 0;
+
+		if (!Send(sizeof(kMovePacket), &kMovePacket))
+		{
+			Tracenf("[BEAVIUM] SendCharacterStatePacket error (x=%d, y=%d, rot=%f)", lX, lY, fDstRot);
+			return false;
+		}
+
+		return true;
+	}
+	else
+	{
+		TPacketCGMove kStatePacket;
+		kStatePacket.header = CG::MOVE;
+		kStatePacket.length = sizeof(kStatePacket);
+		kStatePacket.bFunc = eFunc;
+		kStatePacket.bArg = uArg;
+		kStatePacket.bRot = fDstRot / 5.0f;
+		kStatePacket.lX = static_cast<int32_t>(c_rkPPosDst.x);
+		kStatePacket.lY = static_cast<int32_t>(c_rkPPosDst.y);
+		kStatePacket.dwTime = ELTimer_GetServerMSec();
+
+		if (!Send(sizeof(kStatePacket), &kStatePacket))
+		{
+			Tracen("[OFFICIAL] Send Game - State Packet Error");
+			return false;
+		}
+
+		__SendInternalBuffer();
+		return true;
+	}
 }
 
 bool CPythonNetworkStream::SendUseSkillPacket(DWORD dwSkillIndex, DWORD dwTargetVID)
 {
-	Beavium::TPacketCGUseSkillBeavium pkt;
-	pkt.header = Beavium::CG::USE_SKILL; // 0x34
-	pkt.skillVnum = dwSkillIndex;
-	pkt.targetVid = dwTargetVID;
-
-	if (!Send(sizeof(pkt), &pkt))
+	if (GetServerMode() == Network::ServerType::Beavium)
 	{
-		Tracen("CPythonNetworkStream::SendUseSkillPacket - SEND PACKET ERROR");
-		return false;
-	}
+		Beavium::TPacketCGUseSkillBeavium pkt;
+		pkt.header = Beavium::CG::USE_SKILL; // 0x34
+		pkt.skillVnum = dwSkillIndex;
+		pkt.targetVid = dwTargetVID;
 
-	return true;
+		if (!Send(sizeof(pkt), &pkt))
+		{
+			Tracen("CPythonNetworkStream::SendUseSkillPacket - SEND PACKET ERROR");
+			return false;
+		}
+
+		return true;
+	}
+	else
+	{
+		TPacketCGUseSkill UseSkillPacket;
+		UseSkillPacket.header = CG::USE_SKILL;
+		UseSkillPacket.length = sizeof(UseSkillPacket);
+		UseSkillPacket.dwVnum = dwSkillIndex;
+		UseSkillPacket.dwTargetVID = dwTargetVID;
+
+		if (dwTargetVID)
+		{
+			CPythonCharacterManager& rpcm = CPythonCharacterManager::Instance();
+			CInstanceBase* pTarget = rpcm.GetInstancePtr(dwTargetVID);
+			if (pTarget)
+			{
+				TPixelPosition kPos;
+				pTarget->NEW_GetPixelPosition(&kPos);
+				SendFlyTargetingPacket(dwTargetVID, kPos);
+			}
+			else
+			{
+				TPixelPosition kPos;
+				kPos.x = 0;
+				kPos.y = 0;
+				kPos.z = 0;
+				SendFlyTargetingPacket(0, kPos);
+			}
+		}
+
+		if (!Send(sizeof(UseSkillPacket), &UseSkillPacket))
+		{
+			Tracen("CPythonNetworkStream::SendUseSkillPacket - SEND PACKET ERROR");
+			return false;
+		}
+
+		return true;
+	}
 }
 
 bool CPythonNetworkStream::SendChatPacket(const char * c_szChat, BYTE byType)
@@ -2149,21 +2156,7 @@ bool CPythonNetworkStream::SendAnswerMakeGuildPacket(const char * c_szName)
 	return true;
 }
 
-bool CPythonNetworkStream::SendQuestInputStringPacket(const char * c_szString)
-{
-	TPacketCGQuestInputString Packet;
-	Packet.header = CG::QUEST_INPUT_STRING;
-	Packet.length = sizeof(Packet);
-	strncpy(Packet.szString, c_szString, QUEST_INPUT_STRING_MAX_NUM);
-
-	if (!Send(sizeof(Packet), &Packet))
-	{
-		Tracen("SendQuestInputStringPacket Error");
-		return false;
-	}
-
-	return true;
-}
+// SendQuestInputStringPacket moved to Network/Handlers/QuestInputStringHandler.cpp
 
 bool CPythonNetworkStream::SendQuestConfirmPacket(BYTE byAnswer, DWORD dwPID)
 {
@@ -2368,25 +2361,7 @@ bool CPythonNetworkStream::RecvMountPacket()
 	return true;
 }
 
-bool CPythonNetworkStream::RecvChangeSpeedPacket()
-{
-	TPacketGCChangeSpeed SpeedPacket;
-
-	if (!Recv(sizeof(TPacketGCChangeSpeed), &SpeedPacket))
-	{
-		Tracen("Recv Speed Packet Error");
-		return false;
-	}
-
-	CInstanceBase * pInstance = CPythonCharacterManager::Instance().GetInstancePtr(SpeedPacket.vid);
-
-	if (!pInstance)
-		return true;
-
-//	pInstance->SetWalkSpeed(SpeedPacket.walking_speed);
-//	pInstance->SetRunSpeed(SpeedPacket.running_speed);
-	return true;
-}
+// RecvChangeSpeedPacket moved to Network/Handlers/ChangeSpeedHandler.cpp
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Recv
@@ -2396,33 +2371,55 @@ bool CPythonNetworkStream::SendAttackPacket(UINT uMotAttack, DWORD dwVIDVictim)
 	if (!__CanActMainInstance())
 		return true;
 
-	m_wAttackSeq = (m_wAttackSeq + 1) & 0xFFFF;
-	if (m_wAttackSeq == 0)
-		m_wAttackSeq = 1;
-
-	Beavium::TPacketCGAttackBeavium kPacketAtk;
-	memset(&kPacketAtk, 0, sizeof(kPacketAtk));
-	kPacketAtk.header = Beavium::CG::ATTACK; // 0x02
-	kPacketAtk.attackType = 0; // standard weapon attack
-	kPacketAtk.dwVictimVID = dwVIDVictim;
-	kPacketAtk.wSeq = m_wAttackSeq;
-
-	if (!Send(sizeof(kPacketAtk), &kPacketAtk))
+	if (GetServerMode() == Network::ServerType::Beavium)
 	{
-		Tracen("[BEAVIUM] Send Battle Attack Packet Error");
-		return false;
-	}
+		m_wAttackSeq = (m_wAttackSeq + 1) & 0xFFFF;
+		if (m_wAttackSeq == 0)
+			m_wAttackSeq = 1;
 
-	if (uMotAttack > 0)
+		Beavium::TPacketCGAttackBeavium kPacketAtk;
+		memset(&kPacketAtk, 0, sizeof(kPacketAtk));
+		kPacketAtk.header = Beavium::CG::ATTACK; // 0x02
+		kPacketAtk.attackType = 0; // standard weapon attack
+		kPacketAtk.dwVictimVID = dwVIDVictim;
+		kPacketAtk.wSeq = m_wAttackSeq;
+
+		if (!Send(sizeof(kPacketAtk), &kPacketAtk))
+		{
+			Tracen("[BEAVIUM] Send Battle Attack Packet Error");
+			return false;
+		}
+
+		if (uMotAttack > 0)
+		{
+			Beavium::TPacketCGAttackAltBeavium kPacketAlt;
+			kPacketAlt.header = Beavium::CG::ATTACK_ALT; // 0x1D
+			kPacketAlt.dwVictimVID = dwVIDVictim;
+			kPacketAlt.uMotAttack = uMotAttack;
+			Send(sizeof(kPacketAlt), &kPacketAlt);
+		}
+
+		return true;
+	}
+	else
 	{
-		Beavium::TPacketCGAttackAltBeavium kPacketAlt;
-		kPacketAlt.header = Beavium::CG::ATTACK_ALT; // 0x1D
-		kPacketAlt.dwVictimVID = dwVIDVictim;
-		kPacketAlt.uMotAttack = uMotAttack;
-		Send(sizeof(kPacketAlt), &kPacketAlt);
-	}
+		TPacketCGAttack kPacketAtk;
+		kPacketAtk.header = CG::ATTACK;
+		kPacketAtk.length = sizeof(kPacketAtk);
+		kPacketAtk.bType = uMotAttack;
+		kPacketAtk.dwVictimVID = dwVIDVictim;
 
-	return true;
+		Tracef("[OFFICIAL] Sending Battle Attack Packet (0x%04X, victim=%u)\n", kPacketAtk.header, dwVIDVictim);
+
+		if (!Send(sizeof(kPacketAtk), &kPacketAtk))
+		{
+			Tracen("[OFFICIAL] Send Battle Attack Packet Error");
+			return false;
+		}
+
+		__SendInternalBuffer();
+		return true;
+	}
 }
 
 bool CPythonNetworkStream::SendSpecial(int nLen, void * pvBuf)
@@ -4119,35 +4116,7 @@ bool CPythonNetworkStream::RecvRefineInformationPacketNew()
 	return true;
 }
 
-bool CPythonNetworkStream::RecvNPCList()
-{
-	TPacketGCNPCPosition kNPCPosition;
-	if (!Recv(sizeof(kNPCPosition), &kNPCPosition))
-		return false;
-
-	assert(int(kNPCPosition.length)-sizeof(kNPCPosition) == kNPCPosition.count*sizeof(TNPCPosition) && "GC::NPC_POSITION");
-
-	CPythonMiniMap::Instance().ClearAtlasMarkInfo();
-
-	for (int i = 0; i < kNPCPosition.count; ++i)
-	{
-		TNPCPosition NPCPosition;
-		if (!Recv(sizeof(TNPCPosition), &NPCPosition))
-			return false;
-
-		const char* c_szName = nullptr;
-		if (CPythonNonPlayer::Instance().GetName(NPCPosition.dwVnum, &c_szName))
-		{
-			CPythonMiniMap::Instance().RegisterAtlasMark(NPCPosition.bType, c_szName, NPCPosition.x, NPCPosition.y);
-		}
-		else
-		{
-			CPythonMiniMap::Instance().RegisterAtlasMark(NPCPosition.bType, NPCPosition.name, NPCPosition.x, NPCPosition.y);
-		}
-	}
-
-	return true;
-}
+// RecvNPCList moved to Network/Handlers/NpcPositionHandler.cpp
 
 bool CPythonNetworkStream::__SendCRCReportPacket()
 {
@@ -4200,16 +4169,7 @@ bool CPythonNetworkStream::RecvAffectAddPacket()
 	return true;
 }
 
-bool CPythonNetworkStream::RecvAffectRemovePacket()
-{
-	TPacketGCAffectRemove kAffectRemove;
-	if (!Recv(sizeof(kAffectRemove), &kAffectRemove))
-		return false;
-
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_NEW_RemoveAffect", Py_BuildValue("(ii)", kAffectRemove.dwType, kAffectRemove.bApplyOn));
-
-	return true;
-}
+// RecvAffectRemovePacket moved to Network/Handlers/AffectRemoveHandler.cpp
 
 bool CPythonNetworkStream::RecvChannelPacket()
 {

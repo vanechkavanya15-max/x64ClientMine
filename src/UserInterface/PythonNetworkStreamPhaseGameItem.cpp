@@ -121,17 +121,7 @@ bool CPythonNetworkStream::RecvSafeBoxWrongPasswordPacket()
 	return true;
 }
 
-bool CPythonNetworkStream::RecvSafeBoxSizePacket()
-{
-	TPacketGCSafeboxSize kSafeBoxSize;
-	if (!Recv(sizeof(kSafeBoxSize), &kSafeBoxSize))
-		return false;
-
-	CPythonSafeBox::Instance().OpenSafeBox(kSafeBoxSize.bSize);
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "OpenSafeboxWindow", Py_BuildValue("(i)", kSafeBoxSize.bSize));
-
-	return true;
-}
+// RecvSafeBoxSizePacket moved to Network/Handlers/SafeBoxSizeHandler.cpp
 
 bool CPythonNetworkStream::RecvSafeBoxMoneyChangePacket()
 {

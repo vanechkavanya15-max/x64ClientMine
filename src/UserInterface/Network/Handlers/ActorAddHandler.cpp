@@ -1,5 +1,4 @@
 #include "../../StdAfx.h"
-#include "StdAfx.h"
 #include "ActorAddHandler.h"
 #include "../../NetworkActorManager.h"
 #include "../../PythonNonPlayer.h"

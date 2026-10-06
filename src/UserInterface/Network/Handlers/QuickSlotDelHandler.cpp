@@ -1,6 +1,7 @@
 #include "../../StdAfx.h"
-#include "UserInterface/Network/Handlers/QuickSlotDelHandler.h"
-#include "UserInterface/AbstractPlayer.h"
+#include "QuickSlotDelHandler.h"
+#include "../../AbstractPlayer.h"
+#include "../../Packet.h"
 
 /**
  * @brief Processes QuickSlotDel network payload, updating the local C++ state.

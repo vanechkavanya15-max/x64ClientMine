@@ -20,7 +20,8 @@ namespace Network::Handlers
         if (victimInstance)
         {
             // Aktualizacja wizualna i logiczna efektu uderzenia/obrazen
-            victimInstance->AddDamage(packet->damageValue, packet->damageFlag);
+            bool bSelf = (victimInstance == charMgr.GetMainInstancePtr());
+            victimInstance->AddDamageEffect(packet->damageValue, packet->damageFlag, bSelf, false);
         }
 
         return true;

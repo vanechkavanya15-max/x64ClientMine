@@ -1,5 +1,4 @@
 #include "../../StdAfx.h"
-#include "StdAfx.h"
 #include "../../PythonNetworkStream.h"
 #include "../../PythonCharacterManager.h"
 #include "../../InstanceBase.h"
@@ -33,7 +32,6 @@ bool CPythonNetworkStream::RecvChangeSpeedPacket()
 	}
 
 	instance->SetMoveSpeed(speedPacket.moving_speed);
-	instance->SetAttackSpeed(speedPacket.attack_speed);
 	
 	return true;
 }

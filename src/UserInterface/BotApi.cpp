@@ -46,44 +46,39 @@ public:
     }
 
     void MoveTo(float targetX, float targetY) override {
-        // Oblicz kierunek i wyslij pakiet ruchu przez CPythonNetworkStream
         TPixelPosition myPos;
         CPythonPlayer::Instance().NEW_GetMainActorPosition(&myPos);
         
         float dirAngle = std::atan2(targetY - myPos.y, targetX - myPos.x) * (180.0f / 3.14159265f);
         if (dirAngle < 0.0f) dirAngle += 360.0f;
 
-        CPythonNetworkStream::Instance().SendCharacterMovePacket(
-            static_cast<long>(targetX), 
-            static_cast<long>(targetY), 
-            dirAngle
-        );
+        TPixelPosition dstPos;
+        dstPos.x = targetX;
+        dstPos.y = targetY;
+        dstPos.z = myPos.z;
+        CPythonNetworkStream::Instance().SendCharacterStatePacket(dstPos, dirAngle, 2, 0);
     }
 
     void StopMovement() override {
         TPixelPosition myPos;
         CPythonPlayer::Instance().NEW_GetMainActorPosition(&myPos);
-        CPythonNetworkStream::Instance().SendCharacterMovePacket(
-            static_cast<long>(myPos.x), 
-            static_cast<long>(myPos.y), 
-            0.0f
-        );
+        CPythonNetworkStream::Instance().SendCharacterStatePacket(myPos, 0.0f, 0, 0);
     }
 
     void AttackVid(uint32_t vid) override {
         CPythonPlayer::Instance().SetTarget(vid);
-        CPythonPlayer::Instance().SendBattleAttackPacket();
+        CPythonNetworkStream::Instance().SendAttackPacket(0, vid);
     }
 
     void UseSkill(uint32_t skillIndex, uint32_t targetVid) override {
         if (targetVid != 0) {
             CPythonPlayer::Instance().SetTarget(targetVid);
         }
-        CPythonPlayer::Instance().SendUseSkillPacket(skillIndex, targetVid);
+        CPythonNetworkStream::Instance().SendUseSkillPacket(skillIndex, targetVid);
     }
 
     void ClickNpc(uint32_t npcVid) override {
-        CPythonPlayer::Instance().SendOnClickPacket(npcVid);
+        CPythonNetworkStream::Instance().SendOnClickPacket(npcVid);
     }
 
     std::vector<EntityTarget> GetNearbyMonsters(float radius) const override {
@@ -177,7 +172,16 @@ public:
     }
 
     void DropItemBySlot(uint16_t slotIndex, uint32_t count) override {
-        CPythonNetworkStream::Instance().SendItemDropPacketNew(TItemPos(INVENTORY, slotIndex), count);
+        CPythonNetworkStream::Instance().SendItemDropPacketNew(TItemPos(INVENTORY, slotIndex), 0, count);
+    }
+
+    void SetServerMode(uint8_t mode) override {
+        Network::ServerType st = (mode == 1) ? Network::ServerType::Beavium : Network::ServerType::Official;
+        CPythonNetworkStream::Instance().SetServerMode(st);
+    }
+
+    uint8_t GetServerMode() const override {
+        return static_cast<uint8_t>(CPythonNetworkStream::Instance().GetServerMode());
     }
 };
 

@@ -1,5 +1,4 @@
 #include "../../StdAfx.h"
-#include "StdAfx.h"
 #include "FlyTargetingHandler.h"
 #include "../../PythonCharacterManager.h"
 #include "../../PythonBackground.h"
@@ -18,7 +17,7 @@ bool FlyTargetingHandler::HandleReceiveFlyTargeting(std::span<const uint8_t> buf
 
     int32_t localX = packet->x;
     int32_t localY = packet->y;
-    __GlobalPositionToLocalPosition(localX, localY);
+    CPythonBackground::Instance().GlobalPositionToLocalPosition(localX, localY);
 
     auto& charMgr = CPythonCharacterManager::Instance();
     CInstanceBase* shooter = charMgr.GetInstancePtr(packet->shooterId);
@@ -48,7 +47,7 @@ bool FlyTargetingHandler::HandleReceiveAddFlyTargeting(std::span<const uint8_t> 
 
     int32_t localX = packet->x;
     int32_t localY = packet->y;
-    __GlobalPositionToLocalPosition(localX, localY);
+    CPythonBackground::Instance().GlobalPositionToLocalPosition(localX, localY);
 
     auto& charMgr = CPythonCharacterManager::Instance();
     CInstanceBase* shooter = charMgr.GetInstancePtr(packet->shooterId);
@@ -99,7 +98,7 @@ FlyTargetingPacketClient FlyTargetingHandler::BuildSendFlyTargeting(uint32_t tar
     packet.x = x;
     packet.y = y;
 
-    __LocalPositionToGlobalPosition(packet.x, packet.y);
+    CPythonBackground::Instance().LocalPositionToGlobalPosition(packet.x, packet.y);
 
     return packet;
 }
@@ -112,7 +111,7 @@ FlyTargetingPacketClient FlyTargetingHandler::BuildSendAddFlyTargeting(uint32_t 
     packet.x = x;
     packet.y = y;
 
-    __LocalPositionToGlobalPosition(packet.x, packet.y);
+    CPythonBackground::Instance().LocalPositionToGlobalPosition(packet.x, packet.y);
 
     return packet;
 }

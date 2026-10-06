@@ -146,26 +146,50 @@ bool CPythonNetworkStream::__RecvLoginFailurePacket()
 
 bool CPythonNetworkStream::SendLoginPacketNew(const char * c_szName, const char * c_szPassword)
 {
-	Beavium::TPacketCGLogin2Beavium LoginPacket;
-	memset(&LoginPacket, 0, sizeof(LoginPacket));
-	LoginPacket.header = Beavium::CG::LOGIN2; // 0x68
-	strncpy(LoginPacket.username, c_szName, sizeof(LoginPacket.username) - 1);
-	LoginPacket.nullByte = 0;
-	LoginPacket.loginKey = m_loginKey64 != 0 ? m_loginKey64 : m_dwLoginKey;
-	memcpy(LoginPacket.clientKey, Beavium::DefaultClientKey, 16);
-
-	Tracef("[BEAVIUM] Sending Login2 (0x68, 56B): user='%s', loginKey=0x%016llX\n",
-		LoginPacket.username, (unsigned long long)LoginPacket.loginKey);
-
-	if (!Send(sizeof(LoginPacket), &LoginPacket))
+	if (GetServerMode() == Network::ServerType::Beavium)
 	{
-		Tracen("SendLogin Error");
-		return false;
+		Beavium::TPacketCGLogin2Beavium LoginPacket;
+		memset(&LoginPacket, 0, sizeof(LoginPacket));
+		LoginPacket.header = Beavium::CG::LOGIN2; // 0x68
+		strncpy(LoginPacket.username, c_szName, sizeof(LoginPacket.username) - 1);
+		LoginPacket.nullByte = 0;
+		LoginPacket.loginKey = m_loginKey64 != 0 ? m_loginKey64 : m_dwLoginKey;
+		memcpy(LoginPacket.clientKey, Beavium::DefaultClientKey, 16);
+
+		Tracef("[BEAVIUM] Sending Login2 (0x68, 56B): user='%s', loginKey=0x%016llX\n",
+			LoginPacket.username, (unsigned long long)LoginPacket.loginKey);
+
+		if (!Send(sizeof(LoginPacket), &LoginPacket))
+		{
+			Tracen("SendLogin Error");
+			return false;
+		}
+
+		__SendInternalBuffer();
+		return true;
 	}
+	else
+	{
+		TPacketCGLogin2 LoginPacket;
+		LoginPacket.header = CG::LOGIN2;
+		LoginPacket.length = sizeof(LoginPacket);
+		LoginPacket.login_key = m_dwLoginKey;
 
-	__SendInternalBuffer();
+		strncpy(LoginPacket.name, c_szName, sizeof(LoginPacket.name) - 1);
+		LoginPacket.name[ID_MAX_NUM] = '\0';
 
-	return true;
+		Tracef("[OFFICIAL] Sending Login2 (0x%04X, %zuB): user='%s', loginKey=%u\n",
+			LoginPacket.header, sizeof(LoginPacket), LoginPacket.name, LoginPacket.login_key);
+
+		if (!Send(sizeof(LoginPacket), &LoginPacket))
+		{
+			Tracen("SendLogin Error");
+			return false;
+		}
+
+		__SendInternalBuffer();
+		return true;
+	}
 }
 
 bool CPythonNetworkStream::__RecvLoginKeyPacket()

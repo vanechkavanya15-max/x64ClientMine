@@ -10,6 +10,8 @@
 
 #include "packet.h"
 #include "BeaviumProtocol.h"
+#include "Network/ServerType.h"
+#include "Network/MultiServerManager.h"
 
 class CInstanceBase;
 class CNetworkActorManager;
@@ -152,6 +154,12 @@ class CPythonNetworkStream : public CNetworkStream, public CSingleton<CPythonNet
 		void SetPhaseWindow(UINT ePhaseWnd, PyObject* poPhaseWnd);
 		void ClearPhaseWindow(UINT ePhaseWnd, PyObject* poPhaseWnd);
 		void SetServerCommandParserWindow(PyObject* poPhaseWnd);
+
+		// Multi-Server Architecture (Official x64 & Beavium x64)
+		void SetServerMode(Network::ServerType type);
+		Network::ServerType GetServerMode() const;
+		void RegisterOfficialHandlers();
+		void RegisterBeaviumHandlers();
 
 		bool SendSyncPositionElementPacket(DWORD dwVictimVID, DWORD dwVictimX, DWORD dwVictimY);
 
@@ -302,6 +310,12 @@ class CPythonNetworkStream : public CNetworkStream, public CSingleton<CPythonNet
 	// Phase 관련
 	//////////////////////////////////////////////////////////////////////////
 	public:
+		const std::string& GetPhase() const { return m_strPhase; }
+		void __GlobalPositionToLocalPosition(int32_t& rGlobalX, int32_t& rGlobalY);
+		void __LocalPositionToGlobalPosition(int32_t& rLocalX, int32_t& rLocalY);
+		void __GlobalPositionToLocalPosition(uint32_t& rGlobalX, uint32_t& rGlobalY);
+		void __LocalPositionToGlobalPosition(uint32_t& rLocalX, uint32_t& rLocalY);
+
 		void SetOffLinePhase();
 		void SetHandShakePhase();
 		void SetLoginPhase();
@@ -667,11 +681,6 @@ class CPythonNetworkStream : public CNetworkStream, public CSingleton<CPythonNet
 
 		void __InitializeGamePhase();
 		void __InitializeMarkAuth();
-		void __GlobalPositionToLocalPosition(int32_t& rGlobalX, int32_t& rGlobalY);
-		void __LocalPositionToGlobalPosition(int32_t& rLocalX, int32_t& rLocalY);
-
-		void __GlobalPositionToLocalPosition(uint32_t& rGlobalX, uint32_t& rGlobalY);
-		void __LocalPositionToGlobalPosition(uint32_t& rLocalX, uint32_t& rLocalY);
 
 		bool __IsPlayerAttacking();
 		bool __IsEquipItemInSlot(TItemPos Cell);

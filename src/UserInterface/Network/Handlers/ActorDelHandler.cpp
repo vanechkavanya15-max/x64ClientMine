@@ -1,5 +1,4 @@
 #include "../../StdAfx.h"
-#include "StdAfx.h"
 #include "../../PythonNetworkStream.h"
 #include "../../NetworkActorManager.h"
 #include <cstdint>
@@ -21,7 +20,7 @@ bool CPythonNetworkStream::RecvCharacterDeletePacket()
     uint32_t targetId = packet.dwVID;
 
     // Remove from C++ Subsystem
-    if (m_rokNetActorMgr)
+    if (!m_rokNetActorMgr.IsNull())
     {
         m_rokNetActorMgr->RemoveActor(targetId);
     }
@@ -49,7 +48,7 @@ bool CPythonNetworkStream::__RecvCharacterDelBeavium()
     uint32_t targetId = packet.dwVID;
 
     // Remove from C++ Subsystem
-    if (m_rokNetActorMgr)
+    if (!m_rokNetActorMgr.IsNull())
     {
         m_rokNetActorMgr->RemoveActor(targetId);
     }

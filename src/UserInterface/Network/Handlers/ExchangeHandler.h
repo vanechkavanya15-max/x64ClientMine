@@ -7,8 +7,7 @@
 
 #include <cstdint>
 
-// Forward declaration
-struct TPacketGCExchange;
+#include "../../Packet.h"
 
 /**
  * @class ExchangeHandler

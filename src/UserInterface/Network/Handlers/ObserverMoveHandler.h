@@ -5,19 +5,7 @@
 
 class CPythonNetworkStream;
 
-#pragma pack(push, 1)
-/**
- * @brief Strictly aligned packet structure for OBSERVER_MOVE network packet
- */
-struct TPacketGCObserverMove
-{
-    uint16_t header;
-    uint16_t length;
-    uint32_t id;
-    uint16_t x;
-    uint16_t y;
-};
-#pragma pack(pop)
+#include "../../Packet.h"
 
 /**
  * @brief Handler for network packets related to observer movement

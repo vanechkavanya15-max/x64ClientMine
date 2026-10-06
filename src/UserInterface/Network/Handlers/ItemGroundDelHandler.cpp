@@ -14,7 +14,7 @@ namespace Network::Handlers
         const auto* packet = reinterpret_cast<const PacketItemGroundDel*>(buffer.data());
 
         // Usuniecie przedmiotu ze swiata gry
-        CPythonItem::Instance().DeleteItemGroundInstance(packet->itemVid);
+        CPythonItem::Instance().DeleteItem(packet->itemVid);
 
         return true;
     }

@@ -1,11 +1,7 @@
 #include "../../StdAfx.h"
 #include "PingHandler.h"
 
-// Forward declarations for external ELTimer functions
-extern "C" {
-    uint32_t ELTimer_GetMSec();
-    void ELTimer_SetServerMSec(uint32_t serverTime);
-}
+#include <EterBase/Timer.h>
 
 bool PingHandler::HandlePing(INetworkStream& stream, uint32_t& lastPingTime)
 {

@@ -4,6 +4,7 @@
 #include "PythonExceptionSender.h"
 #include "resource.h"
 #include "Version.h"
+#include "Network/MultiServerManager.h"
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -297,6 +298,24 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	int nArgc = 0;
 	auto szArgv = CommandLineToArgv (lpCmdLine, &nArgc);
+
+	// Multi-Server Profile CLI Switch (--server official / --server beavium)
+	for (int i = 0; i < nArgc; ++i)
+	{
+		if ((strcmp(szArgv[i], "--server") == 0 || strcmp(szArgv[i], "-s") == 0) && i + 1 < nArgc)
+		{
+			if (strcmp(szArgv[i + 1], "beavium") == 0)
+			{
+				Network::MultiServerManager::Instance().SetServerType(Network::ServerType::Beavium);
+				Tracef("[CLI] Configured Server Mode: Beavium (x64)\n");
+			}
+			else if (strcmp(szArgv[i + 1], "official") == 0)
+			{
+				Network::MultiServerManager::Instance().SetServerType(Network::ServerType::Official);
+				Tracef("[CLI] Configured Server Mode: Official (x64)\n");
+			}
+		}
+	}
 
 	Main (hInstance, lpCmdLine);
 	::CoUninitialize();

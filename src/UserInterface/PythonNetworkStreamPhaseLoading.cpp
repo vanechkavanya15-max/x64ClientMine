@@ -221,19 +221,37 @@ void CPythonNetworkStream::StartGame()
 
 bool CPythonNetworkStream::SendEnterGame()
 {
-	if (m_bEnterGameSent)
+	if (GetServerMode() == Network::ServerType::Beavium)
 	{
-		Tracef("[BEAVIUM] SendEnterGame: 0x0A already sent, skipping duplicate.\n");
+		if (m_bEnterGameSent)
+		{
+			Tracef("[BEAVIUM] SendEnterGame: 0x0A already sent, skipping duplicate.\n");
+			return true;
+		}
+
+		Beavium::TPacketCGEnterGameBeavium egPkt;
+		egPkt.header = Beavium::CG::ENTERGAME; // 0x0A
+		Tracef("[BEAVIUM] SendEnterGame: sending 0x0A (1B) to Game Server\n");
+		if (!Send(sizeof(egPkt), &egPkt))
+			return false;
+
+		__SendInternalBuffer();
+		m_bEnterGameSent = true;
 		return true;
 	}
+	else
+	{
+		TPacketCGEnterFrontGame EnterFrontGamePacket;
+		EnterFrontGamePacket.header = CG::ENTERGAME;
+		EnterFrontGamePacket.length = sizeof(EnterFrontGamePacket);
 
-	Beavium::TPacketCGEnterGameBeavium egPkt;
-	egPkt.header = Beavium::CG::ENTERGAME; // 0x0A
-	Tracef("[BEAVIUM] SendEnterGame: sending 0x0A (1B) to Game Server\n");
-	if (!Send(sizeof(egPkt), &egPkt))
-		return false;
+		Tracef("[OFFICIAL] SendEnterGame: sending 0x%04X (%zuB) to Game Server\n",
+			EnterFrontGamePacket.header, sizeof(EnterFrontGamePacket));
 
-	__SendInternalBuffer();
-	m_bEnterGameSent = true;
-	return true;
+		if (!Send(sizeof(EnterFrontGamePacket), &EnterFrontGamePacket))
+			return false;
+
+		__SendInternalBuffer();
+		return true;
+	}
 }

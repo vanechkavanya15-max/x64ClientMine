@@ -67,6 +67,10 @@ public:
     virtual std::vector<ItemSlotInfo> GetInventoryItems() const = 0;
     virtual void UseItemBySlot(uint16_t slotIndex) = 0;
     virtual void DropItemBySlot(uint16_t slotIndex, uint32_t count = 1) = 0;
+
+    // Multi-Server Profile (0 = Official x64, 1 = Beavium x64)
+    virtual void SetServerMode(uint8_t mode) = 0;
+    virtual uint8_t GetServerMode() const = 0;
 };
 
 // Globalny dostep do instancji API bota
