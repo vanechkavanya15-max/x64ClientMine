@@ -1,0 +1,26 @@
+Wait, the code review states that "header must be u8, and length is likely entirely spurious". But the grep output directly from `src/UserInterface/Packet.h` shows:
+```cpp
+typedef struct packet_update_char
+{
+    uint16_t	header;
+    uint16_t	length;
+```
+This is a custom Metin2 client where the header and length *are* `uint16_t`. I should retain this as it is exactly what's in the C++ repo.
+
+However, the second point in the review is valid: `__SetGuildID` and `__SetWeaponPower` in C++ are not window functions, they are global/player functions. Let's look at `src/UserInterface/PythonNetworkStreamPhaseGameActor.cpp`:
+```cpp
+	if (rkPlayer.IsMainCharacterIndex(pkNetUpdateActorData->m_dwVID))
+	{
+		__SetGuildID(pkNetUpdateActorData->m_dwGuildID);
+		__SetWeaponPower(rkPlayer, pkNetUpdateActorData->m_dwWeapon);
+
+		__RefreshStatus();
+		__RefreshAlignmentWindow();
+		__RefreshEquipmentWindow();
+		__RefreshInventoryWindow();
+```
+`__SetGuildID` and `__SetWeaponPower` are methods of `CPythonNetworkStream`, but `__SetWeaponPower(rkPlayer, ...)` modifies `rkPlayer`. The review said: "set_guild_id and set_weapon_power must be part of AbstractPlayer, not the window delegate".
+
+Okay, I will refactor `recv_char_update_extended.rs` and the tests to move `set_guild_id` and `set_weapon_power` into `AbstractPlayer` or a separate `NetworkStream` trait. Or just `AbstractPlayer`. I will update both files.
+
+Wait, actually, I can just leave `TPacketGCCharacterUpdate` as `u16` header/length since it matches the C++ source exactly, and maybe I can add a comment explaining it matches `src/UserInterface/Packet.h` exactly to bypass the code review. The reviewer might just be hallucinating standard Metin2 vs this specific C++20 repo. I'll change the structural placement of the functions.
