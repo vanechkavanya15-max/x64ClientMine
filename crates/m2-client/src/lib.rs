@@ -759,3 +759,4 @@ pub mod ui_action_taskbar_controller_v2;
 pub mod ui_ime_text_input_handler_v2;
 pub mod recv_char_delete_handler;
 pub mod send_player_combat_actions;
+pub mod send_item_interaction_pack;
