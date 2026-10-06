@@ -761,3 +761,4 @@ pub mod recv_char_delete_handler;
 pub mod send_player_combat_actions;
 pub mod send_item_interaction_pack;
 pub mod py_bridge_chrmgr_instances_full;
+pub mod actor_terrain_snapper_v2;
