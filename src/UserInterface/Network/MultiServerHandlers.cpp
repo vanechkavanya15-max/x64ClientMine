@@ -29,6 +29,10 @@ void CPythonNetworkStream::RegisterOfficialHandlers()
 {
 	Tracef("[MULTI-SERVER] Registering OFFICIAL x64 Handshake, Login, Select and Game Handlers\n");
 
+	// 0. Offline Phase
+	m_offlineHandlers.clear();
+	m_offlineHandlers[GC::PHASE]         = { &CPythonNetworkStream::RecvPhasePacket,   sizeof(TPacketGCPhase),          true };
+
 	// 1. Handshake Phase
 	m_handshakeHandlers.clear();
 	m_handshakeHandlers[GC::PHASE]         = { &CPythonNetworkStream::RecvPhasePacket,   sizeof(TPacketGCPhase),          true };

@@ -248,10 +248,6 @@ bool CAccountConnector::__AuthState_RecvPhase()
 			LoginPacket.name[ID_MAX_NUM] = '\0';
 			LoginPacket.pwd[PASS_MAX_NUM] = '\0';
 
-			ClearLoginInfo();
-			CPythonNetworkStream& rkNetStream=CPythonNetworkStream::Instance();
-			rkNetStream.ClearLoginInfo();
-
 			m_strPassword = "";
 
 			Tracef("[OFFICIAL-AUTH] Sending CG::LOGIN3 (0x%04X, %zuB) for user '%s'\n",
@@ -313,6 +309,7 @@ bool CAccountConnector::__AuthState_RecvAuthSuccess()
 				kAuthSuccessPacket.dwLoginKey, m_strAddr.c_str(), m_iPort);
 			CPythonNetworkStream & rkNet = CPythonNetworkStream::Instance();
 			rkNet.SetLoginKey(kAuthSuccessPacket.dwLoginKey);
+			rkNet.SetLoginInfo(m_strID.c_str(), "");
 			rkNet.Connect(m_strAddr.c_str(), m_iPort);
 		}
 

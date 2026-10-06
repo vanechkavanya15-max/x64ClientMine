@@ -912,10 +912,7 @@ void CPythonNetworkStream::OnConnectSuccess()
 	else
 	{
 		Tracef("[OFFICIAL] CPythonNetworkStream::OnConnectSuccess (phase=%s)\n", m_strPhase.c_str());
-		if ("Login" == m_strPhase || m_strPhase.empty() || "OffLine" == m_strPhase)
-		{
-			SetLoginPhase();
-		}
+		SetHandShakePhase();
 	}
 }
 
