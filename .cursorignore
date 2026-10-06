@@ -1,0 +1,8 @@
+/build/
+/m2dev-client-main/
+.vs/
+.idea/
+bin/
+*.pdb
+*.dump
+*.exe
