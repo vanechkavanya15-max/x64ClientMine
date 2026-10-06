@@ -17,7 +17,7 @@ fn test_character_move_updates_target() {
         duration: 500,
     };
 
-    let result = manager.handle_move_packet(&move_data);
+    let result = manager.handle_move_packet(&move_data, 0);
     assert!(result.is_ok(), "Should successfully handle move packet for existing actor");
 
     let actor_state = manager.actors.get(&vid).expect("Actor should exist");
@@ -52,7 +52,7 @@ fn test_sync_position_snaps_instantly() {
         y: 6000,
         time: 100,
         duration: 2000,
-    }).unwrap();
+    }, 0).unwrap();
 
     // nastepnie wymuszamy twarda synchronizacje
     let sync_data = SyncPositionData {
@@ -102,7 +102,7 @@ fn test_multiple_actors() {
     // Move other player
     manager.handle_move_packet(&CharacterMoveData {
         vid: 2, func: 1, arg: 0, rot: 18, x: 100, y: 100, time: 1000, duration: 500
-    }).unwrap();
+    }, 0).unwrap();
 
     let main_state = manager.actors.get(&1).unwrap();
     assert_eq!(main_state.dst_x, 0, "Main player should not be affected");

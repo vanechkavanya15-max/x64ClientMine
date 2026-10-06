@@ -85,7 +85,7 @@ fn test_camera_uniform_upload_logic() {
     queue.submit(std::iter::empty());
     
     // Wait for queue
-    device.poll(wgpu::MaintainBase::Wait);
+    device.poll(wgpu::Maintain::Wait);
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn test_camera_uniform_upload_extreme_values() {
     queue.submit(std::iter::empty());
     
     // Sync
-    device.poll(wgpu::MaintainBase::Wait);
+    device.poll(wgpu::Maintain::Wait);
     
     // Test completes if it doesn't panic on extreme floats
 }

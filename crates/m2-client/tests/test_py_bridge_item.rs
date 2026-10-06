@@ -23,6 +23,8 @@ fn setup() {
             buy_price: 1000000,
             sell_price: 250000,
             icon_image: "icon/item/11299.tga".to_string(),
+            flags: 0,
+            wear_flags: 0,
             limits,
             applies,
         };

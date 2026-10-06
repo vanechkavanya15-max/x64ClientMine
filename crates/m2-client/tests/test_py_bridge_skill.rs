@@ -166,7 +166,7 @@ fn test_py_skill_data_table_affect_power() {
 
 #[test]
 fn test_py_skill_data_table_can_use_skill() {
-    use m2_client::py_bridge_skill_data_table::{get_table, SkillDataTableEntry, m2_py_skill_can_use_skill};
+    use m2_client::py_bridge_skill_data_table::{get_table, SkillDataTableEntry, m2_py_skill_can_use_skill_v2};
 
     let mut table = get_table();
     table.register_skill(SkillDataTableEntry {

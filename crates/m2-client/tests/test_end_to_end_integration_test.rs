@@ -135,7 +135,7 @@ fn test_in_game_packet_stream() {
     
     let mut move_mgr = m2_client::recv_movement::MovementManager::new();
     move_mgr.add_actor(2002, 100, 200);
-    assert!(move_mgr.handle_move_packet(&move_data).is_ok());
+    assert!(move_mgr.handle_move_packet(&move_data, 0).is_ok());
     
     if let Some(state) = move_mgr.actors.get(&2002) {
         assert_eq!(state.dst_x, 300);

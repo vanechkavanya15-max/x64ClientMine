@@ -132,7 +132,7 @@ async fn test_active_system_vertices_collection() {
     sys.active = true;
     
     // Add dummy active particle
-    let mut p = ParticleInstance::new(1.0);
+    let mut p = ParticleInstance::new(1.0, 1.0, 1.0);
     p.age = 0.1; 
     sys.particles.push(p);
 
@@ -155,7 +155,7 @@ async fn test_inactive_system_skipping() {
     sys.active = false;
     
     // Add dummy particle
-    let mut p = ParticleInstance::new(1.0);
+    let mut p = ParticleInstance::new(1.0, 1.0, 1.0);
     p.age = 0.1;
     sys.particles.push(p);
 
@@ -195,7 +195,7 @@ async fn test_buffer_update_new_buffer_allocation() {
         MseEmitterProperty::default(),
     );
     sys.active = true;
-    let mut p = ParticleInstance::new(1.0);
+    let mut p = ParticleInstance::new(1.0, 1.0, 1.0);
     p.age = 0.1;
     sys.particles.push(p);
 
@@ -227,7 +227,7 @@ async fn test_buffer_update_reusing_existing_buffer() {
         MseEmitterProperty::default(),
     );
     sys.active = true;
-    let mut p = ParticleInstance::new(1.0);
+    let mut p = ParticleInstance::new(1.0, 1.0, 1.0);
     p.age = 0.1;
     sys.particles.push(p);
 
