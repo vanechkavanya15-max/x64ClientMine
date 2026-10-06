@@ -1,4 +1,4 @@
-﻿file(GLOB_RECURSE FILE_SOURCES "*.h" "*.c" "*.cpp")
+file(GLOB_RECURSE FILE_SOURCES "*.h" "*.c" "*.cpp")
 
 add_executable(UserInterface WIN32 ${FILE_SOURCES} ${CMAKE_SOURCE_DIR}/src/UserInterface/UserInterface.rc)
 set_target_properties(UserInterface PROPERTIES LINK_FLAGS "/level='requireAdministrator' /uiAccess='false'"
@@ -46,3 +46,13 @@ target_link_libraries(UserInterface
 )
 
 GroupSourcesByFolder(UserInterface)
+
+add_custom_command(TARGET UserInterface POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different
+		$<TARGET_FILE:UserInterface>
+		${CMAKE_SOURCE_DIR}/m2dev-client-main/Metin2.exe
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different
+		$<TARGET_FILE:UserInterface>
+		${CMAKE_SOURCE_DIR}/m2dev-client-main/$<TARGET_FILE_NAME:UserInterface>
+	COMMENT "Deploying binary to m2dev-client-main runtime directory..."
+)
