@@ -378,6 +378,23 @@ PyObject* netSetOfflinePhase(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildNone();
 }
 
+PyObject* netSetServerMode(PyObject* poSelf, PyObject* poArgs)
+{
+	int mode;
+	if (!PyTuple_GetInteger(poArgs, 0, &mode))
+		return Py_BuildException();
+
+	CPythonNetworkStream& rkNetStream = CPythonNetworkStream::Instance();
+	rkNetStream.SetServerMode(static_cast<Network::ServerType>(mode));
+	return Py_BuildNone();
+}
+
+PyObject* netGetServerMode(PyObject* poSelf, PyObject* poArgs)
+{
+	CPythonNetworkStream& rkNetStream = CPythonNetworkStream::Instance();
+	return Py_BuildValue("i", static_cast<int>(rkNetStream.GetServerMode()));
+}
+
 PyObject* netSendSelectEmpirePacket(PyObject* poSelf, PyObject* poArgs)
 {
 	int iEmpireIndex;
@@ -1713,6 +1730,8 @@ void initnet()
 		{ "SendGiveItemPacket",					netSendGiveItemPacket,					METH_VARARGS },
 
 		{ "SetOfflinePhase",					netSetOfflinePhase,						METH_VARARGS },
+		{ "SetServerMode",						netSetServerMode,						METH_VARARGS },
+		{ "GetServerMode",						netGetServerMode,						METH_VARARGS },
 		{ "Disconnect",							netDisconnect,							METH_VARARGS },
 		{ "IsConnect",							netIsConnect,							METH_VARARGS },
 
@@ -1809,6 +1828,8 @@ void initnet()
 	PyObject* poModule = Py_InitModule("net", s_methods);
 
 	PyModule_AddIntConstant(poModule, "ERROR_NONE", CPythonNetworkStream::ERROR_NONE);
+	PyModule_AddIntConstant(poModule, "SERVER_OFFICIAL", 0);
+	PyModule_AddIntConstant(poModule, "SERVER_BEAVIUM", 1);
 	PyModule_AddIntConstant(poModule, "ERROR_CONNECT_MARK_SERVER", CPythonNetworkStream::ERROR_CONNECT_MARK_SERVER);
 	PyModule_AddIntConstant(poModule, "ERROR_LOAD_MARK", CPythonNetworkStream::ERROR_LOAD_MARK);
 	PyModule_AddIntConstant(poModule, "ERROR_MARK_WIDTH", CPythonNetworkStream::ERROR_MARK_WIDTH);

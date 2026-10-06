@@ -36,6 +36,23 @@ void CPythonNetworkStream::SelectPhase()
 
 bool CPythonNetworkStream::SendSelectEmpirePacket(DWORD dwEmpireID)
 {
+	if (GetServerMode() != Network::ServerType::Beavium)
+	{
+		TPacketCGEmpire kPacketEmpire;
+		kPacketEmpire.header = CG::EMPIRE;
+		kPacketEmpire.length = sizeof(kPacketEmpire);
+		kPacketEmpire.bEmpire = static_cast<BYTE>(dwEmpireID);
+
+		if (!Send(sizeof(kPacketEmpire), &kPacketEmpire))
+		{
+			Tracen("SendSelectEmpirePacket - Error");
+			return false;
+		}
+
+		SetEmpireID(dwEmpireID);
+		return true;
+	}
+
 	Beavium::TPacketCGSelectEmpireBeavium pkt;
 	pkt.header = Beavium::CG::SELECT_EMPIRE; // 0x35
 	pkt.empireId = static_cast<uint8_t>(dwEmpireID);
@@ -221,6 +238,23 @@ bool CPythonNetworkStream::SendDestroyCharacterPacket(BYTE index, const char * s
 {
 	m_lastDeleteSlot = index;
 
+	if (GetServerMode() != Network::ServerType::Beavium)
+	{
+		TPacketCGDestroyCharacter DestroyCharacterPacket;
+		DestroyCharacterPacket.header = CG::CHARACTER_DELETE;
+		DestroyCharacterPacket.length = sizeof(DestroyCharacterPacket);
+		DestroyCharacterPacket.index = index;
+		strncpy(DestroyCharacterPacket.szPrivateCode, szPrivateCode ? szPrivateCode : "1234567", PRIVATE_CODE_LENGTH);
+
+		if (!Send(sizeof(TPacketCGDestroyCharacter), &DestroyCharacterPacket))
+		{
+			Tracen("SendDestroyCharacterPacket");
+			return false;
+		}
+
+		return true;
+	}
+
 	Beavium::TPacketCGCharacterDestroyBeavium pkt;
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.header = Beavium::CG::CHARACTER_DESTROY; // 0x05
@@ -240,6 +274,29 @@ bool CPythonNetworkStream::SendDestroyCharacterPacket(BYTE index, const char * s
 
 bool CPythonNetworkStream::SendCreateCharacterPacket(BYTE index, const char *name, BYTE job, BYTE shape, BYTE byCON, BYTE byINT, BYTE bySTR, BYTE byDEX)
 {
+	if (GetServerMode() != Network::ServerType::Beavium)
+	{
+		TPacketCGCreateCharacter CreateCharacterPacket;
+		CreateCharacterPacket.header = CG::CHARACTER_CREATE;
+		CreateCharacterPacket.length = sizeof(CreateCharacterPacket);
+		CreateCharacterPacket.index = index;
+		strncpy(CreateCharacterPacket.name, name, CHARACTER_NAME_MAX_LEN);
+		CreateCharacterPacket.job = job;
+		CreateCharacterPacket.shape = shape;
+		CreateCharacterPacket.CON = byCON;
+		CreateCharacterPacket.INT = byINT;
+		CreateCharacterPacket.STR = bySTR;
+		CreateCharacterPacket.DEX = byDEX;
+
+		if (!Send(sizeof(TPacketCGCreateCharacter), &CreateCharacterPacket))
+		{
+			Tracen("SendCreateCharacterPacket");
+			return false;
+		}
+
+		return true;
+	}
+
 	Beavium::TPacketCGCharacterCreateBeavium pkt;
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.header = Beavium::CG::CHARACTER_CREATE; // 0x04
@@ -283,59 +340,119 @@ bool CPythonNetworkStream::SendChangeNamePacket(BYTE index, const char *name)
 
 bool CPythonNetworkStream::__RecvPlayerCreateSuccessPacket()
 {
-	Beavium::TPacketGCCharCreateSuccessBeavium pkt;
-	if (!Recv(sizeof(pkt), &pkt))
-		return false;
+	if (GetServerMode() == Network::ServerType::Beavium)
+	{
+		Beavium::TPacketGCCharCreateSuccessBeavium pkt;
+		if (!Recv(sizeof(pkt), &pkt))
+			return false;
 
-	Tracef("[BEAVIUM] Character created successfully on slot %u!\n", pkt.slot);
+		Tracef("[BEAVIUM] Character created successfully on slot %u!\n", pkt.slot);
 
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_CREATE], "OnCreateSuccess", Py_BuildValue("()"));
-	return true;
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_CREATE], "OnCreateSuccess", Py_BuildValue("()"));
+		return true;
+	}
+	else
+	{
+		TPacketGCPlayerCreateSuccess kCreateSuccessPacket;
+		if (!Recv(sizeof(kCreateSuccessPacket), &kCreateSuccessPacket))
+			return false;
+
+		if (kCreateSuccessPacket.bAccountCharacterSlot >= PLAYER_PER_ACCOUNT4)
+		{
+			TraceError("CPythonNetworkStream::RecvPlayerCreateSuccess - Strange Slot [%d]", kCreateSuccessPacket.bAccountCharacterSlot);
+			return true;
+		}
+
+		m_akSimplePlayerInfo[kCreateSuccessPacket.bAccountCharacterSlot] = kCreateSuccessPacket.kSimplePlayerInfomation;
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_CREATE], "OnCreateSuccess", Py_BuildValue("()"));
+		return true;
+	}
 }
 
 bool CPythonNetworkStream::__RecvPlayerCreateFailurePacket()
 {
-	Beavium::TPacketGCCharCreateFailureBeavium pkt;
-	if (!Recv(sizeof(pkt), &pkt))
-		return false;
+	if (GetServerMode() == Network::ServerType::Beavium)
+	{
+		Beavium::TPacketGCCharCreateFailureBeavium pkt;
+		if (!Recv(sizeof(pkt), &pkt))
+			return false;
 
-	Tracef("[BEAVIUM] Character creation failed!\n");
+		Tracef("[BEAVIUM] Character creation failed!\n");
 
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_CREATE], "OnCreateFailure", Py_BuildValue("(i)", 1));
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnCreateFailure", Py_BuildValue("(i)", 1));
-	return true;
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_CREATE], "OnCreateFailure", Py_BuildValue("(i)", 1));
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnCreateFailure", Py_BuildValue("(i)", 1));
+		return true;
+	}
+	else
+	{
+		TPacketGCCreateFailure packet;
+		if (!Recv(sizeof(TPacketGCCreateFailure), &packet))
+			return false;
+
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_CREATE], "OnCreateFailure", Py_BuildValue("(i)", packet.bType));
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnCreateFailure", Py_BuildValue("(i)", packet.bType));
+		return true;
+	}
 }
 
 bool CPythonNetworkStream::__RecvPlayerDestroySuccessPacket()
 {
-	Beavium::TPacketGCCharDeleteSuccessBeavium pkt;
-	if (!Recv(sizeof(pkt), &pkt))
-		return false;
-
-	uint8_t slot = m_lastDeleteSlot;
-	Tracef("[BEAVIUM] Character delete success for slot %u!\n", slot);
-
-	if (slot < PLAYER_PER_ACCOUNT4)
+	if (GetServerMode() == Network::ServerType::Beavium)
 	{
-		memset(&m_akSimplePlayerInfo[slot], 0, sizeof(m_akSimplePlayerInfo[slot]));
-		m_adwGuildID[slot] = 0;
-		m_astrGuildName[slot] = "";
-	}
+		Beavium::TPacketGCCharDeleteSuccessBeavium pkt;
+		if (!Recv(sizeof(pkt), &pkt))
+			return false;
 
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnDeleteSuccess", Py_BuildValue("(i)", slot));
-	return true;
+		uint8_t slot = m_lastDeleteSlot;
+		Tracef("[BEAVIUM] Character delete success for slot %u!\n", slot);
+
+		if (slot < PLAYER_PER_ACCOUNT4)
+		{
+			memset(&m_akSimplePlayerInfo[slot], 0, sizeof(m_akSimplePlayerInfo[slot]));
+			m_adwGuildID[slot] = 0;
+			m_astrGuildName[slot] = "";
+		}
+
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnDeleteSuccess", Py_BuildValue("(i)", slot));
+		return true;
+	}
+	else
+	{
+		TPacketGCDestroyCharacterSuccess packet;
+		if (!Recv(sizeof(TPacketGCDestroyCharacterSuccess), &packet))
+			return false;
+
+		memset(&m_akSimplePlayerInfo[packet.account_index], 0, sizeof(m_akSimplePlayerInfo[packet.account_index]));
+		m_adwGuildID[packet.account_index] = 0;
+		m_astrGuildName[packet.account_index] = "";
+
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnDeleteSuccess", Py_BuildValue("(i)", packet.account_index));
+		return true;
+	}
 }
 
 bool CPythonNetworkStream::__RecvPlayerDestroyFailurePacket()
 {
-	Beavium::TPacketGCCharDeleteWrongPinBeavium pkt;
-	if (!Recv(sizeof(pkt), &pkt))
-		return false;
+	if (GetServerMode() == Network::ServerType::Beavium)
+	{
+		Beavium::TPacketGCCharDeleteWrongPinBeavium pkt;
+		if (!Recv(sizeof(pkt), &pkt))
+			return false;
 
-	Tracef("[BEAVIUM] Character delete failure (wrong pin/social id)!\n");
+		Tracef("[BEAVIUM] Character delete failure (wrong pin/social id)!\n");
 
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnDeleteFailure", Py_BuildValue("()"));
-	return true;
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnDeleteFailure", Py_BuildValue("()"));
+		return true;
+	}
+	else
+	{
+		TPacketGCBlank packet_blank;
+		if (!Recv(sizeof(TPacketGCBlank), &packet_blank))
+			return false;
+
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "OnDeleteFailure", Py_BuildValue("()"));
+		return true;
+	}
 }
 
 bool CPythonNetworkStream::__RecvChangeName()
