@@ -762,3 +762,4 @@ pub mod send_player_combat_actions;
 pub mod send_item_interaction_pack;
 pub mod py_bridge_chrmgr_instances_full;
 pub mod actor_terrain_snapper_v2;
+pub mod ui_phase_curtain_fader_v2;
