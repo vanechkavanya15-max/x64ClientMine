@@ -380,9 +380,6 @@ impl Metin2Engine {
         // Ladowanie baz proto przedmiotow i potworow z archiwow VFS
         let _ = crate::item_mob_proto_vfs_loader::load_protos_from_vfs();
 
-        // Inicjalizacja natywnego interfejsu logowania (ThinBoard, lista serwerow, kanaly, flagi, przyciski)
-        crate::ui_bridge_ffi::m2_ui_setup_default_login_ui(self.width, self.height);
-
         // Inicjalizacja podsystemu audio 3D i muzyki BGM Pure Rust
         let _ = crate::sound_ffi::m2_audio_init();
         println!("[+] Podsystem audio Pure Rust (3D Spatial Audio & BGM) zainicjalizowany!");
@@ -409,6 +406,7 @@ impl Metin2Engine {
 
             if py_dll.is_null() {
                 println!("[-] python314.dll nie odnaleziono, aktywuje natywny tryb renderowania");
+                crate::ui_bridge_ffi::m2_ui_setup_default_login_ui(self.width, self.height);
                 return Ok(());
             }
 
@@ -417,6 +415,7 @@ impl Metin2Engine {
 
             if py_init_sym.is_null() || py_run_sym.is_null() {
                 println!("[-] Brak symboli Py_InitializeEx / PyRun_SimpleString");
+                crate::ui_bridge_ffi::m2_ui_setup_default_login_ui(self.width, self.height);
                 return Ok(());
             }
 

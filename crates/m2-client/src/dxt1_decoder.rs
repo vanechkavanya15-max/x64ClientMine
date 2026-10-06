@@ -7,7 +7,7 @@ pub fn decode_dxt1(data: &[u8], width: usize, height: usize) -> Result<Vec<u8>, 
     let block_h = height / 4;
     let expected_len = block_w * block_h * 8;
 
-    if data.len() != expected_len {
+    if data.len() < expected_len {
         return Err("Invalid buffer length for given dimensions");
     }
 

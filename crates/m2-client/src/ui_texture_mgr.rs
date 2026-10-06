@@ -197,3 +197,26 @@ pub fn get_ui_texture_manager() -> std::sync::MutexGuard<'static, UiTextureManag
         .lock()
         .unwrap()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vfs_pck_memory_mapped::mount_archive;
+
+    #[test]
+    fn test_find_loginwindow_sub() {
+        let etc_path = r"E:\m2dev-client-src-main\m2dev-client-main\pack\ETC.pck";
+        if let Ok(archive) = mount_archive(etc_path) {
+            let sub = read_file_from_archive(&archive, "d:/ymir work/ui/intro/login/loginwindow.sub");
+            assert!(sub.is_some());
+            let dds = read_file_from_archive(&archive, "d:/ymir work/ui/intro/login/login.dds");
+            assert!(dds.is_some());
+            if let Some(bytes) = dds {
+                let dec = UiTextureManager::decode_dds_to_rgba(&bytes);
+                assert!(dec.is_ok());
+            }
+        }
+    }
+}
+
+

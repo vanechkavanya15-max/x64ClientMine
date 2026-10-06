@@ -139,14 +139,22 @@ impl WindowManager {
     }
 
     pub fn load_image(&mut self, handle: u32, path: &str) -> bool {
+        let (img_w, img_h) = {
+            let mut tm = get_ui_texture_manager();
+            if let Some(res) = tm.get_image_resource(path) {
+                (res.width as i32, res.height as i32)
+            } else {
+                (0, 0)
+            }
+        };
+
         if let Some(win) = self.windows.get_mut(&handle) {
             win.image_path = path.to_string();
-            if win.width <= 0 {
-                win.width = 1024;
+            if img_w > 0 && img_h > 0 {
+                win.width = img_w;
+                win.height = img_h;
             }
-            if win.height <= 0 {
-                win.height = 768;
-            }
+            self.render_dirty = true;
             true
         } else {
             false
@@ -156,6 +164,7 @@ impl WindowManager {
     pub fn set_rendering_rect(&mut self, handle: u32, l: f32, t: f32, r: f32, b: f32) -> bool {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.rendering_rect = [l, t, r, b];
+            self.render_dirty = true;
             true
         } else {
             false
@@ -227,6 +236,47 @@ impl WindowManager {
         if let Some(win) = self.windows.get_mut(&handle) {
             win.horizontal_align = h_align;
             win.vertical_align = v_align;
+            self.render_dirty = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_window_horizontal_align(&mut self, handle: u32, h_align: u8) -> bool {
+        if let Some(win) = self.windows.get_mut(&handle) {
+            win.horizontal_align = h_align;
+            self.render_dirty = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_window_vertical_align(&mut self, handle: u32, v_align: u8) -> bool {
+        if let Some(win) = self.windows.get_mut(&handle) {
+            win.vertical_align = v_align;
+            self.render_dirty = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_text_horizontal_align(&mut self, handle: u32, align: u8) -> bool {
+        if let Some(win) = self.windows.get_mut(&handle) {
+            win.text_align = align;
+            self.render_dirty = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_text_vertical_align(&mut self, handle: u32, align: u8) -> bool {
+        if let Some(win) = self.windows.get_mut(&handle) {
+            win.text_valign = align;
+            self.render_dirty = true;
             true
         } else {
             false
@@ -632,12 +682,12 @@ pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTe
                     }
                 }
             }
-            WindowType::ImageBox | WindowType::ExpandedImageBox => {
+            WindowType::ImageBox => {
                 if !win.image_path.is_empty() {
                     let mut tm = get_ui_texture_manager();
                     if let Some(img_res) = tm.get_image_resource(&win.image_path) {
-                        let qw = if w > 0 { w as f32 } else { img_res.width as f32 };
-                        let qh = if h > 0 { h as f32 } else { img_res.height as f32 };
+                        let qw = if win.width > 0 { win.width as f32 } else { img_res.width as f32 };
+                        let qh = if win.height > 0 { win.height as f32 } else { img_res.height as f32 };
                         let q = Quad2D::with_uv(
                             gx as f32,
                             gy as f32,
@@ -647,6 +697,46 @@ pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTe
                             img_res.uv[1],
                             img_res.uv[2],
                             img_res.uv[3],
+                        );
+                        add_quad(batches, img_res.texture, q);
+                    }
+                }
+            }
+            WindowType::ExpandedImageBox => {
+                if !win.image_path.is_empty() {
+                    let mut tm = get_ui_texture_manager();
+                    if let Some(img_res) = tm.get_image_resource(&win.image_path) {
+                        let sx = if win.scale[0] > 0.0 { win.scale[0] } else { 1.0 };
+                        let sy = if win.scale[1] > 0.0 { win.scale[1] } else { 1.0 };
+                        let base_w = if win.width > 0 { win.width as f32 } else { img_res.width as f32 };
+                        let base_h = if win.height > 0 { win.height as f32 } else { img_res.height as f32 };
+
+                        let r_left = base_w * win.rendering_rect[0];
+                        let r_top = base_h * win.rendering_rect[1];
+                        let r_right = base_w * win.rendering_rect[2];
+                        let r_bottom = base_h * win.rendering_rect[3];
+
+                        let qw = (base_w * sx + r_right - r_left).max(0.0);
+                        let qh = (base_h * sy + r_bottom - r_top).max(0.0);
+                        let qx = gx as f32 - r_left;
+                        let qy = gy as f32 - r_top;
+
+                        let u_span = img_res.uv[2] - img_res.uv[0];
+                        let v_span = img_res.uv[3] - img_res.uv[1];
+                        let u0 = img_res.uv[0] + u_span * (win.rendering_rect[0].max(0.0));
+                        let u1 = img_res.uv[2] + u_span * (win.rendering_rect[2].min(0.0));
+                        let v0 = img_res.uv[1] + v_span * (win.rendering_rect[1].max(0.0));
+                        let v1 = img_res.uv[3] + v_span * (win.rendering_rect[3].min(0.0));
+
+                        let q = Quad2D::with_uv(
+                            qx,
+                            qy,
+                            qw,
+                            qh,
+                            u0,
+                            v0,
+                            u1,
+                            v1,
                         );
                         add_quad(batches, img_res.texture, q);
                     }
@@ -701,20 +791,42 @@ pub fn collect_ui_render_batches(screen_w: u32, screen_h: u32) -> Vec<(Arc<GpuTe
                     let font = get_global_font_atlas();
                     if let Some(ref font_tex) = font.texture {
                         let text_w = font.measure_text_width(&win.text);
-                        let tx = if win.text_align == crate::ui_window_core::HORIZONTAL_ALIGN_CENTER
-                            || win.horizontal_align == crate::ui_window_core::HORIZONTAL_ALIGN_CENTER {
-                            gx as f32 + (w as f32 - text_w) / 2.0
-                        } else if win.text_align == crate::ui_window_core::HORIZONTAL_ALIGN_RIGHT
-                            || win.horizontal_align == crate::ui_window_core::HORIZONTAL_ALIGN_RIGHT {
-                            gx as f32 + w as f32 - text_w
+                        // Obsluga wyrownania horyzontalnego:
+                        // 2 = TEXT_HORIZONTAL_ALIGN_CENTER, 1 = TEXT_HORIZONTAL_ALIGN_RIGHT, 0 = LEFT
+                        let tx = if win.text_align == 2 || win.text_align == crate::ui_window_core::HORIZONTAL_ALIGN_CENTER || win.horizontal_align == crate::ui_window_core::HORIZONTAL_ALIGN_CENTER {
+                            if w > 0 {
+                                gx as f32 + (w as f32 - text_w) / 2.0
+                            } else {
+                                gx as f32 - text_w / 2.0
+                            }
+                        } else if win.text_align == 1 || win.text_align == crate::ui_window_core::HORIZONTAL_ALIGN_RIGHT || win.horizontal_align == crate::ui_window_core::HORIZONTAL_ALIGN_RIGHT {
+                            if w > 0 {
+                                gx as f32 + w as f32 - text_w
+                            } else {
+                                gx as f32 - text_w
+                            }
                         } else {
                             gx as f32
                         };
-                        let ty = if win.vertical_align == crate::ui_window_core::VERTICAL_ALIGN_CENTER {
-                            gy as f32 + (h as f32 - font.line_height) / 2.0
+
+                        // Obsluga wyrownania wertykalnego:
+                        // 1 = TEXT_VERTICAL_ALIGN_CENTER, 2 = TEXT_VERTICAL_ALIGN_BOTTOM, 0 = TOP
+                        let ty = if win.text_valign == 1 || win.vertical_align == crate::ui_window_core::VERTICAL_ALIGN_CENTER {
+                            if h > 0 {
+                                gy as f32 + (h as f32 - font.line_height) / 2.0
+                            } else {
+                                gy as f32 - font.line_height / 2.0
+                            }
+                        } else if win.text_valign == 2 || win.vertical_align == crate::ui_window_core::VERTICAL_ALIGN_BOTTOM {
+                            if h > 0 {
+                                gy as f32 + h as f32 - font.line_height
+                            } else {
+                                gy as f32 - font.line_height
+                            }
                         } else {
                             gy as f32
                         };
+
                         let t_quads = font.build_text_quads(&win.text, tx, ty, win.text_color, 1.0);
                         for q in t_quads {
                             add_quad(batches, font_tex.clone(), q);

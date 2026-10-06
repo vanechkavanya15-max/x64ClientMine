@@ -6,7 +6,23 @@ pub fn dispatch_wm_lbutton_down(mx: i32, my: i32, screen_w: i32, screen_h: i32) 
     let mut wm = get_window_manager();
     let hit = wm.pick_window(mx, my, screen_w, screen_h)?;
     wm.capture_window = Some(hit);
-    wm.active_window = Some(hit);
+    
+    let prev_active = wm.active_window;
+    if prev_active != Some(hit) {
+        wm.active_window = Some(hit);
+        if let Some(old_h) = prev_active {
+            if let Some(old_win) = wm.windows.get(&old_h) {
+                if old_win.py_handler != 0 {
+                    call_python_object_method0(old_win.py_handler, "OnKillFocus");
+                }
+            }
+        }
+        if let Some(new_win) = wm.windows.get(&hit) {
+            if new_win.py_handler != 0 {
+                call_python_object_method0(new_win.py_handler, "OnSetFocus");
+            }
+        }
+    }
     
     if let Some(win) = wm.windows.get_mut(&hit) {
         win.is_pressed = true;

@@ -1587,10 +1587,20 @@ setattr(WndMgrModule, 'GetCursorPosition', staticmethod(_wrap_wndmgr_get_cursor_
 setattr(WndMgrModule, 'ShowCursor', staticmethod(lambda *args: None))
 setattr(WndMgrModule, 'HideCursor', staticmethod(lambda *args: None))
 setattr(WndMgrModule, 'Enable', staticmethod(lambda handle: None))
-setattr(WndMgrModule, 'Disable', staticmethod(lambda handle: None))
-setattr(WndMgrModule, 'SetHorizontalAlign', staticmethod(lambda handle, align: getattr(WndMgrModule, 'SetWindowHorizontalAlign')(handle, align)))
-setattr(WndMgrModule, 'SetVerticalAlign', staticmethod(lambda handle, align: getattr(WndMgrModule, 'SetWindowVerticalAlign')(handle, align)))
-setattr(WndMgrModule, 'SetDiffuseColor', staticmethod(_wrap_wndmgr_set_color))
+def _wrap_wndmgr_set_text_h_align(handle, align=0):
+    fn = getattr(m2_lib, 'wndMgr_SetHorizontalAlign', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint32, ctypes.c_uint8]
+        fn(int(handle) if handle else 0, int(align))
+
+def _wrap_wndmgr_set_text_v_align(handle, align=0):
+    fn = getattr(m2_lib, 'wndMgr_SetVerticalAlign', None)
+    if fn:
+        fn.argtypes = [ctypes.c_uint32, ctypes.c_uint8]
+        fn(int(handle) if handle else 0, int(align))
+
+setattr(WndMgrModule, 'SetHorizontalAlign', staticmethod(_wrap_wndmgr_set_text_h_align))
+setattr(WndMgrModule, 'SetVerticalAlign', staticmethod(_wrap_wndmgr_set_text_v_align))
 setattr(WndMgrModule, 'SetNumber', staticmethod(lambda handle, num: getattr(WndMgrModule, 'SetText')(handle, str(num))))
 setattr(WndMgrModule, 'SetNumberHorizontalAlignCenter', staticmethod(lambda handle: None))
 setattr(WndMgrModule, 'SetNumberHorizontalAlignRight', staticmethod(lambda handle: None))
@@ -4508,6 +4518,23 @@ class IMEModule:
     def Delete(cls):
         if cls._cursor < len(cls._text):
             cls._text = cls._text[:cls._cursor] + cls._text[cls._cursor+1:]
+    @classmethod
+    def PasteString(cls, code):
+        cls.AppendChar(code)
+        fn_upd = getattr(m2_lib, 'm2_notify_ime_update', None)
+        if fn_upd:
+            fn_upd()
+    @classmethod
+    def PasteBackspace(cls):
+        cls.Backspace()
+        fn_upd = getattr(m2_lib, 'm2_notify_ime_update', None)
+        if fn_upd:
+            fn_upd()
+    @classmethod
+    def PasteReturn(cls):
+        fn_ret = getattr(m2_lib, 'm2_notify_ime_return', None)
+        if fn_ret:
+            fn_ret()
     @classmethod
     def GetCodePage(cls): return 1250
     @classmethod

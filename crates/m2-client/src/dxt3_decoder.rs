@@ -10,7 +10,7 @@ pub fn decode_dxt3(data: &[u8], width: usize, height: usize) -> Result<Vec<u8>, 
     let blocks_y = height / 4;
     let expected_len = blocks_x * blocks_y * 16;
 
-    if data.len() != expected_len {
+    if data.len() < expected_len {
         return Err("Invalid data size for DXT3");
     }
 

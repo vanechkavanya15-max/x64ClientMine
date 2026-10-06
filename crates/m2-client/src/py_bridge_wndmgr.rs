@@ -174,8 +174,24 @@ pub extern "C" fn wndMgr_SetAlign(handle: u32, h_align: u8, v_align: u8) -> bool
 #[no_mangle]
 pub extern "C" fn wndMgr_SetUpVisual(handle: u32, path: *const c_char) -> bool {
     let p = cstr_to_str(path);
-    if let Some(win) = get_window_manager().windows.get_mut(&handle) {
+    let (w, h) = {
+        let mut tm = crate::ui_texture_mgr::get_ui_texture_manager();
+        if let Some(res) = tm.get_image_resource(p) {
+            (res.width as i32, res.height as i32)
+        } else {
+            (0, 0)
+        }
+    };
+    let mut wm = get_window_manager();
+    if let Some(win) = wm.windows.get_mut(&handle) {
         win.up_visual = p.to_string();
+        if win.width <= 0 && w > 0 {
+            win.width = w;
+        }
+        if win.height <= 0 && h > 0 {
+            win.height = h;
+        }
+        wm.render_dirty = true;
         true
     } else {
         false
@@ -185,8 +201,24 @@ pub extern "C" fn wndMgr_SetUpVisual(handle: u32, path: *const c_char) -> bool {
 #[no_mangle]
 pub extern "C" fn wndMgr_SetOverVisual(handle: u32, path: *const c_char) -> bool {
     let p = cstr_to_str(path);
-    if let Some(win) = get_window_manager().windows.get_mut(&handle) {
+    let (w, h) = {
+        let mut tm = crate::ui_texture_mgr::get_ui_texture_manager();
+        if let Some(res) = tm.get_image_resource(p) {
+            (res.width as i32, res.height as i32)
+        } else {
+            (0, 0)
+        }
+    };
+    let mut wm = get_window_manager();
+    if let Some(win) = wm.windows.get_mut(&handle) {
         win.over_visual = p.to_string();
+        if win.width <= 0 && w > 0 {
+            win.width = w;
+        }
+        if win.height <= 0 && h > 0 {
+            win.height = h;
+        }
+        wm.render_dirty = true;
         true
     } else {
         false
@@ -196,8 +228,24 @@ pub extern "C" fn wndMgr_SetOverVisual(handle: u32, path: *const c_char) -> bool
 #[no_mangle]
 pub extern "C" fn wndMgr_SetDownVisual(handle: u32, path: *const c_char) -> bool {
     let p = cstr_to_str(path);
-    if let Some(win) = get_window_manager().windows.get_mut(&handle) {
+    let (w, h) = {
+        let mut tm = crate::ui_texture_mgr::get_ui_texture_manager();
+        if let Some(res) = tm.get_image_resource(p) {
+            (res.width as i32, res.height as i32)
+        } else {
+            (0, 0)
+        }
+    };
+    let mut wm = get_window_manager();
+    if let Some(win) = wm.windows.get_mut(&handle) {
         win.down_visual = p.to_string();
+        if win.width <= 0 && w > 0 {
+            win.width = w;
+        }
+        if win.height <= 0 && h > 0 {
+            win.height = h;
+        }
+        wm.render_dirty = true;
         true
     } else {
         false
@@ -214,8 +262,8 @@ pub extern "C" fn wndMgr_GetWidth(handle: u32) -> i32 {
     get_window_manager()
         .windows
         .get(&handle)
-        .map(|w| if w.width > 0 { w.width } else { 1024 })
-        .unwrap_or(1024)
+        .map(|w| w.width)
+        .unwrap_or(0)
 }
 
 #[no_mangle]
@@ -223,8 +271,8 @@ pub extern "C" fn wndMgr_GetHeight(handle: u32) -> i32 {
     get_window_manager()
         .windows
         .get(&handle)
-        .map(|w| if w.height > 0 { w.height } else { 768 })
-        .unwrap_or(768)
+        .map(|w| w.height)
+        .unwrap_or(0)
 }
 
 #[no_mangle]
@@ -272,8 +320,8 @@ pub extern "C" fn wndMgr_GetWindowWidth(handle: u32) -> i32 {
     get_window_manager()
         .windows
         .get(&handle)
-        .map(|w| if w.width > 0 { w.width } else { 1024 })
-        .unwrap_or(1024)
+        .map(|w| w.width)
+        .unwrap_or(0)
 }
 
 #[no_mangle]
@@ -281,11 +329,9 @@ pub extern "C" fn wndMgr_GetWindowHeight(handle: u32) -> i32 {
     get_window_manager()
         .windows
         .get(&handle)
-        .map(|w| if w.height > 0 { w.height } else { 768 })
-        .unwrap_or(768)
+        .map(|w| w.height)
+        .unwrap_or(0)
 }
-
-
 
 #[no_mangle]
 pub extern "C" fn wndMgr_GetWindowGlobalPosition(handle: u32, out_x: *mut i32, out_y: *mut i32) {
@@ -332,12 +378,36 @@ pub extern "C" fn wndMgr_GetWindowRect(handle: u32, out_l: *mut i32, out_t: *mut
 
 #[no_mangle]
 pub extern "C" fn wndMgr_SetWindowHorizontalAlign(handle: u32, align: u8) -> bool {
-    get_window_manager().set_align(handle, align, 0)
+    get_window_manager().set_window_horizontal_align(handle, align)
 }
 
 #[no_mangle]
 pub extern "C" fn wndMgr_SetWindowVerticalAlign(handle: u32, align: u8) -> bool {
-    get_window_manager().set_align(handle, 0, align)
+    get_window_manager().set_window_vertical_align(handle, align)
+}
+
+#[no_mangle]
+pub extern "C" fn m2_notify_ime_update() {
+    let wm = get_window_manager();
+    if let Some(act) = wm.active_window {
+        if let Some(win) = wm.windows.get(&act) {
+            if win.py_handler != 0 {
+                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnIMEUpdate");
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn m2_notify_ime_return() {
+    let wm = get_window_manager();
+    if let Some(act) = wm.active_window {
+        if let Some(win) = wm.windows.get(&act) {
+            if win.py_handler != 0 {
+                crate::py_event_dispatcher::call_python_object_method0(win.py_handler, "OnIMEReturn");
+            }
+        }
+    }
 }
 
 #[no_mangle]

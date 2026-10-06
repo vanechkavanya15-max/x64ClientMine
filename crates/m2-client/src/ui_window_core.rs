@@ -58,6 +58,7 @@ pub struct Window {
     pub text: String,
     pub text_color: [f32; 4],
     pub text_align: u8,
+    pub text_valign: u8,
 
     // Przyciski
     pub up_visual: String,
@@ -100,6 +101,7 @@ impl Window {
             text: String::new(),
             text_color: [1.0, 1.0, 1.0, 1.0],
             text_align: HORIZONTAL_ALIGN_LEFT,
+            text_valign: VERTICAL_ALIGN_TOP,
             up_visual: String::new(),
             over_visual: String::new(),
             down_visual: String::new(),

@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use crate::ui_window_mgr::{get_window_manager, WindowManager};
 use crate::ui_window_core::{
-    HORIZONTAL_ALIGN_CENTER, HORIZONTAL_ALIGN_LEFT, HORIZONTAL_ALIGN_RIGHT, VERTICAL_ALIGN_BOTTOM,
-    VERTICAL_ALIGN_CENTER, VERTICAL_ALIGN_TOP,
+    WindowType, HORIZONTAL_ALIGN_CENTER, HORIZONTAL_ALIGN_LEFT, HORIZONTAL_ALIGN_RIGHT,
+    VERTICAL_ALIGN_BOTTOM, VERTICAL_ALIGN_CENTER, VERTICAL_ALIGN_TOP,
 };
 
 static SCISSOR_RECT_STATE: OnceLock<Mutex<HashMap<u32, bool>>> = OnceLock::new();
@@ -48,16 +48,17 @@ pub extern "C" fn wndMgr_IsScissorRectEnabled(handle: u32) -> bool {
 pub extern "C" fn wndMgr_SetHorizontalAlign(handle: u32, align: u32) -> bool {
     safe_ffi_call(false, || {
         let mut wm = get_window_manager();
-        let mut v_align = VERTICAL_ALIGN_TOP;
-        if let Some(win) = wm.windows.get(&handle) {
-            v_align = win.vertical_align;
+        if let Some(win) = wm.windows.get_mut(&handle) {
+            if win.window_type == WindowType::TextLine {
+                win.text_align = align as u8;
+            } else {
+                win.horizontal_align = align as u8;
+            }
+            wm.render_dirty = true;
+            true
         } else {
-            return false;
+            false
         }
-        let res = wm.set_align(handle, align as u8, v_align);
-        drop(wm);
-        wndMgr_UpdateRect(handle);
-        res
     })
 }
 
@@ -65,16 +66,17 @@ pub extern "C" fn wndMgr_SetHorizontalAlign(handle: u32, align: u32) -> bool {
 pub extern "C" fn wndMgr_SetVerticalAlign(handle: u32, align: u32) -> bool {
     safe_ffi_call(false, || {
         let mut wm = get_window_manager();
-        let mut h_align = HORIZONTAL_ALIGN_LEFT;
-        if let Some(win) = wm.windows.get(&handle) {
-            h_align = win.horizontal_align;
+        if let Some(win) = wm.windows.get_mut(&handle) {
+            if win.window_type == WindowType::TextLine {
+                win.text_valign = align as u8;
+            } else {
+                win.vertical_align = align as u8;
+            }
+            wm.render_dirty = true;
+            true
         } else {
-            return false;
+            false
         }
-        let res = wm.set_align(handle, h_align, align as u8);
-        drop(wm);
-        wndMgr_UpdateRect(handle);
-        res
     })
 }
 
