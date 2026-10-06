@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <span>
-#include <array>
+#include <unordered_map>
 #include <functional>
 
 namespace Network
@@ -16,7 +16,7 @@ namespace Network
      * @brief Nowoczesny dispatcher pakietow gry Metin2 x64 (Standard 2026).
      * 
      * Zastepuje monolityczny switch-case w PythonNetworkStreamPhaseGame.cpp
-     * tablica funkcyjna O(1) pozbawiona alokacji pamieci (Zero-GC, Zero-Alloc).
+     * szybka tablica dyspozytorska z opcodami uint16_t.
      */
     class PacketDispatcher
     {
@@ -24,32 +24,32 @@ namespace Network
         static PacketDispatcher& Instance();
 
         /**
-         * @brief Rejestruje handler dla danego naglowka (opcode) pakietu.
+         * @brief Rejestruje handler dla danego 16-bitowego naglowka pakietu GC.
          */
-        void RegisterHandler(uint8_t opcode, PacketHandlerFn handler);
+        void RegisterHandler(uint16_t opcode, PacketHandlerFn handler);
 
         /**
          * @brief Dysponuje surowy bufor pakietu do zarejestrowanego handlera domeny.
-         * @param opcode Naglowek pakietu.
+         * @param opcode Naglowek pakietu (np. GC::DEAD).
          * @param payload Bufor z zawartoscia pakietu.
          * @return true jesli pakiet zostal pomyslnie przetworzony.
          */
-        bool Dispatch(uint8_t opcode, std::span<const uint8_t> payload);
+        bool Dispatch(uint16_t opcode, std::span<const uint8_t> payload);
 
         /**
-         * @brief Rejestruje komplet wszystkich domyslnych handlerow Fali 1.
+         * @brief Rejestruje komplet domyslnych handlerow Fali 1.
          */
         void RegisterDefaultHandlers();
 
         /**
          * @brief Sprawdza czy dany opcode posiada zarejestrowany handler.
          */
-        bool HasHandler(uint8_t opcode) const;
+        bool HasHandler(uint16_t opcode) const;
 
     private:
-        PacketDispatcher();
+        PacketDispatcher() = default;
         ~PacketDispatcher() = default;
 
-        std::array<PacketHandlerFn, 256> m_handlers{};
+        std::unordered_map<uint16_t, PacketHandlerFn> m_handlers;
     };
 }

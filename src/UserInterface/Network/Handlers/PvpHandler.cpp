@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include <cstdint>
 #include "../../PythonNetworkStream.h"
 #include "../../PythonCharacterManager.h"

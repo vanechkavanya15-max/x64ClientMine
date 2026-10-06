@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "ShopHandler.h"
 #include "../../Packet.h"
 #include "../../PythonShop.h"

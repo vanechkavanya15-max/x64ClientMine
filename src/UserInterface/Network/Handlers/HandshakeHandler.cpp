@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "HandshakeHandler.h"
 
 namespace Network

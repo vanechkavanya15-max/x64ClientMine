@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 /**
  * @file ScriptAnswerHandler.cpp
  * @brief Implementation of the script answer network handler.

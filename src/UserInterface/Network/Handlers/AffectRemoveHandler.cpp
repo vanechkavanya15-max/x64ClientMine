@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "../../PythonNetworkStream.h"
 #include "../../Packet.h"
 #include "../../PythonPlayer.h"

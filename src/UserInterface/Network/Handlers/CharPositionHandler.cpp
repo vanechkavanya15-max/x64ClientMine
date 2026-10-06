@@ -1,5 +1,5 @@
-#include "CharPositionHandler.h"
 #include "../../StdAfx.h"
+#include "CharPositionHandler.h"
 #include "../../PythonCharacterManager.h"
 
 namespace Network::Handlers

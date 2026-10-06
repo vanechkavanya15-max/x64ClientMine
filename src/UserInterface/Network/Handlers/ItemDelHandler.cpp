@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "ItemDelHandler.h"
 #include "../../AbstractPlayer.h"
 

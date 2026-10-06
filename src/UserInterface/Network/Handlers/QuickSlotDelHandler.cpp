@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "UserInterface/Network/Handlers/QuickSlotDelHandler.h"
 #include "UserInterface/AbstractPlayer.h"
 

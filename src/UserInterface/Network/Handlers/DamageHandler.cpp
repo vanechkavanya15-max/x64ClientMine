@@ -1,5 +1,5 @@
-#include "DamageHandler.h"
 #include "../../StdAfx.h"
+#include "DamageHandler.h"
 #include "../../PythonCharacterManager.h"
 #include "../../PythonPlayer.h"
 

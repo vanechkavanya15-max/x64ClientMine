@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 /**
  * @file GuildMemberHandler.cpp
  * @brief Handler for receiving and saving guild member packets from the server.
@@ -11,7 +12,6 @@
 #include <iostream>
 #include <cstring>
 #include "../Packet.h"
-#include "../../StdAfx.h"
 
 namespace Network {
 namespace Handlers {

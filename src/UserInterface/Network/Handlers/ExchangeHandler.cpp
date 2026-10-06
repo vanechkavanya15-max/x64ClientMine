@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 /**
  * @file ExchangeHandler.cpp
  * @brief Implementation of the modern C++20 ExchangeHandler.
@@ -8,7 +9,6 @@
 #include "../../PythonExchange.h"
 #include "../../PythonCharacterManager.h"
 #include "../../PythonPlayer.h"
-#include "../../StdAfx.h"
 #include <unordered_map>
 
 /**

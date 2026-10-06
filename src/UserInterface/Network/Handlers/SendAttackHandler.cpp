@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "SendAttackHandler.h"
 #include "../../../EterLib/NetStream.h"
 #include <cstring> // For std::memset

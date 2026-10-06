@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "PingHandler.h"
 
 // Forward declarations for external ELTimer functions

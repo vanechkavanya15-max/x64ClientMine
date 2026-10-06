@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "ObserverMoveHandler.h"
 #include "../../PythonNetworkStream.h"
 #include "../../PythonMiniMap.h"

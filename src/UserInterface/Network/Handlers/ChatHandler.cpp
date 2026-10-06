@@ -1,5 +1,5 @@
-#include "ChatHandler.h"
 #include "../../StdAfx.h"
+#include "ChatHandler.h"
 #include "../../PythonChat.h"
 #include <string>
 

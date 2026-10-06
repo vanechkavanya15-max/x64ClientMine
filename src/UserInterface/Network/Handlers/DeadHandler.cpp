@@ -1,5 +1,5 @@
-#include "DeadHandler.h"
 #include "../../StdAfx.h"
+#include "DeadHandler.h"
 #include "../../PythonCharacterManager.h"
 #include "../../PythonPlayer.h"
 

@@ -1,5 +1,5 @@
-#include "TargetHPHandler.h"
 #include "../../StdAfx.h"
+#include "TargetHPHandler.h"
 #include "../../PythonPlayer.h"
 
 namespace Network::Handlers
@@ -13,8 +13,8 @@ namespace Network::Handlers
 
         const auto* packet = reinterpret_cast<const PacketTargetHP*>(buffer.data());
 
-        // Aktualizacja modelu celu bezposrednio w CPythonPlayer
-        CPythonPlayer::Instance().SetTargetHP(packet->targetVid, packet->hpPercentage);
+        // Aktualizacja celu w CPythonPlayer
+        CPythonPlayer::Instance().SetTarget(packet->targetVid);
 
         return true;
     }

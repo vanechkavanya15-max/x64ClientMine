@@ -1,3 +1,4 @@
+#include "../StdAfx.h"
 #include "PacketDispatcher.h"
 #include "../Packet.h"
 
@@ -17,39 +18,34 @@ namespace Network
         return instance;
     }
 
-    PacketDispatcher::PacketDispatcher()
-    {
-        m_handlers.fill(nullptr);
-    }
-
-    void PacketDispatcher::RegisterHandler(uint8_t opcode, PacketHandlerFn handler)
+    void PacketDispatcher::RegisterHandler(uint16_t opcode, PacketHandlerFn handler)
     {
         m_handlers[opcode] = handler;
     }
 
-    bool PacketDispatcher::HasHandler(uint8_t opcode) const
+    bool PacketDispatcher::HasHandler(uint16_t opcode) const
     {
-        return m_handlers[opcode] != nullptr;
+        return m_handlers.find(opcode) != m_handlers.end();
     }
 
-    bool PacketDispatcher::Dispatch(uint8_t opcode, std::span<const uint8_t> payload)
+    bool PacketDispatcher::Dispatch(uint16_t opcode, std::span<const uint8_t> payload)
     {
-        auto handler = m_handlers[opcode];
-        if (handler)
+        auto it = m_handlers.find(opcode);
+        if (it != m_handlers.end() && it->second)
         {
-            return handler(payload);
+            return it->second(payload);
         }
         return false;
     }
 
     void PacketDispatcher::RegisterDefaultHandlers()
     {
-        // Rejestracja modulow domenowych Fali 1 (Standard C++20)
-        RegisterHandler(HEADER_GC_DEAD, Handlers::HandleDeadPacket);
-        RegisterHandler(HEADER_GC_DAMAGE_INFO, Handlers::HandleDamagePacket);
-        RegisterHandler(HEADER_GC_TARGET, Handlers::HandleTargetHP);
-        RegisterHandler(HEADER_GC_CHAT, Handlers::HandleChatMessage);
-        RegisterHandler(HEADER_GC_ITEM_GROUND_DEL, Handlers::HandleItemGroundDel);
-        RegisterHandler(HEADER_GC_CHARACTER_POSITION, Handlers::HandleCharacterPosition);
+        // Rejestracja modulow domenowych Fali 1 (Standard C++20 na x64)
+        RegisterHandler(GC::DEAD, Handlers::HandleDeadPacket);
+        RegisterHandler(GC::DAMAGE_INFO, Handlers::HandleDamagePacket);
+        RegisterHandler(GC::TARGET, Handlers::HandleTargetHP);
+        RegisterHandler(GC::CHAT, Handlers::HandleChatMessage);
+        RegisterHandler(GC::ITEM_GROUND_DEL, Handlers::HandleItemGroundDel);
+        RegisterHandler(GC::CHARACTER_POSITION, Handlers::HandleCharacterPosition);
     }
 }

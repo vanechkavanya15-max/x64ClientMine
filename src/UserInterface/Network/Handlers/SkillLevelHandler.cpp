@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "SkillLevelHandler.h"
 #include "../../PythonPlayer.h"
 #include <cstring>
@@ -5,7 +6,7 @@
 
 namespace Network::Handlers
 {
-    constexpr size_t SKILL_MAX_NUM = 255;
+    constexpr size_t MAX_SKILL_COUNT = 255;
 
     SkillUpdateResult SkillLevelHandler::HandleSkillLevel(CPythonPlayer& player, std::span<const uint8_t> buffer)
     {
@@ -15,11 +16,11 @@ namespace Network::Handlers
         }
 
         const auto* packet = reinterpret_cast<const Packets::SkillLevelPacket*>(buffer.data());
-        uint32_t slotIndex = 0;
+        DWORD slotIndex = 0;
 
-        for (size_t i = 0; i < SKILL_MAX_NUM; ++i)
+        for (size_t i = 0; i < MAX_SKILL_COUNT; ++i)
         {
-            if (player.GetSkillSlotIndex(static_cast<uint32_t>(i), &slotIndex))
+            if (player.GetSkillSlotIndex(static_cast<DWORD>(i), &slotIndex))
             {
                 player.SetSkillLevel(slotIndex, packet->skillLevels[i]);
             }
@@ -40,21 +41,21 @@ namespace Network::Handlers
         player.SetSkill(7, 0);
         player.SetSkill(8, 0);
 
-        for (size_t i = 0; i < SKILL_MAX_NUM; ++i)
+        for (size_t i = 0; i < MAX_SKILL_COUNT; ++i)
         {
             const auto& playerSkill = packet->skills[i];
 
             if (i >= 112 && i <= 115 && playerSkill.level > 0)
             {
-                player.SetSkill(7, static_cast<uint32_t>(i));
+                player.SetSkill(7, static_cast<DWORD>(i));
             }
 
             if (i >= 116 && i <= 119 && playerSkill.level > 0)
             {
-                player.SetSkill(8, static_cast<uint32_t>(i));
+                player.SetSkill(8, static_cast<DWORD>(i));
             }
 
-            player.SetSkillLevel_(static_cast<uint32_t>(i), playerSkill.masterType, playerSkill.level);
+            player.SetSkillLevel_(static_cast<DWORD>(i), playerSkill.masterType, playerSkill.level);
         }
 
         return { true, true, true };

@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "StdAfx.h"
 #include "FlyTargetingHandler.h"
 #include "../../PythonCharacterManager.h"

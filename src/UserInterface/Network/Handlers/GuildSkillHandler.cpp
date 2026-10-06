@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "GuildSkillHandler.h"
 #include "../../PythonGuild.h"
 #include <algorithm>

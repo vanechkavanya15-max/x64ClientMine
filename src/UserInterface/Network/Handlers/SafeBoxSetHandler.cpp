@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 /**
  * @file SafeBoxSetHandler.cpp
  * @brief Implementation of the SafeBox Item Set network packet handler.

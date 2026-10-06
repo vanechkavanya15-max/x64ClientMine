@@ -1,3 +1,4 @@
+#include "../../StdAfx.h"
 #include "StdAfx.h"
 #include "Packet.h"
 #include "PythonPlayer.h"
