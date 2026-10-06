@@ -199,7 +199,7 @@ pub fn get_exchange_logic() -> &'static RwLock<ExchangeLogic> {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_net_recv_exchange(buf: *const u8, len: usize) -> bool {
+pub extern "C" fn m2_net_recv_exchange_protocol(buf: *const u8, len: usize) -> bool {
     if buf.is_null() || len < mem::size_of::<TPacketGCExchange>() {
         return false;
     }

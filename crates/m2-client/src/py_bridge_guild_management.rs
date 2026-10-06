@@ -2,7 +2,7 @@ use m2_client_bridge::ffi_guard::safe_ffi_call;
 use crate::recv_guild_logic_v2::get_guild_state;
 
 #[no_mangle]
-pub extern "C" fn m2_py_guild_get_guild_money() -> i32 {
+pub extern "C" fn m2_py_guild_get_guild_money_mgmt() -> i32 {
     safe_ffi_call(0, || {
         let state = get_guild_state().lock().unwrap();
         if !state.is_enabled {
@@ -13,7 +13,7 @@ pub extern "C" fn m2_py_guild_get_guild_money() -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_guild_get_guild_experience() -> i32 {
+pub extern "C" fn m2_py_guild_get_guild_experience_mgmt() -> i32 {
     safe_ffi_call(0, || {
         let state = get_guild_state().lock().unwrap();
         if !state.is_enabled {
@@ -24,7 +24,7 @@ pub extern "C" fn m2_py_guild_get_guild_experience() -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_guild_get_guild_level() -> i32 {
+pub extern "C" fn m2_py_guild_get_guild_level_mgmt() -> i32 {
     safe_ffi_call(0, || {
         let state = get_guild_state().lock().unwrap();
         if !state.is_enabled {
@@ -35,7 +35,7 @@ pub extern "C" fn m2_py_guild_get_guild_level() -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_py_guild_get_grade_name(
+pub extern "C" fn m2_py_guild_get_grade_name_mgmt(
     grade_number: u8,
     out_name_buf: *mut u8,
     buf_len: usize,

@@ -445,7 +445,7 @@ pub extern "C" fn m2_net_send_quest_select_item_packet(selection: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_net_send_quest_confirm_packet(answer: u8, request_pid: u32) -> bool {
+pub extern "C" fn m2_net_send_quest_confirm_packet_v2(answer: u8, request_pid: u32) -> bool {
     safe_ffi_call(false, || {
         let pkt = TPacketCGQuestConfirm::new(answer, request_pid);
         enqueue_outgoing_packet(pkt.to_bytes());
@@ -471,7 +471,7 @@ pub extern "C" fn m2_net_send_quest_cancel_packet() -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn m2_net_send_quest_input_string_packet(input: *const c_char) -> bool {
+pub extern "C" fn m2_net_send_quest_input_string_packet_v2(input: *const c_char) -> bool {
     safe_ffi_call(false, || {
         if input.is_null() {
             return false;
