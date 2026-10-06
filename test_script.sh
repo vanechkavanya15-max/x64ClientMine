@@ -1,2 +1,2 @@
-cargo check -p m2-client --lib
-cargo test -p m2-client --lib test_py_bridge_app_camera
+#!/bin/bash
+cat src/UserInterface/Packet.h | grep -B 2 -A 5 "command_party_set_state"

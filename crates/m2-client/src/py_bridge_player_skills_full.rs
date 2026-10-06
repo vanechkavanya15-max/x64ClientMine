@@ -4,10 +4,10 @@
 //! Zapewnia pobieranie wlasciwosci umiejetnosci bazujac na GameState.
 
 
-use m2_client::game_state_unified::{SKILL_MAX_NUM, TSkillInstance};
-use m2_client::py_bridge_player_skills::PLAYER_SKILLS;
-use m2_client::py_bridge_skill::m2_py_skill_get_max_level;
-use m2_client::py_bridge_ui_subsystems::m2_py_ui_skill_can_use_skill;
+use crate::game_state_unified::{SKILL_MAX_NUM, TSkillInstance};
+use crate::py_bridge_player_skills::PLAYER_SKILLS;
+use crate::py_bridge_skill::m2_py_skill_get_max_level;
+use crate::py_bridge_ui_subsystems::m2_py_ui_skill_can_use_skill;
 
 /// Pomocnicza funkcja do pobierania skilla w celu lepszej obslugi bledow
 fn get_skill_instance(slot: i32) -> Result<TSkillInstance, &'static str> {

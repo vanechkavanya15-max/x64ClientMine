@@ -1,0 +1,45 @@
+Wait, let's look at `winapi` usage.
+The Cargo.toml has `raw-window-handle`. It might not have `winapi` or `windows-sys`. Let's check dependencies again.
+```toml
+[dependencies]
+m2_client_bridge = { package = "m2-client-bridge", path = "../../rust_bridge" }
+glam = "0.29"
+once_cell = "1.20"
+lazy_static = "1.5"
+chacha20 = { version = "0.10.2", features = ["xchacha"] }
+zstd = "0.14.0"
+wgpu = "30.0.1"
+raw-window-handle = "0.6.2"
+pollster = "1.0.1"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "tga"] }
+bytemuck = { version = "1.20", features = ["derive"] }
+pyo3 = { version = "0.23", default-features = false, features = ["auto-initialize"] }
+rodio = "0.20"
+rayon = "1.12.0"
+rand = "0.8"
+```
+So no direct `winapi`. We can just use `extern "system"` with `std::ffi::c_void`.
+
+Wait, the prompt says:
+"Zgodnosc z C++ 1:1: Uzywaj dokladnie tych samych struktur, typow, stalych i wzorow matematycznych, jakie znajduja sie w zrodlach C++ w repozytorium."
+"Wszelkie struktury Win32/C-ABI definiuj z uzyciem #[repr(C)], a specyficzne wywolania Windows zamykaj w #[cfg(windows)] z bezpiecznymi zastepnikami #[cfg(not(windows))], aby `cargo test --package m2-client` przechodzil w 100% zarowno na Linuksie (CI/Cloud), jak i na Windowsie."
+
+I will create `src/ui_modal_dialog_queue_v2.rs` containing:
+- `DialogType` enum with variants like `ConfirmDestroyItem`, `ConfirmExitGame`, `InfoPopup`, `Question`.
+- `ModalDialog` struct.
+- `UiModalDialogQueueV2` struct with methods `push`, `pop`, `safe_set_capture`, `safe_release_capture`.
+- Win32 API FFI block:
+```rust
+#[cfg(windows)]
+extern "system" {
+    pub fn SetCapture(hWnd: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
+    pub fn ReleaseCapture() -> i32;
+}
+```
+
+Then I will create `tests/test_ui_modal_dialog_queue_v2.rs`:
+- Tests to push dialogs, verify the queue is correct.
+- Verify `mouse_capture_ref` correctly goes up and down (powrot do poprzedniego stanu).
+- Ensure it compiles and passes on Linux.
+
+Let's do `request_plan_review`.

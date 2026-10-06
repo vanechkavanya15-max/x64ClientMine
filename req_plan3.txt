@@ -1,0 +1,5 @@
+We will implement `UiModalDialogQueueV2`.
+Let's see if there are any specific dependencies or if we can use `*mut std::ffi::c_void`.
+The `m_hWnd` can be passed to `SafeSetCapture`. In the struct we can store `hwnd: *mut std::ffi::c_void` or `Option<*mut std::ffi::c_void>`.
+
+We will write `crates/m2-client/src/ui_modal_dialog_queue_v2.rs` and `crates/m2-client/tests/test_ui_modal_dialog_queue_v2.rs`.

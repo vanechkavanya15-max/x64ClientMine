@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ffi::c_char;
 use std::sync::{Mutex, OnceLock};
 
-use m2_client::mob_proto_binary_loader::{TMobTable, CHARACTER_NAME_MAX_LEN};
+use crate::mob_proto_binary_loader::{TMobTable, CHARACTER_NAME_MAX_LEN};
 use m2_client_bridge::ffi_guard::safe_ffi_call;
 
 // ---------------------------------------------------------

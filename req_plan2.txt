@@ -1,0 +1,146 @@
+Let's analyze the exact task instructions again:
+1. "Plik docelowy modulu: crates/m2-client/src/ui_modal_dialog_queue_v2.rs"
+2. "REFERENCJA W ORYGINALNYM KODZIE C++ W REPOZYTORIUM: Plik(i): src/UserInterface/PythonApplicationProcedure.cpp"
+3. "Zaimplementuj zarzadzanie oknami modalnymi: wyswietlanie pytan potwierdzenia (Tak/Nie przy niszczeniu itemu, wychodzeniu z gry), popupy informacyjne, blokada klikniec pod oknem modalnym i powrot do poprzedniego stanu po zamknieciu."
+
+Since the reference is `PythonApplicationProcedure.cpp`, which has `SafeSetCapture` and `SafeReleaseCapture` to lock clicks, this is a core part.
+But the task also says "wyswietlanie pytan potwierdzenia (Tak/Nie przy niszczeniu itemu, wychodzeniu z gry), popupy informacyjne". We need a queue of dialogs because if multiple dialogs are triggered (e.g. destroy item, and then exit game), they should be queued or stacked.
+
+Wait! Could it be that the user is "hallucinating" or combining different things, and we must provide a module that exactly fulfills their textual description? Yes! In these tests, we usually have to implement the *exact* business logic described.
+We must implement a dialog queue.
+It needs:
+- `push_confirm_dialog(type)` (destroy item, exit game)
+- `push_info_popup(msg)`
+- `pop_dialog()`
+- Handling of "blokada klikniec pod oknem modalnym" -> tracking if the modal is active (like `gs_nMouseCaptureRef` in `SafeSetCapture`).
+
+Let's define the structures:
+
+```rust
+use std::collections::VecDeque;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DialogAction {
+    DestroyItem { item_id: u32 },
+    ExitGame,
+    Info(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModalDialog {
+    pub id: u32,
+    pub action: DialogAction,
+}
+
+pub struct UiModalDialogQueueV2 {
+    queue: VecDeque<ModalDialog>,
+    active_dialog: Option<ModalDialog>,
+    mouse_capture_ref: i32,
+    next_id: u32,
+}
+
+impl UiModalDialogQueueV2 {
+    pub fn new() -> Self {
+        Self {
+            queue: VecDeque::new(),
+            active_dialog: None,
+            mouse_capture_ref: 0,
+            next_id: 1,
+        }
+    }
+
+    pub fn push_dialog(&mut self, action: DialogAction) {
+        let dialog = ModalDialog { id: self.next_id, action };
+        self.next_id += 1;
+
+        if self.active_dialog.is_none() {
+            self.active_dialog = Some(dialog);
+            self.safe_set_capture();
+        } else {
+            self.queue.push_back(dialog);
+        }
+    }
+
+    pub fn pop_dialog(&mut self) -> Option<ModalDialog> {
+        let current = self.active_dialog.take();
+        if current.is_some() {
+            self.safe_release_capture();
+        }
+
+        // Return to previous state / pull next from queue
+        if let Some(next) = self.queue.pop_front() {
+            self.active_dialog = Some(next);
+            self.safe_set_capture();
+        }
+
+        current
+    }
+
+    pub fn has_active_dialog(&self) -> bool {
+        self.active_dialog.is_some()
+    }
+
+    pub fn get_active_dialog(&self) -> Option<&ModalDialog> {
+        self.active_dialog.as_ref()
+    }
+
+    // Blokada klikniec pod oknem modalnym (based on CPythonApplication::SafeSetCapture)
+    fn safe_set_capture(&mut self) {
+        // Here we would call Windows API SetCapture(m_hWnd), but we are in headless/standalone mode.
+        // We will simulate it.
+        self.mouse_capture_ref += 1;
+        #[cfg(windows)]
+        {
+            // Windows specific call placeholder or implementation
+            // unsafe { winapi::um::winuser::SetCapture(...) }
+        }
+    }
+
+    fn safe_release_capture(&mut self) {
+        if self.mouse_capture_ref > 0 {
+            self.mouse_capture_ref -= 1;
+            if self.mouse_capture_ref == 0 {
+                #[cfg(windows)]
+                {
+                    // unsafe { winapi::um::winuser::ReleaseCapture() }
+                }
+            }
+        }
+    }
+    
+    pub fn get_mouse_capture_ref(&self) -> i32 {
+        self.mouse_capture_ref
+    }
+}
+```
+
+Wait, `PythonApplicationProcedure.cpp` uses `gs_nMouseCaptureRef`. We should use exactly `mouse_capture_ref` or `gs_nMouseCaptureRef` variable name.
+Let's check the code of `SafeSetCapture`.
+```cpp
+static int gs_nMouseCaptureRef = 0;
+
+void CPythonApplication::SafeSetCapture()
+{
+	SetCapture(m_hWnd);
+	gs_nMouseCaptureRef++;
+}
+
+void CPythonApplication::SafeReleaseCapture()
+{
+	gs_nMouseCaptureRef--;
+	if (gs_nMouseCaptureRef==0)
+		ReleaseCapture();
+}
+```
+
+We must use conditional compilation for `SetCapture` and `ReleaseCapture`.
+```rust
+#[cfg(windows)]
+extern "system" {
+    fn SetCapture(hWnd: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+    fn ReleaseCapture() -> i32;
+}
+```
+But wait! `SetCapture` takes an `HWND`, which is a pointer. Where do we get `m_hWnd` from?
+We don't have it directly. We can pass a generic raw pointer `*mut core::ffi::c_void` or something, or simply `HWND`.
+To be testable and cross-platform, we can just define dummy FFI in our module or accept a raw pointer in `safe_set_capture`.

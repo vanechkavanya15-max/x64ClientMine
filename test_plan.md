@@ -1,5 +1,6 @@
-Zadanie wymaga stworzenia modułu `game_state_payload_validator.rs` oraz zaimplementowania logiki sprawdzania poprawności zakresów komórek ekwipunku i wartości yang (gold) przed wygenerowaniem pakietu sieciowego, a następnie testów.
-Prawdopodobnie chodzi o upewnienie się, że yang (gold) mieści się w dopuszczalnym limicie `0..=2_000_000_000` (typowe dla Metin2) a komórki ekwipunku nie przekraczają maksymalnych wartości ze zdefiniowanych wcześniej `WindowType`.
-Plikiem wyjściowym, który "podłączy" to do testów, może być `full-cli-core_11.rs`, jednak w poleceniu jest: "Zaimplementuj modul w 'crates/m2-client/src/full-cli-core_11.rs' lub we wskazanym pliku." Oraz "Zaimplementuj w crates/m2-client/src/game_state_payload_validator.rs sprawdzanie poprawnosci".
-Czyli utworzę plik `game_state_payload_validator.rs` oraz odpowiedni plik z testami wg wymogu.
-
+1. Zaimplementować logikę obliczania zagęszczenia mgły w wgpu_postprocess_depth_fog_v2.rs. Logika pokrywa funkcjonalność z C++ w CStateManager (SetFog), wliczając `FogModeV2::Linear` oraz `FogModeV2::Exp`.
+2. Skonfigurować odpowiednie pliki, aby stworzyć kompletny moduł:
+    - W pliku `crates/m2-client/src/wgpu_postprocess_depth_fog_v2.rs` utworzyć struktury dla logiki mgły uwzględniające `fFogDensityLevel` oraz `fFogScaleLevel` i inne zmienne takie jak gęstość mgły. Kod jest idiomy Rust bez stubów.
+    - Stworzyć zestaw testów jednostkowych w `crates/m2-client/tests/test_wgpu_postprocess_depth_fog_v2.rs`, aby udowodnić poprawne działanie każdego scenariusza (Linear, Exp, disabled). Moduł jest załączany za pomocą atrybutu `#[path]`.
+3. Kompilacja i weryfikacja. Testy muszą przechodzić przez komendę `cargo test --package m2-client --test test_wgpu_postprocess_depth_fog_v2`.
+4. Uruchomienie `cargo test --package m2-client` by sprawdzić, czy zmiany działają bez problemu na całym środowisku.

@@ -1,6 +1,6 @@
-use m2_client::ui_window_mgr::WindowManager;
-use m2_client::wgpu_camera_orbit_controller::CameraOrbitController;
-use m2_client::py_event_dispatcher;
+use crate::ui_window_mgr::WindowManager;
+use crate::wgpu_camera_orbit_controller::CameraOrbitController;
+use crate::py_event_dispatcher;
 
 pub fn dispatch_mouse_wheel(
     ui_mgr: &mut WindowManager,

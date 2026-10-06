@@ -4,7 +4,7 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::sync::{Mutex, OnceLock};
 
-use m2_client::chat_buffer_v2::get_chat_buffer;
+use crate::chat_buffer_v2::get_chat_buffer;
 
 #[derive(Debug, Clone, Default)]
 pub struct WhisperLineFull {

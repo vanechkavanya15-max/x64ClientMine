@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 use std::sync::Arc;
-use m2_client::wgpu_terrain_renderer::TerrainVertex;
+use crate::wgpu_terrain_renderer::TerrainVertex;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]

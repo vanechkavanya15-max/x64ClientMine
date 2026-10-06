@@ -1,23 +1,14 @@
-1.  **Implement the Shadow PCF Pipeline in Rust:**
-    *   Create a new file `crates/m2-client/src/wgpu_shadow_pcf_pipeline.rs`.
-    *   Define the `WgpuShadowPcfPipeline` struct.
-    *   Implement initialization logic ensuring a 2048x2048 shadow map and a 16-tap PCF 4x4 filter, with near and far cascades, mirroring C++ terrain/shadow properties.
-    *   The WGSL shader must include 16-tap PCF and smooth cascade blend zones.
-    *   Add a method to calculate the sun light matrix (used for cascades).
+1. *Create the target file `crates/m2-client/src/send_refine_blacksmith_ops.rs`.*
+   - Define constants `HEADER_CG_REFINE = 0x050C` and `HEADER_CG_ITEM_USE_TO_ITEM = 0x0506`.
+   - Define structures `TPacketCGRefine` and `TPacketCGItemUseToItem` (for REFINE_SCROLL).
+   - Implement formatting functions `format_cg_refine_packet(pos, type_)` and `format_cg_item_use_to_item_packet(source_pos, target_pos)`.
 
-2.  **Expose module:**
-    *   Add `pub mod wgpu_shadow_pcf_pipeline;` to `crates/m2-client/src/lib.rs`.
+2. *Create the test file `crates/m2-client/tests/test_send_refine_blacksmith_ops.rs`.*
+   - Include test cases for standard refining (`HEADER_CG_REFINE`) and scroll refining (`HEADER_CG_ITEM_USE_TO_ITEM`).
+   - Check structural invariants (sizes, offsets) of packets using `std::mem`.
+   - Validate serialization buffers.
+   - Run `cargo test --package m2-client` headless on Google Cloud Jules VM.
 
-3.  **Implement Tests:**
-    *   Create a new file `crates/m2-client/tests/test_wgpu_shadow_pcf.rs`.
-    *   Write 3-4 comprehensive tests:
-        *   Test initialization (texture sizes, cascades).
-        *   Test light matrix calculation.
-        *   Test that the WGSL shader compiles correctly (creates a render pipeline).
-        *   Test cascade blend logic (using stub logic or matrices calculations).
+3. *Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.*
 
-4.  **Pre-commit checks:**
-    *   Run Cargo checks and formatting (`cargo check -p m2-client --lib`, `cargo test -p m2-client --test test_wgpu_shadow_pcf`). Ensure 0 warnings and unused imports.
-
-5.  **Submit changes:**
-    *   Commit changes via `submit`.
+4. *Commit and complete work.*

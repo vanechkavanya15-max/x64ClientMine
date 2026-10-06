@@ -1,5 +1,5 @@
-use m2_client::msa_script_parser_v2::{parse_msa_data, MotionEventData};
-use m2_client::sound_ffi::m2_audio_play_sound_3d;
+use crate::msa_script_parser_v2::{parse_msa_data, MotionEventData};
+use crate::sound_ffi::m2_audio_play_sound_3d;
 use std::ffi::CString;
 
 pub struct AnimationSoundSync {

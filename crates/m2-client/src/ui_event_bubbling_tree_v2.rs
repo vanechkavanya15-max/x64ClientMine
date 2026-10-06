@@ -1,4 +1,4 @@
-use m2_client::ui_wndmgr_hierarchy::{WindowNode, FLAG_ATTACH, FLAG_NOT_CAPTURE, FLAG_NOT_PICK};
+use crate::ui_wndmgr_hierarchy::{WindowNode, FLAG_ATTACH, FLAG_NOT_CAPTURE, FLAG_NOT_PICK};
 use std::collections::HashMap;
 
 /// Modul obslugujacy propagacje zdarzen klikniec w drzewie UI z zachowaniem pelnego

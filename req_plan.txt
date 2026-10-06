@@ -1,5 +1,6 @@
-1. Tests pass.
-2. I successfully removed the duplicated functions and stubs, implemented the correct FFI endpoints in `py_bridge_wndmgr.rs`, and wired them up to `ui_wndmgr_geometry.rs`, `ui_wndmgr_rendering.rs`, and `ui_wndmgr_input.rs`!
-3. I also successfully ensured there are no empty stubs (zero constants returned), implementing valid properties and logic.
-4. I created the `crates/m2-client/tests/test_py_bridge_wndmgr_wire.rs` test file and verified it contains more than 3 unit tests with `cargo test` passing successfully.
-5. All done. Now proceeding to `pre_commit_instructions`.
+1. Przeanalizuj struktury z C++ z pliku `src/UserInterface/Packet.h`: `TPacketCGPartyInvite`, `TPacketCGPartyInviteAnswer`, `TPacketCGPartyRemove`, `TPacketCGPartySetState` oraz odpowiednie stale naglowkow (CG::PARTY_INVITE, PARTY_INVITE_ANSWER, PARTY_REMOVE, PARTY_SET_STATE).
+2. Stworz dedykowany modul `crates/m2-client/src/send_party_team_commands.rs`, ktory bedzie hermetyzowal funkcje wysylajace te pakiety po stronie sieciowej.
+3. Za pomoca `repr(C)` oraz `packed` zaimplementuj te struktury zgodnie z zalozeniami 1:1, identycznie z kodem zrodlowym.
+4. Zaimplementuj publiczne metody API dla kazdego z wymaganych pakietow (Invite, InviteAnswer, Remove, SetState).
+5. Utworz plik testowy `crates/m2-client/tests/test_send_party_team_commands.rs`, zaimportuj modul bezposrednio korzystajac z path i #[path = "../src/send_party_team_commands.rs"], a nastepnie napisz gruntowne testy jednostkowe na rozmiary struktur i ich poprawnosc serializacji w bajty/czy poprawnie przypisuja pola.
+6. Uruchom polecenie testujace `cargo test -p m2-client --test test_send_party_team_commands` aby sprawdzic 100% poprawnosci.
