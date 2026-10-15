@@ -1,65 +1,127 @@
 #pragma once
 
-#include <optional>
-#include <EterBase/Result.h>
-#include <Client/Core/StrongTypes.h>
+#include <expected>
+#include <string_view>
+#include <cstdint>
+#include <cmath>
+#include "Client/Core/StrongTypes.h"
 
 namespace Client::Actor {
 
-/**
- * @brief Komponent odpowiedzialny za logike przemieszczania sie aktora w przestrzeni 3D.
- * Czysty C++23, zero wyciekow RAII, brak zaleznosci od Windows API/DirectX.
- */
+enum class MovementError : uint8_t {
+    None = 0,
+    InvalidDestination,
+    AlreadyAtDestination,
+    Unreachable,
+    SpeedZero,
+    ZeroDuration,
+    NotMoving
+};
+
+[[nodiscard]] constexpr std::string_view ToString(MovementError err) noexcept {
+    switch (err) {
+        case MovementError::None: return "None";
+        case MovementError::InvalidDestination: return "InvalidDestination";
+        case MovementError::AlreadyAtDestination: return "AlreadyAtDestination";
+        case MovementError::Unreachable: return "Unreachable";
+        case MovementError::SpeedZero: return "SpeedZero";
+        case MovementError::ZeroDuration: return "ZeroDuration";
+        case MovementError::NotMoving: return "NotMoving";
+    }
+    return "UnknownMovementError";
+}
+
+template <typename T = void>
+using MovementResult = std::expected<T, MovementError>;
+
 class ActorMovementComponent {
 public:
-    ActorMovementComponent() noexcept = default;
-    explicit ActorMovementComponent(const Client::Core::MapCoords& initialPos) noexcept;
+    constexpr ActorMovementComponent() noexcept = default;
 
-    /**
-     * @brief Zleca przemieszczenie do podanego punktu docelowego z okreslona predkoscia.
-     * @param targetPos Punkt docelowy.
-     * @param speed Predkosc ruchu (jednostki / sekunda). Musi byc > 0.
-     * @return Sukces lub blad walidacji (np. niewlasciwa predkosc).
-     */
-    [[nodiscard]] EterBase::Result<void, EterBase::EntityError> MoveTo(const Client::Core::MapCoords& targetPos, float speed) noexcept;
+    // Set initial position without moving
+    constexpr void SetPosition(const Core::MapCoords& position) noexcept {
+        m_currentPosition = position;
+        m_destination = position;
+        m_isMoving = false;
+        m_distanceToMove = 0.0f;
+        m_movedDistance = 0.0f;
+    }
 
-    /**
-     * @brief Zatrzymuje aktora w aktualnej pozycji.
-     */
-    void Stop() noexcept;
+    [[nodiscard]] constexpr const Core::MapCoords& GetPosition() const noexcept {
+        return m_currentPosition;
+    }
 
-    /**
-     * @brief Aktualizuje pozycje aktora na podstawie uplynietego czasu.
-     * @param deltaTime Uplyniety czas (w sekundach).
-     * @return Opcjonalna nowa pozycja, jesli aktor zmienil polozenie. nullopt jesli nie wykonano ruchu.
-     */
-    std::optional<Client::Core::MapCoords> Update(float deltaTime) noexcept;
+    [[nodiscard]] constexpr const Core::MapCoords& GetDestination() const noexcept {
+        return m_destination;
+    }
 
-    /**
-     * @brief Zwraca aktualna pozycje aktora.
-     */
-    [[nodiscard]] const Client::Core::MapCoords& GetCurrentPosition() const noexcept;
+    [[nodiscard]] constexpr bool IsMoving() const noexcept {
+        return m_isMoving;
+    }
 
-    /**
-     * @brief Zwraca punkt docelowy ruchu.
-     */
-    [[nodiscard]] const Client::Core::MapCoords& GetTargetPosition() const noexcept;
+    constexpr MovementResult<void> MoveTo(const Core::MapCoords& destination, float speed) noexcept {
+        if (speed <= 0.0f) {
+            return std::unexpected(MovementError::SpeedZero);
+        }
 
-    /**
-     * @brief Sprawdza, czy aktor aktualnie sie porusza.
-     */
-    [[nodiscard]] bool IsMoving() const noexcept;
+        if (m_currentPosition.x == destination.x && m_currentPosition.y == destination.y && m_currentPosition.z == destination.z) {
+            return std::unexpected(MovementError::AlreadyAtDestination);
+        }
 
-    /**
-     * @brief Ustawia natychmiastowo nowa pozycje, zatrzymujac ewentualny ruch.
-     */
-    void SetPosition(const Client::Core::MapCoords& pos) noexcept;
+        m_destination = destination;
+        m_speed = speed;
+        m_isMoving = true;
+        
+        m_direction = destination - m_currentPosition;
+        m_distanceToMove = std::sqrt(m_direction.x * m_direction.x + m_direction.y * m_direction.y + m_direction.z * m_direction.z);
+        m_movedDistance = 0.0f;
+
+        if (m_distanceToMove > 0.0f) {
+            m_direction /= m_distanceToMove;
+        }
+
+        return {};
+    }
+
+    constexpr MovementResult<void> Update(float deltaTime) noexcept {
+        if (!m_isMoving) {
+            return std::unexpected(MovementError::NotMoving);
+        }
+
+        if (deltaTime <= 0.0f) {
+            return std::unexpected(MovementError::ZeroDuration);
+        }
+
+        float moveAmount = m_speed * deltaTime;
+        m_movedDistance += moveAmount;
+
+        if (m_movedDistance >= m_distanceToMove) {
+            m_currentPosition = m_destination;
+            m_isMoving = false;
+            m_distanceToMove = 0.0f;
+            m_movedDistance = 0.0f;
+        } else {
+            m_currentPosition += m_direction * moveAmount;
+        }
+
+        return {};
+    }
+
+    constexpr void Stop() noexcept {
+        m_isMoving = false;
+        m_destination = m_currentPosition;
+        m_distanceToMove = 0.0f;
+        m_movedDistance = 0.0f;
+    }
 
 private:
-    Client::Core::MapCoords m_currentPosition{};
-    Client::Core::MapCoords m_targetPosition{};
-    float m_speed{0.0f};
-    bool m_isMoving{false};
+    Core::MapCoords m_currentPosition{};
+    Core::MapCoords m_destination{};
+    Core::MapCoords m_direction{};
+    float m_speed = 0.0f;
+    bool m_isMoving = false;
+    float m_distanceToMove = 0.0f;
+    float m_movedDistance = 0.0f;
 };
 
 } // namespace Client::Actor
