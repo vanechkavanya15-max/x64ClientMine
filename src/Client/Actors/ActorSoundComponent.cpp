@@ -52,11 +52,11 @@ namespace Client::Actors {
             return std::unexpected(SoundError::NotInitialized);
         }
         
-        ActorFootstepSoundEvent event{
+        ActorFootstepSoundEvent event(
             *m_entityId,
             surface,
             GetFootstepSoundPath(surface)
-        };
+        );
         m_eventBus->Publish(event);
         return {};
     }
@@ -66,11 +66,11 @@ namespace Client::Actors {
             return std::unexpected(SoundError::NotInitialized);
         }
         
-        ActorWeaponSoundEvent event{
+        ActorWeaponSoundEvent event(
             *m_entityId,
             weapon,
             GetWeaponSoundPath(weapon)
-        };
+        );
         m_eventBus->Publish(event);
         return {};
     }
@@ -80,10 +80,10 @@ namespace Client::Actors {
             return std::unexpected(SoundError::NotInitialized);
         }
         
-        ActorVoiceSoundEvent event{
+        ActorVoiceSoundEvent event(
             *m_entityId,
             GetVoiceSoundPath(type)
-        };
+        );
         m_eventBus->Publish(event);
         return {};
     }

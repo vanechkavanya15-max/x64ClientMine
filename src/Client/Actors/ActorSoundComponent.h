@@ -36,21 +36,30 @@ namespace Client::Actors {
         Fan
     };
 
-    struct ActorFootstepSoundEvent {
+    struct ActorFootstepSoundEvent : public EterBase::IEvent {
         EterBase::EntityId entityId;
         SurfaceType surface;
         std::string soundPath;
+        
+        ActorFootstepSoundEvent(EterBase::EntityId id, SurfaceType s, std::string path)
+            : entityId(id), surface(s), soundPath(std::move(path)) {}
     };
     
-    struct ActorWeaponSoundEvent {
+    struct ActorWeaponSoundEvent : public EterBase::IEvent {
         EterBase::EntityId entityId;
         WeaponType weapon;
         std::string soundPath;
+        
+        ActorWeaponSoundEvent(EterBase::EntityId id, WeaponType w, std::string path)
+            : entityId(id), weapon(w), soundPath(std::move(path)) {}
     };
     
-    struct ActorVoiceSoundEvent {
+    struct ActorVoiceSoundEvent : public EterBase::IEvent {
         EterBase::EntityId entityId;
         std::string soundPath;
+        
+        ActorVoiceSoundEvent(EterBase::EntityId id, std::string path)
+            : entityId(id), soundPath(std::move(path)) {}
     };
 
     class ActorSoundComponent {
