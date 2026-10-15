@@ -1,0 +1,11 @@
+T239 P0 A40 Wydzielenie CompositionStringHandler w src/Client/Input/
+Zadanie: Stworzenie nowej klasy `CompositionStringHandler` (w C++23) w nowym module `src/Client/Input/`, odpowiedzialnej za obsługę znaków w trybie wprowadzania (IME/Composition), np. na wzór fragmentów z CIME (CompositionProcess itp.), ale kompletnie bez zależności od Windows API. Interfejs ma używać nowszych typów (std::expected, StrongTypes, std::optional). I należy dodać test do `tests/test_c26_composition_string.cpp` który passuje 100%.
+
+Plan:
+1. Zrozumienie domeny IME composition - co robi: trzyma skomponowany string, string wynikowy, kursory, atrybuty (cursor pos, itd).
+2. Stworzenie klas:
+   - `src/Client/Input/CompositionStringHandler.h`
+   - `src/Client/Input/CompositionStringHandler.cpp`
+3. Napisanie unit testów w `tests/test_c26_composition_string.cpp`.
+4. Kompilacja i uruchomienie testów (headlessly).
+5. Pre-commit check (wedle instrukcji 5. Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.).
