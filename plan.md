@@ -1,25 +1,26 @@
-1. Zaktualizować użycie silnych typów `EntityVid` i `ItemVnum` (zdefiniowanych w `src/Client/Core/StrongTypes.h`) w strukturach zdarzeń domenowych emitowanych przez `NetCombatRouter` (w `src/UserInterface/Network/Routers/NetCombatRouter.h`).
-   - `CombatAttackDomainEvent`: zmienić `uint32_t` na `Client::Core::EntityVid` dla `dwAttackerVID` i `dwVictimVID`.
-   - `CombatDamageInfoDomainEvent`: zmienić `uint32_t` na `Client::Core::EntityVid` dla `dwVictimVID` i `dwAttackerVID`.
-   - `CombatFlyDomainEvent`: zmienić `uint32_t` na `Client::Core::EntityVid` dla `dwStartVID` i `dwEndVID`.
-   - `CombatFlyTargetingDomainEvent`: zmienić `uint32_t` na `Client::Core::EntityVid` dla `dwShooterVID` i `dwTargetVID`.
+1. Utworzyć `src/Client/Network/MessengerPacketCodec.h` i `src/Client/Network/MessengerPacketCodec.cpp`:
+   - Dodamy `struct MessengerFriendEvent { std::string name; bool isOnline; };` oraz `struct MessengerDomainEvent { uint8_t subheader; std::vector<MessengerFriendEvent> friends; };`.
+   - Klasa `MessengerPacketCodec` będzie miała metodę: `static EterBase::PacketResult<MessengerDomainEvent> DecodeMessenger(std::span<const uint8_t> buffer);`.
+   - Zaimplementować parser, używający `std::span` i weryfikujący `buffer.size()`. Chroni przed BufferUnderflow (wynik to `std::unexpected(EterBase::PacketError::BufferUnderflow)`). 
 
-2. Zaktualizować użycie silnych typów `EntityVid` i `ItemVnum` w strukturach zdarzeń domenowych emitowanych przez `NetItemRouter` (w `src/UserInterface/Network/Routers/NetItemRouter.h`).
-   - `ItemSetDomainEvent`: zmienić `uint32_t` na `Client::Core::ItemVnum` dla `dwVnum`.
-   - `ItemGroundAddDomainEvent`: zmienić `uint32_t` na `Client::Core::EntityVid` dla `dwVID` oraz `uint32_t` na `Client::Core::ItemVnum` dla `dwVnum`.
-   - `ItemGroundDelDomainEvent`: zmienić `uint32_t` na `Client::Core::EntityVid` dla `dwVID`.
+2. Utworzyć `src/Client/Bridge/PhaseGameMessengerBridge.h` i `src/Client/Bridge/PhaseGameMessengerBridge.cpp`:
+   - Zależność `IPythonRuntime& m_pythonRuntime;`
+   - Metoda `bool HandleMessenger(std::span<const uint8_t> buffer);` która:
+     - Wywołuje `Client::Network::MessengerPacketCodec::DecodeMessenger(buffer)`.
+     - Jeśli błąd, zwraca false.
+     - Iteruje po `event.friends`:
+       - `subh == LIST`: jeśli `f.isOnline`, woła `m_pythonRuntime.Invoke("messenger", "OnFriendLogin", f.name);`, inaczej `OnFriendLogout`.
+       - `subh == LOGIN`: woła `"messenger"`, `"OnFriendLogin"`, i `"game"`, `"RefreshTargetBoardByName"`.
+       - `subh == LOGOUT`: woła `"messenger"`, `"OnFriendLogout"`.
+       - `subh == REMOVE_FRIEND`: woła `"messenger"`, `"RemoveFriend"`, i `"game"`, `"RefreshTargetBoardByName"`.
 
-3. Zaktualizować kod w `NetCombatRouter.cpp` i `NetItemRouter.cpp`, aby przekazywał wartości owrapowane w silne typy podczas konstruowania obiektów zdarzeń domenowych.
-   - Np. zamiast `packet.dwVID` przekazać `Client::Core::EntityVid{packet.dwVID}`.
+3. Utworzyć testy jednostkowe `tests/test_c26_phase_game_messenger_bridge.cpp`:
+   - Użyć frameworku `doctest.h`
+   - `MockPythonRuntime` by rejestrować wywołania (czy na pewno mamy nagrać `MockPythonRuntime.h`? Sprwadźmy `src/Client/Bridge/MockPythonRuntime.h`).
+   - Mockowanie span'a dla pakietu LIST (2 znajomych: 1 online, 1 offline).
+   - Mockowanie span'a dla LOGIN.
+   - Mockowanie span'a dla LOGOUT.
+   - Mockowanie span'a dla REMOVE_FRIEND.
+   - Sprawdzenie logiki `MessengerPacketCodec` (np. za krótkie bufory).
 
-4. W `IGameEvents.h`, zmienić deklarację `VID` i `ItemID` lub zmienić użycie typów w strukturach eventowych:
-   - Ale uwaga! `IGameEvents.h` definiuje `using VID = uint32_t;`. Ponieważ zadanie to "Wdrożenie StrongTypes (EntityVid, ItemVnum) w NetCombatRouter i NetItemRouter", powinniśmy skupić się na zmianie `DomainEvents` definiowanych w tych routerach, ewentualnie zmienić to też w `IGameEvents.h` jeśli dotyczy interfejsu `IGameEventSink`, który też jest używany w tych routerach.
-   - W `IGameEvents.h` możemy zostawić `VID` jako alias, ale lepiej zaktualizować zdarzenia by po prostu przypisywały `EntityVid` jeśli struktury w `IGameEvents.h` się nie zmieniły (przypomnijmy, zdarzenia kontraktowe w `IGameEvents.h` używają nadal `VID`, więc może trzeba zaktualizować tylko zdarzenia domenowe, lub też te w `IGameEvents.h` na `Client::Core::EntityVid`). W zasadzie możemy zmienić to w `IGameEvents.h`:
-     ```cpp
-     #include "Client/Core/StrongTypes.h"
-     using VID = Client::Core::EntityVid;
-     using ItemID = Client::Core::ItemVnum;
-     ```
-     Bądź zaktualizować w obu miejscach. Aby nie ruszać globalnego `IGameEvents.h` ponad to, co w zadaniu, wystarczy zaktualizować zdarzenia wysyłane w samych routerach, tzn. `CombatAttackDomainEvent` itp. (a do `IGameEvents.h` puszczamy wartości po wyciągnięciu `.get()` albo możemy zaktualizować obydwa).
-
-Sprawdźmy powiązania.
+4. Kompletacja instrukcji `pre_commit_instructions` (aby zaliczyć plan).

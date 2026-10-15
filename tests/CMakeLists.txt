@@ -6202,3 +6202,25 @@ target_link_libraries(test_c26_phase_game_warp_bridge PRIVATE
 )
 add_test(NAME test_c26_phase_game_warp_bridge COMMAND test_c26_phase_game_warp_bridge)
 
+# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
+add_executable(test_c26_phase_game_messenger_bridge test_c26_phase_game_messenger_bridge.cpp)
+target_include_directories(test_c26_phase_game_messenger_bridge PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_phase_game_messenger_bridge PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c26_phase_game_messenger_bridge COMMAND test_c26_phase_game_messenger_bridge)
+
