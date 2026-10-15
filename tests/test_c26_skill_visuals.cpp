@@ -1,167 +1,182 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
+
 #include "Client/Skills/SkillVisualPipeline.h"
-#include <utility>
-#include <unordered_set>
+#include "Client/Core/StrongTypes.h"
+#include "Client/Core/DomainErrors.h"
+#include "Client/Core/Result.h"
 
 using namespace Client::Skills;
 using namespace Client::Core;
 
-class MockVisualEffectRenderer : public IVisualEffectRenderer {
+class MockSkillVisualEffectSystem : public ISkillVisualEffectSystem {
 public:
-    std::unordered_set<uint32_t> validEntities;
-    std::vector<std::pair<EntityVid, VisualEffectConfig>> dispatchedEffects;
-
-    void DispatchEffect(EntityVid sourceVid, const VisualEffectConfig& config) override {
-        dispatchedEffects.push_back({sourceVid, config});
+    Result<void, SkillError> PlayEffect(EntityVid target, SkillIndex skillId, const std::optional<MapCoords>& coords) override {
+        if (playShouldFail) {
+            return std::unexpected(SkillError::RequirementNotMet);
+        }
+        playCallCount++;
+        lastPlayedTarget = target;
+        lastPlayedSkill = skillId;
+        lastPlayedCoords = coords;
+        return {};
     }
 
-    bool IsEntityValid(EntityVid vid) const override {
-        return validEntities.contains(vid.get());
+    Result<void, SkillError> StopEffect(EntityVid target, SkillIndex skillId) override {
+        if (stopShouldFail) {
+            return std::unexpected(SkillError::SkillNotFound);
+        }
+        stopCallCount++;
+        lastStoppedTarget = target;
+        lastStoppedSkill = skillId;
+        return {};
     }
 
-    void AddValidEntity(uint32_t vid) {
-        validEntities.insert(vid);
-    }
+    bool playShouldFail = false;
+    bool stopShouldFail = false;
     
-    void RemoveValidEntity(uint32_t vid) {
-        validEntities.erase(vid);
-    }
+    int playCallCount = 0;
+    int stopCallCount = 0;
+    
+    EntityVid lastPlayedTarget{0};
+    SkillIndex lastPlayedSkill{0};
+    std::optional<MapCoords> lastPlayedCoords = std::nullopt;
+
+    EntityVid lastStoppedTarget{0};
+    SkillIndex lastStoppedSkill{0};
 };
 
-TEST_CASE("SkillVisualPipeline - Enqueue effect without delay") {
-    MockVisualEffectRenderer renderer;
-    renderer.AddValidEntity(1);
+TEST_CASE("SkillVisualPipeline - Triggering effects") {
+    MockSkillVisualEffectSystem mockSystem;
+    SkillVisualPipeline pipeline(mockSystem);
+
+    SUBCASE("Successfully triggers an effect") {
+        EntityVid target(123);
+        SkillIndex skillId(1);
+        float duration = 5.0f;
+
+        auto result = pipeline.TriggerSkillEffect(target, skillId, duration);
+
+        CHECK(result.has_value());
+        CHECK(pipeline.GetActiveEffectsCount() == 1);
+        CHECK(mockSystem.playCallCount == 1);
+        CHECK(mockSystem.lastPlayedTarget == target);
+        CHECK(mockSystem.lastPlayedSkill == skillId);
+        CHECK_FALSE(mockSystem.lastPlayedCoords.has_value());
+    }
+
+    SUBCASE("Fails when target is invalid (VID = 0)") {
+        EntityVid target(0);
+        SkillIndex skillId(1);
+        float duration = 5.0f;
+
+        auto result = pipeline.TriggerSkillEffect(target, skillId, duration);
+
+        CHECK_FALSE(result.has_value());
+        CHECK(result.error() == SkillError::RequirementNotMet);
+        CHECK(pipeline.GetActiveEffectsCount() == 0);
+        CHECK(mockSystem.playCallCount == 0);
+    }
+
+    SUBCASE("Fails when duration is 0 or negative") {
+        EntityVid target(123);
+        SkillIndex skillId(1);
+        float duration = 0.0f;
+
+        auto result = pipeline.TriggerSkillEffect(target, skillId, duration);
+
+        CHECK_FALSE(result.has_value());
+        CHECK(result.error() == SkillError::RequirementNotMet);
+        CHECK(pipeline.GetActiveEffectsCount() == 0);
+        CHECK(mockSystem.playCallCount == 0);
+    }
+
+    SUBCASE("Fails when underlying system rejects the effect") {
+        EntityVid target(123);
+        SkillIndex skillId(1);
+        float duration = 5.0f;
+        
+        mockSystem.playShouldFail = true;
+
+        auto result = pipeline.TriggerSkillEffect(target, skillId, duration);
+
+        CHECK_FALSE(result.has_value());
+        CHECK(result.error() == SkillError::RequirementNotMet);
+        CHECK(pipeline.GetActiveEffectsCount() == 0);
+        CHECK(mockSystem.playCallCount == 0);
+    }
     
-    SkillVisualPipeline pipeline(renderer);
-    
-    VisualEffectConfig config{100, std::nullopt, 0};
-    auto result = pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    
-    CHECK(result.has_value());
-    CHECK(pipeline.GetQueueSize() == 1);
-    
-    pipeline.Update(1000);
-    
-    CHECK(pipeline.GetQueueSize() == 0);
-    CHECK(renderer.dispatchedEffects.size() == 1);
-    CHECK(renderer.dispatchedEffects[0].first == EntityVid{1});
-    CHECK(renderer.dispatchedEffects[0].second.effectVnum == 100);
+    SUBCASE("Triggers an effect with coordinates") {
+        EntityVid target(123);
+        SkillIndex skillId(1);
+        float duration = 5.0f;
+        MapCoords coords{10.0f, 20.0f, 30.0f};
+
+        auto result = pipeline.TriggerSkillEffect(target, skillId, duration, coords);
+
+        CHECK(result.has_value());
+        CHECK(pipeline.GetActiveEffectsCount() == 1);
+        CHECK(mockSystem.playCallCount == 1);
+        CHECK(mockSystem.lastPlayedCoords.has_value());
+        CHECK(mockSystem.lastPlayedCoords->x == coords.x);
+        CHECK(mockSystem.lastPlayedCoords->y == coords.y);
+        CHECK(mockSystem.lastPlayedCoords->z == coords.z);
+    }
 }
 
-TEST_CASE("SkillVisualPipeline - Enqueue effect with delay") {
-    MockVisualEffectRenderer renderer;
-    renderer.AddValidEntity(1);
+TEST_CASE("SkillVisualPipeline - Updating and canceling effects") {
+    MockSkillVisualEffectSystem mockSystem;
+    SkillVisualPipeline pipeline(mockSystem);
     
-    SkillVisualPipeline pipeline(renderer);
-    
-    VisualEffectConfig config{100, std::nullopt, 500};
-    auto result = pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    
-    CHECK(result.has_value());
-    
-    // Not enough time passed
-    pipeline.Update(1200);
-    CHECK(pipeline.GetQueueSize() == 1);
-    CHECK(renderer.dispatchedEffects.empty());
-    
-    // Enough time passed
-    pipeline.Update(1500);
-    CHECK(pipeline.GetQueueSize() == 0);
-    CHECK(renderer.dispatchedEffects.size() == 1);
-}
+    EntityVid target(123);
+    SkillIndex skillId(1);
+    float duration = 5.0f;
 
-TEST_CASE("SkillVisualPipeline - Invalid configuration") {
-    MockVisualEffectRenderer renderer;
-    renderer.AddValidEntity(1);
-    
-    SkillVisualPipeline pipeline(renderer);
-    
-    VisualEffectConfig config{0, std::nullopt, 0}; // Invalid effectVnum
-    auto result = pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    
-    CHECK(!result.has_value());
-    CHECK(result.error() == SkillVisualError::InvalidConfiguration);
-}
+    pipeline.TriggerSkillEffect(target, skillId, duration);
 
-TEST_CASE("SkillVisualPipeline - Invalid source entity") {
-    MockVisualEffectRenderer renderer;
-    // Entity 1 is not valid
-    
-    SkillVisualPipeline pipeline(renderer);
-    
-    VisualEffectConfig config{100, std::nullopt, 0};
-    auto result = pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    
-    CHECK(!result.has_value());
-    CHECK(result.error() == SkillVisualError::InvalidSourceEntity);
-}
+    SUBCASE("Update decrements duration but does not remove active effects") {
+        pipeline.Update(2.0f);
 
-TEST_CASE("SkillVisualPipeline - Invalid target entity") {
-    MockVisualEffectRenderer renderer;
-    renderer.AddValidEntity(1);
-    // Target Entity 2 is not valid
-    
-    SkillVisualPipeline pipeline(renderer);
-    
-    VisualEffectConfig config{100, EntityVid{2}, 0};
-    auto result = pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    
-    CHECK(!result.has_value());
-    CHECK(result.error() == SkillVisualError::TargetEntityNotFound);
-}
+        CHECK(pipeline.GetActiveEffectsCount() == 1);
+        CHECK(mockSystem.stopCallCount == 0);
+    }
 
-TEST_CASE("SkillVisualPipeline - Source becomes invalid before dispatch") {
-    MockVisualEffectRenderer renderer;
-    renderer.AddValidEntity(1);
-    
-    SkillVisualPipeline pipeline(renderer);
-    
-    VisualEffectConfig config{100, std::nullopt, 500};
-    pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    
-    // Entity 1 dies/despawns before effect is dispatched
-    renderer.RemoveValidEntity(1);
-    
-    pipeline.Update(1500);
-    
-    CHECK(pipeline.GetQueueSize() == 0);
-    CHECK(renderer.dispatchedEffects.empty()); // Should not be dispatched
-}
+    SUBCASE("Update removes expired effects and calls StopEffect") {
+        pipeline.Update(5.1f);
 
-TEST_CASE("SkillVisualPipeline - Target becomes invalid before dispatch") {
-    MockVisualEffectRenderer renderer;
-    renderer.AddValidEntity(1);
-    renderer.AddValidEntity(2);
-    
-    SkillVisualPipeline pipeline(renderer);
-    
-    VisualEffectConfig config{100, EntityVid{2}, 500};
-    pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    
-    // Target dies/despawns before effect is dispatched
-    renderer.RemoveValidEntity(2);
-    
-    pipeline.Update(1500);
-    
-    CHECK(pipeline.GetQueueSize() == 0);
-    CHECK(renderer.dispatchedEffects.empty()); // Should not be dispatched
-}
+        CHECK(pipeline.GetActiveEffectsCount() == 0);
+        CHECK(mockSystem.stopCallCount == 1);
+        CHECK(mockSystem.lastStoppedTarget == target);
+        CHECK(mockSystem.lastStoppedSkill == skillId);
+    }
 
-TEST_CASE("SkillVisualPipeline - Queue full") {
-    MockVisualEffectRenderer renderer;
-    renderer.AddValidEntity(1);
+    SUBCASE("CancelEffect removes active effect and calls StopEffect") {
+        auto result = pipeline.CancelEffect(target, skillId);
+
+        CHECK(result.has_value());
+        CHECK(pipeline.GetActiveEffectsCount() == 0);
+        CHECK(mockSystem.stopCallCount == 1);
+        CHECK(mockSystem.lastStoppedTarget == target);
+        CHECK(mockSystem.lastStoppedSkill == skillId);
+    }
+
+    SUBCASE("CancelEffect fails if effect does not exist") {
+        EntityVid otherTarget(456);
+        auto result = pipeline.CancelEffect(otherTarget, skillId);
+
+        CHECK_FALSE(result.has_value());
+        CHECK(result.error() == SkillError::SkillNotFound);
+        CHECK(pipeline.GetActiveEffectsCount() == 1);
+        CHECK(mockSystem.stopCallCount == 0);
+    }
     
-    SkillVisualPipeline pipeline(renderer, 2); // Max 2 elements
-    
-    VisualEffectConfig config{100, std::nullopt, 500};
-    
-    auto r1 = pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    auto r2 = pipeline.EnqueueEffect(EntityVid{1}, config, 1000);
-    auto r3 = pipeline.EnqueueEffect(EntityVid{1}, config, 1000); // Should fail
-    
-    CHECK(r1.has_value());
-    CHECK(r2.has_value());
-    CHECK(!r3.has_value());
-    CHECK(r3.error() == SkillVisualError::PipelineQueueFull);
+    SUBCASE("CancelEffect fails if underlying system rejects stop") {
+        mockSystem.stopShouldFail = true;
+        
+        auto result = pipeline.CancelEffect(target, skillId);
+        
+        CHECK_FALSE(result.has_value());
+        CHECK(result.error() == SkillError::SkillNotFound);
+        CHECK(pipeline.GetActiveEffectsCount() == 1);
+    }
 }
