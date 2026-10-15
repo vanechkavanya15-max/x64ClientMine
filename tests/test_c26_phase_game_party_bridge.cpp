@@ -1,35 +1,20 @@
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include "doctest.h"
 #include "Client/Bridge/PhaseGamePartyBridge.h"
 #include "Client/Bridge/MockPythonRuntime.h"
 #include <cstring>
 #include <vector>
 
-using namespace testing;
 using namespace Client::Bridge;
 using namespace EterBase;
 
-class PhaseGamePartyBridgeTest : public Test {
-protected:
+TEST_CASE("PhaseGamePartyBridge - HandlePartyInvite") {
     MockPythonRuntime mockRuntime;
-    PhaseGamePartyBridge bridge{mockRuntime};
-
-    void SetUp() override {
-        mockRuntime.Initialize();
-        
-        mockRuntime.RegisterMock("game", "RecvPartyInviteQuestion", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
-        mockRuntime.RegisterMock("game", "AddPartyMember", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
-        mockRuntime.RegisterMock("game", "UpdatePartyMemberInfo", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
-        mockRuntime.RegisterMock("game", "RemovePartyMember", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
-        mockRuntime.RegisterMock("game", "ChangePartyParameter", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
-    }
+    mockRuntime.Initialize();
     
-    void TearDown() override {
-        mockRuntime.Shutdown();
-    }
-};
-
-TEST_F(PhaseGamePartyBridgeTest, HandlePartyInvite_Success) {
+    mockRuntime.RegisterMock("game", "RecvPartyInviteQuestion", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
+    
+    PhaseGamePartyBridge bridge{mockRuntime};
+    
     TPacketGCPartyInvite pack{};
     pack.header = 0x01; // GC::PARTY_INVITE
     pack.length = sizeof(TPacketGCPartyInvite);
@@ -37,16 +22,25 @@ TEST_F(PhaseGamePartyBridgeTest, HandlePartyInvite_Success) {
 
     std::string_view leaderName = "Alice";
 
-    EXPECT_TRUE(bridge.HandlePartyInvite(pack, leaderName));
+    CHECK(bridge.HandlePartyInvite(pack, leaderName));
     
     auto history = mockRuntime.GetHistory();
-    ASSERT_EQ(history.size(), 1);
-    EXPECT_EQ(history[0].moduleName, "game");
-    EXPECT_EQ(history[0].methodName, "RecvPartyInviteQuestion");
-    EXPECT_THAT(history[0].args, ElementsAre("12345", "Alice"));
+    REQUIRE(history.size() == 1);
+    CHECK(history[0].moduleName == "game");
+    CHECK(history[0].methodName == "RecvPartyInviteQuestion");
+    REQUIRE(history[0].args.size() == 2);
+    CHECK(history[0].args[0] == "12345");
+    CHECK(history[0].args[1] == "Alice");
 }
 
-TEST_F(PhaseGamePartyBridgeTest, HandlePartyAdd_Success) {
+TEST_CASE("PhaseGamePartyBridge - HandlePartyAdd") {
+    MockPythonRuntime mockRuntime;
+    mockRuntime.Initialize();
+    
+    mockRuntime.RegisterMock("game", "AddPartyMember", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
+    
+    PhaseGamePartyBridge bridge{mockRuntime};
+
     TPacketGCPartyAdd pack{};
     pack.header = 0x02; // GC::PARTY_ADD
     pack.length = sizeof(TPacketGCPartyAdd);
@@ -54,16 +48,25 @@ TEST_F(PhaseGamePartyBridgeTest, HandlePartyAdd_Success) {
     std::strncpy(pack.name, "Bob", sizeof(pack.name) - 1);
     pack.name[sizeof(pack.name) - 1] = '\0';
 
-    EXPECT_TRUE(bridge.HandlePartyAdd(pack));
+    CHECK(bridge.HandlePartyAdd(pack));
     
     auto history = mockRuntime.GetHistory();
-    ASSERT_EQ(history.size(), 1);
-    EXPECT_EQ(history[0].moduleName, "game");
-    EXPECT_EQ(history[0].methodName, "AddPartyMember");
-    EXPECT_THAT(history[0].args, ElementsAre("67890", "Bob"));
+    REQUIRE(history.size() == 1);
+    CHECK(history[0].moduleName == "game");
+    CHECK(history[0].methodName == "AddPartyMember");
+    REQUIRE(history[0].args.size() == 2);
+    CHECK(history[0].args[0] == "67890");
+    CHECK(history[0].args[1] == "Bob");
 }
 
-TEST_F(PhaseGamePartyBridgeTest, HandlePartyUpdate_Success) {
+TEST_CASE("PhaseGamePartyBridge - HandlePartyUpdate") {
+    MockPythonRuntime mockRuntime;
+    mockRuntime.Initialize();
+    
+    mockRuntime.RegisterMock("game", "UpdatePartyMemberInfo", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
+    
+    PhaseGamePartyBridge bridge{mockRuntime};
+
     TPacketGCPartyUpdate pack{};
     pack.header = 0x03; // GC::PARTY_UPDATE
     pack.length = sizeof(TPacketGCPartyUpdate);
@@ -71,41 +74,58 @@ TEST_F(PhaseGamePartyBridgeTest, HandlePartyUpdate_Success) {
     pack.state = 1;
     pack.percent_hp = 100;
 
-    EXPECT_TRUE(bridge.HandlePartyUpdate(pack));
+    CHECK(bridge.HandlePartyUpdate(pack));
     
     auto history = mockRuntime.GetHistory();
-    ASSERT_EQ(history.size(), 1);
-    EXPECT_EQ(history[0].moduleName, "game");
-    EXPECT_EQ(history[0].methodName, "UpdatePartyMemberInfo");
-    EXPECT_THAT(history[0].args, ElementsAre("112233"));
+    REQUIRE(history.size() == 1);
+    CHECK(history[0].moduleName == "game");
+    CHECK(history[0].methodName == "UpdatePartyMemberInfo");
+    REQUIRE(history[0].args.size() == 1);
+    CHECK(history[0].args[0] == "112233");
 }
 
-TEST_F(PhaseGamePartyBridgeTest, HandlePartyRemove_Success) {
+TEST_CASE("PhaseGamePartyBridge - HandlePartyRemove") {
+    MockPythonRuntime mockRuntime;
+    mockRuntime.Initialize();
+    
+    mockRuntime.RegisterMock("game", "RemovePartyMember", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
+    
+    PhaseGamePartyBridge bridge{mockRuntime};
+
     TPacketGCPartyRemove pack{};
     pack.header = 0x04; // GC::PARTY_REMOVE
     pack.length = sizeof(TPacketGCPartyRemove);
     pack.pid = 998877;
 
-    EXPECT_TRUE(bridge.HandlePartyRemove(pack));
+    CHECK(bridge.HandlePartyRemove(pack));
     
     auto history = mockRuntime.GetHistory();
-    ASSERT_EQ(history.size(), 1);
-    EXPECT_EQ(history[0].moduleName, "game");
-    EXPECT_EQ(history[0].methodName, "RemovePartyMember");
-    EXPECT_THAT(history[0].args, ElementsAre("998877"));
+    REQUIRE(history.size() == 1);
+    CHECK(history[0].moduleName == "game");
+    CHECK(history[0].methodName == "RemovePartyMember");
+    REQUIRE(history[0].args.size() == 1);
+    CHECK(history[0].args[0] == "998877");
 }
 
-TEST_F(PhaseGamePartyBridgeTest, HandlePartyParameter_Success) {
+TEST_CASE("PhaseGamePartyBridge - HandlePartyParameter") {
+    MockPythonRuntime mockRuntime;
+    mockRuntime.Initialize();
+    
+    mockRuntime.RegisterMock("game", "ChangePartyParameter", [](std::span<const std::string> args) -> Result<std::string, PythonRuntimeError> { return "Success"; });
+    
+    PhaseGamePartyBridge bridge{mockRuntime};
+
     TPacketGCPartyParameter pack{};
     pack.header = 0x05; // GC::PARTY_PARAMETER
     pack.length = sizeof(TPacketGCPartyParameter);
     pack.bDistributeMode = 2;
 
-    EXPECT_TRUE(bridge.HandlePartyParameter(pack));
+    CHECK(bridge.HandlePartyParameter(pack));
     
     auto history = mockRuntime.GetHistory();
-    ASSERT_EQ(history.size(), 1);
-    EXPECT_EQ(history[0].moduleName, "game");
-    EXPECT_EQ(history[0].methodName, "ChangePartyParameter");
-    EXPECT_THAT(history[0].args, ElementsAre("2"));
+    REQUIRE(history.size() == 1);
+    CHECK(history[0].moduleName == "game");
+    CHECK(history[0].methodName == "ChangePartyParameter");
+    REQUIRE(history[0].args.size() == 1);
+    CHECK(history[0].args[0] == "2");
 }
