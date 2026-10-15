@@ -2,5 +2,6 @@
 members = [
     "rust_bridge",
     "crates/m2-client",
+    "crates/m2-client-render",
 ]
 resolver = "2"

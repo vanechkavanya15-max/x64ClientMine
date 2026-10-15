@@ -1,6 +1,4 @@
-pub mod rodio_sfx_player;
-
-pub use rodio_sfx_player::RodioSfxPlayer;
+use crate::rodio_sfx_player::RodioSfxPlayer;
 
 pub struct AudioEngine {
     pub sfx_player: RodioSfxPlayer,

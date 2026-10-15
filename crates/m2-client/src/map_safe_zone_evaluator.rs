@@ -1,5 +1,5 @@
 use m2_client_bridge::ffi_guard::safe_ffi_call;
-use super::terrain_attr_collision_v2::{m2_terrain_get_attr, FLAG_SAFE_ZONE};
+use crate::terrain_attr_collision_v2::{m2_terrain_get_attr, FLAG_SAFE_ZONE};
 
 pub fn is_in_safe_zone(x: f32, y: f32) -> bool {
     let attr = m2_terrain_get_attr(x, y);

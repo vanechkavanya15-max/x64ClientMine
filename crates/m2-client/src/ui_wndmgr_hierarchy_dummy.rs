@@ -1,1 +1,1 @@
-pub mod ui_wndmgr_hierarchy;
+pub use crate::ui_wndmgr_hierarchy::*;
