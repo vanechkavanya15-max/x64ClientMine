@@ -3,13 +3,27 @@
 
 namespace Client::Bridge {
 
-    bool PhaseGameWarpBridge::HandleWarp(const TPacketGCWarp& pack) {
-        if (pack.wPort == 0) {
-            Warp(pack.lX, pack.lY);
-        } else {
-            m_pythonRuntime.Invoke("network", "ConnectToWarpServer", pack.lAddr, pack.wPort);
+    EterBase::PacketResult<void> PhaseGameWarpBridge::Handle(std::span<const uint8_t> payload) {
+        if (payload.size() < sizeof(TPacketGCWarp)) {
+            return std::unexpected(EterBase::PacketError::BufferUnderflow);
         }
-        return true;
+
+        const auto* pack = reinterpret_cast<const TPacketGCWarp*>(payload.data());
+
+        if (pack->wPort == 0) {
+            Warp(pack->lX, pack->lY);
+        } else {
+            m_pythonRuntime.Invoke("network", "ConnectToWarpServer", pack->lAddr, pack->wPort);
+        }
+        return {};
+    }
+
+    uint16_t PhaseGameWarpBridge::GetExpectedSize() const {
+        return sizeof(TPacketGCWarp);
+    }
+
+    bool PhaseGameWarpBridge::IsDynamicSize() const {
+        return false;
     }
 
     void PhaseGameWarpBridge::Warp(int32_t globalX, int32_t globalY) {

@@ -35,8 +35,9 @@ TEST_CASE("PhaseGameWarpBridge - HandleWarp Local") {
     pack.lAddr = 0;
     pack.wPort = 0; // Local warp
 
-    bool result = bridge.HandleWarp(pack);
-    CHECK(result == true);
+    std::span<const uint8_t> payload(reinterpret_cast<const uint8_t*>(&pack), sizeof(pack));
+    auto result = bridge.Handle(payload);
+    CHECK(result.has_value() == true);
 
     auto history = runtime.GetHistory();
     REQUIRE(history.size() == 10);
@@ -66,8 +67,9 @@ TEST_CASE("PhaseGameWarpBridge - HandleWarp Remote") {
     pack.lAddr = 2130706433; // 127.0.0.1
     pack.wPort = 13000;
 
-    bool result = bridge.HandleWarp(pack);
-    CHECK(result == true);
+    std::span<const uint8_t> payload(reinterpret_cast<const uint8_t*>(&pack), sizeof(pack));
+    auto result = bridge.Handle(payload);
+    CHECK(result.has_value() == true);
 
     auto history = runtime.GetHistory();
     REQUIRE(history.size() == 1);
@@ -119,4 +121,29 @@ TEST_CASE("PhaseGameWarpBridge - Phase Operations") {
     CHECK(history[0].methodName == "SetGamePhase");
     CHECK(history[1].moduleName == "character");
     CHECK(history[1].methodName == "Destroy");
+}
+
+TEST_CASE("PhaseGameWarpBridge - Handle BufferUnderflow") {
+    Client::Bridge::MockPythonRuntime runtime;
+    runtime.Initialize();
+    
+    Client::Bridge::PhaseGameWarpBridge bridge(runtime);
+
+    uint8_t tinyPayload[1] = { 0x05 };
+    std::span<const uint8_t> payload(tinyPayload, 1);
+    
+    auto result = bridge.Handle(payload);
+    CHECK(result.has_value() == false);
+    CHECK(result.error() == EterBase::PacketError::BufferUnderflow);
+}
+
+TEST_CASE("PhaseGameWarpBridge - IPacketHandler interface") {
+    Client::Bridge::MockPythonRuntime runtime;
+    runtime.Initialize();
+    
+    Client::Bridge::PhaseGameWarpBridge bridge(runtime);
+    Client::Network::IPacketHandler& handler = bridge;
+
+    CHECK(handler.GetExpectedSize() == sizeof(TPacketGCWarp));
+    CHECK(handler.IsDynamicSize() == false);
 }
