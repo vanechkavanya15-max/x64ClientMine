@@ -1,64 +1,37 @@
-#include "Client/Player/PlayerEquipmentController.h"
+#include "PlayerEquipmentController.h"
 
 namespace Client::Player {
 
-Core::ExpectedResult<void, EquipmentError> PlayerEquipmentController::EquipItem(Core::SlotIndex slot, Core::ItemVnum item) noexcept {
-    if (!slot) {
-        return Core::MakeUnexpected(EquipmentError::InvalidSlot);
+std::expected<void, EquipmentError> PlayerEquipmentController::EquipItem(EquipmentSlotType slot, Client::Core::ItemVnum vnum) {
+    if (!IsSlotEmpty(slot)) {
+        return std::unexpected(EquipmentError::SlotOccupied);
     }
-    if (!item) {
-        return Core::MakeUnexpected(EquipmentError::InvalidItem);
-    }
-    
-    if (equipment_.contains(slot)) {
-        return Core::MakeUnexpected(EquipmentError::SlotOccupied);
-    }
-
-    try {
-        equipment_.emplace(slot, item);
-        return {};
-    } catch (...) {
-        return Core::MakeUnexpected(EquipmentError::InternalError);
-    }
+    equippedItems_[slot] = vnum;
+    return {};
 }
 
-Core::ExpectedResult<Core::ItemVnum, EquipmentError> PlayerEquipmentController::UnequipItem(Core::SlotIndex slot) noexcept {
-    if (!slot) {
-        return Core::MakeUnexpected(EquipmentError::InvalidSlot);
+std::expected<void, EquipmentError> PlayerEquipmentController::UnequipItem(EquipmentSlotType slot) {
+    if (IsSlotEmpty(slot)) {
+        return std::unexpected(EquipmentError::SlotEmpty);
     }
-
-    auto it = equipment_.find(slot);
-    if (it == equipment_.end()) {
-        return Core::MakeUnexpected(EquipmentError::SlotEmpty);
-    }
-
-    Core::ItemVnum item = it->second;
-    equipment_.erase(it);
-    return item;
+    equippedItems_.erase(slot);
+    return {};
 }
 
-std::optional<Core::ItemVnum> PlayerEquipmentController::GetItem(Core::SlotIndex slot) const noexcept {
-    if (!slot) {
-        return std::nullopt;
+std::expected<Client::Core::ItemVnum, EquipmentError> PlayerEquipmentController::GetItemInSlot(EquipmentSlotType slot) const {
+    auto it = equippedItems_.find(slot);
+    if (it == equippedItems_.end()) {
+        return std::unexpected(EquipmentError::SlotEmpty);
     }
-
-    auto it = equipment_.find(slot);
-    if (it != equipment_.end()) {
-        return it->second;
-    }
-
-    return std::nullopt;
+    return it->second;
 }
 
-bool PlayerEquipmentController::HasItem(Core::SlotIndex slot) const noexcept {
-    if (!slot) {
-        return false;
-    }
-    return equipment_.contains(slot);
+bool PlayerEquipmentController::IsSlotEmpty(EquipmentSlotType slot) const {
+    return equippedItems_.find(slot) == equippedItems_.end();
 }
 
-void PlayerEquipmentController::Clear() noexcept {
-    equipment_.clear();
+void PlayerEquipmentController::ClearAll() {
+    equippedItems_.clear();
 }
 
 } // namespace Client::Player

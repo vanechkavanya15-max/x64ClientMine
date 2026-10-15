@@ -1,85 +1,79 @@
-#include "doctest.h"
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest/doctest.h"
 #include "Client/Player/PlayerEquipmentController.h"
 
 using namespace Client::Player;
 using namespace Client::Core;
 
-TEST_CASE("PlayerEquipmentController - EquipItem") {
+TEST_CASE("PlayerEquipmentController - EquipItem and GetItemInSlot") {
     PlayerEquipmentController controller;
     
-    SUBCASE("Successfully equip item") {
-        auto result = controller.EquipItem(SlotIndex(1), ItemVnum(100));
-        CHECK(result.has_value() == true);
-        CHECK(controller.HasItem(SlotIndex(1)) == true);
-        CHECK(controller.GetItem(SlotIndex(1)).value() == ItemVnum(100));
+    SUBCASE("Equip item in empty slot succeeds") {
+        ItemVnum vnum(12345);
+        auto result = controller.EquipItem(EquipmentSlotType::Weapon, vnum);
+        CHECK(result.has_value());
+        
+        auto getResult = controller.GetItemInSlot(EquipmentSlotType::Weapon);
+        REQUIRE(getResult.has_value());
+        CHECK(getResult.value() == vnum);
+        CHECK_FALSE(controller.IsSlotEmpty(EquipmentSlotType::Weapon));
     }
     
-    SUBCASE("Fail on invalid slot") {
-        auto result = controller.EquipItem(SlotIndex(0xFFFF), ItemVnum(100));
-        CHECK(result.has_value() == false);
-        CHECK(result.error() == EquipmentError::InvalidSlot);
-    }
-    
-    SUBCASE("Fail on invalid item") {
-        auto result = controller.EquipItem(SlotIndex(1), ItemVnum(0));
-        CHECK(result.has_value() == false);
-        CHECK(result.error() == EquipmentError::InvalidItem);
-    }
-    
-    SUBCASE("Fail on occupied slot") {
-        controller.EquipItem(SlotIndex(1), ItemVnum(100));
-        auto result = controller.EquipItem(SlotIndex(1), ItemVnum(200));
-        CHECK(result.has_value() == false);
+    SUBCASE("Equip item in occupied slot fails with SlotOccupied") {
+        ItemVnum vnum1(111);
+        ItemVnum vnum2(222);
+        
+        controller.EquipItem(EquipmentSlotType::Armor, vnum1);
+        auto result = controller.EquipItem(EquipmentSlotType::Armor, vnum2);
+        
+        REQUIRE_FALSE(result.has_value());
         CHECK(result.error() == EquipmentError::SlotOccupied);
+        
+        // Ensure original item is still there
+        auto getResult = controller.GetItemInSlot(EquipmentSlotType::Armor);
+        REQUIRE(getResult.has_value());
+        CHECK(getResult.value() == vnum1);
     }
 }
 
 TEST_CASE("PlayerEquipmentController - UnequipItem") {
     PlayerEquipmentController controller;
-    controller.EquipItem(SlotIndex(1), ItemVnum(100));
     
-    SUBCASE("Successfully unequip item") {
-        auto result = controller.UnequipItem(SlotIndex(1));
-        CHECK(result.has_value() == true);
-        CHECK(result.value() == ItemVnum(100));
-        CHECK(controller.HasItem(SlotIndex(1)) == false);
+    SUBCASE("Unequip existing item succeeds") {
+        ItemVnum vnum(777);
+        controller.EquipItem(EquipmentSlotType::Helmet, vnum);
+        
+        auto result = controller.UnequipItem(EquipmentSlotType::Helmet);
+        CHECK(result.has_value());
+        CHECK(controller.IsSlotEmpty(EquipmentSlotType::Helmet));
     }
     
-    SUBCASE("Fail on invalid slot") {
-        auto result = controller.UnequipItem(SlotIndex(0xFFFF));
-        CHECK(result.has_value() == false);
-        CHECK(result.error() == EquipmentError::InvalidSlot);
-    }
-    
-    SUBCASE("Fail on empty slot") {
-        auto result = controller.UnequipItem(SlotIndex(2));
-        CHECK(result.has_value() == false);
+    SUBCASE("Unequip empty slot fails with SlotEmpty") {
+        auto result = controller.UnequipItem(EquipmentSlotType::Shield);
+        
+        REQUIRE_FALSE(result.has_value());
         CHECK(result.error() == EquipmentError::SlotEmpty);
     }
 }
 
-TEST_CASE("PlayerEquipmentController - Clear") {
-    PlayerEquipmentController controller;
-    controller.EquipItem(SlotIndex(1), ItemVnum(100));
-    controller.EquipItem(SlotIndex(2), ItemVnum(200));
-    
-    controller.Clear();
-    CHECK(controller.HasItem(SlotIndex(1)) == false);
-    CHECK(controller.HasItem(SlotIndex(2)) == false);
-}
-
-TEST_CASE("PlayerEquipmentController - GetItem and HasItem") {
+TEST_CASE("PlayerEquipmentController - ClearAll") {
     PlayerEquipmentController controller;
     
-    SUBCASE("HasItem with invalid slot") {
-        CHECK(controller.HasItem(SlotIndex(0xFFFF)) == false);
-    }
+    controller.EquipItem(EquipmentSlotType::Weapon, ItemVnum(1));
+    controller.EquipItem(EquipmentSlotType::Armor, ItemVnum(2));
+    controller.EquipItem(EquipmentSlotType::Helmet, ItemVnum(3));
     
-    SUBCASE("GetItem with invalid slot") {
-        CHECK(controller.GetItem(SlotIndex(0xFFFF)).has_value() == false);
-    }
+    CHECK_FALSE(controller.IsSlotEmpty(EquipmentSlotType::Weapon));
+    CHECK_FALSE(controller.IsSlotEmpty(EquipmentSlotType::Armor));
+    CHECK_FALSE(controller.IsSlotEmpty(EquipmentSlotType::Helmet));
     
-    SUBCASE("GetItem with empty slot") {
-        CHECK(controller.GetItem(SlotIndex(1)).has_value() == false);
-    }
+    controller.ClearAll();
+    
+    CHECK(controller.IsSlotEmpty(EquipmentSlotType::Weapon));
+    CHECK(controller.IsSlotEmpty(EquipmentSlotType::Armor));
+    CHECK(controller.IsSlotEmpty(EquipmentSlotType::Helmet));
+    
+    auto getResult = controller.GetItemInSlot(EquipmentSlotType::Weapon);
+    REQUIRE_FALSE(getResult.has_value());
+    CHECK(getResult.error() == EquipmentError::SlotEmpty);
 }
