@@ -1,59 +1,96 @@
 #pragma once
 
-#include <cstdint>
+#include <expected>
 #include <optional>
-#include "../Core/Result.h"
-#include "../Core/DomainErrors.h"
-#include "../Gameplay/CombatDomain.h"
+#include <string_view>
+#include <cstdint>
+#include "Client/Core/StrongTypes.h"
+#include "EterBase/Result.h"
 
 namespace Client::Skills {
 
-    struct SkillRequirementContext {
-        uint32_t currentHP{0};
-        uint32_t currentSP{0};
-        uint8_t currentLevel{0};
-        std::optional<Client::Gameplay::WeaponType> currentWeapon{std::nullopt};
-    };
+enum class SkillValidationError : uint8_t {
+    None = 0,
+    NotEnoughSP,
+    NotEnoughHP,
+    LevelTooLow,
+    OnCooldown,
+    InvalidWeapon,
+    InvalidTarget,
+    SkillNotLearned
+};
 
-    struct SkillRequirements {
-        uint8_t minLevel{0};
-        uint32_t hpCost{0};
-        uint32_t spCost{0};
-        bool requiresWeapon{false};
-        uint32_t allowedWeaponsMask{0xFFFFFFFF}; // Bitmask of Client::Gameplay::WeaponType
-    };
+[[nodiscard]] constexpr std::string_view ToString(SkillValidationError err) noexcept {
+    switch (err) {
+        case SkillValidationError::None: return "None";
+        case SkillValidationError::NotEnoughSP: return "NotEnoughSP";
+        case SkillValidationError::NotEnoughHP: return "NotEnoughHP";
+        case SkillValidationError::LevelTooLow: return "LevelTooLow";
+        case SkillValidationError::OnCooldown: return "OnCooldown";
+        case SkillValidationError::InvalidWeapon: return "InvalidWeapon";
+        case SkillValidationError::InvalidTarget: return "InvalidTarget";
+        case SkillValidationError::SkillNotLearned: return "SkillNotLearned";
+    }
+    return "UnknownSkillError";
+}
 
-    class SkillRequirementValidator {
-    public:
-        [[nodiscard]] static constexpr Core::Result<void, Core::SkillError> Validate(
-            const SkillRequirementContext& context,
-            const SkillRequirements& reqs) noexcept 
-        {
-            if (context.currentLevel < reqs.minLevel) {
-                return std::unexpected(Core::SkillError::RequirementNotMet);
-            }
+template <typename T = void>
+using SkillResult = std::expected<T, SkillValidationError>;
 
-            if (context.currentHP <= reqs.hpCost) {
-                return std::unexpected(Core::SkillError::RequirementNotMet);
-            }
+struct SkillCastContext {
+    uint32_t currentSP{0};
+    uint32_t currentHP{0};
+    uint32_t actorLevel{1};
+    bool isOnCooldown{false};
+    std::optional<uint32_t> equippedWeaponSubtype{std::nullopt};
+    bool hasTarget{false};
+    bool isSkillLearned{false};
+};
 
-            if (context.currentSP < reqs.spCost) {
-                return std::unexpected(Core::SkillError::NotEnoughSP);
-            }
+struct SkillRequirements {
+    uint32_t requiredSP{0};
+    uint32_t requiredHP{0};
+    uint32_t minLevel{1};
+    std::optional<uint32_t> requiredWeaponSubtype{std::nullopt};
+    bool requiresTarget{false};
+};
 
-            if (reqs.requiresWeapon) {
-                if (!context.currentWeapon.has_value()) {
-                    return std::unexpected(Core::SkillError::RequirementNotMet);
-                }
-
-                const uint32_t weaponBit = 1u << static_cast<uint32_t>(*context.currentWeapon);
-                if ((reqs.allowedWeaponsMask & weaponBit) == 0) {
-                    return std::unexpected(Core::SkillError::RequirementNotMet);
-                }
-            }
-
-            return {};
+class SkillRequirementValidator {
+public:
+    [[nodiscard]] static constexpr SkillResult<void> Validate(const SkillCastContext& context, const SkillRequirements& reqs) noexcept {
+        if (!context.isSkillLearned) {
+            return std::unexpected(SkillValidationError::SkillNotLearned);
         }
-    };
+        
+        if (context.isOnCooldown) {
+            return std::unexpected(SkillValidationError::OnCooldown);
+        }
+
+        if (context.actorLevel < reqs.minLevel) {
+            return std::unexpected(SkillValidationError::LevelTooLow);
+        }
+
+        if (context.currentSP < reqs.requiredSP) {
+            return std::unexpected(SkillValidationError::NotEnoughSP);
+        }
+
+        if (context.currentHP < reqs.requiredHP) {
+            return std::unexpected(SkillValidationError::NotEnoughHP);
+        }
+
+        if (reqs.requiresTarget && !context.hasTarget) {
+            return std::unexpected(SkillValidationError::InvalidTarget);
+        }
+
+        if (reqs.requiredWeaponSubtype.has_value()) {
+            if (!context.equippedWeaponSubtype.has_value() || 
+                context.equippedWeaponSubtype.value() != reqs.requiredWeaponSubtype.value()) {
+                return std::unexpected(SkillValidationError::InvalidWeapon);
+            }
+        }
+
+        return {};
+    }
+};
 
 } // namespace Client::Skills
