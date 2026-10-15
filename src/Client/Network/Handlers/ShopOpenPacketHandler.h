@@ -5,7 +5,7 @@
 #include <cstring>
 #include "EterBase/Result.h"
 #include "Client/Network/Protocol/Protocol.h"
-#include "UserInterface/Domain/ShopInventoryModel.h"
+#include "UserInterface/Contracts/ShopInventoryModel.h"
 
 namespace Client::Network::Handlers {
 

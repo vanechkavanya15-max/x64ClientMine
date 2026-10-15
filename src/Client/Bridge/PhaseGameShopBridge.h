@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Client/Bridge/IPythonRuntime.h"
-#include "UserInterface/Domain/ShopInventoryModel.h"
+#include "UserInterface/Contracts/ShopInventoryModel.h"
 #include "Client/Network/Protocol/Protocol.h"
 #include <span>
 #include <vector>
