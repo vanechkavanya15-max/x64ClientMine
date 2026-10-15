@@ -1,2 +1,2 @@
-#[path = "map_warp_phase_coordinator.rs"]
-pub mod map_warp_phase_coordinator;
+pub use crate::map_warp_phase_coordinator::*;
+

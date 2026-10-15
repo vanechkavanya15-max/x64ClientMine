@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 use m2_client::ui_wndmgr_hierarchy::{WindowNode, FLAG_ATTACH, FLAG_NOT_CAPTURE, FLAG_NOT_PICK};
 
-#[path = "../src/ui_event_bubbling_tree_v2.rs"]
-mod ui_event_bubbling_tree_v2;
-
-use ui_event_bubbling_tree_v2::UiEventBubblingTreeV2;
+use m2_client::ui_event_bubbling_tree_v2::UiEventBubblingTreeV2;
 
 #[test]
 fn test_bubbling_simple_consumption() {

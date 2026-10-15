@@ -6,7 +6,7 @@ pub fn is_in_safe_zone(x: f32, y: f32) -> bool {
     (attr & FLAG_SAFE_ZONE) != 0
 }
 
-#[no_mangle]
+#[cfg_attr(not(test), no_mangle)]
 pub extern "C" fn m2_map_is_safe_zone(x: f32, y: f32) -> bool {
     safe_ffi_call(false, || {
         is_in_safe_zone(x, y)

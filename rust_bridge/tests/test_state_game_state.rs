@@ -109,6 +109,7 @@ fn test_game_state_actors_and_distances() {
         hp: 500,
         max_hp: 500,
         name: "Dziki Pies".to_string(),
+        ..Default::default()
     };
 
     let actor2 = Actor {
@@ -122,6 +123,7 @@ fn test_game_state_actors_and_distances() {
         hp: 300,
         max_hp: 300,
         name: "Wilk".to_string(),
+        ..Default::default()
     };
 
     let actor3 = Actor {
@@ -135,6 +137,7 @@ fn test_game_state_actors_and_distances() {
         hp: 1000,
         max_hp: 1000,
         name: "Handlarka".to_string(),
+        ..Default::default()
     };
 
     state.add_or_update_actor(actor1);
@@ -203,6 +206,7 @@ fn test_ffi_integration_with_global_state() {
         hp: 50,
         max_hp: 50,
         name: "TestTarget".to_string(),
+        ..Default::default()
     });
     drop(state);
 

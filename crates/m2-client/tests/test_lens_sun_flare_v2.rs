@@ -1,9 +1,6 @@
 use glam::{Mat4, Vec3};
 
-#[path = "../src/lens_sun_flare_v2.rs"]
-mod lens_sun_flare_v2;
-
-use lens_sun_flare_v2::{m2_lens_flare_calc, FlarePiece, TerrainHeightCallback};
+use m2_client::lens_sun_flare_v2::{m2_lens_flare_calc, FlarePiece, TerrainHeightCallback};
 
 extern "C" fn mock_terrain_flat(x: f32, y: f32) -> f32 {
     0.0

@@ -5,7 +5,7 @@ edition = "2021"
 description = "Metin2 Client Rust FFI Bridge for incremental migration (Phase A)"
 
 [lib]
-name = "m2_client_bridge_core"
+name = "m2_client_bridge"
 crate-type = ["rlib"]
 
 [dependencies]

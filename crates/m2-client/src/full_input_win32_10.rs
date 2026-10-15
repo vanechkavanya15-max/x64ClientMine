@@ -1,7 +1,5 @@
-#[path = "win32_cursor_manager.rs"]
-pub mod win32_cursor_manager;
-
-use win32_cursor_manager::{CursorController, CursorType};
+pub use crate::win32_cursor_manager::*;
+use crate::win32_cursor_manager::{CursorController, CursorType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseTarget {

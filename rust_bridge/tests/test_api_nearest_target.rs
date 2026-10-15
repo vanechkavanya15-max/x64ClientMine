@@ -23,6 +23,7 @@ fn test_m2_find_nearest_actor_with_actor() {
         hp: 100,
         max_hp: 100,
         name: "Wild Dog".to_string(),
+        ..Default::default()
     });
     drop(state);
 

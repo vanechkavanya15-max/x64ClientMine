@@ -210,7 +210,7 @@ impl WgpuActorOutlinePass {
     }
 }
 
-#[no_mangle]
+#[cfg_attr(not(test), no_mangle)]
 pub extern "C" fn m2_outline_pass_get_info() -> FfiOutlinePassInfo {
     WgpuActorOutlinePass::ffi_get_info()
 }

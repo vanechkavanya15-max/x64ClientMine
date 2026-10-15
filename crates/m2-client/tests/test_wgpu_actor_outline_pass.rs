@@ -1,8 +1,5 @@
-// Duplicate to satisfy requirement in test folder if checked
-#[path = "../src/wgpu_actor_outline_pass.rs"]
-mod wgpu_actor_outline_pass;
+use m2_client::wgpu_actor_outline_pass::{OutlineVertex, OutlineUniforms, WgpuActorOutlinePass};
 
-use wgpu_actor_outline_pass::{OutlineVertex, OutlineUniforms, WgpuActorOutlinePass};
 
 #[test]
 fn test_outline_vertex_desc() {

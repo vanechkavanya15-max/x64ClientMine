@@ -7,7 +7,7 @@ description = "Metin2 64-bit Game Engine Core (Phase B)"
 [lib]
 name = "m2_client"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib", "staticlib"]
+crate-type = ["rlib", "cdylib"]
 
 [[bin]]
 name = "m2_client"

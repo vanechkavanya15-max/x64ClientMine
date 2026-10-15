@@ -1,9 +1,6 @@
 use std::mem;
 
-#[path = "lens_sun_flare_v2.rs"]
-pub mod lens_sun_flare_v2;
-
-use lens_sun_flare_v2::FlarePiece;
+use crate::lens_sun_flare_v2::{self, FlarePiece};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]

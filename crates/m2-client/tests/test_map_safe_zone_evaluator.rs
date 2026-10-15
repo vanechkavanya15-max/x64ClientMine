@@ -1,11 +1,5 @@
-#[path = "../src/terrain_attr_collision_v2.rs"]
-pub mod terrain_attr_collision_v2;
-
-#[path = "../src/map_safe_zone_evaluator.rs"]
-pub mod map_safe_zone_evaluator_mod;
-
-use terrain_attr_collision_v2::{m2_terrain_load_attr_grid, EXPECTED_GRID_LEN, FLAG_SAFE_ZONE, FLAG_BLOCKED};
-use map_safe_zone_evaluator_mod::{is_in_safe_zone, m2_map_is_safe_zone};
+use m2_client::terrain_attr_collision_v2::{m2_terrain_load_attr_grid, EXPECTED_GRID_LEN, FLAG_SAFE_ZONE, FLAG_BLOCKED};
+use m2_client::map_safe_zone_evaluator::{is_in_safe_zone, m2_map_is_safe_zone};
 
 fn setup_grid_with_safe_zones() {
     let mut grid = vec![0u8; EXPECTED_GRID_LEN];

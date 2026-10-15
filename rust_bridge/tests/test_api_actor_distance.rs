@@ -31,6 +31,7 @@ fn test_distance_real_calculation() {
         hp: 100,
         max_hp: 100,
         name: "TestMob".to_string(),
+        ..Default::default()
     });
     drop(state);
 

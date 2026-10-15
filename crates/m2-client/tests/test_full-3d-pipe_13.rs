@@ -1,7 +1,5 @@
-#[path = "../src/full-3d-pipe_13.rs"]
-mod full_3d_pipe_13;
+use m2_client::wgpu_actor_outline_pass::{OutlineVertex, OutlineUniforms, WgpuActorOutlinePass};
 
-use full_3d_pipe_13::wgpu_actor_outline_pass::{OutlineVertex, OutlineUniforms, WgpuActorOutlinePass};
 
 #[test]
 fn test_outline_vertex_desc() {

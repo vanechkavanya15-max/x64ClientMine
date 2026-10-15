@@ -1,8 +1,5 @@
-#[path = "../src/lens_flare_screen_pipeline.rs"]
-pub mod lens_flare_screen_pipeline;
-
-use lens_flare_screen_pipeline::lens_sun_flare_v2::FlarePiece;
-use lens_flare_screen_pipeline::LensFlareScreenPipeline;
+use m2_client::lens_flare_screen_pipeline::LensFlareScreenPipeline;
+use m2_client::lens_sun_flare_v2::FlarePiece;
 
 #[test]
 fn test_generate_vertices_ignores_zero_size() {
