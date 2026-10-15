@@ -1,53 +1,54 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 #include <span>
-#include <cstdint>
-#include <cmath>
-#include <algorithm>
+#include <expected>
 
 namespace Client::Terrain {
 
-// Struktura wektora 3D aby uniknac zaleznosci od Windows D3DVECTOR
-struct Vector3 {
-    float x = 0.0f;
-    float y = 0.0f;
-    float z = 0.0f;
-    
-    constexpr bool operator==(const Vector3&) const = default;
-};
+    // Struktura reprezentujaca wektor 3D dla wektorow normalnych
+    struct Vector3 {
+        float x;
+        float y;
+        float z;
+    };
 
-// Klasa samplera wysokosci terenu
-class TerrainHeightSampler {
-public:
-    TerrainHeightSampler() = default;
-    ~TerrainHeightSampler() = default;
-    
-    // Zapobieganie kopiowaniu
-    TerrainHeightSampler(const TerrainHeightSampler&) = delete;
-    TerrainHeightSampler& operator=(const TerrainHeightSampler&) = delete;
-    
-    // Przenoszenie dozwolone
-    TerrainHeightSampler(TerrainHeightSampler&&) noexcept = default;
-    TerrainHeightSampler& operator=(TerrainHeightSampler&&) noexcept = default;
+    // Domenowe bledy dla samplera terenu
+    enum class TerrainError : uint8_t {
+        OutOfBounds,
+        InvalidGridSize,
+        DataNotLoaded
+    };
 
-    // Inicjalizacja danych terenu
-    void SetHeightData(std::span<const float> grid, uint32_t width, uint32_t height, float scale);
+    // Klasa odpowiedzialna za probkowanie wysokosci terenu i obliczanie wektorow normalnych
+    class TerrainHeightSampler {
+    public:
+        TerrainHeightSampler() = default;
+        ~TerrainHeightSampler() = default;
 
-    // Pobranie wysokosci w zadanym punkcie z interpolacja dwuliniowa
-    [[nodiscard]] float GetHeight(float x, float y) const;
+        /**
+         * Inicjalizuje sampler terenu wymiarami siatki i danymi wysokosci.
+         */
+        std::expected<void, TerrainError> Initialize(uint32_t width, uint32_t height, std::span<const float> heights);
 
-    // Pobranie normalnej w zadanym punkcie
-    [[nodiscard]] Vector3 GetNormal(float x, float y) const;
+        /**
+         * Pobiera interpolowana wysokosc w danym punkcie 2D.
+         */
+        [[nodiscard]] std::expected<float, TerrainError> GetHeight(float x, float y) const noexcept;
 
-private:
-    std::vector<float> heightGrid_;
-    uint32_t gridWidth_ = 0;
-    uint32_t gridHeight_ = 0;
-    float gridScale_ = 1.0f;
+        /**
+         * Oblicza wektor normalny powierzchni w danym punkcie 2D.
+         */
+        [[nodiscard]] std::expected<Vector3, TerrainError> GetNormal(float x, float y) const noexcept;
 
-    // Metoda pomocnicza do pobierania wysokosci z uwzglednieniem clampowania
-    [[nodiscard]] float GetClampedHeight(int32_t gridX, int32_t gridY) const;
-};
+    private:
+        [[nodiscard]] bool IsInBoundsFloat(float x, float y) const noexcept;
+        [[nodiscard]] float GetRawHeight(uint32_t gridX, uint32_t gridY) const noexcept;
+
+        uint32_t m_width = 0;
+        uint32_t m_height = 0;
+        std::vector<float> m_gridHeights;
+    };
 
 } // namespace Client::Terrain

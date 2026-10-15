@@ -1,77 +1,154 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
+
+#include "../src/Client/Terrain/TerrainHeightSampler.h"
 #include <vector>
 #include <cmath>
-#include <iostream>
-
-#include "Client/Terrain/TerrainHeightSampler.h"
 
 using namespace Client::Terrain;
 
-TEST_CASE("TerrainHeightSampler - Bilinear Interpolation") {
+TEST_CASE("TerrainHeightSampler - Initialization") {
     TerrainHeightSampler sampler;
 
-    // 2x2 grid representing 4 corners
-    // h00 = 10.0f, h10 = 20.0f
-    // h01 = 30.0f, h11 = 40.0f
-    std::vector<float> grid = {
-         10.0f, 20.0f,
-         30.0f, 40.0f
+    SUBCASE("Fails when data not loaded") {
+        auto heightResult = sampler.GetHeight(0.0f, 0.0f);
+        CHECK_FALSE(heightResult.has_value());
+        CHECK(heightResult.error() == TerrainError::DataNotLoaded);
+
+        auto normalResult = sampler.GetNormal(0.0f, 0.0f);
+        CHECK_FALSE(normalResult.has_value());
+        CHECK(normalResult.error() == TerrainError::DataNotLoaded);
+    }
+
+    SUBCASE("Fails with invalid grid size") {
+        std::vector<float> data = { 1.0f, 2.0f };
+        auto result = sampler.Initialize(2, 2, data);
+        CHECK_FALSE(result.has_value());
+        CHECK(result.error() == TerrainError::InvalidGridSize);
+    }
+
+    SUBCASE("Fails with zero dimensions") {
+        std::vector<float> data = {};
+        auto result = sampler.Initialize(0, 0, data);
+        CHECK_FALSE(result.has_value());
+        CHECK(result.error() == TerrainError::InvalidGridSize);
+    }
+
+    SUBCASE("Succeeds with valid data") {
+        std::vector<float> data(4, 1.0f);
+        auto result = sampler.Initialize(2, 2, data);
+        CHECK(result.has_value());
+    }
+}
+
+TEST_CASE("TerrainHeightSampler - Bounds Checking") {
+    TerrainHeightSampler sampler;
+    std::vector<float> data = {
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f
     };
     
-    // Scale = 100.0f (each grid cell is 100x100 world units)
-    sampler.SetHeightData(grid, 2, 2, 100.0f);
+    REQUIRE(sampler.Initialize(3, 3, data).has_value());
 
-    SUBCASE("Corners") {
-        CHECK((std::abs(sampler.GetHeight(0.0f, 0.0f) - 10.0f) < 0.001f));
-        CHECK((std::abs(sampler.GetHeight(100.0f, 0.0f) - 20.0f) < 0.001f));
-        CHECK((std::abs(sampler.GetHeight(0.0f, 100.0f) - 30.0f) < 0.001f));
-        CHECK((std::abs(sampler.GetHeight(100.0f, 100.0f) - 40.0f) < 0.001f));
+    SUBCASE("In bounds") {
+        CHECK(sampler.GetHeight(0.0f, 0.0f).has_value());
+        CHECK(sampler.GetHeight(2.0f, 2.0f).has_value());
+        CHECK(sampler.GetHeight(1.5f, 1.5f).has_value());
     }
 
-    SUBCASE("Midpoints") {
-        // Midpoint of top edge (0,0 to 100,0)
-        CHECK((std::abs(sampler.GetHeight(50.0f, 0.0f) - 15.0f) < 0.001f));
-        
-        // Midpoint of bottom edge (0,100 to 100,100)
-        CHECK((std::abs(sampler.GetHeight(50.0f, 100.0f) - 35.0f) < 0.001f));
-        
-        // Midpoint of left edge (0,0 to 0,100)
-        CHECK((std::abs(sampler.GetHeight(0.0f, 50.0f) - 20.0f) < 0.001f));
-        
-        // Midpoint of right edge (100,0 to 100,100)
-        CHECK((std::abs(sampler.GetHeight(100.0f, 50.0f) - 30.0f) < 0.001f));
+    SUBCASE("Out of bounds - Negative") {
+        CHECK(sampler.GetHeight(-0.1f, 0.0f).error() == TerrainError::OutOfBounds);
+        CHECK(sampler.GetHeight(0.0f, -0.1f).error() == TerrainError::OutOfBounds);
     }
 
-    SUBCASE("Center of square") {
-        // (50, 50) -> should be average of all 4 corners = (10+20+30+40)/4 = 25.0f
-        CHECK((std::abs(sampler.GetHeight(50.0f, 50.0f) - 25.0f) < 0.001f));
+    SUBCASE("Out of bounds - Exceeding positive") {
+        CHECK(sampler.GetHeight(2.1f, 0.0f).error() == TerrainError::OutOfBounds);
+        CHECK(sampler.GetHeight(0.0f, 2.1f).error() == TerrainError::OutOfBounds);
+        CHECK(sampler.GetHeight(3.0f, 3.0f).error() == TerrainError::OutOfBounds);
+    }
+}
+
+TEST_CASE("TerrainHeightSampler - Height Interpolation") {
+    TerrainHeightSampler sampler;
+    // 2x2 grid
+    // (0,0): 10.0   (1,0): 20.0
+    // (0,1): 30.0   (1,1): 40.0
+    std::vector<float> data = {
+        10.0f, 20.0f,
+        30.0f, 40.0f
+    };
+    REQUIRE(sampler.Initialize(2, 2, data).has_value());
+
+    SUBCASE("Exact corners") {
+        CHECK(sampler.GetHeight(0.0f, 0.0f).value() == doctest::Approx(10.0f));
+        CHECK(sampler.GetHeight(1.0f, 0.0f).value() == doctest::Approx(20.0f));
+        CHECK(sampler.GetHeight(0.0f, 1.0f).value() == doctest::Approx(30.0f));
+        CHECK(sampler.GetHeight(1.0f, 1.0f).value() == doctest::Approx(40.0f));
     }
 
-    SUBCASE("Out of bounds") {
-        // Should clamp to nearest edge/corner
-        CHECK((std::abs(sampler.GetHeight(-50.0f, -50.0f) - 10.0f) < 0.001f));
-        CHECK((std::abs(sampler.GetHeight(150.0f, 50.0f) - 30.0f) < 0.001f)); // right edge midpoint (100, 50) -> clamped to (100, 50) -> Wait, clamp applies to grid coordinates. 150/100 -> 1.5 -> clamped grid is 1. x clamped to 1, y is 0.5. Height should be interpolating between (100, 0) and (100, 100), which are 20 and 40. So 50% between 20 and 40 is 30.
-        CHECK((std::abs(sampler.GetHeight(150.0f, 150.0f) - 40.0f) < 0.001f)); // clamped to (100, 100)
+    SUBCASE("Midpoints on edges") {
+        CHECK(sampler.GetHeight(0.5f, 0.0f).value() == doctest::Approx(15.0f)); // Top edge
+        CHECK(sampler.GetHeight(0.5f, 1.0f).value() == doctest::Approx(35.0f)); // Bottom edge
+        CHECK(sampler.GetHeight(0.0f, 0.5f).value() == doctest::Approx(20.0f)); // Left edge
+        CHECK(sampler.GetHeight(1.0f, 0.5f).value() == doctest::Approx(30.0f)); // Right edge
+    }
+
+    SUBCASE("Center point") {
+        // (15.0 + 35.0) / 2 = 25.0
+        CHECK(sampler.GetHeight(0.5f, 0.5f).value() == doctest::Approx(25.0f));
     }
 }
 
 TEST_CASE("TerrainHeightSampler - Normal Calculation") {
     TerrainHeightSampler sampler;
 
-    // 3x3 grid (flat except for a bump in the middle)
-    std::vector<float> grid = {
-        0.0f, 0.0f, 0.0f,
-        0.0f, 10.0f, 0.0f,
-        0.0f, 0.0f, 0.0f
-    };
-     
-    // Scale = 1.0f
-    sampler.SetHeightData(grid, 3, 3, 1.0f);
-    
-    SUBCASE("Normal at slope") {
-        Vector3 n = sampler.GetNormal(0.5f, 1.0f);
-        // Expect normal pointing away from the bump
-        CHECK((n.z > 0.0f));
-        CHECK((std::abs(n.x) > 0.0f));
+    SUBCASE("Flat plane") {
+        std::vector<float> data = {
+            10.0f, 10.0f,
+            10.0f, 10.0f
+        };
+        REQUIRE(sampler.Initialize(2, 2, data).has_value());
+
+        auto normal = sampler.GetNormal(0.5f, 0.5f).value();
+        CHECK(normal.x == doctest::Approx(0.0f));
+        CHECK(normal.y == doctest::Approx(0.0f));
+        CHECK(normal.z == doctest::Approx(1.0f));
+    }
+
+    SUBCASE("Slanted plane X axis") {
+        // Slanted up towards positive X
+        // height increases by 10 per unit X
+        std::vector<float> data = {
+            0.0f, 10.0f,
+            0.0f, 10.0f
+        };
+        REQUIRE(sampler.Initialize(2, 2, data).has_value());
+
+        auto normal = sampler.GetNormal(0.5f, 0.5f).value();
+        // dfdx = 10, dfdy = 0
+        // vec: -10, 0, 1 -> normalized
+        float len = std::sqrt(10.0f * 10.0f + 1.0f);
+        CHECK(normal.x == doctest::Approx(-10.0f / len));
+        CHECK(normal.y == doctest::Approx(0.0f));
+        CHECK(normal.z == doctest::Approx(1.0f / len));
+    }
+
+    SUBCASE("Slanted plane Y axis") {
+        // Slanted up towards positive Y
+        // height increases by 5 per unit Y
+        std::vector<float> data = {
+            0.0f, 0.0f,
+            5.0f, 5.0f
+        };
+        REQUIRE(sampler.Initialize(2, 2, data).has_value());
+
+        auto normal = sampler.GetNormal(0.5f, 0.5f).value();
+        // dfdx = 0, dfdy = 5
+        // vec: 0, -5, 1 -> normalized
+        float len = std::sqrt(5.0f * 5.0f + 1.0f);
+        CHECK(normal.x == doctest::Approx(0.0f));
+        CHECK(normal.y == doctest::Approx(-5.0f / len));
+        CHECK(normal.z == doctest::Approx(1.0f / len));
     }
 }
