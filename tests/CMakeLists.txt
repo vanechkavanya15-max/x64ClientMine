@@ -6314,3 +6314,21 @@ target_link_libraries(test_c26_phase_game_party_bridge PRIVATE
 )
 add_test(NAME test_c26_phase_game_party_bridge COMMAND test_c26_phase_game_party_bridge)
 
+add_executable(test_c26_phase_game_combat_bridge test_c26_phase_game_combat_bridge.cpp)
+target_include_directories(test_c26_phase_game_combat_bridge PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+)
+target_compile_definitions(test_c26_phase_game_combat_bridge PRIVATE TEST_MODE_DISABLE_STDAFX)
+target_link_libraries(test_c26_phase_game_combat_bridge PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+)
+add_test(NAME test_c26_phase_game_combat_bridge COMMAND test_c26_phase_game_combat_bridge)
+
