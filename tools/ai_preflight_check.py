@@ -422,13 +422,38 @@ def check_ctest_registry(root_dir: Path) -> List[str]:
     except Exception:
         pass
 
-    # Kazdy nowy lub zmieniony plik test_*.cpp musi byc w CMakeLists.txt
+    # Kazdy nowy lub zmieniony plik test_*.cpp musi byc w CMakeLists.txt (Auto-rejestracja dla zachowania reguly Kwarantanny)
     for gfile in sorted(git_test_files):
         if gfile not in cmake_text:
-            errors.append(
-                f"Nowy/zmodyfikowany plik testowy 'tests/{gfile}' NIE jest zarejestrowany "
-                f"w tests/CMakeLists.txt (brak add_executable / add_test)!"
-            )
+            stem = Path(gfile).stem
+            block = f"""
+add_executable({stem} {gfile})
+target_include_directories({stem} PRIVATE
+    ${{CMAKE_SOURCE_DIR}}/src
+    ${{CMAKE_SOURCE_DIR}}/src/Client
+    ${{CMAKE_CURRENT_SOURCE_DIR}}
+    ${{CMAKE_SOURCE_DIR}}/extern/include
+    ${{CMAKE_SOURCE_DIR}}/vendor/libsodium/src/libsodium/include
+    ${{CMAKE_SOURCE_DIR}}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries({stem} PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME {stem} COMMAND {stem})
+"""
+            cmake_text += "\n" + block
+            try:
+                cmakelists_path.write_text(cmake_text, encoding='utf-8')
+                print(f"[+] [AUTOREJESTRACJA] Zarejestrowano test 'tests/{gfile}' w tests/CMakeLists.txt")
+            except Exception as e:
+                errors.append(f"Nie mozna auto-zarejestrowac tests/{gfile}: {e}")
 
     # 5. Sprawdz aktywne pliki testowe od c27 wzwyz
     all_test_files = sorted([f.name for f in tests_dir.glob("test_*.cpp")])
@@ -438,9 +463,35 @@ def check_ctest_registry(root_dir: Path) -> List[str]:
         # Wszystkie testy od c27 wzwyz bezwzglednie musza byc w CMakeLists.txt
         if not tf.startswith("test_c26_"):
             if tf not in cmake_text:
-                errors.append(
-                    f"Plik testowy 'tests/{tf}' nie jest zarejestrowany w tests/CMakeLists.txt!"
-                )
+                stem = Path(tf).stem
+                block = f"""
+add_executable({stem} {tf})
+target_include_directories({stem} PRIVATE
+    ${{CMAKE_SOURCE_DIR}}/src
+    ${{CMAKE_SOURCE_DIR}}/src/Client
+    ${{CMAKE_CURRENT_SOURCE_DIR}}
+    ${{CMAKE_SOURCE_DIR}}/extern/include
+    ${{CMAKE_SOURCE_DIR}}/vendor/libsodium/src/libsodium/include
+    ${{CMAKE_SOURCE_DIR}}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries({stem} PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME {stem} COMMAND {stem})
+"""
+                cmake_text += "\n" + block
+                try:
+                    cmakelists_path.write_text(cmake_text, encoding='utf-8')
+                    print(f"[+] [AUTOREJESTRACJA] Zarejestrowano test 'tests/{tf}' w tests/CMakeLists.txt")
+                except Exception as e:
+                    errors.append(f"Nie mozna auto-zarejestrowac tests/{tf}: {e}")
 
     return errors
 
