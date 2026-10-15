@@ -724,6 +724,19 @@ target_link_libraries(test_c33_bot_ffi_bridge PRIVATE
 )
 add_test(NAME BotFFIBridgeTest COMMAND test_c33_bot_ffi_bridge)
 
+add_executable(test_c26_phase_game_quest_bridge test_c26_phase_game_quest_bridge.cpp)
+target_include_directories(test_c26_phase_game_quest_bridge PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_phase_game_quest_bridge PRIVATE
+    Client2026
+    EterBase
+)
+add_test(NAME PhaseGameQuestBridgeTest COMMAND test_c26_phase_game_quest_bridge)
+
 add_executable(test_c26_ipc_transport_pipe test_c26_ipc_transport_pipe.cpp)
 target_include_directories(test_c26_ipc_transport_pipe PRIVATE
     ${CMAKE_SOURCE_DIR}/src

@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <expected>
 #include "EterBase/Result.h"
+#include "IPythonRuntime.h"
 
 namespace Client::Bridge {
 
@@ -44,20 +45,20 @@ struct PythonCallRecord {
     [[nodiscard]] bool operator==(const PythonCallRecord& other) const noexcept = default;
 };
 
-class MockPythonRuntime final {
+class MockPythonRuntime final : public IPythonRuntime {
 public:
     using CallbackType = std::function<EterBase::Result<std::string, PythonRuntimeError>(std::span<const std::string>)>;
 
     MockPythonRuntime() = default;
-    ~MockPythonRuntime() = default;
+    ~MockPythonRuntime() override = default;
 
     MockPythonRuntime(const MockPythonRuntime&) = delete;
     MockPythonRuntime& operator=(const MockPythonRuntime&) = delete;
     MockPythonRuntime(MockPythonRuntime&&) = delete;
     MockPythonRuntime& operator=(MockPythonRuntime&&) = delete;
 
-    void Initialize() noexcept { m_isInitialized = true; }
-    void Shutdown() noexcept { 
+    void Initialize() noexcept override { m_isInitialized = true; }
+    void Shutdown() noexcept override { 
         m_isInitialized = false; 
         m_history.clear();
         m_mocks.clear();
@@ -70,7 +71,7 @@ public:
     EterBase::Result<std::string, PythonRuntimeError> ExecuteMethod(
         std::string_view moduleName, 
         std::string_view methodName, 
-        std::span<const std::string> args = {}) 
+        std::span<const std::string> args = {}) override
     {
         if (!m_isInitialized) {
             return std::unexpected(PythonRuntimeError::NotInitialized);
@@ -88,35 +89,6 @@ public:
         }
 
         return std::unexpected(PythonRuntimeError::MethodNotFound);
-    }
-
-    template <typename T>
-    static std::string FormatArg(T&& val) {
-        using DecayedT = std::remove_cvref_t<T>;
-        if constexpr (std::is_convertible_v<DecayedT, std::string_view>) {
-            return std::string(std::string_view(val));
-        } else if constexpr (std::is_arithmetic_v<DecayedT>) {
-            return std::to_string(val);
-        } else {
-            return "[unsupported_type]";
-        }
-    }
-
-    template <typename... Args>
-    EterBase::Result<std::string, PythonRuntimeError> Invoke(
-        std::string_view moduleName, 
-        std::string_view methodName, 
-        Args&&... args)
-    {
-        if (!m_isInitialized) {
-            return std::unexpected(PythonRuntimeError::NotInitialized);
-        }
-
-        std::vector<std::string> stringArgs;
-        if constexpr (sizeof...(Args) > 0) {
-            stringArgs = { FormatArg(std::forward<Args>(args))... };
-        }
-        return ExecuteMethod(moduleName, methodName, stringArgs);
     }
 
     [[nodiscard]] std::span<const PythonCallRecord> GetHistory() const noexcept {
@@ -145,4 +117,3 @@ struct std::formatter<Client::Bridge::PythonRuntimeError> : std::formatter<std::
         return std::formatter<std::string_view>::format(Client::Bridge::ToString(err), ctx);
     }
 };
-
