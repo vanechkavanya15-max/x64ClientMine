@@ -3,59 +3,70 @@
 
 namespace Client::Skills {
 
-SkillVisualPipeline::SkillVisualPipeline(IVisualEffectRenderer& renderer, size_t maxQueueSize)
-    : renderer_(renderer), maxQueueSize_(maxQueueSize) {
-}
+    SkillVisualPipeline::SkillVisualPipeline(ISkillVisualEffectSystem& effectSystem) 
+        : effectSystem_(effectSystem) {}
 
-std::expected<void, SkillVisualError> SkillVisualPipeline::EnqueueEffect(
-    Client::Core::EntityVid sourceVid, 
-    const VisualEffectConfig& config, 
-    uint32_t currentTimeMs) {
-    
-    if (config.effectVnum == 0) {
-        return std::unexpected(SkillVisualError::InvalidConfiguration);
-    }
-
-    if (!renderer_.IsEntityValid(sourceVid)) {
-        return std::unexpected(SkillVisualError::InvalidSourceEntity);
-    }
-
-    if (config.targetVid.has_value() && !renderer_.IsEntityValid(config.targetVid.value())) {
-        return std::unexpected(SkillVisualError::TargetEntityNotFound);
-    }
-
-    if (queue_.size() >= maxQueueSize_) {
-        return std::unexpected(SkillVisualError::PipelineQueueFull);
-    }
-
-    queue_.push_back({sourceVid, config, currentTimeMs});
-    return {};
-}
-
-void SkillVisualPipeline::Update(uint32_t currentTimeMs) {
-    auto it = queue_.begin();
-    while (it != queue_.end()) {
-        uint32_t elapsedTime = currentTimeMs - it->queuedTimeMs;
-        
-        if (elapsedTime >= it->config.delayMs) {
-            // Check if source is still valid
-            if (renderer_.IsEntityValid(it->sourceVid)) {
-                // If there's a target, check if it's still valid
-                bool dispatch = true;
-                if (it->config.targetVid.has_value() && !renderer_.IsEntityValid(it->config.targetVid.value())) {
-                    dispatch = false;
-                }
-                
-                if (dispatch) {
-                    renderer_.DispatchEffect(it->sourceVid, it->config);
-                }
-            }
-            
-            it = queue_.erase(it);
-        } else {
-            ++it;
+    Core::Result<void, Core::SkillError> SkillVisualPipeline::TriggerSkillEffect(
+        Core::EntityVid target, 
+        Core::SkillIndex skillId, 
+        float durationSec,
+        std::optional<Core::MapCoords> coords) 
+    {
+        if (!target) {
+            return std::unexpected(Core::SkillError::RequirementNotMet); // Cel jest wymagany
         }
+
+        if (durationSec <= 0.0f) {
+            return std::unexpected(Core::SkillError::RequirementNotMet); // Czas trwania musi byc dodatni
+        }
+
+        auto result = effectSystem_.PlayEffect(target, skillId, coords);
+        if (!result) {
+            return result;
+        }
+
+        activeEffects_.push_back(SkillVisualEffect{
+            .target = target,
+            .skillId = skillId,
+            .coords = coords,
+            .remainingDuration = durationSec
+        });
+
+        return {};
     }
-}
+
+    Core::Result<void, Core::SkillError> SkillVisualPipeline::CancelEffect(Core::EntityVid target, Core::SkillIndex skillId) {
+        auto it = std::find_if(activeEffects_.begin(), activeEffects_.end(),
+            [target, skillId](const SkillVisualEffect& effect) {
+                return effect.target == target && effect.skillId == skillId;
+            });
+
+        if (it == activeEffects_.end()) {
+            return std::unexpected(Core::SkillError::SkillNotFound);
+        }
+
+        // Zatrzymanie w systemie zewnetrznym
+        auto result = effectSystem_.StopEffect(target, skillId);
+        if (result) {
+            activeEffects_.erase(it);
+        }
+        return result;
+    }
+
+    void SkillVisualPipeline::Update(float deltaTime) {
+        std::erase_if(activeEffects_, [this, deltaTime](SkillVisualEffect& effect) {
+            effect.remainingDuration -= deltaTime;
+            if (effect.remainingDuration <= 0.0f) {
+                // Wywolujemy StopEffect, ale ignorujemy bledy podczas wygasania
+                (void)effectSystem_.StopEffect(effect.target, effect.skillId);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    size_t SkillVisualPipeline::GetActiveEffectsCount() const noexcept {
+        return activeEffects_.size();
+    }
 
 } // namespace Client::Skills
