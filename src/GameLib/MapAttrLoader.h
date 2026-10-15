@@ -4,6 +4,7 @@
 #include <span>
 #include <string_view>
 #include <vector>
+#include <expected>
 
 /**
  * @brief Error codes for MapAttrLoader operations.
@@ -55,17 +56,15 @@ public:
 	 * @brief Loads map attribute data from a raw binary buffer.
 	 * 
 	 * @param buffer A span of constant bytes containing the raw file data.
-	 * @param outData The structured MapAttrData to populate on success.
-	 * @return MapAttrLoadError::Success on successful load, or an error code on failure.
+	 * @return Expected MapAttrData on successful load, or an error code on failure.
 	 */
-	static MapAttrLoadError LoadFromBuffer(std::span<const uint8_t> buffer, MapAttrData& outData);
+	static std::expected<MapAttrData, MapAttrLoadError> LoadFromBuffer(std::span<const uint8_t> buffer);
 
 	/**
 	 * @brief Loads map attribute data directly from a file.
 	 * 
 	 * @param filePath The path to the attribute map file.
-	 * @param outData The structured MapAttrData to populate on success.
-	 * @return MapAttrLoadError::Success on successful load, or an error code on failure.
+	 * @return Expected MapAttrData on successful load, or an error code on failure.
 	 */
-	static MapAttrLoadError LoadFromFile(std::string_view filePath, MapAttrData& outData);
+	static std::expected<MapAttrData, MapAttrLoadError> LoadFromFile(std::string_view filePath);
 };
