@@ -1,4 +1,5 @@
 #include "TextLayoutEngine.h"
+#include <charconv>
 
 namespace Client::Text {
 
@@ -57,9 +58,7 @@ std::vector<Token> ParseTags(std::string_view text) {
                 push_text(i);
                 std::string_view colorStr = text.substr(i + 2, 8);
                 uint32_t color = 0;
-                try {
-                    color = std::stoul(std::string(colorStr), nullptr, 16);
-                } catch(...) {}
+                std::from_chars(colorStr.data(), colorStr.data() + colorStr.size(), color, 16);
                 tokens.push_back({Token::Type::ColorTag, text.substr(i, 10), color});
                 i += 10;
                 text_start = i;
