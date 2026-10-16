@@ -13,7 +13,8 @@ namespace Client::Input {
 enum class KeyboardError {
     InvalidKey,
     HandlerNotFound,
-    AlreadyRegistered
+    AlreadyRegistered,
+    AllocationFailed
 };
 
 enum class KeyState {
@@ -35,10 +36,10 @@ public:
     KeyboardInputDispatcher(KeyboardInputDispatcher&&) = delete;
     KeyboardInputDispatcher& operator=(KeyboardInputDispatcher&&) = delete;
 
-    std::expected<void, KeyboardError> RegisterHandler(KeyCode key, KeyHandler handler);
-    std::expected<void, KeyboardError> UnregisterHandler(KeyCode key);
-    std::expected<void, KeyboardError> Dispatch(KeyCode key, KeyState state) const;
-    void Clear();
+    [[nodiscard]] std::expected<void, KeyboardError> RegisterHandler(KeyCode key, KeyHandler handler) noexcept;
+    [[nodiscard]] std::expected<void, KeyboardError> UnregisterHandler(KeyCode key) noexcept;
+    [[nodiscard]] std::expected<void, KeyboardError> Dispatch(KeyCode key, KeyState state) const;
+    void Clear() noexcept;
 
 private:
     struct Registration {

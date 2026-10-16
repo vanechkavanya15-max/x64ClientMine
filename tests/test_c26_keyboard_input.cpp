@@ -1,8 +1,41 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "../src/Client/Input/KeyboardInputDispatcher.h"
+#include <new>
 
 using namespace Client::Input;
+
+static bool g_simulateAllocFailure = false;
+
+void* operator new(std::size_t size) {
+    if (g_simulateAllocFailure) {
+        throw std::bad_alloc();
+    }
+    return std::malloc(size);
+}
+
+void* operator new[](std::size_t size) {
+    if (g_simulateAllocFailure) {
+        throw std::bad_alloc();
+    }
+    return std::malloc(size);
+}
+
+void operator delete(void* ptr) noexcept {
+    std::free(ptr);
+}
+
+void operator delete[](void* ptr) noexcept {
+    std::free(ptr);
+}
+
+void operator delete(void* ptr, std::size_t) noexcept {
+    std::free(ptr);
+}
+
+void operator delete[](void* ptr, std::size_t) noexcept {
+    std::free(ptr);
+}
 
 TEST_CASE("KeyboardInputDispatcher - Register and Dispatch") {
     KeyboardInputDispatcher dispatcher;
@@ -31,7 +64,7 @@ TEST_CASE("KeyboardInputDispatcher - Unregister") {
     KeyCode key{42};
     auto handler = [&](KeyState) {};
     
-    dispatcher.RegisterHandler(key, handler);
+    (void)dispatcher.RegisterHandler(key, handler);
     
     auto unregResult = dispatcher.UnregisterHandler(key);
     CHECK(unregResult.has_value());
@@ -46,7 +79,7 @@ TEST_CASE("KeyboardInputDispatcher - Errors") {
     KeyCode key{42};
     
     SUBCASE("Already Registered") {
-        dispatcher.RegisterHandler(key, [](KeyState){});
+        (void)dispatcher.RegisterHandler(key, [](KeyState){});
         auto res = dispatcher.RegisterHandler(key, [](KeyState){});
         CHECK(!res.has_value());
         CHECK(res.error() == KeyboardError::AlreadyRegistered);
@@ -63,12 +96,20 @@ TEST_CASE("KeyboardInputDispatcher - Errors") {
         CHECK(!res.has_value());
         CHECK(res.error() == KeyboardError::HandlerNotFound);
     }
+
+    SUBCASE("Allocation Failed") {
+        g_simulateAllocFailure = true;
+        auto res = dispatcher.RegisterHandler(key, [](KeyState){});
+        g_simulateAllocFailure = false;
+        CHECK(!res.has_value());
+        CHECK(res.error() == KeyboardError::AllocationFailed);
+    }
 }
 
 TEST_CASE("KeyboardInputDispatcher - Clear") {
     KeyboardInputDispatcher dispatcher;
     KeyCode key{42};
-    dispatcher.RegisterHandler(key, [](KeyState){});
+    (void)dispatcher.RegisterHandler(key, [](KeyState){});
     
     dispatcher.Clear();
     auto res = dispatcher.Dispatch(key, KeyState::Pressed);

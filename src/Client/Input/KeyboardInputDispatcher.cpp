@@ -1,9 +1,10 @@
 #include "KeyboardInputDispatcher.h"
 #include <algorithm>
+#include <new>
 
 namespace Client::Input {
 
-std::expected<void, KeyboardError> KeyboardInputDispatcher::RegisterHandler(KeyCode key, KeyHandler handler) {
+std::expected<void, KeyboardError> KeyboardInputDispatcher::RegisterHandler(KeyCode key, KeyHandler handler) noexcept {
     if (!handler) {
         return std::unexpected(KeyboardError::InvalidKey);
     }
@@ -15,11 +16,15 @@ std::expected<void, KeyboardError> KeyboardInputDispatcher::RegisterHandler(KeyC
         return std::unexpected(KeyboardError::AlreadyRegistered);
     }
     
-    handlers_.push_back({key, std::move(handler)});
+    try {
+        handlers_.push_back({key, std::move(handler)});
+    } catch (const std::bad_alloc&) {
+        return std::unexpected(KeyboardError::AllocationFailed);
+    }
     return {};
 }
 
-std::expected<void, KeyboardError> KeyboardInputDispatcher::UnregisterHandler(KeyCode key) {
+std::expected<void, KeyboardError> KeyboardInputDispatcher::UnregisterHandler(KeyCode key) noexcept {
     auto it = std::find_if(handlers_.begin(), handlers_.end(), 
         [key](const Registration& reg) { return reg.key == key; });
         
@@ -43,7 +48,7 @@ std::expected<void, KeyboardError> KeyboardInputDispatcher::Dispatch(KeyCode key
     return {};
 }
 
-void KeyboardInputDispatcher::Clear() {
+void KeyboardInputDispatcher::Clear() noexcept {
     handlers_.clear();
 }
 
