@@ -57,6 +57,8 @@ public:
                 return std::unexpected(VfsMemoryMappedBufferError::FileNotFound);
             } else if (ec == std::errc::permission_denied) {
                 return std::unexpected(VfsMemoryMappedBufferError::AccessDenied);
+            } else if (ec == std::errc::invalid_argument) {
+                return std::unexpected(VfsMemoryMappedBufferError::InvalidSize);
             } else {
                 return std::unexpected(VfsMemoryMappedBufferError::MappingFailed);
             }

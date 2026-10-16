@@ -1,5 +1,5 @@
-#include "../src/Client/Core/VfsMemoryMappedBuffer.h"
 #include <doctest.h>
+#include "../src/Client/Core/VfsMemoryMappedBuffer.h"
 #include <fstream>
 #include <filesystem>
 #include <string>
@@ -123,4 +123,19 @@ TEST_CASE("VfsMemoryMappedBuffer tests") {
     
     // Clean up
     std::filesystem::remove(testFilePath);
+}
+
+TEST_CASE("VfsMemoryMappedBuffer edge cases") {
+    SUBCASE("Map empty file fails with InvalidSize") {
+        const std::string emptyFilePath = "test_empty_file.bin";
+        {
+            std::ofstream out(emptyFilePath, std::ios::binary);
+        }
+        
+        auto result = VfsMemoryMappedBuffer::MapFile(emptyFilePath);
+        REQUIRE(!result.has_value());
+        REQUIRE(result.error() == VfsMemoryMappedBufferError::InvalidSize);
+        
+        std::filesystem::remove(emptyFilePath);
+    }
 }
