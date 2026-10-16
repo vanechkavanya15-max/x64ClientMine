@@ -2,6 +2,7 @@
 #include <iostream>
 #include <array>
 
+#ifndef _WIN32
 // Mocking D3DVECTOR and D3DPLANE for testing in Linux sandbox
 struct D3DVECTOR {
     float x, y, z;
@@ -10,6 +11,11 @@ struct D3DVECTOR {
 struct D3DPLANE {
     float a, b, c, d;
 };
+#else
+#include <d3d9.h>
+#include <d3dx9.h>
+#define D3DPLANE D3DXPLANE
+#endif
 
 #include "../src/EterLib/Render/ActorBoundingFrustum.cpp"
 

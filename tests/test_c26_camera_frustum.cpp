@@ -117,3 +117,141 @@ TEST_CASE("CameraFrustum Culling tests") {
         CHECK(frustum.IsAABBVisible(D3DXVECTOR3(5.5f, -1.0f, 49.0f), D3DXVECTOR3(7.5f, 1.0f, 51.0f), 0.5f) == true); // With margin 0.5 (extends bound to 5)
     }
 }
+
+#ifdef _WIN32
+#include "SphereLib/frustum.h"
+#include "EterLib/Frustum.h"
+#include "EterLib/Camera.h"
+
+float CCamera::CAMERA_MIN_DISTANCE = 200.0f;
+float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
+
+TEST_CASE("SphereLib Frustum extraction and Visibility Hysteresis") {
+    Frustum sphereFrustum;
+    D3DXMATRIX viewProj;
+    
+    // Bounds: Left=-10, Right=10, Bottom=-10, Top=10, Near=1, Far=100
+    memset(&viewProj, 0, sizeof(viewProj));
+    viewProj._11 = 1.0f / 10.0f;
+    viewProj._22 = 1.0f / 10.0f;
+    viewProj._33 = 1.0f / (100.0f - 1.0f);
+    viewProj._43 = -1.0f / (100.0f - 1.0f);
+    viewProj._44 = 1.0f;
+
+    sphereFrustum.BuildViewFrustum(viewProj);
+
+    SUBCASE("Plane normalization is unified and accurate") {
+        for (int i = 0; i < 6; ++i) {
+            const auto& plane = sphereFrustum.GetPlane(i);
+            float length = std::sqrt(plane.a * plane.a + plane.b * plane.b + plane.c * plane.c);
+            CHECK(doctest::Approx(length).epsilon(0.001f) == 1.0f);
+        }
+    }
+
+    SUBCASE("Sphere Visibility Hysteresis prevents edge popping") {
+        Vector3d inside(0.0f, 0.0f, 50.0f);
+        CHECK(sphereFrustum.ViewVolumeTest(inside, 1.0f) == VS_INSIDE);
+
+        // Center at X=11.5, radius 1. Standard right bound is 10.
+        // Distance to plane is -1.5. Without margin, -1.5 <= -1.0 -> VS_OUTSIDE.
+        Vector3d edgeObject(11.5f, 0.0f, 50.0f);
+        CHECK(sphereFrustum.ViewVolumeTest(edgeObject, 1.0f, 0.0f) == VS_OUTSIDE);
+        // With default hysteresis margin 50.0f (or 2.0f): stays visible (VS_PARTIAL)!
+        CHECK(sphereFrustum.ViewVolumeTest(edgeObject, 1.0f, 2.0f) == VS_PARTIAL);
+        CHECK(sphereFrustum.ViewVolumeTest(edgeObject, 1.0f) == VS_PARTIAL);
+    }
+
+    SUBCASE("AABB Visibility Hysteresis evaluates correctly") {
+        Vector3d minOutside(10.5f, -1.0f, 40.0f);
+        Vector3d maxOutside(12.0f,  1.0f, 60.0f);
+        // Strictly outside right bound (X > 10)
+        CHECK(sphereFrustum.IsBoxVisible(minOutside, maxOutside, 0.0f) == false);
+        // With hysteresis margin of 2.0: stays visible!
+        CHECK(sphereFrustum.IsBoxVisible(minOutside, maxOutside, 2.0f) == true);
+        CHECK(sphereFrustum.IsBoxVisible(minOutside, maxOutside) == true);
+    }
+}
+
+TEST_CASE("EterLib Frustum extraction and Visibility Hysteresis") {
+    EterLib::Frustum eterFrustum;
+    D3DXMATRIX viewProj;
+    
+    memset(&viewProj, 0, sizeof(viewProj));
+    viewProj._11 = 1.0f / 10.0f;
+    viewProj._22 = 1.0f / 10.0f;
+    viewProj._33 = 1.0f / (100.0f - 1.0f);
+    viewProj._43 = -1.0f / (100.0f - 1.0f);
+    viewProj._44 = 1.0f;
+
+    eterFrustum.BuildViewFrustum(viewProj);
+
+    SUBCASE("All planes are normalized") {
+        for (const auto& plane : eterFrustum.GetPlanes()) {
+            float len = std::sqrt(plane.a * plane.a + plane.b * plane.b + plane.c * plane.c);
+            CHECK(doctest::Approx(len).epsilon(0.001f) == 1.0f);
+        }
+    }
+
+    SUBCASE("Sphere with hysteresis") {
+        D3DXVECTOR3 edgePos(11.5f, 0.0f, 50.0f);
+        CHECK(eterFrustum.IsSphereVisible(edgePos, 1.0f, 0.0f) == false);
+        CHECK(eterFrustum.IsSphereVisible(edgePos, 1.0f, 2.0f) == true);
+        CHECK(eterFrustum.IsSphereVisible(edgePos, 1.0f) == true);
+    }
+
+    SUBCASE("AABB with hysteresis") {
+        D3DXVECTOR3 minOutside(10.5f, -1.0f, 40.0f);
+        D3DXVECTOR3 maxOutside(12.0f,  1.0f, 60.0f);
+        CHECK(eterFrustum.IsAABBVisible(minOutside, maxOutside, 0.0f) == false);
+        CHECK(eterFrustum.IsAABBVisible(minOutside, maxOutside, 2.0f) == true);
+        CHECK(eterFrustum.IsAABBVisible(minOutside, maxOutside) == true);
+    }
+}
+
+TEST_CASE("CCamera DeltaTime and NaN Safety tests") {
+    CCamera camera;
+    camera.SetViewParams(D3DXVECTOR3(0.0f, -500.0f, 100.0f), D3DXVECTOR3(0.0f, 0.0f, 100.0f), D3DXVECTOR3(0.0f, 0.0f, 1.0f));
+
+    SUBCASE("Pitch clamp enforces +/- 89.5 deg boundary without flipping") {
+        camera.RotateEyeAroundTarget(80.0f, 0.0f);
+        CHECK(camera.GetPitch() <= 89.5f);
+
+        // Try to rotate another 50 degrees up - should clamp at 89.5
+        camera.RotateEyeAroundTarget(50.0f, 0.0f);
+        CHECK(camera.GetPitch() <= 89.5f);
+        CHECK(camera.GetUp().z >= 0.0f); // Up vector never flips inverted
+
+        // Try to rotate far down
+        camera.RotateEyeAroundTarget(-180.0f, 0.0f);
+        CHECK(camera.GetPitch() >= -89.5f);
+    }
+
+    SUBCASE("DeltaTime scaling applies linearly") {
+        camera.SetViewParams(D3DXVECTOR3(0.0f, -500.0f, 100.0f), D3DXVECTOR3(0.0f, 0.0f, 100.0f), D3DXVECTOR3(0.0f, 0.0f, 1.0f));
+        float initialPitch = camera.GetPitch();
+
+        // 60 FPS: dt = 1/60s => scale = 1.0
+        camera.RotateEyeAroundTarget(10.0f, 0.0f, 1.0f / 60.0f);
+        float pitch60 = camera.GetPitch();
+
+        // Reset
+        camera.SetViewParams(D3DXVECTOR3(0.0f, -500.0f, 100.0f), D3DXVECTOR3(0.0f, 0.0f, 100.0f), D3DXVECTOR3(0.0f, 0.0f, 1.0f));
+        // 120 FPS: dt = 1/120s => scale = 0.5 (should rotate exactly half as much)
+        camera.RotateEyeAroundTarget(10.0f, 0.0f, 1.0f / 120.0f);
+        float pitch120 = camera.GetPitch();
+
+        CHECK(doctest::Approx(pitch60 - initialPitch).epsilon(0.05f) == (pitch120 - initialPitch) * 2.0f);
+    }
+
+    SUBCASE("NaN safety during terrain collision clamping") {
+        // Force eye to exactly equal target (zero distance)
+        camera.SetEye(camera.GetTarget());
+        // Verify view matrix is valid and non-NaN
+        const auto& mat = camera.GetViewMatrix();
+        CHECK(!std::isnan(mat._11));
+        CHECK(!std::isnan(mat._44));
+        CHECK(camera.GetDistance() > 0.0f);
+    }
+}
+#endif
+

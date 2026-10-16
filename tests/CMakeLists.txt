@@ -1325,6 +1325,7 @@ target_include_directories(test_c26_camera_frustum PRIVATE
 )
 target_link_libraries(test_c26_camera_frustum PRIVATE
     Client2026
+    SphereLib
     EterLib
     EterBase
     libzstd_static
@@ -7498,3 +7499,364 @@ target_link_libraries(test_c26_skill_motion PRIVATE
 )
 add_test(NAME test_c26_skill_motion COMMAND test_c26_skill_motion)
 
+
+# --- FAZY 64-72: 36 MODULOW SRP (T501-T536) ---
+
+add_executable(test_c26_wm_slot_api test_c26_wm_slot_api.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/WindowManagerSlotApiBridge.cpp)
+target_include_directories(test_c26_wm_slot_api PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_wm_slot_api PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_wm_slot_api COMMAND test_c26_wm_slot_api)
+
+
+add_executable(test_c26_wm_button_api test_c26_wm_button_api.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/WindowManagerButtonApiBridge.cpp)
+target_include_directories(test_c26_wm_button_api PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_wm_button_api PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_wm_button_api COMMAND test_c26_wm_button_api)
+
+
+add_executable(test_c26_wm_layout_api test_c26_wm_layout_api.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/WindowManagerLayoutApiBridge.cpp)
+target_include_directories(test_c26_wm_layout_api PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_wm_layout_api PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_wm_layout_api COMMAND test_c26_wm_layout_api)
+
+
+add_executable(test_c26_wm_input_api test_c26_wm_input_api.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/WindowManagerInputApiBridge.cpp)
+target_include_directories(test_c26_wm_input_api PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_wm_input_api PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_wm_input_api COMMAND test_c26_wm_input_api)
+
+
+add_executable(test_c26_actor_pixel_movement test_c26_actor_pixel_movement.cpp ${CMAKE_SOURCE_DIR}/src/Client/Actors/ActorPixelMovementIntegrator.cpp)
+target_include_directories(test_c26_actor_pixel_movement PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_actor_pixel_movement PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_actor_pixel_movement COMMAND test_c26_actor_pixel_movement)
+
+
+add_executable(test_c26_actor_target_rule test_c26_actor_target_rule.cpp ${CMAKE_SOURCE_DIR}/src/Client/Actors/ActorTargetRuleValidator.cpp)
+target_include_directories(test_c26_actor_target_rule PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_actor_target_rule PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_actor_target_rule COMMAND test_c26_actor_target_rule)
+
+
+add_executable(test_c26_actor_type_classifier test_c26_actor_type_classifier.cpp ${CMAKE_SOURCE_DIR}/src/Client/Actors/ActorTypeClassifier.cpp)
+target_include_directories(test_c26_actor_type_classifier PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_actor_type_classifier PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_actor_type_classifier COMMAND test_c26_actor_type_classifier)
+
+
+add_executable(test_c26_actor_tcp_state test_c26_actor_tcp_state.cpp ${CMAKE_SOURCE_DIR}/src/Client/Actors/ActorTcpStateManager.cpp)
+target_include_directories(test_c26_actor_tcp_state PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_actor_tcp_state PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_actor_tcp_state COMMAND test_c26_actor_tcp_state)
+
+
+add_executable(test_c26_harness_player_rpc test_c26_harness_player_rpc.cpp ${CMAKE_SOURCE_DIR}/src/Client/IPC/HarnessPlayerRpcRouter.cpp)
+target_include_directories(test_c26_harness_player_rpc PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_harness_player_rpc PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_harness_player_rpc COMMAND test_c26_harness_player_rpc)
+
+
+add_executable(test_c26_harness_world_query test_c26_harness_world_query.cpp ${CMAKE_SOURCE_DIR}/src/Client/IPC/HarnessWorldQueryRouter.cpp)
+target_include_directories(test_c26_harness_world_query PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_harness_world_query PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_harness_world_query COMMAND test_c26_harness_world_query)
+
+
+add_executable(test_c26_harness_auth_protocol test_c26_harness_auth_protocol.cpp ${CMAKE_SOURCE_DIR}/src/Client/IPC/HarnessAuthProtocolRouter.cpp)
+target_include_directories(test_c26_harness_auth_protocol PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_harness_auth_protocol PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_harness_auth_protocol COMMAND test_c26_harness_auth_protocol)
+
+
+add_executable(test_c26_harness_engine_control test_c26_harness_engine_control.cpp ${CMAKE_SOURCE_DIR}/src/Client/IPC/HarnessEngineControlRouter.cpp)
+target_include_directories(test_c26_harness_engine_control PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_harness_engine_control PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_harness_engine_control COMMAND test_c26_harness_engine_control)
+
+
+add_executable(test_c26_ime_composition test_c26_ime_composition.cpp ${CMAKE_SOURCE_DIR}/src/Client/Input/IMECompositionManager.cpp)
+target_include_directories(test_c26_ime_composition PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ime_composition PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ime_composition COMMAND test_c26_ime_composition)
+
+
+add_executable(test_c26_ime_candidate_list test_c26_ime_candidate_list.cpp ${CMAKE_SOURCE_DIR}/src/Client/Input/IMECandidateListController.cpp)
+target_include_directories(test_c26_ime_candidate_list PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ime_candidate_list PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ime_candidate_list COMMAND test_c26_ime_candidate_list)
+
+
+add_executable(test_c26_ime_clipboard test_c26_ime_clipboard.cpp ${CMAKE_SOURCE_DIR}/src/Client/Input/IMEClipboardBridge.cpp)
+target_include_directories(test_c26_ime_clipboard PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ime_clipboard PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ime_clipboard COMMAND test_c26_ime_clipboard)
+
+
+add_executable(test_c26_ime_os_hook test_c26_ime_os_hook.cpp ${CMAKE_SOURCE_DIR}/src/Client/Input/IMEOsHookController.cpp)
+target_include_directories(test_c26_ime_os_hook PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ime_os_hook PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ime_os_hook COMMAND test_c26_ime_os_hook)
+
+
+add_executable(test_c26_skill_table_registry test_c26_skill_table_registry.cpp ${CMAKE_SOURCE_DIR}/src/Client/Skills/SkillTableRegistry.cpp)
+target_include_directories(test_c26_skill_table_registry PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_skill_table_registry PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_skill_table_registry COMMAND test_c26_skill_table_registry)
+
+
+add_executable(test_c26_skill_desc_parser test_c26_skill_desc_parser.cpp ${CMAKE_SOURCE_DIR}/src/Client/Skills/SkillDescriptionParser.cpp)
+target_include_directories(test_c26_skill_desc_parser PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_skill_desc_parser PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_skill_desc_parser COMMAND test_c26_skill_desc_parser)
+
+
+add_executable(test_c26_skill_grade_icon test_c26_skill_grade_icon.cpp ${CMAKE_SOURCE_DIR}/src/Client/Skills/SkillGradeIconManager.cpp)
+target_include_directories(test_c26_skill_grade_icon PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_skill_grade_icon PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_skill_grade_icon COMMAND test_c26_skill_grade_icon)
+
+
+add_executable(test_c26_skill_requirement test_c26_skill_requirement.cpp ${CMAKE_SOURCE_DIR}/src/Client/Skills/SkillRequirementEvaluator.cpp)
+target_include_directories(test_c26_skill_requirement PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_skill_requirement PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_skill_requirement COMMAND test_c26_skill_requirement)
+
+
+add_executable(test_c26_ui_window_hierarchy test_c26_ui_window_hierarchy.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/UIWindowHierarchyController.cpp)
+target_include_directories(test_c26_ui_window_hierarchy PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ui_window_hierarchy PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ui_window_hierarchy COMMAND test_c26_ui_window_hierarchy)
+
+
+add_executable(test_c26_ui_window_coord test_c26_ui_window_coord.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/UIWindowCoordinateTransform.cpp)
+target_include_directories(test_c26_ui_window_coord PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ui_window_coord PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ui_window_coord COMMAND test_c26_ui_window_coord)
+
+
+add_executable(test_c26_ui_window_flags test_c26_ui_window_flags.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/UIWindowStateFlags.cpp)
+target_include_directories(test_c26_ui_window_flags PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ui_window_flags PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ui_window_flags COMMAND test_c26_ui_window_flags)
+
+
+add_executable(test_c26_ui_window_events test_c26_ui_window_events.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/UIWindowEventListenerDispatch.cpp)
+target_include_directories(test_c26_ui_window_events PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ui_window_events PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ui_window_events COMMAND test_c26_ui_window_events)
+
+
+add_executable(test_c26_phase_game_char_state test_c26_phase_game_char_state.cpp ${CMAKE_SOURCE_DIR}/src/Client/Bridge/PhaseGameCharacterStateBridge.cpp)
+target_include_directories(test_c26_phase_game_char_state PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_phase_game_char_state PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_phase_game_char_state COMMAND test_c26_phase_game_char_state)
+
+
+add_executable(test_c26_phase_game_chat_whisper test_c26_phase_game_chat_whisper.cpp ${CMAKE_SOURCE_DIR}/src/Client/Bridge/PhaseGameChatWhisperBridge.cpp)
+target_include_directories(test_c26_phase_game_chat_whisper PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_phase_game_chat_whisper PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_phase_game_chat_whisper COMMAND test_c26_phase_game_chat_whisper)
+
+
+add_executable(test_c26_phase_game_duel_pvp test_c26_phase_game_duel_pvp.cpp ${CMAKE_SOURCE_DIR}/src/Client/Bridge/PhaseGameDuelPvpBridge.cpp)
+target_include_directories(test_c26_phase_game_duel_pvp PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_phase_game_duel_pvp PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_phase_game_duel_pvp COMMAND test_c26_phase_game_duel_pvp)
+
+
+add_executable(test_c26_phase_game_observer test_c26_phase_game_observer.cpp ${CMAKE_SOURCE_DIR}/src/Client/Bridge/PhaseGameObserverBridge.cpp)
+target_include_directories(test_c26_phase_game_observer PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_phase_game_observer PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_phase_game_observer COMMAND test_c26_phase_game_observer)
+
+
+add_executable(test_c26_player_pos_tracker test_c26_player_pos_tracker.cpp ${CMAKE_SOURCE_DIR}/src/Client/Player/PlayerMainActorPositionTracker.cpp)
+target_include_directories(test_c26_player_pos_tracker PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_player_pos_tracker PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_player_pos_tracker COMMAND test_c26_player_pos_tracker)
+
+
+add_executable(test_c26_player_entity_picker test_c26_player_entity_picker.cpp ${CMAKE_SOURCE_DIR}/src/Client/Player/PlayerEntityPicker.cpp)
+target_include_directories(test_c26_player_entity_picker PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_player_entity_picker PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_player_entity_picker COMMAND test_c26_player_entity_picker)
+
+
+add_executable(test_c26_player_effect_bridge test_c26_player_effect_bridge.cpp ${CMAKE_SOURCE_DIR}/src/Client/Player/PlayerEffectRegistryBridge.cpp)
+target_include_directories(test_c26_player_effect_bridge PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_player_effect_bridge PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_player_effect_bridge COMMAND test_c26_player_effect_bridge)
+
+
+add_executable(test_c26_player_target_vid test_c26_player_target_vid.cpp ${CMAKE_SOURCE_DIR}/src/Client/Player/PlayerTargetVidController.cpp)
+target_include_directories(test_c26_player_target_vid PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_player_target_vid PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_player_target_vid COMMAND test_c26_player_target_vid)
+
+
+add_executable(test_c26_terrain_coord_mapper test_c26_terrain_coord_mapper.cpp ${CMAKE_SOURCE_DIR}/src/Client/Terrain/TerrainCoordinateMapper.cpp)
+target_include_directories(test_c26_terrain_coord_mapper PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_terrain_coord_mapper PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_terrain_coord_mapper COMMAND test_c26_terrain_coord_mapper)
+
+
+add_executable(test_c26_terrain_sector_loader test_c26_terrain_sector_loader.cpp ${CMAKE_SOURCE_DIR}/src/Client/Terrain/TerrainSectorLoader.cpp)
+target_include_directories(test_c26_terrain_sector_loader PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_terrain_sector_loader PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_terrain_sector_loader COMMAND test_c26_terrain_sector_loader)
+
+
+add_executable(test_c26_terrain_height_querier test_c26_terrain_height_querier.cpp ${CMAKE_SOURCE_DIR}/src/Client/Terrain/TerrainHeightCollisionQuerier.cpp)
+target_include_directories(test_c26_terrain_height_querier PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_terrain_height_querier PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_terrain_height_querier COMMAND test_c26_terrain_height_querier)
+
+
+add_executable(test_c26_terrain_env_config test_c26_terrain_env_config.cpp ${CMAKE_SOURCE_DIR}/src/Client/Terrain/TerrainEnvironmentConfigManager.cpp)
+target_include_directories(test_c26_terrain_env_config PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_terrain_env_config PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_terrain_env_config COMMAND test_c26_terrain_env_config)
