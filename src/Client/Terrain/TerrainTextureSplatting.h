@@ -39,6 +39,10 @@ public:
     std::expected<void, SplatError> AddLayer(uint8_t layerIndex, std::string_view texturePath, float scaleU = 10.0f, float scaleV = 10.0f);
     std::expected<void, SplatError> RemoveLayer(uint8_t layerIndex);
     
+    std::expected<void, SplatError> UpdateLayerScale(uint8_t layerIndex, float newScaleU, float newScaleV);
+    std::expected<void, SplatError> ReplaceLayerTexture(uint8_t layerIndex, std::string_view newTexturePath);
+    std::expected<void, SplatError> SwapLayers(uint8_t layerIndexA, uint8_t layerIndexB);
+    
     std::expected<SplatLayerInfo, SplatError> GetLayer(uint8_t layerIndex) const;
     
     bool HasLayer(uint8_t layerIndex) const noexcept;

@@ -115,3 +115,98 @@ TEST_CASE("TerrainTextureSplatting GetAllActiveLayers") {
     CHECK(activeLayers[1].layerIndex == 3);
     CHECK(activeLayers[1].texturePath == "terrain/snow.png");
 }
+
+TEST_CASE("TerrainTextureSplatting UpdateLayerScale") {
+    TerrainTextureSplatting splatting;
+    
+    splatting.AddLayer(1, "terrain/grass.png", 5.0f, 5.0f);
+    
+    auto res = splatting.UpdateLayerScale(1, 15.0f, 20.0f);
+    CHECK(res.has_value());
+    
+    auto layer = splatting.GetLayer(1);
+    REQUIRE(layer.has_value());
+    CHECK(layer->scaleU == 15.0f);
+    CHECK(layer->scaleV == 20.0f);
+    
+    SUBCASE("Invalid index") {
+        auto failRes = splatting.UpdateLayerScale(TerrainTextureSplatting::MAX_LAYERS, 10.0f, 10.0f);
+        CHECK_FALSE(failRes.has_value());
+        CHECK(failRes.error() == SplatError::InvalidLayerIndex);
+    }
+    
+    SUBCASE("Layer not set") {
+        auto failRes = splatting.UpdateLayerScale(2, 10.0f, 10.0f);
+        CHECK_FALSE(failRes.has_value());
+        CHECK(failRes.error() == SplatError::LayerNotSet);
+    }
+}
+
+TEST_CASE("TerrainTextureSplatting ReplaceLayerTexture") {
+    TerrainTextureSplatting splatting;
+    
+    splatting.AddLayer(2, "terrain/dirt.png");
+    
+    auto res = splatting.ReplaceLayerTexture(2, "terrain/mud.png");
+    CHECK(res.has_value());
+    
+    auto layer = splatting.GetLayer(2);
+    REQUIRE(layer.has_value());
+    CHECK(layer->texturePath == "terrain/mud.png");
+    
+    SUBCASE("Invalid index") {
+        auto failRes = splatting.ReplaceLayerTexture(TerrainTextureSplatting::MAX_LAYERS, "terrain/mud.png");
+        CHECK_FALSE(failRes.has_value());
+        CHECK(failRes.error() == SplatError::InvalidLayerIndex);
+    }
+    
+    SUBCASE("Layer not set") {
+        auto failRes = splatting.ReplaceLayerTexture(1, "terrain/mud.png");
+        CHECK_FALSE(failRes.has_value());
+        CHECK(failRes.error() == SplatError::LayerNotSet);
+    }
+}
+
+TEST_CASE("TerrainTextureSplatting SwapLayers") {
+    TerrainTextureSplatting splatting;
+    
+    splatting.AddLayer(0, "terrain/grass.png", 5.0f, 5.0f);
+    splatting.AddLayer(2, "terrain/rock.png", 10.0f, 10.0f);
+    
+    auto res = splatting.SwapLayers(0, 2);
+    CHECK(res.has_value());
+    
+    auto layer0 = splatting.GetLayer(0);
+    REQUIRE(layer0.has_value());
+    CHECK(layer0->layerIndex == 0);
+    CHECK(layer0->texturePath == "terrain/rock.png");
+    CHECK(layer0->scaleU == 10.0f);
+    CHECK(layer0->scaleV == 10.0f);
+    
+    auto layer2 = splatting.GetLayer(2);
+    REQUIRE(layer2.has_value());
+    CHECK(layer2->layerIndex == 2);
+    CHECK(layer2->texturePath == "terrain/grass.png");
+    CHECK(layer2->scaleU == 5.0f);
+    CHECK(layer2->scaleV == 5.0f);
+    
+    SUBCASE("Invalid indices") {
+        auto failRes1 = splatting.SwapLayers(TerrainTextureSplatting::MAX_LAYERS, 2);
+        CHECK_FALSE(failRes1.has_value());
+        CHECK(failRes1.error() == SplatError::InvalidLayerIndex);
+        
+        auto failRes2 = splatting.SwapLayers(0, TerrainTextureSplatting::MAX_LAYERS);
+        CHECK_FALSE(failRes2.has_value());
+        CHECK(failRes2.error() == SplatError::InvalidLayerIndex);
+    }
+    
+    SUBCASE("Layers not set") {
+        auto failRes1 = splatting.SwapLayers(0, 1); // 1 is not set
+        CHECK_FALSE(failRes1.has_value());
+        CHECK(failRes1.error() == SplatError::LayerNotSet);
+        
+        auto failRes2 = splatting.SwapLayers(1, 2); // 1 is not set
+        CHECK_FALSE(failRes2.has_value());
+        CHECK(failRes2.error() == SplatError::LayerNotSet);
+    }
+}
