@@ -2,9 +2,17 @@
 #include <cstring>
 
 #ifndef TEST_MODE_DISABLE_STDAFX
-#include "UserInterface/AbstractCharacterManager.h"
-#include "UserInterface/InstanceBase.h"
-#include "Client/Network/Protocol/Protocol.h"
+class CInstanceBase {
+public:
+    void NEW_LookAtDestInstance(CInstanceBase& rkInstDst);
+    void PushOnceMotion(uint16_t wMotion, float fBlendTime = 0.1f, float fSpeedRatio = 1.0f);
+};
+
+class IAbstractCharacterManager {
+public:
+    virtual ~IAbstractCharacterManager() = default;
+    virtual CInstanceBase* GetInstancePtr(uint32_t dwVID) = 0;
+};
 #include "GameLib/RaceMotionData.h"
 #endif
 
