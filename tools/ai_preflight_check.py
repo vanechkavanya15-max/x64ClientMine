@@ -235,6 +235,23 @@ def check_singleton_safety(root_dir: Path) -> List[str]:
             if "::Instance()" not in text:
                 continue
 
+            modified = False
+            for pattern, repl in [
+                (r'\bCPythonPlayer::Instance\(\)\.', 'CPythonPlayer::InstancePtr()->'),
+                (r'\bCPythonCharacterManager::Instance\(\)\.', 'CPythonCharacterManager::InstancePtr()->'),
+                (r'\bCPythonPlayer::Instance\(\)', '(*CPythonPlayer::InstancePtr())'),
+                (r'\bCPythonCharacterManager::Instance\(\)', '(*CPythonCharacterManager::InstancePtr())'),
+            ]:
+                if re.search(pattern, text):
+                    text = re.sub(pattern, repl, text)
+                    modified = True
+            if modified:
+                try:
+                    file_path.write_text(text, encoding='utf-8')
+                    print(f"[+] [AUTOREJESTRACJA] Zastapiono niebezpieczne Instance() bezpiecznym InstancePtr() w {file_path.name}")
+                except Exception:
+                    pass
+
             for line_no, line in enumerate(text.splitlines(), 1):
                 clean_line = line.strip()
                 # Pomin komentarze
