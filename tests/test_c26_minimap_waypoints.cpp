@@ -3,7 +3,6 @@
 
 using namespace Client::MiniMap;
 using namespace Client::Core;
-using namespace EterBase;
 
 TEST_CASE("MiniMapWaypointManager - AddWaypoint") {
     MiniMapWaypointManager manager;
@@ -102,4 +101,38 @@ TEST_CASE("MiniMapWaypointManager - GetAllWaypoints posortowane") {
     CHECK(waypoints[0].id == WaypointId{1});
     CHECK(waypoints[1].id == WaypointId{3});
     CHECK(waypoints[2].id == WaypointId{5});
+}
+
+TEST_CASE("MiniMapWaypointManager - UpdateWaypoint") {
+    MiniMapWaypointManager manager;
+
+    manager.AddWaypoint({ .id = WaypointId{42}, .x = 10.0f, .y = 20.0f });
+
+    SUBCASE("Sukces - aktualizacja waypointu") {
+        auto result = manager.UpdateWaypoint(WaypointId{42}, 100.0f, 200.0f);
+        CHECK(result.has_value() == true);
+        
+        auto wp = manager.GetWaypoint(WaypointId{42}).value();
+        CHECK(wp.x == 100.0f);
+        CHECK(wp.y == 200.0f);
+    }
+
+    SUBCASE("Blad - aktualizacja nieistniejacego") {
+        auto result = manager.UpdateWaypoint(WaypointId{99}, 100.0f, 200.0f);
+        CHECK(result.has_value() == false);
+        CHECK(result.error() == WaypointError::NotFound);
+    }
+}
+
+TEST_CASE("MiniMapWaypointManager - ClearAllWaypoints") {
+    MiniMapWaypointManager manager;
+
+    manager.AddWaypoint({ .id = WaypointId{1} });
+    manager.AddWaypoint({ .id = WaypointId{2} });
+    
+    CHECK(manager.GetAllWaypoints().size() == 2);
+    
+    manager.ClearAllWaypoints();
+    
+    CHECK(manager.GetAllWaypoints().size() == 0);
 }

@@ -28,6 +28,20 @@ Client::Core::Result<Waypoint, WaypointError> MiniMapWaypointManager::GetWaypoin
     return *it;
 }
 
+Client::Core::Result<void, WaypointError> MiniMapWaypointManager::UpdateWaypoint(WaypointId id, float x, float y) {
+    auto it = std::ranges::lower_bound(m_waypoints, id, {}, &Waypoint::id);
+    if (it == m_waypoints.end() || it->id != id) {
+        return std::unexpected(WaypointError::NotFound);
+    }
+    it->x = x;
+    it->y = y;
+    return {};
+}
+
+void MiniMapWaypointManager::ClearAllWaypoints() {
+    m_waypoints.clear();
+}
+
 std::span<const Waypoint> MiniMapWaypointManager::GetAllWaypoints() const {
     return std::span<const Waypoint>(m_waypoints);
 }

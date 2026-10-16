@@ -5,7 +5,7 @@
 #include <span>
 #include <expected>
 #include <algorithm>
-#include "EterBase/StrongTypes.h"
+#include "Client/Core/StrongTypes.h"
 #include "Client/Core/Result.h"
 
 namespace Client::MiniMap {
@@ -16,7 +16,7 @@ enum class WaypointError : uint8_t {
     AlreadyExists
 };
 
-using WaypointId = EterBase::StrongType<struct WaypointIdTag, uint32_t, 0>;
+using WaypointId = Client::Core::StrongType<struct WaypointIdTag, uint32_t, 0>;
 
 enum class WaypointType : uint8_t {
     Opc = 0,
@@ -37,7 +37,7 @@ struct Waypoint {
     WaypointId id;
     float x{0.0f};
     float y{0.0f};
-    EterBase::EntityId chrVid;
+    Client::Core::EntityId chrVid;
     std::string text;
 };
 
@@ -49,6 +49,8 @@ public:
     Client::Core::Result<void, WaypointError> AddWaypoint(Waypoint waypoint);
     Client::Core::Result<void, WaypointError> RemoveWaypoint(WaypointId id);
     Client::Core::Result<Waypoint, WaypointError> GetWaypoint(WaypointId id) const;
+    Client::Core::Result<void, WaypointError> UpdateWaypoint(WaypointId id, float x, float y);
+    void ClearAllWaypoints();
     std::span<const Waypoint> GetAllWaypoints() const;
 
 private:
