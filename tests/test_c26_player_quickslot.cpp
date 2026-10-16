@@ -1,6 +1,6 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest.h"
 #define TEST_MODE_DISABLE_STDAFX 1
-#include <cassert>
-#include <iostream>
 #include <memory>
 #include "../src/Client/Player/PlayerQuickslotController.h"
 #include "../src/Client/Player/IQuickslotNetwork.h"
@@ -52,94 +52,102 @@ public:
     }
 };
 
-int main()
-{
+TEST_CASE("PlayerQuickslotController functionality") {
     auto domain = std::make_shared<QuickslotDomain>();
     auto network = std::make_shared<MockQuickslotNetwork>();
     PlayerQuickslotController controller(domain, network);
 
-    // Test 1: Set and Get Quickslot
-    {
+    SUBCASE("Set and Get Quickslot") {
         network->Reset();
         QuickslotItem item{1, 5};
         auto setRes = controller.SetQuickslot(0, item);
-        assert(setRes.has_value());
+        CHECK(setRes.has_value());
 
         auto getRes = controller.GetQuickslot(0);
-        assert(getRes.has_value());
-        assert(getRes->type == 1);
-        assert(getRes->position == 5);
-        assert(!getRes->IsEmpty());
+        REQUIRE(getRes.has_value());
+        CHECK(getRes->type == 1);
+        CHECK(getRes->position == 5);
+        CHECK_FALSE(getRes->IsEmpty());
 
-        assert(network->addPacketsSent == 1);
-        assert(network->lastAddPos == 0);
-        assert(network->lastAddType == 1);
-        assert(network->lastAddItemPos == 5);
+        CHECK(network->addPacketsSent == 1);
+        CHECK(network->lastAddPos == 0);
+        CHECK(network->lastAddType == 1);
+        CHECK(network->lastAddItemPos == 5);
     }
 
-    // Test 2: Delete Quickslot
-    {
+    SUBCASE("Delete Quickslot") {
+        QuickslotItem item{1, 5};
+        REQUIRE(controller.SetQuickslot(0, item).has_value());
+
         network->Reset();
         auto delRes = controller.DeleteQuickslot(0);
-        assert(delRes.has_value());
+        CHECK(delRes.has_value());
 
         auto getRes = controller.GetQuickslot(0);
-        assert(getRes.has_value());
-        assert(getRes->IsEmpty());
+        REQUIRE(getRes.has_value());
+        CHECK(getRes->IsEmpty());
 
-        assert(network->delPacketsSent == 1);
-        assert(network->lastDelPos == 0);
+        CHECK(network->delPacketsSent == 1);
+        CHECK(network->lastDelPos == 0);
     }
 
-    // Test 3: Swap Quickslots
-    {
+    SUBCASE("Swap Quickslots") {
         QuickslotItem itemA{2, 10};
         QuickslotItem itemB{3, 20};
-        assert(controller.SetQuickslot(1, itemA).has_value());
-        assert(controller.SetQuickslot(2, itemB).has_value());
+        REQUIRE(controller.SetQuickslot(1, itemA).has_value());
+        REQUIRE(controller.SetQuickslot(2, itemB).has_value());
 
         network->Reset();
         auto swapRes = controller.SwapQuickslots(1, 2);
-        assert(swapRes.has_value());
+        CHECK(swapRes.has_value());
 
         auto getA = controller.GetQuickslot(1);
         auto getB = controller.GetQuickslot(2);
-        assert(getA->type == 3 && getA->position == 20);
-        assert(getB->type == 2 && getB->position == 10);
+        REQUIRE(getA.has_value());
+        REQUIRE(getB.has_value());
+        CHECK(getA->type == 3);
+        CHECK(getA->position == 20);
+        CHECK(getB->type == 2);
+        CHECK(getB->position == 10);
 
-        assert(network->movePacketsSent == 1);
-        assert(network->lastMoveFrom == 1);
-        assert(network->lastMoveTo == 2);
+        CHECK(network->movePacketsSent == 1);
+        CHECK(network->lastMoveFrom == 1);
+        CHECK(network->lastMoveTo == 2);
     }
 
-    // Test 4: Clear All
-    {
+    SUBCASE("Clear All Quickslots") {
+        QuickslotItem itemA{2, 10};
+        QuickslotItem itemB{3, 20};
+        REQUIRE(controller.SetQuickslot(1, itemA).has_value());
+        REQUIRE(controller.SetQuickslot(2, itemB).has_value());
+
         network->Reset();
         controller.ClearAll();
-        auto getRes = controller.GetQuickslot(1);
-        assert(getRes.has_value());
-        assert(getRes->IsEmpty());
+
+        auto getRes1 = controller.GetQuickslot(1);
+        REQUIRE(getRes1.has_value());
+        CHECK(getRes1->IsEmpty());
+
+        auto getRes2 = controller.GetQuickslot(2);
+        REQUIRE(getRes2.has_value());
+        CHECK(getRes2->IsEmpty());
 
         // We expect delPackets to be sent for slots that were not empty (1 and 2)
-        assert(network->delPacketsSent == 2); 
+        CHECK(network->delPacketsSent == 2); 
     }
 
-    // Test 5: Error Handling
-    {
+    SUBCASE("Error Handling") {
         network->Reset();
         QuickslotItem item{1, 1};
-        assert(!controller.SetQuickslot(100, item).has_value());
-        assert(network->addPacketsSent == 0);
+        CHECK_FALSE(controller.SetQuickslot(100, item).has_value());
+        CHECK(network->addPacketsSent == 0);
 
-        assert(!controller.DeleteQuickslot(100).has_value());
-        assert(network->delPacketsSent == 0);
+        CHECK_FALSE(controller.DeleteQuickslot(100).has_value());
+        CHECK(network->delPacketsSent == 0);
 
-        assert(!controller.SwapQuickslots(0, 100).has_value());
-        assert(network->movePacketsSent == 0);
+        CHECK_FALSE(controller.SwapQuickslots(0, 100).has_value());
+        CHECK(network->movePacketsSent == 0);
 
-        assert(!controller.GetQuickslot(100).has_value());
+        CHECK_FALSE(controller.GetQuickslot(100).has_value());
     }
-
-    std::cout << "test_c26_player_quickslot: ALL TESTS PASSED (100%)\n";
-    return 0;
 }
