@@ -49,6 +49,23 @@ T ParseInt(std::string_view str, T defaultValue = 0) {
 
 } // namespace
 
+Client::Core::VfsResult<std::vector<SkillTableRecord>> SkillTableLoader::LoadFromFile(Client::Core::IVfsProvider& vfs, std::string_view filePath)
+{
+    auto readResult = vfs.ReadFile(filePath);
+    if (!readResult) {
+        return std::unexpected(readResult.error());
+    }
+
+    std::string_view tsvData(reinterpret_cast<const char*>(readResult->data()), readResult->size());
+    auto memoryResult = LoadFromMemory(tsvData);
+    
+    if (!memoryResult) {
+        return std::unexpected(Client::Core::VfsError::CorruptedData);
+    }
+
+    return std::move(memoryResult.value());
+}
+
 EterBase::Result<std::vector<SkillTableRecord>> SkillTableLoader::LoadFromMemory(std::string_view tsvData)
 {
     std::vector<SkillTableRecord> records;

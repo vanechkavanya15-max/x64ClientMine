@@ -7,6 +7,7 @@
 #include <expected>
 #include "../../EterBase/Result.h"
 #include "../Core/StrongTypes.h"
+#include "../Core/IVfsProvider.h"
 
 namespace Client::Skills {
 
@@ -44,6 +45,7 @@ struct SkillTableRecord
 class SkillTableLoader
 {
 public:
+    static Client::Core::VfsResult<std::vector<SkillTableRecord>> LoadFromFile(Client::Core::IVfsProvider& vfs, std::string_view filePath);
     static EterBase::Result<std::vector<SkillTableRecord>> LoadFromMemory(std::string_view tsvData);
 };
 
