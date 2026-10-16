@@ -2,6 +2,7 @@
 #include "doctest.h"
 #include "../src/Client/Input/KeyboardInputDispatcher.h"
 #include <new>
+#include <cstdlib>
 
 using namespace Client::Input;
 
