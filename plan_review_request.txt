@@ -1,0 +1,25 @@
+Plan for EventDialogBoxController implementation:
+
+1. **Create `src/Client/Events/EventDialogBoxController.h` and `EventDialogBoxController.cpp`**
+   - The module will define `Client::Events::EventDialogBoxController`.
+   - It will define a strongly-typed enum for errors (e.g., `DialogError`) and use `Client::Core::ExpectedResult` / C++23 `std::expected` for returning results.
+   - It will manage the UI state of event dialog boxes (e.g. tracking the currently open dialog by ID/type, whether it's open or closed, processing input/actions).
+   - It will define and emit domain events like `EventDialogBoxOpenedEvent` and `EventDialogBoxClosedEvent` via `EterBase::EventBus`.
+   - It will have 0% dependency on Windows/DirectX API.
+   - It will maintain SRP (Single Responsibility Principle) and strict C++23 practices (zero memory leaks, RAII, strong types).
+
+2. **Create unit tests in `tests/test_c26_event_dialog_box.cpp`**
+   - The test will use `doctest.h` and test the core functionalities of `EventDialogBoxController` headless-ly.
+   - Test cases: opening a dialog box successfully, opening when already open, closing when closed, emitting events, handling validation errors, etc.
+   - All tests must pass (100% PASS).
+
+3. **Update `tests/CMakeLists.txt`**
+   - Register `test_c26_event_dialog_box` target using CMake.
+   - Ensure to not link Windows-specific libraries for headless compatibility (disable WS2_32 where not needed or safely mock).
+
+4. **Verify Tests and Pre-commit Instructions**
+   - Ensure the unit tests run and pass cleanly via `ctest` or direct binary execution.
+   - Call `pre_commit_instructions` tool to complete pre-commit steps.
+
+5. **Submit the Code**
+   - Submit the changes using the `submit` tool without asking for feedback.

@@ -6376,3 +6376,47 @@ target_link_libraries(test_c26_actor_title PRIVATE
 )
 add_test(NAME test_c26_actor_title COMMAND test_c26_actor_title)
 
+# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
+add_executable(test_c26_event_dialog_box test_c26_event_dialog_box.cpp ${CMAKE_SOURCE_DIR}/src/Client/Events/EventDialogBoxController.cpp)
+target_include_directories(test_c26_event_dialog_box PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_compile_definitions(test_c26_event_dialog_box PRIVATE TEST_MODE_DISABLE_STDAFX)
+target_link_libraries(test_c26_event_dialog_box PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+)
+add_test(NAME test_c26_event_dialog_box COMMAND test_c26_event_dialog_box)
+
+# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
+add_executable(test_dummy test_dummy.cpp)
+target_include_directories(test_dummy PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_dummy PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_dummy COMMAND test_dummy)
+
