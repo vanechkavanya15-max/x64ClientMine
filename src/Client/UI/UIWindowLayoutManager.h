@@ -41,6 +41,11 @@ struct LayoutConfig {
     LayoutAlignment alignment = LayoutAlignment::Start;
 };
 
+/**
+ * @brief Menedzer ukladu okien UI.
+ * Klasa odpowiada za liniowe i siatkowe ukladanie elementow podrzednych.
+ * Zapewnia brak bezposrednich zaleznosci od Windows/DirectX API (C++23 Zero-Conflict).
+ */
 class UIWindowLayoutManager {
 public:
     static EterBase::Result<void, LayoutError> ArrangeLinear(Window* container, LayoutDirection direction, const LayoutConfig& config = {});
