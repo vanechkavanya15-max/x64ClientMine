@@ -30,7 +30,7 @@ TagParseResult TextStyleParser::ParseTag(std::wstring_view src) {
 
 std::wstring TextStyleParser::GetOutputString(std::wstring_view src) {
     std::wstring dst;
-    int hyperlinkStep = 0;
+    size_t hyperlinkStep = 0;
 
     for (size_t i = 0; i < src.size(); ) {
         auto [tagType, tagLength, extraInfo] = ParseTag(src.substr(i));
@@ -56,7 +56,7 @@ std::wstring TextStyleParser::GetOutputString(std::wstring_view src) {
 
 size_t TextStyleParser::GetOutputLen(std::wstring_view src) {
     size_t output_len = 0;
-    int hyperlinkStep = 0;
+    size_t hyperlinkStep = 0;
 
     for (size_t i = 0; i < src.size(); ) {
         auto [tagType, tagLength, extraInfo] = ParseTag(src.substr(i));
@@ -78,7 +78,7 @@ size_t TextStyleParser::GetOutputLen(std::wstring_view src) {
 
 size_t TextStyleParser::GetInternalPosFromRenderPos(std::wstring_view src, size_t offset) {
     size_t output_len = 0;
-    int hyperlinkStep = 0;
+    size_t hyperlinkStep = 0;
     bool color_tag = false;
     size_t internal_offset = 0;
 
