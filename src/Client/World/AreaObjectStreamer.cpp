@@ -9,6 +9,7 @@ Client::Core::Result<void, AreaStreamerError> AreaObjectStreamer::RegisterObject
     }
     
     m_registeredObjects[record.id] = record;
+    m_grid.Insert(EterBase::EntityId{record.id.get()}, record.x, record.y);
     return {};
 }
 
@@ -18,6 +19,7 @@ Client::Core::Result<void, AreaStreamerError> AreaObjectStreamer::UnregisterObje
         return std::unexpected(AreaStreamerError::NotFound);
     }
     
+    m_grid.Remove(EterBase::EntityId{id.get()});
     m_visibleObjects.erase(id);
     m_registeredObjects.erase(it);
     return {};
@@ -30,23 +32,23 @@ void AreaObjectStreamer::UpdateViewerPosition(float x, float y, float radius,
         return;
     }
 
-    float sqRadius = radius * radius;
+    std::unordered_set<AreaObjectId> currentVisibleInRange;
+    
+    m_grid.QueryRadiusVisitor(x, y, radius, [&](EterBase::EntityId id, float /*px*/, float /*py*/) {
+        currentVisibleInRange.insert(AreaObjectId{id.get()});
+    });
+
     std::vector<AreaObjectId> newlyVisible;
     std::vector<AreaObjectId> newlyInvisible;
 
-    // We do a linear pass. For a real MMO map we might want to use a SpatialHashGrid
-    // but the task requirements just want to separate the logic.
-    for (const auto& [id, record] : m_registeredObjects) {
-        float dx = record.x - x;
-        float dy = record.y - y;
-        float sqDist = dx * dx + dy * dy;
-
-        bool inRange = sqDist <= sqRadius;
-        bool wasVisible = m_visibleObjects.contains(id);
-
-        if (inRange && !wasVisible) {
+    for (AreaObjectId id : currentVisibleInRange) {
+        if (!m_visibleObjects.contains(id)) {
             newlyVisible.push_back(id);
-        } else if (!inRange && wasVisible) {
+        }
+    }
+
+    for (AreaObjectId id : m_visibleObjects) {
+        if (!currentVisibleInRange.contains(id)) {
             newlyInvisible.push_back(id);
         }
     }
@@ -80,6 +82,7 @@ size_t AreaObjectStreamer::GetRegisteredCount() const {
 }
 
 void AreaObjectStreamer::Clear() {
+    m_grid.Clear();
     m_registeredObjects.clear();
     m_visibleObjects.clear();
 }

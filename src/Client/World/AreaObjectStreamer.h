@@ -8,6 +8,7 @@
 
 #include "../../EterBase/StrongTypes.h"
 #include "../../Client/Core/Result.h"
+#include "SpatialHashGrid.h"
 
 namespace Client::World {
 
@@ -53,6 +54,7 @@ public:
     void Clear();
 
 private:
+    SpatialHashGrid m_grid;
     std::unordered_map<AreaObjectId, AreaObjectRecord> m_registeredObjects;
     std::unordered_set<AreaObjectId> m_visibleObjects;
 };
