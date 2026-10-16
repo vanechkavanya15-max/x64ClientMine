@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "../Gameplay/SkillDomain.h"
+#include "../Gameplay/IPlayerStatsService.h"
 #include "../Network/SkillPacketCodec.h"
 #include "../Core/Result.h"
 
@@ -31,7 +32,7 @@ namespace Client::Player {
      */
     class PlayerSkillController {
     public:
-        PlayerSkillController(Client::Gameplay::SkillDomain& skillDomain);
+        PlayerSkillController(Client::Gameplay::SkillDomain& skillDomain, Client::Gameplay::IPlayerStatsService& statsService);
         ~PlayerSkillController() = default;
 
         /**
@@ -45,6 +46,7 @@ namespace Client::Player {
 
     private:
         Client::Gameplay::SkillDomain& m_skillDomain;
+        Client::Gameplay::IPlayerStatsService& m_statsService;
 
         CommandError MapSkillError(Client::Core::SkillError err) const noexcept;
     };

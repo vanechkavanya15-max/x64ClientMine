@@ -2,17 +2,17 @@
 
 namespace Client::Player {
 
-    PlayerSkillController::PlayerSkillController(Client::Gameplay::SkillDomain& skillDomain)
-        : m_skillDomain(skillDomain)
+    PlayerSkillController::PlayerSkillController(Client::Gameplay::SkillDomain& skillDomain, Client::Gameplay::IPlayerStatsService& statsService)
+        : m_skillDomain(skillDomain), m_statsService(statsService)
     {
     }
 
     Client::Core::Result<std::vector<uint8_t>, CommandError> PlayerSkillController::UseSkill(uint32_t skillVnum, uint32_t targetVid)
     {
-        // Maksymalna wartosc many uzywana z braku zaleznosci statystyk w celu walidacji
-        constexpr uint32_t MAX_SP = 0xFFFFFFFF;
+        constexpr uint32_t POINT_SP = 7;
+        uint32_t currentSP = static_cast<uint32_t>(m_statsService.GetPoint(POINT_SP));
         
-        auto canUseResult = m_skillDomain.CanUseSkill(skillVnum, MAX_SP);
+        auto canUseResult = m_skillDomain.CanUseSkill(skillVnum, currentSP);
         
         if (!canUseResult) {
             return std::unexpected(MapSkillError(canUseResult.error()));
