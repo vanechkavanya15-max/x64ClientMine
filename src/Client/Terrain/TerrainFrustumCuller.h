@@ -5,12 +5,13 @@
 #include <array>
 #include <cstdint>
 #include <expected>
+#include "../Core/StrongTypes.h"
 
 namespace Client::Terrain {
 
 struct TerrainAABB {
-    float minX, minY, minZ;
-    float maxX, maxY, maxZ;
+    Client::Core::MapCoords min;
+    Client::Core::MapCoords max;
 };
 
 struct FrustumPlane {

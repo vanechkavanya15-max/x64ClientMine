@@ -19,9 +19,9 @@ std::expected<bool, CullerError> TerrainFrustumCuller::IsBoxVisible(const Terrai
     }
     
     for (int i = 0; i < 6; ++i) {
-        float px = (m_planes[i].a > 0.0f) ? box.maxX : box.minX;
-        float py = (m_planes[i].b > 0.0f) ? box.maxY : box.minY;
-        float pz = (m_planes[i].c > 0.0f) ? box.maxZ : box.minZ;
+        float px = (m_planes[i].a > 0.0f) ? box.max.x : box.min.x;
+        float py = (m_planes[i].b > 0.0f) ? box.max.y : box.min.y;
+        float pz = (m_planes[i].c > 0.0f) ? box.max.z : box.min.z;
         
         float dotProduct = (m_planes[i].a * px) + (m_planes[i].b * py) + (m_planes[i].c * pz);
         
@@ -61,35 +61,35 @@ std::expected<void, CullerError> TerrainFrustumCuller::CullQuadTree(const Terrai
             continue;
         }
         
-        float midX = (node.bounds.minX + node.bounds.maxX) * 0.5f;
-        float midY = (node.bounds.minY + node.bounds.maxY) * 0.5f;
+        float midX = (node.bounds.min.x + node.bounds.max.x) * 0.5f;
+        float midY = (node.bounds.min.y + node.bounds.max.y) * 0.5f;
         
         uint32_t patchesPerChild = 1 << ((node.depth - 1) * 2);
         
         // Push Child 3 (q4)
         stack[top++] = {
-            {midX, midY, node.bounds.minZ, node.bounds.maxX, node.bounds.maxY, node.bounds.maxZ}, 
+            {{midX, midY, node.bounds.min.z}, {node.bounds.max.x, node.bounds.max.y, node.bounds.max.z}}, 
             node.depth - 1, 
             node.patchIdStart + patchesPerChild * 3
         };
                         
         // Push Child 2 (q3)
         stack[top++] = {
-            {node.bounds.minX, midY, node.bounds.minZ, midX, node.bounds.maxY, node.bounds.maxZ}, 
+            {{node.bounds.min.x, midY, node.bounds.min.z}, {midX, node.bounds.max.y, node.bounds.max.z}}, 
             node.depth - 1, 
             node.patchIdStart + patchesPerChild * 2
         };
                         
         // Push Child 1 (q2)
         stack[top++] = {
-            {midX, node.bounds.minY, node.bounds.minZ, node.bounds.maxX, midY, node.bounds.maxZ}, 
+            {{midX, node.bounds.min.y, node.bounds.min.z}, {node.bounds.max.x, midY, node.bounds.max.z}}, 
             node.depth - 1, 
             node.patchIdStart + patchesPerChild * 1
         };
                         
         // Push Child 0 (q1)
         stack[top++] = {
-            {node.bounds.minX, node.bounds.minY, node.bounds.minZ, midX, midY, node.bounds.maxZ}, 
+            {{node.bounds.min.x, node.bounds.min.y, node.bounds.min.z}, {midX, midY, node.bounds.max.z}}, 
             node.depth - 1, 
             node.patchIdStart
         };

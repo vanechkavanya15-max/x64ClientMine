@@ -7,7 +7,7 @@ TEST_CASE("TerrainFrustumCuller: Error handling") {
     TerrainFrustumCuller culler;
     
     SUBCASE("Planes not set") {
-        TerrainAABB box = { -50.0f, -50.0f, 50.0f, 50.0f, 50.0f, 150.0f };
+        TerrainAABB box = { {-50.0f, -50.0f, 50.0f}, {50.0f, 50.0f, 150.0f} };
         
         auto res1 = culler.IsBoxVisible(box);
         CHECK_FALSE(res1.has_value());
@@ -43,7 +43,7 @@ TEST_CASE("TerrainFrustumCuller: Visibility tests") {
     REQUIRE(res.has_value());
 
     SUBCASE("AABB fully inside frustum") {
-        TerrainAABB insideBox = { -50.0f, -50.0f, 50.0f, 50.0f, 50.0f, 150.0f };
+        TerrainAABB insideBox = { {-50.0f, -50.0f, 50.0f}, {50.0f, 50.0f, 150.0f} };
         auto visibleRes = culler.IsBoxVisible(insideBox);
         REQUIRE(visibleRes.has_value());
         CHECK(visibleRes.value() == true);
@@ -55,7 +55,7 @@ TEST_CASE("TerrainFrustumCuller: Visibility tests") {
     }
 
     SUBCASE("AABB completely outside frustum") {
-        TerrainAABB outsideBox = { -50.0f, -50.0f, -200.0f, 50.0f, 50.0f, -100.0f };
+        TerrainAABB outsideBox = { {-50.0f, -50.0f, -200.0f}, {50.0f, 50.0f, -100.0f} };
         auto visibleRes = culler.IsBoxVisible(outsideBox);
         REQUIRE(visibleRes.has_value());
         CHECK(visibleRes.value() == false);
@@ -67,7 +67,7 @@ TEST_CASE("TerrainFrustumCuller: Visibility tests") {
     }
     
     SUBCASE("Partial intersection") {
-        TerrainAABB partialBox = { -200.0f, -50.0f, 50.0f, 0.0f, 50.0f, 150.0f };
+        TerrainAABB partialBox = { {-200.0f, -50.0f, 50.0f}, {0.0f, 50.0f, 150.0f} };
         auto visibleRes = culler.IsBoxVisible(partialBox);
         REQUIRE(visibleRes.has_value());
         CHECK(visibleRes.value() == true);
@@ -77,4 +77,4 @@ TEST_CASE("TerrainFrustumCuller: Visibility tests") {
         REQUIRE(cullRes.has_value());
         CHECK(visibleIds.size() == 144);
     }
-}
+}
