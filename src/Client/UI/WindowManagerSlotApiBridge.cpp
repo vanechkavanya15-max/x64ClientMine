@@ -1,115 +1,241 @@
 #include "WindowManagerSlotApiBridge.h"
+#include <algorithm>
 
 namespace Client::UI {
 
-bool WindowManagerSlotApiBridge::SetSlot(uint32_t slotIndex, uint32_t itemVnum, uint32_t count) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::SetSlot(Core::SlotIndex slotIndex, Core::ItemVnum itemVnum, uint32_t count) {
     auto& slot = m_slots[slotIndex];
     slot.slotIndex = slotIndex;
     slot.itemVnum = itemVnum;
     slot.count = count;
     slot.enabled = true;
-    return true;
+    return {};
 }
 
-bool WindowManagerSlotApiBridge::ClearSlot(uint32_t slotIndex) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::ClearSlot(Core::SlotIndex slotIndex) {
     auto it = m_slots.find(slotIndex);
     if (it != m_slots.end()) {
         m_slots.erase(it);
-        return true;
+        return {};
     }
-    return false;
+    return std::unexpected(SlotApiError::SlotNotFound);
 }
 
 void WindowManagerSlotApiBridge::ClearAllSlots() {
     m_slots.clear();
 }
 
-std::optional<SlotData> WindowManagerSlotApiBridge::GetSlot(uint32_t slotIndex) const {
+std::optional<SlotData> WindowManagerSlotApiBridge::GetSlot(Core::SlotIndex slotIndex) const {
     auto it = m_slots.find(slotIndex);
-    if (it != m_slots.end()) return it->second;
+    if (it != m_slots.end()) {
+        return it->second;
+    }
     return std::nullopt;
 }
 
-bool WindowManagerSlotApiBridge::SetSlotCoolTime(uint32_t slotIndex, float duration, float elapsed) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::SetSlotCoolTime(Core::SlotIndex slotIndex, uint32_t layerId, float duration, float elapsed) {
     auto it = m_slots.find(slotIndex);
-    if (it == m_slots.end()) return false;
-    it->second.coolTime.duration = duration;
-    it->second.coolTime.elapsed = elapsed;
-    it->second.coolTime.active = (duration > 0.0f && elapsed < duration);
-    return true;
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    if (duration < 0.0f || elapsed < 0.0f) {
+        return std::unexpected(SlotApiError::InvalidCoolTime);
+    }
+    
+    auto& coolTime = it->second.coolTimes[layerId];
+    coolTime.duration = duration;
+    coolTime.elapsed = elapsed;
+    coolTime.active = (duration > 0.0f && elapsed < duration);
+    coolTime.paused = false;
+    
+    return {};
 }
 
-bool WindowManagerSlotApiBridge::StoreSlotCoolTime(uint32_t slotIndex, const std::string& key) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::StoreSlotCoolTime(Core::SlotIndex slotIndex, uint32_t layerId, const std::string& key) {
     auto it = m_slots.find(slotIndex);
-    if (it == m_slots.end()) return false;
-    m_storedCoolTimes[key] = it->second.coolTime;
-    return true;
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    auto coolIt = it->second.coolTimes.find(layerId);
+    if (coolIt == it->second.coolTimes.end()) {
+        return std::unexpected(SlotApiError::CoolTimeNotFound);
+    }
+    m_storedCoolTimes[key] = coolIt->second;
+    return {};
 }
 
-bool WindowManagerSlotApiBridge::RestoreSlotCoolTime(uint32_t slotIndex, const std::string& key) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::RestoreSlotCoolTime(Core::SlotIndex slotIndex, uint32_t layerId, const std::string& key) {
     auto storedIt = m_storedCoolTimes.find(key);
-    if (storedIt == m_storedCoolTimes.end()) return false;
+    if (storedIt == m_storedCoolTimes.end()) {
+        return std::unexpected(SlotApiError::CoolTimeNotFound);
+    }
     auto it = m_slots.find(slotIndex);
-    if (it == m_slots.end()) return false;
-    it->second.coolTime = storedIt->second;
-    return true;
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    it->second.coolTimes[layerId] = storedIt->second;
+    return {};
 }
 
-bool WindowManagerSlotApiBridge::TransferSlotCoolTime(uint32_t fromSlot, uint32_t toSlot) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::TransferSlotCoolTime(Core::SlotIndex fromSlot, Core::SlotIndex toSlot, uint32_t layerId) {
     auto fromIt = m_slots.find(fromSlot);
-    if (fromIt == m_slots.end()) return false;
+    if (fromIt == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
     auto toIt = m_slots.find(toSlot);
-    if (toIt == m_slots.end()) return false;
-    toIt->second.coolTime = fromIt->second.coolTime;
-    fromIt->second.coolTime = {};
-    return true;
+    if (toIt == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    
+    auto coolIt = fromIt->second.coolTimes.find(layerId);
+    if (coolIt != fromIt->second.coolTimes.end()) {
+        toIt->second.coolTimes[layerId] = coolIt->second;
+        fromIt->second.coolTimes.erase(coolIt);
+        return {};
+    }
+    return std::unexpected(SlotApiError::CoolTimeNotFound);
 }
 
-bool WindowManagerSlotApiBridge::LockSlot(uint32_t slotIndex) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::PauseSlotCoolTime(Core::SlotIndex slotIndex, uint32_t layerId) {
     auto it = m_slots.find(slotIndex);
-    if (it == m_slots.end()) return false;
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    auto coolIt = it->second.coolTimes.find(layerId);
+    if (coolIt == it->second.coolTimes.end()) {
+        return std::unexpected(SlotApiError::CoolTimeNotFound);
+    }
+    coolIt->second.paused = true;
+    return {};
+}
+
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::ResumeSlotCoolTime(Core::SlotIndex slotIndex, uint32_t layerId) {
+    auto it = m_slots.find(slotIndex);
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    auto coolIt = it->second.coolTimes.find(layerId);
+    if (coolIt == it->second.coolTimes.end()) {
+        return std::unexpected(SlotApiError::CoolTimeNotFound);
+    }
+    coolIt->second.paused = false;
+    return {};
+}
+
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::LockSlot(Core::SlotIndex slotIndex) {
+    auto it = m_slots.find(slotIndex);
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
     it->second.locked = true;
-    return true;
+    return {};
 }
 
-bool WindowManagerSlotApiBridge::UnlockSlot(uint32_t slotIndex) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::UnlockSlot(Core::SlotIndex slotIndex) {
     auto it = m_slots.find(slotIndex);
-    if (it == m_slots.end()) return false;
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
     it->second.locked = false;
-    return true;
+    return {};
 }
 
-bool WindowManagerSlotApiBridge::IsSlotLocked(uint32_t slotIndex) const {
+bool WindowManagerSlotApiBridge::IsSlotLocked(Core::SlotIndex slotIndex) const {
     auto it = m_slots.find(slotIndex);
     return it != m_slots.end() ? it->second.locked : false;
 }
 
-bool WindowManagerSlotApiBridge::SetSlotStyle(uint32_t slotIndex, uint32_t style) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::SetSlotStyle(Core::SlotIndex slotIndex, uint32_t style) {
     auto it = m_slots.find(slotIndex);
-    if (it == m_slots.end()) return false;
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
     it->second.style = style;
-    return true;
+    return {};
 }
 
-bool WindowManagerSlotApiBridge::EnableSlot(uint32_t slotIndex, bool enable) {
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::EnableSlot(Core::SlotIndex slotIndex, bool enable) {
     auto it = m_slots.find(slotIndex);
-    if (it == m_slots.end()) return false;
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
     it->second.enabled = enable;
-    return true;
+    return {};
 }
 
-bool WindowManagerSlotApiBridge::IsSlotEnabled(uint32_t slotIndex) const {
+bool WindowManagerSlotApiBridge::IsSlotEnabled(Core::SlotIndex slotIndex) const {
     auto it = m_slots.find(slotIndex);
     return it != m_slots.end() ? it->second.enabled : false;
 }
 
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::SetSlotCover(Core::SlotIndex slotIndex, uint32_t coverType) {
+    auto it = m_slots.find(slotIndex);
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    it->second.cover.active = true;
+    it->second.cover.coverType = coverType;
+    return {};
+}
+
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::ClearSlotCover(Core::SlotIndex slotIndex) {
+    auto it = m_slots.find(slotIndex);
+    if (it == m_slots.end()) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    it->second.cover.active = false;
+    it->second.cover.coverType = 0;
+    return {};
+}
+
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::SwapSlots(Core::SlotIndex slotA, Core::SlotIndex slotB) {
+    if (slotA == slotB) return {};
+
+    auto itA = m_slots.find(slotA);
+    auto itB = m_slots.find(slotB);
+    
+    bool aExists = (itA != m_slots.end());
+    bool bExists = (itB != m_slots.end());
+    
+    if (!aExists && !bExists) {
+        return std::unexpected(SlotApiError::SlotNotFound);
+    }
+    
+    if (aExists && itA->second.locked) return std::unexpected(SlotApiError::SlotLocked);
+    if (bExists && itB->second.locked) return std::unexpected(SlotApiError::SlotLocked);
+    
+    SlotData tempA;
+    if (aExists) tempA = itA->second;
+    
+    SlotData tempB;
+    if (bExists) tempB = itB->second;
+    
+    if (bExists) {
+        m_slots[slotA] = tempB;
+        m_slots[slotA].slotIndex = slotA;
+    } else {
+        m_slots.erase(slotA);
+    }
+    
+    if (aExists) {
+        m_slots[slotB] = tempA;
+        m_slots[slotB].slotIndex = slotB;
+    } else {
+        m_slots.erase(slotB);
+    }
+    
+    return {};
+}
+
 void WindowManagerSlotApiBridge::Update(float deltaTime) {
     for (auto& [_, slot] : m_slots) {
-        if (slot.coolTime.active) {
-            slot.coolTime.elapsed += deltaTime;
-            if (slot.coolTime.elapsed >= slot.coolTime.duration) {
-                slot.coolTime.active = false;
-                slot.coolTime.elapsed = slot.coolTime.duration;
+        for (auto& [layerId, coolTime] : slot.coolTimes) {
+            if (coolTime.active && !coolTime.paused) {
+                coolTime.elapsed += deltaTime;
+                if (coolTime.elapsed >= coolTime.duration) {
+                    coolTime.active = false;
+                    coolTime.elapsed = coolTime.duration;
+                }
             }
         }
     }
