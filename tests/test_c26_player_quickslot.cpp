@@ -60,10 +60,10 @@ TEST_CASE("PlayerQuickslotController functionality") {
     SUBCASE("Set and Get Quickslot") {
         network->Reset();
         QuickslotItem item{1, 5};
-        auto setRes = controller.SetQuickslot(0, item);
+        auto setRes = controller.SetQuickslot(Client::Core::SlotIndex(0), item);
         CHECK(setRes.has_value());
 
-        auto getRes = controller.GetQuickslot(0);
+        auto getRes = controller.GetQuickslot(Client::Core::SlotIndex(0));
         REQUIRE(getRes.has_value());
         CHECK(getRes->type == 1);
         CHECK(getRes->position == 5);
@@ -77,13 +77,13 @@ TEST_CASE("PlayerQuickslotController functionality") {
 
     SUBCASE("Delete Quickslot") {
         QuickslotItem item{1, 5};
-        REQUIRE(controller.SetQuickslot(0, item).has_value());
+        REQUIRE(controller.SetQuickslot(Client::Core::SlotIndex(0), item).has_value());
 
         network->Reset();
-        auto delRes = controller.DeleteQuickslot(0);
+        auto delRes = controller.DeleteQuickslot(Client::Core::SlotIndex(0));
         CHECK(delRes.has_value());
 
-        auto getRes = controller.GetQuickslot(0);
+        auto getRes = controller.GetQuickslot(Client::Core::SlotIndex(0));
         REQUIRE(getRes.has_value());
         CHECK(getRes->IsEmpty());
 
@@ -94,15 +94,15 @@ TEST_CASE("PlayerQuickslotController functionality") {
     SUBCASE("Swap Quickslots") {
         QuickslotItem itemA{2, 10};
         QuickslotItem itemB{3, 20};
-        REQUIRE(controller.SetQuickslot(1, itemA).has_value());
-        REQUIRE(controller.SetQuickslot(2, itemB).has_value());
+        REQUIRE(controller.SetQuickslot(Client::Core::SlotIndex(1), itemA).has_value());
+        REQUIRE(controller.SetQuickslot(Client::Core::SlotIndex(2), itemB).has_value());
 
         network->Reset();
-        auto swapRes = controller.SwapQuickslots(1, 2);
+        auto swapRes = controller.SwapQuickslots(Client::Core::SlotIndex(1), Client::Core::SlotIndex(2));
         CHECK(swapRes.has_value());
 
-        auto getA = controller.GetQuickslot(1);
-        auto getB = controller.GetQuickslot(2);
+        auto getA = controller.GetQuickslot(Client::Core::SlotIndex(1));
+        auto getB = controller.GetQuickslot(Client::Core::SlotIndex(2));
         REQUIRE(getA.has_value());
         REQUIRE(getB.has_value());
         CHECK(getA->type == 3);
@@ -118,17 +118,17 @@ TEST_CASE("PlayerQuickslotController functionality") {
     SUBCASE("Clear All Quickslots") {
         QuickslotItem itemA{2, 10};
         QuickslotItem itemB{3, 20};
-        REQUIRE(controller.SetQuickslot(1, itemA).has_value());
-        REQUIRE(controller.SetQuickslot(2, itemB).has_value());
+        REQUIRE(controller.SetQuickslot(Client::Core::SlotIndex(1), itemA).has_value());
+        REQUIRE(controller.SetQuickslot(Client::Core::SlotIndex(2), itemB).has_value());
 
         network->Reset();
         controller.ClearAll();
 
-        auto getRes1 = controller.GetQuickslot(1);
+        auto getRes1 = controller.GetQuickslot(Client::Core::SlotIndex(1));
         REQUIRE(getRes1.has_value());
         CHECK(getRes1->IsEmpty());
 
-        auto getRes2 = controller.GetQuickslot(2);
+        auto getRes2 = controller.GetQuickslot(Client::Core::SlotIndex(2));
         REQUIRE(getRes2.has_value());
         CHECK(getRes2->IsEmpty());
 
@@ -139,15 +139,15 @@ TEST_CASE("PlayerQuickslotController functionality") {
     SUBCASE("Error Handling") {
         network->Reset();
         QuickslotItem item{1, 1};
-        CHECK_FALSE(controller.SetQuickslot(100, item).has_value());
+        CHECK_FALSE(controller.SetQuickslot(Client::Core::SlotIndex(100), item).has_value());
         CHECK(network->addPacketsSent == 0);
 
-        CHECK_FALSE(controller.DeleteQuickslot(100).has_value());
+        CHECK_FALSE(controller.DeleteQuickslot(Client::Core::SlotIndex(100)).has_value());
         CHECK(network->delPacketsSent == 0);
 
-        CHECK_FALSE(controller.SwapQuickslots(0, 100).has_value());
+        CHECK_FALSE(controller.SwapQuickslots(Client::Core::SlotIndex(0), Client::Core::SlotIndex(100)).has_value());
         CHECK(network->movePacketsSent == 0);
 
-        CHECK_FALSE(controller.GetQuickslot(100).has_value());
+        CHECK_FALSE(controller.GetQuickslot(Client::Core::SlotIndex(100)).has_value());
     }
 }

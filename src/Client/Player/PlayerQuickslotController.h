@@ -14,10 +14,10 @@ public:
                               std::shared_ptr<IQuickslotNetwork> networkService);
     ~PlayerQuickslotController() = default;
 
-    [[nodiscard]] std::expected<void, EterBase::InventoryError> SetQuickslot(uint32_t slotIndex, const Client::Gameplay::QuickslotItem& item);
-    [[nodiscard]] std::expected<void, EterBase::InventoryError> DeleteQuickslot(uint32_t slotIndex);
-    [[nodiscard]] std::expected<void, EterBase::InventoryError> SwapQuickslots(uint32_t fromIndex, uint32_t toIndex);
-    [[nodiscard]] std::expected<Client::Gameplay::QuickslotItem, EterBase::InventoryError> GetQuickslot(uint32_t slotIndex) const;
+    [[nodiscard]] std::expected<void, EterBase::InventoryError> SetQuickslot(Client::Core::SlotIndex slotIndex, const Client::Gameplay::QuickslotItem& item);
+    [[nodiscard]] std::expected<void, EterBase::InventoryError> DeleteQuickslot(Client::Core::SlotIndex slotIndex);
+    [[nodiscard]] std::expected<void, EterBase::InventoryError> SwapQuickslots(Client::Core::SlotIndex fromIndex, Client::Core::SlotIndex toIndex);
+    [[nodiscard]] std::expected<Client::Gameplay::QuickslotItem, EterBase::InventoryError> GetQuickslot(Client::Core::SlotIndex slotIndex) const;
     void ClearAll();
 
 private:

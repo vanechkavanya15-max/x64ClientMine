@@ -9,43 +9,43 @@ PlayerQuickslotController::PlayerQuickslotController(
 {
 }
 
-std::expected<void, EterBase::InventoryError> PlayerQuickslotController::SetQuickslot(uint32_t slotIndex, const Client::Gameplay::QuickslotItem& item)
+std::expected<void, EterBase::InventoryError> PlayerQuickslotController::SetQuickslot(Client::Core::SlotIndex slotIndex, const Client::Gameplay::QuickslotItem& item)
 {
     if (!m_domain || !m_networkService) return std::unexpected(EterBase::InventoryError::SlotOutOfRange);
 
     auto result = m_domain->SetSlot(slotIndex, item);
     if (!result) return result;
 
-    m_networkService->SendQuickSlotAddPacket(static_cast<uint8_t>(slotIndex), item.type, item.position);
+    m_networkService->SendQuickSlotAddPacket(static_cast<uint8_t>(slotIndex.get()), item.type, item.position);
 
     return {};
 }
 
-std::expected<void, EterBase::InventoryError> PlayerQuickslotController::DeleteQuickslot(uint32_t slotIndex)
+std::expected<void, EterBase::InventoryError> PlayerQuickslotController::DeleteQuickslot(Client::Core::SlotIndex slotIndex)
 {
     if (!m_domain || !m_networkService) return std::unexpected(EterBase::InventoryError::SlotOutOfRange);
 
     auto result = m_domain->ClearSlot(slotIndex);
     if (!result) return result;
 
-    m_networkService->SendQuickSlotDelPacket(static_cast<uint8_t>(slotIndex));
+    m_networkService->SendQuickSlotDelPacket(static_cast<uint8_t>(slotIndex.get()));
 
     return {};
 }
 
-std::expected<void, EterBase::InventoryError> PlayerQuickslotController::SwapQuickslots(uint32_t fromIndex, uint32_t toIndex)
+std::expected<void, EterBase::InventoryError> PlayerQuickslotController::SwapQuickslots(Client::Core::SlotIndex fromIndex, Client::Core::SlotIndex toIndex)
 {
     if (!m_domain || !m_networkService) return std::unexpected(EterBase::InventoryError::SlotOutOfRange);
 
     auto result = m_domain->SwapSlots(fromIndex, toIndex);
     if (!result) return result;
 
-    m_networkService->SendQuickSlotMovePacket(static_cast<uint8_t>(fromIndex), static_cast<uint8_t>(toIndex));
+    m_networkService->SendQuickSlotMovePacket(static_cast<uint8_t>(fromIndex.get()), static_cast<uint8_t>(toIndex.get()));
 
     return {};
 }
 
-std::expected<Client::Gameplay::QuickslotItem, EterBase::InventoryError> PlayerQuickslotController::GetQuickslot(uint32_t slotIndex) const
+std::expected<Client::Gameplay::QuickslotItem, EterBase::InventoryError> PlayerQuickslotController::GetQuickslot(Client::Core::SlotIndex slotIndex) const
 {
     if (!m_domain) return std::unexpected(EterBase::InventoryError::SlotOutOfRange);
 
@@ -58,9 +58,9 @@ void PlayerQuickslotController::ClearAll()
     {
         for (uint32_t i = 0; i < Client::Gameplay::QuickslotDomain::QUICKSLOT_MAX_NUM; ++i)
         {
-            if (auto slot = m_domain->GetSlot(i); slot.has_value() && !slot->IsEmpty())
+            if (auto slot = m_domain->GetSlot(Client::Core::SlotIndex(static_cast<uint16_t>(i))); slot.has_value() && !slot->IsEmpty())
             {
-                 [[maybe_unused]] auto _ = DeleteQuickslot(i);
+                 [[maybe_unused]] auto _ = DeleteQuickslot(Client::Core::SlotIndex(static_cast<uint16_t>(i)));
             }
         }
     }
