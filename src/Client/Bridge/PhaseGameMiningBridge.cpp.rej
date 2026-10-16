@@ -1,0 +1,24 @@
+--- PhaseGameMiningBridge.cpp
++++ PhaseGameMiningBridge.cpp
+@@ -10,7 +10,8 @@
+             return std::unexpected(EterBase::PacketError::BufferUnderflow);
+         }
+ 
+-        const auto* pack = reinterpret_cast<const TPacketGCDigMotion*>(payload.data());
++        TPacketGCDigMotion pack{};
++        std::memcpy(&pack, payload.data(), sizeof(pack));
+ 
+-        CInstanceBase* pkInstMain = m_characterManager.GetInstancePtr(pack->vid);
+-        CInstanceBase* pkInstTarget = m_characterManager.GetInstancePtr(pack->target_vid);
++        CInstanceBase* pkInstMain = m_characterManager.GetInstancePtr(pack.vid);
++        CInstanceBase* pkInstTarget = m_characterManager.GetInstancePtr(pack.target_vid);
+--- /dev/null
++++ /dev/null
+@@ -21,6 +22,6 @@
+ 
+         if (pkInstTarget != nullptr) {
+             pkInstMain->NEW_LookAtDestInstance(*pkInstTarget);
+         }
+ 
+-        for (int i = 0; i < pack->count; ++i) {
++        for (int i = 0; i < pack.count; ++i) {
