@@ -8,7 +8,7 @@ namespace Client::Terrain
     {
     }
 
-    std::expected<void, WaterRendererError> TerrainWaterSurfaceRenderer::RenderWaterPatch(
+    Client::Core::Result<void, WaterRendererError> TerrainWaterSurfaceRenderer::RenderWaterPatch(
         const Client::Core::MapCoords& worldPos,
         float size,
         float height,
@@ -46,11 +46,33 @@ namespace Client::Terrain
                 float py = worldPos.y + static_cast<float>(y) * cellSize;
 
                 // Procedural displacement (simple sine wave for demo/legacy parity)
-                float displacement = std::sin(px * 0.1f + m_waveOffset) * std::cos(py * 0.1f + m_waveOffset) * 5.0f;
+                // Procedural displacement function: z(x,y) = A * sin(kx * x + wt) * cos(ky * y + wt)
+                // A = 5.0, kx = 0.1, ky = 0.1, wt = m_waveOffset
+                float A = 5.0f;
+                float kx = 0.1f;
+                float ky = 0.1f;
+                float wt = m_waveOffset;
+                
+                float sinX = std::sin(kx * px + wt);
+                float cosX = std::cos(kx * px + wt);
+                float sinY = std::sin(ky * py + wt);
+                float cosY = std::cos(ky * py + wt);
+                
+                float displacement = A * sinX * cosY;
+
+                // Analytical normal using partial derivatives
+                // dz/dx = A * kx * cos(kx * x + wt) * cos(ky * y + wt)
+                // dz/dy = A * ky * sin(kx * x + wt) * -sin(ky * y + wt)
+                float dzdx = A * kx * cosX * cosY;
+                float dzdy = -A * ky * sinX * sinY;
+                
+                // Normal is cross product of tangent vectors: (-dz/dx, -dz/dy, 1)
+                Client::Core::MapCoords normalRaw = { -dzdx, -dzdy, 1.0f };
+                Client::Core::MapCoords normal = normalRaw.Normalize();
 
                 WaterVertex v;
                 v.position = { px, py, height + displacement };
-                v.normal = { 0.0f, 0.0f, 1.0f }; // In a real scenario, calculate true normals based on displacement derivative
+                v.normal = normal;
                 v.u = static_cast<float>(x) / static_cast<float>(gridResolution);
                 v.v = static_cast<float>(y) / static_cast<float>(gridResolution);
 

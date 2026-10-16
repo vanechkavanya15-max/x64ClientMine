@@ -1,4 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+
 #include "doctest.h"
 #include "Client/Terrain/TerrainWaterSurfaceRenderer.h"
 
@@ -13,7 +13,7 @@ public:
     size_t lastVertexCount = 0;
     size_t lastIndexCount = 0;
 
-    std::expected<void, WaterRendererError> DrawWaterPatch(
+    Client::Core::Result<void, WaterRendererError> DrawWaterPatch(
         const std::vector<WaterVertex>& vertices,
         const std::vector<uint16_t>& indices) override
     {
