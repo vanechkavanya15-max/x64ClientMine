@@ -44,8 +44,20 @@ public:
         return *this;
     }
 
+    constexpr void Swap(ResourceHandle& other) noexcept
+    {
+        PointerType temp = m_ptr;
+        m_ptr = other.m_ptr;
+        other.m_ptr = temp;
+    }
+
     constexpr void Reset(PointerType ptr = Policy::InvalidValue()) noexcept
     {
+        if (m_ptr == ptr)
+        {
+            return;
+        }
+
         if (m_ptr != Policy::InvalidValue())
         {
             Policy::Release(m_ptr);
@@ -72,6 +84,36 @@ public:
     {
         return IsValid();
     }
+
+    [[nodiscard]] constexpr PointerType operator->() const noexcept
+    {
+        return m_ptr;
+    }
+
+    [[nodiscard]] constexpr std::remove_pointer_t<PointerType>& operator*() const noexcept
+    {
+        return *m_ptr;
+    }
+
+    [[nodiscard]] constexpr bool operator==(const ResourceHandle& other) const noexcept
+    {
+        return m_ptr == other.m_ptr;
+    }
+
+    [[nodiscard]] constexpr bool operator!=(const ResourceHandle& other) const noexcept
+    {
+        return m_ptr != other.m_ptr;
+    }
+
+    [[nodiscard]] constexpr bool operator==(PointerType ptr) const noexcept
+    {
+        return m_ptr == ptr;
+    }
+
+    [[nodiscard]] constexpr bool operator!=(PointerType ptr) const noexcept
+    {
+        return m_ptr != ptr;
+    }
     
     constexpr PointerType* GetAddressOf() noexcept
     {
@@ -81,5 +123,11 @@ public:
 private:
     PointerType m_ptr = Policy::InvalidValue();
 };
+
+template <ResourcePolicy Policy>
+constexpr void swap(ResourceHandle<Policy>& lhs, ResourceHandle<Policy>& rhs) noexcept
+{
+    lhs.Swap(rhs);
+}
 
 } // namespace Client::Graphics

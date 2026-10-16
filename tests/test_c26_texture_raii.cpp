@@ -138,3 +138,69 @@ TEST_CASE("ResourceHandle GetAddressOf") {
         handle.Reset(); // clean up to avoid memory issues with real COM objects, though mock just incs counter
     }
 }
+
+TEST_CASE("ResourceHandle smart pointer semantics") {
+    SUBCASE("operator-> returns internal pointer") {
+        MockD3DTexture tex;
+        D3DTextureHandle handle(&tex);
+        CHECK(handle.operator->() == &tex);
+    }
+    
+    SUBCASE("operator* returns reference to object") {
+        MockD3DTexture tex;
+        D3DTextureHandle handle(&tex);
+        CHECK(&handle.operator*() == &tex);
+    }
+}
+
+TEST_CASE("ResourceHandle comparison operators") {
+    MockD3DTexture tex1;
+    MockD3DTexture tex2;
+    D3DTextureHandle h1(&tex1);
+    D3DTextureHandle h2(&tex2);
+    D3DTextureHandle h3(&tex1);
+    
+    SUBCASE("operator== and operator!= with other handles") {
+        CHECK(h1 == h3);
+        CHECK(h1 != h2);
+    }
+    
+    SUBCASE("operator== and operator!= with pointers") {
+        CHECK(h1 == &tex1);
+        CHECK(h1 != &tex2);
+        CHECK(h1 != nullptr);
+        
+        D3DTextureHandle empty;
+        CHECK(empty == nullptr);
+    }
+}
+
+TEST_CASE("ResourceHandle swap") {
+    MockD3DTexture tex1;
+    MockD3DTexture tex2;
+    D3DTextureHandle h1(&tex1);
+    D3DTextureHandle h2(&tex2);
+    
+    SUBCASE("Swap member function") {
+        h1.Swap(h2);
+        CHECK(h1.Get() == &tex2);
+        CHECK(h2.Get() == &tex1);
+        CHECK(tex1.releaseCount == 0);
+        CHECK(tex2.releaseCount == 0);
+    }
+    
+    SUBCASE("swap free function") {
+        using std::swap;
+        swap(h1, h2);
+        CHECK(h1.Get() == &tex2);
+        CHECK(h2.Get() == &tex1);
+    }
+}
+
+TEST_CASE("ResourceHandle prevents self-assignment leak via m_ptr check") {
+    MockD3DTexture tex;
+    D3DTextureHandle handle(&tex);
+    handle.Reset(&tex);
+    CHECK(tex.releaseCount == 0);
+    CHECK(handle.Get() == &tex);
+}
