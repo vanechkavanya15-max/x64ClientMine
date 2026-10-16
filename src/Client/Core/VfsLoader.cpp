@@ -13,16 +13,12 @@ VfsResult<std::vector<uint8_t>> VfsLoader::LoadFile(std::string_view path) const
         return std::unexpected(VfsError::InvalidPath);
     }
 
-    auto result = m_provider->ReadFile(path);
-    if (!result) {
-        return result;
-    }
-
-    if (result->empty()) {
-        return std::unexpected(VfsError::EmptyFile);
-    }
-
-    return result;
+    return m_provider->ReadFile(path).and_then([](std::vector<uint8_t>&& data) -> VfsResult<std::vector<uint8_t>> {
+        if (data.empty()) {
+            return std::unexpected(VfsError::EmptyFile);
+        }
+        return std::move(data);
+    });
 }
 
 VfsResult<std::span<const uint8_t>> VfsLoader::GetFileView(std::string_view path) const {
@@ -33,16 +29,12 @@ VfsResult<std::span<const uint8_t>> VfsLoader::GetFileView(std::string_view path
         return std::unexpected(VfsError::InvalidPath);
     }
 
-    auto result = m_provider->GetCachedFile(path);
-    if (!result) {
-        return result;
-    }
-
-    if (result->empty()) {
-        return std::unexpected(VfsError::EmptyFile);
-    }
-
-    return result;
+    return m_provider->GetCachedFile(path).and_then([](std::span<const uint8_t> data) -> VfsResult<std::span<const uint8_t>> {
+        if (data.empty()) {
+            return std::unexpected(VfsError::EmptyFile);
+        }
+        return data;
+    });
 }
 
 bool VfsLoader::CheckExists(std::string_view path) const {
