@@ -1,4 +1,4 @@
-#include "StdAfx.h"
+
 
 #include "SocialDomain.h"
 #include <algorithm>
