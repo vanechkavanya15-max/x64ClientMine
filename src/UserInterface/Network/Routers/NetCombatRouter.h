@@ -3,6 +3,7 @@
 #include "../../Contracts/IPacketRouter.h"
 #include "../../Contracts/IGameEvents.h"
 #include "Client/Network/Protocol/Protocol.h"
+#include "Client/Core/StrongTypes.h"
 #include "../../Core/EventBus.h"
 #include <string_view>
 #include <cstdint>
@@ -15,44 +16,56 @@ namespace UserInterface::Network::Routers
     // Struktury zdarzen domenowych dla szyny EventBus
     struct CombatAttackDomainEvent : public UserInterface::Core::IEvent
     {
-        uint32_t dwAttackerVID;
-        uint32_t dwVictimVID;
+        Client::Core::EntityVid dwAttackerVID;
+        Client::Core::EntityVid dwVictimVID;
         uint8_t byMotionType;
 
-        CombatAttackDomainEvent(uint32_t attacker, uint32_t victim, uint8_t motion)
+        CombatAttackDomainEvent(Client::Core::EntityVid attacker, Client::Core::EntityVid victim, uint8_t motion)
             : dwAttackerVID(attacker), dwVictimVID(victim), byMotionType(motion) {}
+
+        CombatAttackDomainEvent(uint32_t attacker, uint32_t victim, uint8_t motion)
+            : dwAttackerVID(Client::Core::EntityVid(attacker)), dwVictimVID(Client::Core::EntityVid(victim)), byMotionType(motion) {}
     };
 
     struct CombatDamageInfoDomainEvent : public UserInterface::Core::IEvent
     {
-        uint32_t dwVictimVID;
-        uint32_t dwAttackerVID;
+        Client::Core::EntityVid dwVictimVID;
+        Client::Core::EntityVid dwAttackerVID;
         int64_t lDamage;
         uint8_t byDamageFlag;
 
-        CombatDamageInfoDomainEvent(uint32_t victim, uint32_t attacker, int64_t damage, uint8_t flag)
+        CombatDamageInfoDomainEvent(Client::Core::EntityVid victim, Client::Core::EntityVid attacker, int64_t damage, uint8_t flag)
             : dwVictimVID(victim), dwAttackerVID(attacker), lDamage(damage), byDamageFlag(flag) {}
+
+        CombatDamageInfoDomainEvent(uint32_t victim, uint32_t attacker, int64_t damage, uint8_t flag)
+            : dwVictimVID(Client::Core::EntityVid(victim)), dwAttackerVID(Client::Core::EntityVid(attacker)), lDamage(damage), byDamageFlag(flag) {}
     };
 
     struct CombatFlyDomainEvent : public UserInterface::Core::IEvent
     {
         uint8_t byType;
-        uint32_t dwStartVID;
-        uint32_t dwEndVID;
+        Client::Core::EntityVid dwStartVID;
+        Client::Core::EntityVid dwEndVID;
+
+        CombatFlyDomainEvent(uint8_t type, Client::Core::EntityVid startVID, Client::Core::EntityVid endVID)
+            : byType(type), dwStartVID(startVID), dwEndVID(endVID) {}
 
         CombatFlyDomainEvent(uint8_t type, uint32_t startVID, uint32_t endVID)
-            : byType(type), dwStartVID(startVID), dwEndVID(endVID) {}
+            : byType(type), dwStartVID(Client::Core::EntityVid(startVID)), dwEndVID(Client::Core::EntityVid(endVID)) {}
     };
 
     struct CombatFlyTargetingDomainEvent : public UserInterface::Core::IEvent
     {
-        uint32_t dwShooterVID;
-        uint32_t dwTargetVID;
+        Client::Core::EntityVid dwShooterVID;
+        Client::Core::EntityVid dwTargetVID;
         int32_t lX;
         int32_t lY;
 
-        CombatFlyTargetingDomainEvent(uint32_t shooter, uint32_t target, int32_t x, int32_t y)
+        CombatFlyTargetingDomainEvent(Client::Core::EntityVid shooter, Client::Core::EntityVid target, int32_t x, int32_t y)
             : dwShooterVID(shooter), dwTargetVID(target), lX(x), lY(y) {}
+
+        CombatFlyTargetingDomainEvent(uint32_t shooter, uint32_t target, int32_t x, int32_t y)
+            : dwShooterVID(Client::Core::EntityVid(shooter)), dwTargetVID(Client::Core::EntityVid(target)), lX(x), lY(y) {}
     };
 
     struct CombatDuelStartDomainEvent : public UserInterface::Core::IEvent

@@ -22,7 +22,7 @@ namespace Client::Bridge {
 
         bool isMainActor = false;
         
-        // This simulates CPythonCharacterManager::Instance().GetInstancePtr(packet.info) checking
+        // This simulates CPythonCharacterManager::InstancePtr()->GetInstancePtr(packet.info) checking
         // if the target info is main actor vs another actor. We delegate this to python:
         
         switch (packet.subheader) {

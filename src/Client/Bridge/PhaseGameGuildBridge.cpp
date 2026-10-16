@@ -2,21 +2,12 @@
 #include <cstring>
 #include <string>
 
-#ifndef TEST_MODE_DISABLE_STDAFX
-#include "UserInterface/Packet.h"
-#include "UserInterface/PythonGuild.h"
-#include "UserInterface/PythonMessenger.h"
-#include "UserInterface/PythonPlayer.h"
-#include "UserInterface/PythonCharacterManager.h"
-#include "UserInterface/InstanceBase.h"
-#include "Client/Network/GuildPacketCodec.h"
-
 namespace Client::Bridge {
     bool PhaseGameGuildBridge::HandleGuild(const uint8_t* pData, size_t size) {
         return true;
     }
 }
-#else
+
 template <typename T>
 class CSingleton {
 public:

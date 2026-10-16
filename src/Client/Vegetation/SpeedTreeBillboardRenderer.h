@@ -33,11 +33,11 @@ struct Vector3 {
         return x * other.x + y * other.y + z * other.z;
     }
 
-    constexpr float Length() const noexcept {
+    inline float Length() const noexcept {
         return std::sqrt(x * x + y * y + z * z);
     }
 
-    constexpr Vector3 Normalize() const noexcept {
+    inline Vector3 Normalize() const noexcept {
         float len = Length();
         if (len > 0.000001f) {
             return {x / len, y / len, z / len};
@@ -45,7 +45,7 @@ struct Vector3 {
         return {0.0f, 0.0f, 0.0f};
     }
     
-    constexpr bool operator==(const Vector3& other) const noexcept {
+    inline bool operator==(const Vector3& other) const noexcept {
         return std::abs(x - other.x) < 0.0001f && 
                std::abs(y - other.y) < 0.0001f && 
                std::abs(z - other.z) < 0.0001f;
@@ -56,7 +56,7 @@ struct TexCoord {
     float u = 0.0f;
     float v = 0.0f;
     
-    constexpr bool operator==(const TexCoord& other) const noexcept {
+    inline bool operator==(const TexCoord& other) const noexcept {
         return std::abs(u - other.u) < 0.0001f && std::abs(v - other.v) < 0.0001f;
     }
 };
@@ -65,7 +65,7 @@ struct BillboardVertex {
     Vector3 position;
     TexCoord texCoord;
     
-    constexpr bool operator==(const BillboardVertex& other) const noexcept {
+    inline bool operator==(const BillboardVertex& other) const noexcept {
         return position == other.position && texCoord == other.texCoord;
     }
 };

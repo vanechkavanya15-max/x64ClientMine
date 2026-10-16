@@ -3,9 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 
-#ifndef TEST_MODE_DISABLE_STDAFX
 #include "Client/Bridge/IPythonRuntime.h"
-#include "UserInterface/Packet.h"
 #include "Client/Network/GuildPacketCodec.h"
 
 namespace Client::Bridge {
@@ -20,7 +18,6 @@ namespace Client::Bridge {
     };
 } // namespace Client::Bridge
 
-#endif
 
 // We define the class natively in the global scope so tests can link to it exactly as tests expect
 // The legacy codebase accesses it as PhaseGameGuildBridge::HandleGuild(pStream, pData, size)

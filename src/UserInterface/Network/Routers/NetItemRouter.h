@@ -3,24 +3,28 @@
 #include "../../Contracts/IPacketRouter.h"
 #include "../../Contracts/IGameEvents.h"
 #include "Client/Network/Protocol/Protocol.h"
+#include "Client/Core/StrongTypes.h"
 #include "../../Core/EventBus.h"
 #include <string_view>
 #include <cstdint>
 
 namespace UserInterface::Network::Routers
 {
-    // Struktury zdarzen domenowych dla szyny EventBus
+    // Struktury zdarzen domenowych dla szyny EventBus z uzyciem StrongTypes
     struct ItemSetDomainEvent : public UserInterface::Core::IEvent
     {
         TItemPos Cell;
-        uint32_t dwVnum;
+        Client::Core::ItemVnum dwVnum;
         uint8_t byCount;
         uint32_t dwFlags;
         uint32_t dwAntiFlags;
         uint8_t byHighlight;
 
-        ItemSetDomainEvent(const TItemPos& pos, uint32_t vnum, uint8_t count, uint32_t flags, uint32_t antiFlags, uint8_t highlight)
+        ItemSetDomainEvent(const TItemPos& pos, Client::Core::ItemVnum vnum, uint8_t count, uint32_t flags, uint32_t antiFlags, uint8_t highlight)
             : Cell(pos), dwVnum(vnum), byCount(count), dwFlags(flags), dwAntiFlags(antiFlags), byHighlight(highlight) {}
+
+        ItemSetDomainEvent(const TItemPos& pos, uint32_t vnum, uint8_t count, uint32_t flags, uint32_t antiFlags, uint8_t highlight)
+            : Cell(pos), dwVnum(Client::Core::ItemVnum(vnum)), byCount(count), dwFlags(flags), dwAntiFlags(antiFlags), byHighlight(highlight) {}
     };
 
     struct ItemDelDomainEvent : public UserInterface::Core::IEvent
@@ -32,21 +36,25 @@ namespace UserInterface::Network::Routers
 
     struct ItemGroundAddDomainEvent : public UserInterface::Core::IEvent
     {
-        uint32_t dwVID;
-        uint32_t dwVnum;
+        Client::Core::EntityVid dwVID;
+        Client::Core::ItemVnum dwVnum;
         int32_t lX;
         int32_t lY;
         int32_t lZ;
 
-        ItemGroundAddDomainEvent(uint32_t vid, uint32_t vnum, int32_t x, int32_t y, int32_t z)
+        ItemGroundAddDomainEvent(Client::Core::EntityVid vid, Client::Core::ItemVnum vnum, int32_t x, int32_t y, int32_t z)
             : dwVID(vid), dwVnum(vnum), lX(x), lY(y), lZ(z) {}
+
+        ItemGroundAddDomainEvent(uint32_t vid, uint32_t vnum, int32_t x, int32_t y, int32_t z)
+            : dwVID(Client::Core::EntityVid(vid)), dwVnum(Client::Core::ItemVnum(vnum)), lX(x), lY(y), lZ(z) {}
     };
 
     struct ItemGroundDelDomainEvent : public UserInterface::Core::IEvent
     {
-        uint32_t dwVID;
+        Client::Core::EntityVid dwVID;
 
-        explicit ItemGroundDelDomainEvent(uint32_t vid) : dwVID(vid) {}
+        explicit ItemGroundDelDomainEvent(Client::Core::EntityVid vid) : dwVID(vid) {}
+        explicit ItemGroundDelDomainEvent(uint32_t vid) : dwVID(Client::Core::EntityVid(vid)) {}
     };
 
     struct QuickSlotAddDomainEvent : public UserInterface::Core::IEvent

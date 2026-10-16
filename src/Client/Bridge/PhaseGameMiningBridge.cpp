@@ -1,5 +1,6 @@
 #include "PhaseGameMiningBridge.h"
 #include <cstring>
+#include "Client/Network/Protocol/Protocol_Item.h"
 
 #ifndef TEST_MODE_DISABLE_STDAFX
 class CInstanceBase {
@@ -13,7 +14,10 @@ public:
     virtual ~IAbstractCharacterManager() = default;
     virtual CInstanceBase* GetInstancePtr(uint32_t dwVID) = 0;
 };
-#include "GameLib/RaceMotionData.h"
+class CRaceMotionData {
+public:
+    static constexpr uint16_t NAME_DIG = 328;
+};
 #endif
 
 namespace Client::Bridge {
