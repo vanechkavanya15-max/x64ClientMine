@@ -174,7 +174,7 @@ public:
 // Mock CPythonPlayer
 class CPythonPlayer : public CSingleton<CPythonPlayer> {
 public:
-	const char* GetName() { return "TestPlayer"; }
+	const char* GetName();
 };
 
 // Mock CPythonMessenger
@@ -183,11 +183,11 @@ public:
 	std::string last_login;
 	std::string last_logout;
 
-	void LoginGuildMember(const char* name) { last_login = name; }
-	void LogoutGuildMember(const char* name) { last_logout = name; }
+	void LoginGuildMember(const char* name);
+	void LogoutGuildMember(const char* name);
 };
 
-#include "../src/UserInterface/PythonNetworkStreamPhaseGameGuild.h"
+#include "Client/Bridge/PhaseGameGuildBridge.h"
 
 // Mock CPythonGuild
 class CPythonGuild : public CSingleton<CPythonGuild> {
@@ -212,16 +212,37 @@ public:
 	TGuildInfo mock_info;
 	bool guild_enabled = false;
 
-	bool GetMemberDataPtrByPID(uint32_t dwPID, TGuildMemberData** ppData) {
-		mock_member.strName = "MockMemberName";
-		*ppData = &mock_member;
-		return true;
-	}
-
-	void EnableGuild() { guild_enabled = true; }
-	TGuildInfo& GetGuildInfoRef() { return mock_info; }
+	bool GetMemberDataPtrByPID(uint32_t dwPID, TGuildMemberData** ppData);
+	void EnableGuild();
+	TGuildInfo& GetGuildInfoRef();
 };
 
+// --- Implementations that CPP links against ---
+bool CPythonGuild::GetMemberDataPtrByPID(uint32_t dwPID, TGuildMemberData** ppData) {
+    mock_member.strName = "MockMemberName";
+    *ppData = &mock_member;
+    return true;
+}
+
+void CPythonGuild::EnableGuild() {
+    guild_enabled = true;
+}
+
+CPythonGuild::TGuildInfo& CPythonGuild::GetGuildInfoRef() {
+    return mock_info;
+}
+
+const char* CPythonPlayer::GetName() {
+    return "TestPlayer";
+}
+
+void CPythonMessenger::LoginGuildMember(const char* name) {
+    last_login = name;
+}
+
+void CPythonMessenger::LogoutGuildMember(const char* name) {
+    last_logout = name;
+}
 
 // Tests
 TEST_CASE("PhaseGameGuildBridge - Login") {
