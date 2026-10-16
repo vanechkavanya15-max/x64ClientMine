@@ -10,7 +10,20 @@ namespace Client::Actors {
 enum class EquipmentError {
     InvalidSlot,
     SlotAlreadyOccupied,
-    SlotEmpty
+    SlotEmpty,
+    InvalidItem
+};
+
+enum class ModelPart : uint8_t {
+    Main = 0,
+    Weapon,
+    WeaponLeft,
+    Hair,
+    Sash,
+    CostumeBody,
+    CostumeHair,
+    CostumeWeapon,
+    MaxParts
 };
 
 class ActorEquipmentComponent {
@@ -30,8 +43,15 @@ public:
     std::optional<Core::ItemVnum> GetItem(Core::SlotIndex slot) const;
     bool HasItem(Core::SlotIndex slot) const;
 
+    std::expected<void, EquipmentError> SetModelPart(ModelPart part, Core::ItemVnum vnum);
+    std::expected<void, EquipmentError> RemoveModelPart(ModelPart part);
+    std::optional<Core::ItemVnum> GetModelPart(ModelPart part) const;
+
+    void ClearAll();
+
 private:
     std::unordered_map<Core::SlotIndex, Core::ItemVnum> m_equipment;
+    std::unordered_map<ModelPart, Core::ItemVnum> m_modelParts;
 };
 
 } // namespace Client::Actors
