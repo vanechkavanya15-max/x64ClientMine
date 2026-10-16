@@ -63,19 +63,37 @@ bool CGraphicDevice::ResizeBackBuffer(UINT uWidth, UINT uHeight)
 	if (!ms_lpd3dDevice || uWidth == 0 || uHeight == 0)
 		return false;
 
-	D3DPRESENT_PARAMETERS& rkD3DPP=ms_d3dPresentParameter;
+	D3DPRESENT_PARAMETERS& rkD3DPP = ms_d3dPresentParameter;
 	if (rkD3DPP.Windowed)
 	{
-		if (rkD3DPP.BackBufferWidth!=uWidth || rkD3DPP.BackBufferHeight!=uHeight)
+		if (rkD3DPP.BackBufferWidth != uWidth || rkD3DPP.BackBufferHeight != uHeight)
 		{
-			rkD3DPP.BackBufferWidth=uWidth;
-			rkD3DPP.BackBufferHeight=uHeight;
+			rkD3DPP.BackBufferWidth = uWidth;
+			rkD3DPP.BackBufferHeight = uHeight;
 
-			IDirect3DDevice9Ex& rkD3DDev=*ms_lpd3dDevice;
+			// Release all D3DPOOL_DEFAULT resources before calling Reset
+			__DestroyPDTVertexBufferList();
+			__DestroyDefaultIndexBufferList();
 
-			HRESULT hr=rkD3DDev.Reset(&rkD3DPP);
+			IDirect3DDevice9Ex& rkD3DDev = *ms_lpd3dDevice;
+
+			HRESULT hr = rkD3DDev.Reset(&rkD3DPP);
 			if (FAILED(hr))
 			{
+				TraceError("CGraphicDevice::ResizeBackBuffer: Reset failed (hr=0x%08X)", hr);
+				return false;
+			}
+
+			// Recreate D3DPOOL_DEFAULT resources after successful Reset
+			if (!__CreateDefaultIndexBufferList())
+			{
+				TraceError("CGraphicDevice::ResizeBackBuffer: Failed to recreate DefaultIndexBufferList");
+				return false;
+			}
+
+			if (!__CreatePDTVertexBufferList())
+			{
+				TraceError("CGraphicDevice::ResizeBackBuffer: Failed to recreate PDTVertexBufferList");
 				return false;
 			}
 
@@ -205,10 +223,35 @@ CGraphicDevice::EDeviceState CGraphicDevice::GetDeviceState()
 
 bool CGraphicDevice::Reset()
 {
-	HRESULT hr;
-
-	if (FAILED(hr = ms_lpd3dDevice->Reset(&ms_d3dPresentParameter)))
+	if (!ms_lpd3dDevice)
 		return false;
+
+	// Release all D3DPOOL_DEFAULT resources before calling Reset
+	__DestroyPDTVertexBufferList();
+	__DestroyDefaultIndexBufferList();
+
+	HRESULT hr = ms_lpd3dDevice->Reset(&ms_d3dPresentParameter);
+	if (FAILED(hr))
+	{
+		TraceError("CGraphicDevice::Reset: Reset failed (hr=0x%08X)", hr);
+		return false;
+	}
+
+	// Recreate D3DPOOL_DEFAULT resources after successful Reset
+	if (!__CreateDefaultIndexBufferList())
+	{
+		TraceError("CGraphicDevice::Reset: Failed to recreate DefaultIndexBufferList");
+		return false;
+	}
+
+	if (!__CreatePDTVertexBufferList())
+	{
+		TraceError("CGraphicDevice::Reset: Failed to recreate PDTVertexBufferList");
+		return false;
+	}
+
+	if (m_pStateManager)
+		m_pStateManager->SetDefaultState();
 
 	return true;
 }
@@ -566,59 +609,88 @@ void CGraphicDevice::__DestroyPDTVertexBufferList()
 
 bool CGraphicDevice::__CreatePDTVertexBufferList()
 {
-	for (UINT i=0; i<PDT_VERTEXBUFFER_NUM; ++i)
+	for (UINT i = 0; i < PDT_VERTEXBUFFER_NUM; ++i)
 	{
-		if (FAILED(
-			ms_lpd3dDevice->CreateVertexBuffer(
-			sizeof(TPDTVertex)*PDT_VERTEX_NUM, 
-			D3DUSAGE_DYNAMIC|D3DUSAGE_WRITEONLY, 
-			D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1, 
-				D3DPOOL_DEFAULT,
-			&ms_alpd3dPDTVB[i], nullptr)
-		))
-		return false;
+		HRESULT hr = ms_lpd3dDevice->CreateVertexBuffer(
+			sizeof(TPDTVertex) * PDT_VERTEX_NUM, 
+			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 
+			D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, 
+			D3DPOOL_DEFAULT,
+			&ms_alpd3dPDTVB[i],
+			nullptr);
+
+		if (FAILED(hr))
+		{
+			TraceError("CGraphicDevice::__CreatePDTVertexBufferList: Failed to create vertex buffer %u (hr=0x%08X)", i, hr);
+			__DestroyPDTVertexBufferList();
+			return false;
+		}
 	}
 	return true;
 }
 
 void CGraphicDevice::__InitializeDefaultIndexBufferList()
 {
-	for (UINT i=0; i<DEFAULT_IB_NUM; ++i)
-		ms_alpd3dDefIB[i]=NULL;
+	for (UINT i = 0; i < DEFAULT_IB_NUM; ++i)
+		ms_alpd3dDefIB[i] = NULL;
 }
 
 void CGraphicDevice::__DestroyDefaultIndexBufferList()
 {
-	for (UINT i=0; i<DEFAULT_IB_NUM; ++i)
+	for (UINT i = 0; i < DEFAULT_IB_NUM; ++i)
+	{
 		if (ms_alpd3dDefIB[i])
 		{
 			ms_alpd3dDefIB[i]->Release();
-			ms_alpd3dDefIB[i]=NULL;
-		}	
+			ms_alpd3dDefIB[i] = NULL;
+		}
+	}
 }
 
 bool CGraphicDevice::__CreateDefaultIndexBuffer(UINT eDefIB, UINT uIdxCount, const WORD* c_awIndices)
 {
-	assert(ms_alpd3dDefIB[eDefIB]==NULL);
+	assert(eDefIB < DEFAULT_IB_NUM);
+	if (eDefIB >= DEFAULT_IB_NUM)
+		return false;
 
-	auto hr = ms_lpd3dDevice->CreateIndexBuffer(
-		sizeof(WORD)*uIdxCount,
+	if (ms_alpd3dDefIB[eDefIB])
+	{
+		ms_alpd3dDefIB[eDefIB]->Release();
+		ms_alpd3dDefIB[eDefIB] = nullptr;
+	}
+
+	HRESULT hr = ms_lpd3dDevice->CreateIndexBuffer(
+		sizeof(WORD) * uIdxCount,
 		D3DUSAGE_WRITEONLY,
 		D3DFMT_INDEX16,
 		D3DPOOL_DEFAULT,
-		&ms_alpd3dDefIB[eDefIB], nullptr
+		&ms_alpd3dDefIB[eDefIB],
+		nullptr
 	);
 	if (FAILED(hr))
+	{
+		TraceError("CGraphicDevice::__CreateDefaultIndexBuffer: Failed to create index buffer %u (hr=0x%08X)", eDefIB, hr);
 		return false;
+	}
 	
-	WORD* dstIndices;
+	WORD* dstIndices = nullptr;
 	hr = ms_alpd3dDefIB[eDefIB]->Lock(0, 0, (void**)&dstIndices, 0);
 	if (FAILED(hr))
+	{
+		TraceError("CGraphicDevice::__CreateDefaultIndexBuffer: Failed to lock index buffer %u (hr=0x%08X)", eDefIB, hr);
+		safe_release(ms_alpd3dDefIB[eDefIB]);
 		return false;
+	}
 
-	memcpy(dstIndices, c_awIndices, sizeof(WORD)*uIdxCount);
+	memcpy(dstIndices, c_awIndices, sizeof(WORD) * uIdxCount);
 
-	ms_alpd3dDefIB[eDefIB]->Unlock();
+	hr = ms_alpd3dDefIB[eDefIB]->Unlock();
+	if (FAILED(hr))
+	{
+		TraceError("CGraphicDevice::__CreateDefaultIndexBuffer: Failed to unlock index buffer %u (hr=0x%08X)", eDefIB, hr);
+		safe_release(ms_alpd3dDefIB[eDefIB]);
+		return false;
+	}
 
 	return true;
 }
@@ -644,20 +716,17 @@ bool CGraphicDevice::__CreateDefaultIndexBufferList()
 		4, 5, 6, 5, 7, 6,
 	};
 	
-	if (!__CreateDefaultIndexBuffer(DEFAULT_IB_LINE, 2, c_awLineIndices))
+	if (!__CreateDefaultIndexBuffer(DEFAULT_IB_LINE, 2, c_awLineIndices) ||
+		!__CreateDefaultIndexBuffer(DEFAULT_IB_LINE_TRI, 6, c_awLineTriIndices) ||
+		!__CreateDefaultIndexBuffer(DEFAULT_IB_LINE_RECT, 8, c_awLineRectIndices) ||
+		!__CreateDefaultIndexBuffer(DEFAULT_IB_LINE_CUBE, 24, c_awLineCubeIndices) ||
+		!__CreateDefaultIndexBuffer(DEFAULT_IB_FILL_TRI, 3, c_awFillTriIndices) ||
+		!__CreateDefaultIndexBuffer(DEFAULT_IB_FILL_RECT, 6, c_awFillRectIndices) ||
+		!__CreateDefaultIndexBuffer(DEFAULT_IB_FILL_CUBE, 36, c_awFillCubeIndices))
+	{
+		__DestroyDefaultIndexBufferList();
 		return false;
-	if (!__CreateDefaultIndexBuffer(DEFAULT_IB_LINE_TRI, 6, c_awLineTriIndices))
-		return false;
-	if (!__CreateDefaultIndexBuffer(DEFAULT_IB_LINE_RECT, 8, c_awLineRectIndices))
-		return false;
-	if (!__CreateDefaultIndexBuffer(DEFAULT_IB_LINE_CUBE, 24, c_awLineCubeIndices))
-		return false;
-	if (!__CreateDefaultIndexBuffer(DEFAULT_IB_FILL_TRI, 3, c_awFillTriIndices))
-		return false;
-	if (!__CreateDefaultIndexBuffer(DEFAULT_IB_FILL_RECT, 6, c_awFillRectIndices))
-		return false;
-	if (!__CreateDefaultIndexBuffer(DEFAULT_IB_FILL_CUBE, 36, c_awFillCubeIndices))
-		return false;
+	}
 	
 	return true;
 }

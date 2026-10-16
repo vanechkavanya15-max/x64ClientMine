@@ -148,17 +148,21 @@ void CActorInstance::AttachWeapon(DWORD dwItemIndex,DWORD dwParentPartIndex, DWO
 	CItemData * pItemData;
 	if (!CItemManager::Instance().GetItemDataPointer(dwItemIndex, &pItemData))
 	{
-		RegisterModelThing(dwPartIndex, NULL);
-		SetModelInstance(dwPartIndex, dwPartIndex, 0);
-
-		RegisterModelThing(CRaceData::PART_WEAPON_LEFT, NULL);
-		SetModelInstance(CRaceData::PART_WEAPON_LEFT, CRaceData::PART_WEAPON_LEFT, 0);
+		DetachPart(dwPartIndex);
+		DetachPart(CRaceData::PART_WEAPON_LEFT);
 
 		RefreshActorInstance();
 		return;
 	}
 
 	__DestroyWeaponTrace();
+	// Usuwamy poprzednie efekty podpiete pod te party broni, aby zapobiec wyciekowi efektow / aury
+	ClearPartEffects(CRaceData::PART_WEAPON);
+	ClearPartEffects(CRaceData::PART_WEAPON_LEFT);
+
+	InvalidateSocketTransform(CRaceData::PART_WEAPON);
+	InvalidateSocketTransform(CRaceData::PART_WEAPON_LEFT);
+
 	//양손무기(자객 이도류) 왼손,오른손 모두에 장착.
 	if (__IsRightHandWeapon(pItemData->GetWeaponType()))
 		AttachWeapon(dwParentPartIndex, CRaceData::PART_WEAPON, pItemData);
@@ -518,11 +522,11 @@ void CActorInstance::UseAlphaWeaponTrace()
 
 void CActorInstance::UpdateAttachingInstances()
 {
-	CEffectManager& rkEftMgr=CEffectManager::Instance();
+	CEffectManager& rkEftMgr = CEffectManager::Instance();
 
 	std::list<TAttachingEffect>::iterator it;
 	DWORD dwCurrentTime = CTimer::Instance().GetCurrentMillisecond();
-	for (it = m_AttachingEffectList.begin(); it!= m_AttachingEffectList.end();)
+	for (it = m_AttachingEffectList.begin(); it != m_AttachingEffectList.end();)
 	{
 		if (EFFECT_LIFE_WITH_MOTION == it->iLifeType)
 		{
@@ -540,30 +544,52 @@ void CActorInstance::UpdateAttachingInstances()
 		{
 			if (it->isAttaching)
 			{
-				rkEftMgr.SelectEffectInstance(it->dwEffectIndex);
-
 				if (it->iBoneIndex == -1)
 				{
-					D3DXMATRIX matTransform;
-					matTransform = it->matTranslation;
-					matTransform *= m_worldMatrix;
-					rkEftMgr.SetEffectInstanceGlobalMatrix(matTransform);
+					// Efekt aury przypiety do punktu bazowego postaci (origin)
+					// Optymalizacja: gdy postac sie nie porusza (m_worldMatrix bez zmian), unikamy mnozenia macierzy
+					if (it->bTransformInitialized && memcmp(&m_worldMatrix, &it->matLastWorld, sizeof(D3DXMATRIX)) == 0)
+					{
+						// Pozycja nie ulegla zmianie - transformacja zbuforowana
+					}
+					else
+					{
+						D3DXMATRIX matTransform;
+						D3DXMatrixMultiply(&matTransform, &it->matTranslation, &m_worldMatrix);
+						it->matLastTransform = matTransform;
+						it->matLastWorld = m_worldMatrix;
+						it->bTransformInitialized = true;
+
+						rkEftMgr.SelectEffectInstance(it->dwEffectIndex);
+						rkEftMgr.SetEffectInstanceGlobalMatrix(matTransform);
+					}
 				}
 				else
 				{
-					D3DXMATRIX * pBoneMat;
-					if (GetBoneMatrix(it->dwModelIndex, it->iBoneIndex, &pBoneMat))
+					D3DXMATRIX * pBoneMat = NULL;
+					if (GetBoneMatrix(it->dwModelIndex, it->iBoneIndex, &pBoneMat) && pBoneMat)
 					{
-						D3DXMATRIX matTransform;
-						matTransform = *pBoneMat;
-						matTransform *= it->matTranslation;
-						matTransform *= m_worldMatrix;
-						rkEftMgr.SetEffectInstanceGlobalMatrix(matTransform);
-					}
-					else
-					{						
-						//TraceError("GetBoneMatrix(modelIndex(%d), boneIndex(%d)).NOT_FOUND_BONE", 
-						//	it->dwModelIndex, it->iBoneIndex);
+						// Efekt aury przypiety do kosci / socketu postaci
+						// Optymalizacja: gdy postac sie nie porusza i kosc szkieletu nie zmienila polozenia, unikamy redundantnych mnozen macierzy
+						if (it->bTransformInitialized &&
+							memcmp(&m_worldMatrix, &it->matLastWorld, sizeof(D3DXMATRIX)) == 0 &&
+							memcmp(pBoneMat, &it->matLastBone, sizeof(D3DXMATRIX)) == 0)
+						{
+							// Macierze identyczne - brak ruchu, pomijamy mnozenie macierzy i aktualizacje w menedzerze efektow
+						}
+						else
+						{
+							D3DXMATRIX matTransform;
+							D3DXMatrixMultiply(&matTransform, pBoneMat, &it->matTranslation);
+							D3DXMatrixMultiply(&matTransform, &matTransform, &m_worldMatrix);
+							it->matLastTransform = matTransform;
+							it->matLastBone = *pBoneMat;
+							it->matLastWorld = m_worldMatrix;
+							it->bTransformInitialized = true;
+
+							rkEftMgr.SelectEffectInstance(it->dwEffectIndex);
+							rkEftMgr.SetEffectInstanceGlobalMatrix(matTransform);
+						}
 					}
 				}
 			}
@@ -659,4 +685,127 @@ void CActorInstance::__ClearAttachingEffect()
 	}
 
 	m_AttachingEffectList.clear();
+}
+
+bool CActorInstance::GetSocketMatrix(DWORD dwPartIndex, D3DXMATRIX** ppMatrix)
+{
+	if (dwPartIndex >= CRaceData::PART_MAX_NUM)
+		return false;
+
+	if (!m_pkCurRaceData)
+		return false;
+
+	const char * szBoneName = NULL;
+	if (!GetAttachingBoneName(dwPartIndex, &szBoneName) || !szBoneName)
+		return false;
+
+	TSocketTransform & rSocket = m_kSocketTransform[dwPartIndex];
+	if (rSocket.iBoneIndex < 0)
+	{
+		int iBone = -1;
+		if (!FindBoneIndex(CRaceData::PART_MAIN, szBoneName, &iBone) || iBone < 0)
+			return false;
+		rSocket.iBoneIndex = iBone;
+	}
+
+	D3DXMATRIX * pBoneMat = NULL;
+	if (!GetBoneMatrix(CRaceData::PART_MAIN, rSocket.iBoneIndex, &pBoneMat) || !pBoneMat)
+		return false;
+
+	// Optymalizacja: gdy postac sie nie porusza i kosc szkieletu nie ulegla zmianie - zwracamy zbuforowana macierz bez mnozenia
+	if (rSocket.bValid &&
+		memcmp(&m_worldMatrix, &rSocket.matLastWorld, sizeof(D3DXMATRIX)) == 0 &&
+		memcmp(pBoneMat, &rSocket.matLastBone, sizeof(D3DXMATRIX)) == 0)
+	{
+		if (ppMatrix)
+			*ppMatrix = &rSocket.matTransform;
+		return true;
+	}
+
+	D3DXMatrixMultiply(&rSocket.matTransform, pBoneMat, &m_worldMatrix);
+	rSocket.matLastBone = *pBoneMat;
+	rSocket.matLastWorld = m_worldMatrix;
+	rSocket.bValid = true;
+
+	if (ppMatrix)
+		*ppMatrix = &rSocket.matTransform;
+	return true;
+}
+
+void CActorInstance::InvalidateSocketTransform(DWORD dwPartIndex)
+{
+	if (dwPartIndex < CRaceData::PART_MAX_NUM)
+	{
+		m_kSocketTransform[dwPartIndex].bValid = false;
+	}
+}
+
+void CActorInstance::InvalidateAllSocketTransforms()
+{
+	for (DWORD i = 0; i < CRaceData::PART_MAX_NUM; ++i)
+	{
+		m_kSocketTransform[i].bValid = false;
+		m_kSocketTransform[i].iBoneIndex = -1;
+	}
+}
+
+void CActorInstance::ClearPartEffects(DWORD dwPartIndex)
+{
+	CEffectManager& rkEftMgr = CEffectManager::Instance();
+	std::list<TAttachingEffect>::iterator it = m_AttachingEffectList.begin();
+	while (it != m_AttachingEffectList.end())
+	{
+		if (it->dwModelIndex == dwPartIndex)
+		{
+			rkEftMgr.DestroyEffectInstance(it->dwEffectIndex);
+			it = m_AttachingEffectList.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
+void CActorInstance::DetachPart(DWORD dwPartIndex)
+{
+	if (dwPartIndex >= CRaceData::PART_MAX_NUM)
+		return;
+
+	// 1. Usun wszystkie efekty powiazane z odpinana czescia pancerza/modelu, zapobiegajac wyciekom w EffectManagerze
+	ClearPartEffects(dwPartIndex);
+
+	// 2. Bezpiecznie wyczysc instancje modelu w menedzerze LODController
+	if (dwPartIndex < m_LODControllerVector.size())
+	{
+		CGrannyLODController * pPartLOD = m_LODControllerVector[dwPartIndex];
+		if (pPartLOD)
+		{
+			pPartLOD->Clear();
+		}
+	}
+
+	// 3. Zwolnij referencje do obiektow Thing dla danego partu
+	if (dwPartIndex < m_modelThingSetVector.size())
+	{
+		m_modelThingSetVector[dwPartIndex].Clear();
+	}
+
+	m_adwPartItemID[dwPartIndex] = 0;
+	InvalidateSocketTransform(dwPartIndex);
+	m_kSocketTransform[dwPartIndex].iBoneIndex = -1;
+}
+
+void CActorInstance::ReattachPart(DWORD dwParentPartIndex, DWORD dwPartIndex)
+{
+	if (dwParentPartIndex >= CRaceData::PART_MAX_NUM || dwPartIndex >= CRaceData::PART_MAX_NUM)
+		return;
+
+	const char * szBoneName = NULL;
+	if (!GetAttachingBoneName(dwPartIndex, &szBoneName) || !szBoneName)
+		return;
+
+	AttachModelInstance(dwParentPartIndex, szBoneName, dwPartIndex);
+	InvalidateSocketTransform(dwPartIndex);
+	m_kSocketTransform[dwPartIndex].iBoneIndex = -1;
 }

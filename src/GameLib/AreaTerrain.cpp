@@ -140,228 +140,98 @@ void CTerrain::CopySettingFromGlobalSetting()
 
 WORD CTerrain::WE_GetHeightMapValue(short sX, short sY)
 {
-	if (sX>=-1 && sY>=-1 && sX<HEIGHTMAP_RAW_XSIZE-1 && sY<HEIGHTMAP_RAW_YSIZE-1)
-		return GetHeightMapValue(sX,sY);
+	if (sX >= -1 && sY >= -1 && sX < HEIGHTMAP_RAW_XSIZE - 1 && sY < HEIGHTMAP_RAW_YSIZE - 1)
+		return GetHeightMapValue(sX, sY);
 
-	BYTE byTerrainNum;
-	if ( !m_pOwnerOutdoorMap->GetTerrainNumFromCoord(m_wX, m_wY, &byTerrainNum) )
+	if (!m_pOwnerOutdoorMap)
+		return GetHeightMapValue(std::min<short>(std::max<short>(sX, -1), HEIGHTMAP_RAW_XSIZE - 1),
+		                         std::min<short>(std::max<short>(sY, -1), HEIGHTMAP_RAW_YSIZE - 1));
+
+	short sTerrainCountX = 0, sTerrainCountY = 0;
+	m_pOwnerOutdoorMap->GetTerrainCount(&sTerrainCountX, &sTerrainCountY);
+
+	int targetCoordX = static_cast<int>(m_wX);
+	int targetCoordY = static_cast<int>(m_wY);
+	short localX = sX;
+	short localY = sY;
+
+	if (sX < -1)
 	{
-		Tracef("CTerrain::WE_GetHeightMapValue : Can't Get TerrainNum from Coord %d, %d", m_wX, m_wY);
-		byTerrainNum = 4;
+		targetCoordX -= 1;
+		localX += XSIZE;
 	}
-	
-	short sTerrainCouuntX, sTerrainCouuntY;
-	m_pOwnerOutdoorMap->GetTerrainCount(&sTerrainCouuntX, &sTerrainCouuntY);
-
-	CTerrain * pTerrain = NULL;
+	else if (sX >= HEIGHTMAP_RAW_XSIZE - 1)
+	{
+		targetCoordX += 1;
+		localX -= XSIZE;
+	}
 
 	if (sY < -1)
 	{
-		if (m_wY <= 0)
-		{
-			if ( sX < -1)
-			{
-				if (m_wX <= 0)
-					return GetHeightMapValue(-1, -1);
-				else
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum - 1, &pTerrain))
-						return GetHeightMapValue(-1, -1);
-					else
-						return pTerrain->GetHeightMapValue(sX + XSIZE, -1);
-				}
-			}
-			else if (sX >= HEIGHTMAP_RAW_XSIZE - 1)
-			{
-				if (m_wX >= sTerrainCouuntX - 1)
-					return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, -1);
-				else
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum + 1, &pTerrain))
-						return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, -1);
-					else
-						return pTerrain->GetHeightMapValue(sX - XSIZE, -1);
-				}
-			}
-			else
-				return GetHeightMapValue(sX, -1);
-		}
-		else
-		{
-			if (sX < -1)
-			{
-				if (m_wX <= 0)
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum - 3, &pTerrain))
-						return GetHeightMapValue(-1, -1);
-					else
-						return pTerrain->GetHeightMapValue(-1, sY + YSIZE);
-				}
-				else
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum - 4, &pTerrain))
-						return GetHeightMapValue(-1, -1);
-					else
-						return pTerrain->GetHeightMapValue(sX + XSIZE, sY + YSIZE);
-				}
-			}
-			else if (sX >= HEIGHTMAP_RAW_XSIZE - 1)
-			{
-				if (m_wX >= sTerrainCouuntX)
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum - 3, &pTerrain))
-						return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, -1);
-					else
-						return pTerrain->GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, sY + YSIZE);
-				}
-				else
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum - 2, &pTerrain))
-						return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, -1);
-					else
-						return pTerrain->GetHeightMapValue(sX - XSIZE, sY + YSIZE);
-				}
-			}
-			else
-			{
-				if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum - 3, &pTerrain))
-					return GetHeightMapValue(sX, -1);
-				else
-					return pTerrain->GetHeightMapValue(sX, sY + YSIZE);
-			}
-		}
+		targetCoordY -= 1;
+		localY += YSIZE;
 	}
 	else if (sY >= HEIGHTMAP_RAW_YSIZE - 1)
 	{
-		if (m_wY >= sTerrainCouuntY - 1)
-		{
-			if (sX < -1)
-			{
-				if (m_wX <= 0)
-					return GetHeightMapValue(-1, HEIGHTMAP_RAW_XSIZE - 1);
-				else
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum - 1, &pTerrain))
-						return GetHeightMapValue(-1, HEIGHTMAP_RAW_XSIZE - 1);
-					else
-						return pTerrain->GetHeightMapValue(sX + XSIZE, HEIGHTMAP_RAW_YSIZE - 1);
-				}
-			}
-			else if (sX >= HEIGHTMAP_RAW_XSIZE - 1)
-			{
-				if (m_wX >= sTerrainCouuntX - 1)
-					return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, HEIGHTMAP_RAW_YSIZE - 1);
-				else
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum + 1, &pTerrain))
-						return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, HEIGHTMAP_RAW_YSIZE - 1);
-					else
-						return pTerrain->GetHeightMapValue(sX - XSIZE, HEIGHTMAP_RAW_YSIZE - 1);
-				}
-			}
-			else
-				return GetHeightMapValue(sX, HEIGHTMAP_RAW_YSIZE - 1);
-		}
-		else
-		{
-			if (sX < -1)
-			{
-				if (m_wX <= 0)
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum + 3, &pTerrain))
-						return GetHeightMapValue(-1, HEIGHTMAP_RAW_YSIZE - 1);
-					else
-						return pTerrain->GetHeightMapValue(-1, sY - YSIZE);
-				}
-				else
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum + 2, &pTerrain))
-						return GetHeightMapValue(-1, HEIGHTMAP_RAW_XSIZE - 1);
-					else
-						return pTerrain->GetHeightMapValue(sX + XSIZE, sY - YSIZE);
-				}
-			}
-			else if (sX >= HEIGHTMAP_RAW_XSIZE - 1)
-			{
-				if (m_wX >= sTerrainCouuntX - 1)
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum + 3, &pTerrain))
-						return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, HEIGHTMAP_RAW_YSIZE - 1);
-					else
-						return pTerrain->GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, sY - YSIZE);
-				}
-				else
-				{
-					if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum + 4, &pTerrain))
-						return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, HEIGHTMAP_RAW_YSIZE - 1);
-					else
-						return pTerrain->GetHeightMapValue(sX - XSIZE, sY - YSIZE);
-				}
-			}
-			else
-			{
-				if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum + 3, &pTerrain))
-					return GetHeightMapValue(sX, HEIGHTMAP_RAW_YSIZE - 1);
-				else
-					return pTerrain->GetHeightMapValue(sX, sY - YSIZE);
-			}
-		}
+		targetCoordY += 1;
+		localY -= YSIZE;
 	}
-	else
+
+	// Clamped fallback in case neighbor terrain cannot be accessed
+	const short fallbackX = (sX < -1) ? -1 : ((sX >= HEIGHTMAP_RAW_XSIZE - 1) ? (HEIGHTMAP_RAW_XSIZE - 1) : sX);
+	const short fallbackY = (sY < -1) ? -1 : ((sY >= HEIGHTMAP_RAW_YSIZE - 1) ? (HEIGHTMAP_RAW_YSIZE - 1) : sY);
+
+	if (targetCoordX < 0 || targetCoordX >= sTerrainCountX ||
+	    targetCoordY < 0 || targetCoordY >= sTerrainCountY)
 	{
-		if (sX < -1)
-		{
-			if (m_wX <= 0)
-				return GetHeightMapValue(-1, sY);
-			else
-			{
-				if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum - 1, &pTerrain))
-					return GetHeightMapValue(-1, sY);
-				else
-					return pTerrain->GetHeightMapValue(sX + XSIZE, sY);
-			}
-		}
-		else if (sX >= HEIGHTMAP_RAW_XSIZE - 1)
-		{
-			if (m_wX >= sTerrainCouuntX - 1)
-				return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, sY);
-			else
-			{
-				if (!m_pOwnerOutdoorMap->GetTerrainPointer(byTerrainNum + 1, &pTerrain))
-					return GetHeightMapValue(HEIGHTMAP_RAW_XSIZE - 1, sY);
-				else
-					return pTerrain->GetHeightMapValue(sX - XSIZE, sY);
-			}
-		}
-		else
-			return GetHeightMapValue(sX, sY);
+		return GetHeightMapValue(fallbackX, fallbackY);
 	}
+
+	BYTE byNeighborTerrainNum = 0;
+	if (!m_pOwnerOutdoorMap->GetTerrainNumFromCoord(static_cast<WORD>(targetCoordX), static_cast<WORD>(targetCoordY), &byNeighborTerrainNum))
+	{
+		return GetHeightMapValue(fallbackX, fallbackY);
+	}
+
+	CTerrain* pNeighborTerrain = NULL;
+	if (!m_pOwnerOutdoorMap->GetTerrainPointer(byNeighborTerrainNum, &pNeighborTerrain) || !pNeighborTerrain)
+	{
+		return GetHeightMapValue(fallbackX, fallbackY);
+	}
+
+	return pNeighborTerrain->GetHeightMapValue(localX, localY);
 }
 
 bool CTerrain::GetNormal(int ix, int iy, D3DXVECTOR3 * pv3Normal)
 {
-	long lMapWidth = XSIZE * CELLSCALE;
-	long lMapHeight = YSIZE * CELLSCALE;
-	while (ix < 0)
-		ix += lMapWidth;
-	
-	while (iy < 0)
-		iy += lMapHeight;
-	
-	while (ix > lMapWidth)
-		ix -= lMapWidth;
-	
-	while (iy > lMapHeight)
-		iy -= lMapHeight;
+	const long lMapWidth = XSIZE * CELLSCALE;
+	const long lMapHeight = YSIZE * CELLSCALE;
+
+	if (lMapWidth <= 0 || lMapHeight <= 0 || !pv3Normal)
+		return false;
+
+	if (ix < 0 || ix >= lMapWidth)
+	{
+		ix %= lMapWidth;
+		if (ix < 0)
+			ix += lMapWidth;
+	}
+
+	if (iy < 0 || iy >= lMapHeight)
+	{
+		iy %= lMapHeight;
+		if (iy < 0)
+			iy += lMapHeight;
+	}
 
 	ix /= CELLSCALE;
 	iy /= CELLSCALE;
 
-	D3DXVECTOR3 v3Noraml;
-	char * n = (char*) &m_acNormalMap[(iy * NORMALMAP_XSIZE + ix)*3];
-	pv3Normal->x = -((float)*n++) * 0.007874016f;
-	pv3Normal->y = ((float)*n++) * 0.007874016f;
-	pv3Normal->z = ((float)*n++) * 0.007874016f;
+	const char* n = &m_acNormalMap[(iy * NORMALMAP_XSIZE + ix) * 3];
+	const float fNormalScale = 0.007874016f;
+	pv3Normal->x = -static_cast<float>(n[0]) * fNormalScale;
+	pv3Normal->y = static_cast<float>(n[1]) * fNormalScale;
+	pv3Normal->z = static_cast<float>(n[2]) * fNormalScale;
 
 	return true;
 }
@@ -573,11 +443,7 @@ void CTerrain::RAW_DeallocateSplats(bool bBGLoading)
 
 		if (m_lpAlphaTexture[i])
 		{
-			ULONG ulRef;
-			do
-			{
-				ulRef = m_lpAlphaTexture[i]->Release();
-			} while(ulRef > 0);
+			SAFE_RELEASE(m_lpAlphaTexture[i]);
 		}
 
 		rSplat.pd3dTexture = m_lpAlphaTexture[i] = NULL;
@@ -680,13 +546,7 @@ void CTerrain::RAW_GenerateSplat(bool bBGLoading)
 				{
 					if (m_lpAlphaTexture[i])
 					{
-						ULONG ulRef;
-						do
-						{
-							ulRef = m_lpAlphaTexture[i]->Release();
-							if (ulRef > 0)
-								TraceError(" CTerrain::RAW_GenerateSplat - TileCount > 0 : Alpha Texture Release(%d) ERROR", ulRef);
-						} while(ulRef > 0);
+						SAFE_RELEASE(m_lpAlphaTexture[i]);
 					}
 
 					rSplat.pd3dTexture = m_lpAlphaTexture[i] = NULL;
@@ -755,13 +615,7 @@ void CTerrain::RAW_GenerateSplat(bool bBGLoading)
 				{
 					if (m_lpAlphaTexture[i])
 					{
-						ULONG ulRef;
-						do
-						{
-							ulRef = m_lpAlphaTexture[i]->Release();
-							if (ulRef > 0)
-								TraceError(" CTerrain::RAW_GenerateSplat - TileDount 0 : Alpha Texture Release(%d) ERROR", ulRef);
-						} while(ulRef > 0);
+						SAFE_RELEASE(m_lpAlphaTexture[i]);
 					}
 					
 					rSplat.pd3dTexture = m_lpAlphaTexture[i] = NULL;

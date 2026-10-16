@@ -894,6 +894,7 @@ void CActorInstance::Destroy()
 	}
 
 	__ClearAttachingEffect();
+	InvalidateAllSocketTransforms();
 
 	CGraphicThingInstance::Clear();
 
@@ -946,6 +947,8 @@ void CActorInstance::__InitializeStateData()
 
 	m_dwBattleHitEffectID = 0;
 	m_dwBattleAttachEffectID = 0;
+
+	InvalidateAllSocketTransforms();
 }
 
 void CActorInstance::__InitializeMotionData()

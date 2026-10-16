@@ -46,7 +46,12 @@ class CPythonTextTail : public CSingleton<CPythonTextTail>
 
 			float							fHeight;
 
-			STextTail() {}
+			float							fCurY;
+			bool							bInitCurY;
+			D3DXCOLOR						TitleColor;
+			D3DXCOLOR						LevelColor;
+
+			STextTail() : fCurY(0.0f), bInitCurY(false), TitleColor(1.0f, 1.0f, 1.0f, 1.0f), LevelColor(1.0f, 1.0f, 1.0f, 1.0f) {}
 			virtual ~STextTail() {}
 		} TTextTail;
 

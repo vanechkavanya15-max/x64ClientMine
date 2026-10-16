@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "GrpScreen.h"
+#include "GrpDevice.h"
 #include "Camera.h"
 #include "StateManager.h"
 
@@ -11,6 +12,9 @@ DWORD		CScreen::ms_clearColor = 0L;
 DWORD		CScreen::ms_clearStencil = 0L;
 float		CScreen::ms_clearDepth = 1.0f;
 Frustum		CScreen::ms_frustum;
+CScreen::TRenderStatistics CScreen::ms_renderStats = { 0, 0, 0, 0.0f, 0.0f };
+static LARGE_INTEGER s_llFrameStartTime = { 0 };
+static LARGE_INTEGER s_llPerformanceFreq = { 0 };
 
 extern bool GRAPHICS_CAPS_CAN_NOT_DRAW_LINE;
 
@@ -661,9 +665,16 @@ BOOL CScreen::RestoreDevice()
 		{
 			D3DDISPLAYMODE d3dDisplayMode;
 			if (FAILED(rkD3D.GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &d3dDisplayMode)))
+			{
+				TraceError("CScreen::RestoreDevice: GetAdapterDisplayMode failed");
 				return FALSE;
+			}
 					
 			rkD3DPP.BackBufferFormat = d3dDisplayMode.Format;
+
+			// Release all D3DPOOL_DEFAULT resources before calling Reset
+			CGraphicDevice::__DestroyPDTVertexBufferList();
+			CGraphicDevice::__DestroyDefaultIndexBufferList();
 			
 			HRESULT hrReset = rkD3DDev.Reset(&rkD3DPP);
 
@@ -673,23 +684,46 @@ BOOL CScreen::RestoreDevice()
 				LPCWSTR errMsgW = err.ErrorMessage();   // wide string
 
 				std::string errUtf8 = WideToUtf8(errMsgW);
-				TraceError("%s", errUtf8.c_str());
+				TraceError("CScreen::RestoreDevice: Reset failed: %s (hr=0x%08X)", errUtf8.c_str(), hrReset);
 
+				return FALSE;
+			}
+
+			// Recreate all D3DPOOL_DEFAULT resources after successful Reset
+			if (!CGraphicDevice::__CreateDefaultIndexBufferList())
+			{
+				TraceError("CScreen::RestoreDevice: Failed to recreate DefaultIndexBufferList");
+				return FALSE;
+			}
+
+			if (!CGraphicDevice::__CreatePDTVertexBufferList())
+			{
+				TraceError("CScreen::RestoreDevice: Failed to recreate PDTVertexBufferList");
 				return FALSE;
 			}
 			
 			STATEMANAGER.SetDefaultState();
-		}        
+		}
+		else
+		{
+			TraceError("CScreen::RestoreDevice: Unexpected TestCooperativeLevel failure (hr=0x%08X)", hrTestCooperativeLevel);
+			return FALSE;
+		}
 	}
 
 	return TRUE;
-	
 }
 
 bool CScreen::Begin()
 {
 	assert(ms_lpd3dDevice != NULL);
 	ResetFaceCount();
+	STATEMANAGER.ResetDrawCallCounter();
+	STATEMANAGER.ResetPrimitiveCounter();
+
+	if (s_llPerformanceFreq.QuadPart == 0)
+		QueryPerformanceFrequency(&s_llPerformanceFreq);
+	QueryPerformanceCounter(&s_llFrameStartTime);
 
 	if (!STATEMANAGER.BeginScene())
 	{
@@ -703,6 +737,25 @@ bool CScreen::Begin()
 void CScreen::End()
 {
 	STATEMANAGER.EndScene();
+
+	LARGE_INTEGER llFrameEndTime;
+	QueryPerformanceCounter(&llFrameEndTime);
+
+	if (s_llPerformanceFreq.QuadPart > 0)
+	{
+		double dDeltaSec = static_cast<double>(llFrameEndTime.QuadPart - s_llFrameStartTime.QuadPart) / static_cast<double>(s_llPerformanceFreq.QuadPart);
+		ms_renderStats.fFrameTimeMs = static_cast<float>(dDeltaSec * 1000.0);
+		ms_renderStats.fFPS = (dDeltaSec > 0.000001) ? static_cast<float>(1.0 / dDeltaSec) : 0.0f;
+	}
+
+	ms_renderStats.dwDrawCallCount = STATEMANAGER.GetDrawCallCount();
+	ms_renderStats.dwPrimitiveCount = STATEMANAGER.GetPrimitiveCount();
+	ms_renderStats.dwFaceCount = GetFaceCount();
+}
+
+const CScreen::TRenderStatistics& CScreen::GetRenderStatistics()
+{
+	return ms_renderStats;
 }
 
 bool g_isBrowserMode = false;
@@ -726,22 +779,32 @@ void CScreen::Show(HWND hWnd)
 	}
 	else
 	{
-		HRESULT hr=ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
-		if (D3DERR_DEVICELOST == hr)
+		HRESULT hr = ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
+		if (D3DERR_DEVICELOST == hr || D3DERR_DEVICENOTRESET == hr)
 			RestoreDevice();
+		else if (FAILED(hr))
+			TraceError("CScreen::Show: Present failed (hr=0x%08X)", hr);
 	}	
 }
 
 void CScreen::Show(RECT * pSrcRect)
 {
 	assert(ms_lpd3dDevice != NULL);
-	ms_lpd3dDevice->Present(pSrcRect, NULL, NULL, NULL);
+	HRESULT hr = ms_lpd3dDevice->Present(pSrcRect, NULL, NULL, NULL);
+	if (D3DERR_DEVICELOST == hr || D3DERR_DEVICENOTRESET == hr)
+		RestoreDevice();
+	else if (FAILED(hr))
+		TraceError("CScreen::Show: Present failed (hr=0x%08X)", hr);
 }
 
 void CScreen::Show(RECT * pSrcRect, HWND hWnd)
 {
 	assert(ms_lpd3dDevice != NULL);
-	ms_lpd3dDevice->Present(pSrcRect, NULL, hWnd, NULL);
+	HRESULT hr = ms_lpd3dDevice->Present(pSrcRect, NULL, hWnd, NULL);
+	if (D3DERR_DEVICELOST == hr || D3DERR_DEVICENOTRESET == hr)
+		RestoreDevice();
+	else if (FAILED(hr))
+		TraceError("CScreen::Show: Present failed (hr=0x%08X)", hr);
 }
 
 void CScreen::ProjectPosition(float x, float y, float z, float * pfX, float * pfY)

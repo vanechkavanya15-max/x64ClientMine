@@ -20,6 +20,9 @@ void CMapOutdoor::UnloadWaterTexture()
 {
 	for (int i = 0; i < 30; ++i)
 		m_WaterInstances[i].Destroy();
+
+	STATEMANAGER.SetTexture(0, NULL);
+	STATEMANAGER.SetStreamSource(0, NULL, 0);
 }
 
 void CMapOutdoor::RenderWater()
@@ -40,7 +43,13 @@ void CMapOutdoor::RenderWater()
 	STATEMANAGER.SaveRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
 	STATEMANAGER.SaveRenderState(D3DRS_COLORVERTEX, TRUE);
 
-	STATEMANAGER.SetTexture(0, m_WaterInstances[((ELTimer_GetMSec() / 70) % 30)].GetTexturePointer()->GetD3DTexture());
+	const DWORD dwWaterFrame = (ELTimer_GetMSec() / 70) % 30;
+	CGraphicImageInstance* pWaterInstance = &m_WaterInstances[dwWaterFrame];
+	CGraphicTexture* pWaterTexture = pWaterInstance ? pWaterInstance->GetTexturePointer() : NULL;
+	if (pWaterTexture && pWaterTexture->GetD3DTexture())
+		STATEMANAGER.SetTexture(0, pWaterTexture->GetD3DTexture());
+	else
+		STATEMANAGER.SetTexture(0, NULL);
 
 	D3DXMatrixScaling(&matTexTransformWater, m_fWaterTexCoordBase, -m_fWaterTexCoordBase, 0.0f);
 	D3DXMatrixMultiply(&matTexTransformWater, &m_matViewInverse, &matTexTransformWater);
@@ -70,29 +79,11 @@ void CMapOutdoor::RenderWater()
 	// RenderState
 	//////////////////////////////////////////////////////////////////////////
 
-	// 물 위 아래 애니시키기...
-	static float s_fWaterHeightCurrent = 0;
-	static float s_fWaterHeightBegin = 0;
-	static float s_fWaterHeightEnd = 0;
-	static DWORD s_dwLastHeightChangeTime = CTimer::Instance().GetCurrentMillisecond();
-	static DWORD s_dwBlendtime = 300;
-
-	// 1.5초 마다 변경
-	if ((CTimer::Instance().GetCurrentMillisecond() - s_dwLastHeightChangeTime) > s_dwBlendtime)
-	{
-		s_dwBlendtime = random_range(1000, 3000);
-
-		if (s_fWaterHeightEnd == 0)
-			s_fWaterHeightEnd = -random_range(0, 15);
-		else
-			s_fWaterHeightEnd = 0;
-
-		s_fWaterHeightBegin = s_fWaterHeightCurrent;
-		s_dwLastHeightChangeTime = CTimer::Instance().GetCurrentMillisecond();
-	}
-
-	s_fWaterHeightCurrent = s_fWaterHeightBegin + (s_fWaterHeightEnd - s_fWaterHeightBegin) * (float) ((CTimer::Instance().GetCurrentMillisecond() - s_dwLastHeightChangeTime) / (float) s_dwBlendtime);
-	m_matWorldForCommonUse._43 = s_fWaterHeightCurrent;
+	// Plynne, harmoniczne falowanie tafli wody bez skokowych zmian wysokosci
+	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
+	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
+	const float fWaterHeightCurrent = -6.0f + 5.0f * sinf(fTimeSec * 1.5f) + 1.0f * sinf(fTimeSec * 3.1f);
+	m_matWorldForCommonUse._43 = fWaterHeightCurrent;
 
 	m_matWorldForCommonUse._41 = 0.0f;
 	m_matWorldForCommonUse._42 = 0.0f;
@@ -120,6 +111,9 @@ void CMapOutdoor::RenderWater()
 	// 렌더링 한 후에는 물 z 위치를 복구
 	m_matWorldForCommonUse._43 = 0.0f;
 
+	// Oczyszczenie zrodla strumienia, aby zapobiec wiszacym referencjom COM do buforow wierzcholkow
+	STATEMANAGER.SetStreamSource(0, NULL, 0);
+
 	//////////////////////////////////////////////////////////////////////////
 	// RenderState
 	STATEMANAGER.RestoreTransform(D3DTS_TEXTURE0);
@@ -140,8 +134,11 @@ void CMapOutdoor::RenderWater()
 
 void CMapOutdoor::DrawWater(long patchnum)
 {
-	assert(NULL!=m_pTerrainPatchProxyList);
 	if (!m_pTerrainPatchProxyList)
+		return;
+
+	const long lMaxPatches = static_cast<long>(m_wPatchCount * m_wPatchCount);
+	if (patchnum < 0 || patchnum >= lMaxPatches)
 		return;
 
 	CTerrainPatchProxy& rkTerrainPatchProxy = m_pTerrainPatchProxyList[patchnum];
@@ -152,18 +149,19 @@ void CMapOutdoor::DrawWater(long patchnum)
 	if (!rkTerrainPatchProxy.isWaterExists())
 		return;
 
-	CGraphicVertexBuffer* pkVB=rkTerrainPatchProxy.GetWaterVertexBufferPointer();
+	CGraphicVertexBuffer* pkVB = rkTerrainPatchProxy.GetWaterVertexBufferPointer();
 	if (!pkVB)
 		return;
 	
-	if (!pkVB->GetD3DVertexBuffer())
+	LPDIRECT3DVERTEXBUFFER9 lpd3dVB = pkVB->GetD3DVertexBuffer();
+	if (!lpd3dVB)
 		return;
 
-	UINT uPriCount=rkTerrainPatchProxy.GetWaterFaceCount();
+	UINT uPriCount = rkTerrainPatchProxy.GetWaterFaceCount();
 	if (!uPriCount)
 		return;
 	
-	STATEMANAGER.SetStreamSource(0, pkVB->GetD3DVertexBuffer(), sizeof(SWaterVertex));
+	STATEMANAGER.SetStreamSource(0, lpd3dVB, sizeof(SWaterVertex));
 	STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, uPriCount);
 
 	ms_faceCount += uPriCount;

@@ -175,6 +175,7 @@ namespace UI
 			// Event
 			void OnUpdate();
 			void OnRender();
+			void OnChangePosition() override;
 			BOOL OnMouseLeftButtonDown();
 			BOOL OnMouseLeftButtonUp();
 			BOOL OnMouseRightButtonDown();

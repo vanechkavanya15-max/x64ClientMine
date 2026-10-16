@@ -376,6 +376,7 @@ void CSlotWindow::AppendRequirementSignImage(const char * c_szImageName)
 		}
 
 		rpSignImage->LoadImage(c_szImageName);
+		rpSignImage->SetPosition(rSlot.ixPosition - 7, rSlot.iyPosition + 10);
 		rpSignImage->Hide();
 	}
 }
@@ -403,6 +404,7 @@ void CSlotWindow::SetSlot(DWORD dwIndex, DWORD dwVirtualNumber, BYTE byWidth, BY
 		if (pImage && pSlot->pInstance)
 		{
 			pSlot->pInstance->SetImagePointer(pImage);
+			pSlot->pInstance->SetPosition(m_rect.left + pSlot->ixPosition, m_rect.top + pSlot->iyPosition);
 		}
 		return;
 	}
@@ -418,10 +420,19 @@ void CSlotWindow::SetSlot(DWORD dwIndex, DWORD dwVirtualNumber, BYTE byWidth, BY
 		pSlot->pInstance = CGraphicImageInstance::New();
 		pSlot->pInstance->SetDiffuseColor(diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a);
 		pSlot->pInstance->SetImagePointer(pImage);
+		pSlot->pInstance->SetPosition(m_rect.left + pSlot->ixPosition, m_rect.top + pSlot->iyPosition);
 	}
 
 	pSlot->byxPlacedItemSize = byWidth;
 	pSlot->byyPlacedItemSize = byHeight;
+
+	if (pSlot->pNumberLine)
+	{
+		int ix = pSlot->byxPlacedItemSize * ITEM_WIDTH + pSlot->ixPosition - 4;
+		int iy = pSlot->iyPosition + pSlot->byyPlacedItemSize * ITEM_HEIGHT - 12 + 2;
+		pSlot->pNumberLine->SetPosition(ix, iy);
+		pSlot->pNumberLine->Update();
+	}
 
 	if (pSlot->pCoverButton)
 	{
@@ -435,7 +446,7 @@ void CSlotWindow::SetSlotCount(DWORD dwIndex, DWORD dwCount)
 	if (!GetSlotPointer(dwIndex, &pSlot))
 		return;
 
-	if (dwCount <= 0)
+	if (dwCount <= 1)
 	{
 		if (pSlot->pNumberLine)
 		{
@@ -457,6 +468,10 @@ void CSlotWindow::SetSlotCount(DWORD dwIndex, DWORD dwCount)
 		}
 
 		pSlot->pNumberLine->SetNumber(szCount);
+		int ix = pSlot->byxPlacedItemSize * ITEM_WIDTH + pSlot->ixPosition - 4;
+		int iy = pSlot->iyPosition + pSlot->byyPlacedItemSize * ITEM_HEIGHT - 12 + 2;
+		pSlot->pNumberLine->SetPosition(ix, iy);
+		pSlot->pNumberLine->Update();
 	}
 }
 
@@ -503,6 +518,10 @@ void CSlotWindow::SetSlotCountNew(DWORD dwIndex, DWORD dwGrade, DWORD dwCount)
 		}
 
 		pSlot->pNumberLine->SetNumber(szCount);
+		int ix = pSlot->byxPlacedItemSize * ITEM_WIDTH + pSlot->ixPosition - 4;
+		int iy = pSlot->iyPosition + pSlot->byyPlacedItemSize * ITEM_HEIGHT - 12 + 2;
+		pSlot->pNumberLine->SetPosition(ix, iy);
+		pSlot->pNumberLine->Update();
 	}
 }
 
@@ -1074,8 +1093,25 @@ void CSlotWindow::OnUpdate()
 	}
 	m_ReserveDestroyEffectDeque.clear();
 
+	for (TSlotListIterator itor = m_SlotList.begin(); itor != m_SlotList.end(); ++itor)
+	{
+		TSlot & rSlot = *itor;
+		if (rSlot.pFinishCoolTimeEffect)
+			rSlot.pFinishCoolTimeEffect->Update();
+	}
+
 	if (m_pSlotActiveEffect)
 		m_pSlotActiveEffect->Update();
+}
+
+void CSlotWindow::OnChangePosition()
+{
+	for (TSlotListIterator itor = m_SlotList.begin(); itor != m_SlotList.end(); ++itor)
+	{
+		TSlot & rSlot = *itor;
+		if (rSlot.pInstance)
+			rSlot.pInstance->SetPosition(m_rect.left + rSlot.ixPosition, m_rect.top + rSlot.iyPosition);
+	}
 }
 
 void CSlotWindow::OnRender()
@@ -1137,9 +1173,12 @@ void CSlotWindow::OnRender()
 		{
 			if (IS_SET(rSlot.dwState, SLOT_STATE_ALWAYS_RENDER_COVER))
 			{
-				rSlot.pCoverButton->Show();
-				rSlot.pCoverButton->SetPosition(rSlot.ixPosition, rSlot.iyPosition);
-				rSlot.pCoverButton->RenderButton();
+				if (rSlot.pCoverButton)
+				{
+					rSlot.pCoverButton->Show();
+					rSlot.pCoverButton->SetPosition(rSlot.ixPosition, rSlot.iyPosition);
+					rSlot.pCoverButton->RenderButton();
+				}
 			}
 
 			continue;
@@ -1179,8 +1218,8 @@ void CSlotWindow::OnRender()
 
 		if (rSlot.pNumberLine)
 		{
-			int ix = rSlot.byxPlacedItemSize*ITEM_WIDTH + rSlot.ixPosition - 4;
-			int iy = rSlot.iyPosition + rSlot.byyPlacedItemSize*ITEM_HEIGHT - 12 + 2;
+			int ix = rSlot.byxPlacedItemSize * ITEM_WIDTH + rSlot.ixPosition - 4;
+			int iy = rSlot.iyPosition + rSlot.byyPlacedItemSize * ITEM_HEIGHT - 12 + 2;
 			rSlot.pNumberLine->SetPosition(ix, iy);
 			rSlot.pNumberLine->Update();
 			rSlot.pNumberLine->Render();
@@ -1441,6 +1480,7 @@ void CSlotWindow::__CreateFinishCoolTimeEffect(TSlot * pSlot)
 	pFinishCoolTimeEffect->SetRenderingMode(CGraphicExpandedImageInstance::RENDERING_MODE_SCREEN);
 	pFinishCoolTimeEffect->ResetFrame();
 	pFinishCoolTimeEffect->SetDelay(2);
+	pFinishCoolTimeEffect->SetPosition(pSlot->ixPosition, pSlot->iyPosition);
 	pFinishCoolTimeEffect->Show();
 
 	pSlot->pFinishCoolTimeEffect = pFinishCoolTimeEffect;

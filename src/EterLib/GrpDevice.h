@@ -45,18 +45,19 @@ public:
 	bool			ResizeBackBuffer(UINT uWidth, UINT uHeight);
 	void			RegisterWarningString(UINT uiMsg, const char * c_szString);
 
+public:
+	static void __InitializeDefaultIndexBufferList();
+	static void __DestroyDefaultIndexBufferList();	
+	static bool __CreateDefaultIndexBufferList();
+	static bool __CreateDefaultIndexBuffer(UINT eDefIB, UINT uIdxCount, const WORD* c_awIndices);
+
+	static void __InitializePDTVertexBufferList();
+	static void __DestroyPDTVertexBufferList();
+	static bool __CreatePDTVertexBufferList();
+
 protected:
 	void __Initialize();
 	void __WarningMessage(HWND hWnd, UINT uiMsg);
-
-	void __InitializeDefaultIndexBufferList();
-	void __DestroyDefaultIndexBufferList();	
-	bool __CreateDefaultIndexBufferList();
-	bool __CreateDefaultIndexBuffer(UINT eDefIB, UINT uIdxCount, const WORD* c_awIndices);
-
-	void __InitializePDTVertexBufferList();
-	void __DestroyPDTVertexBufferList();
-	bool __CreatePDTVertexBufferList();
 
 	LPDIRECT3DVERTEXDECLARATION9 CreatePTStreamVertexShader();
 	LPDIRECT3DVERTEXDECLARATION9 CreatePNTStreamVertexShader();

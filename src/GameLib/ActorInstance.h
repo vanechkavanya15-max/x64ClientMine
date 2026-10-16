@@ -207,6 +207,37 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 
 			int iLifeType;
 			DWORD dwEndTime;
+
+			// Buforowanie transformacji w celu unikniecia redundantnych mnozen macierzy gdy postac sie nie porusza
+			D3DXMATRIX matLastTransform;
+			D3DXMATRIX matLastBone;
+			D3DXMATRIX matLastWorld;
+			bool bTransformInitialized;
+
+			TAttachingEffect() : dwEffectIndex(0), iBoneIndex(-1), dwModelIndex(0),
+				isAttaching(FALSE), iLifeType(0), dwEndTime(0), bTransformInitialized(false)
+			{
+				D3DXMatrixIdentity(&matTranslation);
+				D3DXMatrixIdentity(&matLastTransform);
+				D3DXMatrixIdentity(&matLastBone);
+				D3DXMatrixIdentity(&matLastWorld);
+			}
+		};
+
+		struct TSocketTransform
+		{
+			D3DXMATRIX matTransform;
+			D3DXMATRIX matLastBone;
+			D3DXMATRIX matLastWorld;
+			int iBoneIndex;
+			bool bValid;
+
+			TSocketTransform() : iBoneIndex(-1), bValid(false)
+			{
+				D3DXMatrixIdentity(&matTransform);
+				D3DXMatrixIdentity(&matLastBone);
+				D3DXMatrixIdentity(&matLastWorld);
+			}
 		};
 		/////////////////////////////////////////////////////////////////////////////////////
 
@@ -295,6 +326,14 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 		DWORD AttachEffectByName(DWORD dwParentPartIndex, const char * c_pszBoneName, const char * c_pszEffectFileName);
 		DWORD AttachEffectByID(DWORD dwParentPartIndex, const char * c_pszBoneName, DWORD dwEffectID, const D3DXVECTOR3 * c_pv3Position = NULL);
 		DWORD AttachSmokeEffect(DWORD eSmoke);
+
+		// Socket & Part Attachment Caching / Memory Safety
+		bool GetSocketMatrix(DWORD dwPartIndex, D3DXMATRIX** ppMatrix);
+		void InvalidateSocketTransform(DWORD dwPartIndex);
+		void InvalidateAllSocketTransforms();
+		void ClearPartEffects(DWORD dwPartIndex);
+		void DetachPart(DWORD dwPartIndex);
+		void ReattachPart(DWORD dwParentPartIndex, DWORD dwPartIndex);
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Motion Queueing System
@@ -800,6 +839,7 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 
 		// Part
 		DWORD						m_adwPartItemID[CRaceData::PART_MAX_NUM];
+		TSocketTransform			m_kSocketTransform[CRaceData::PART_MAX_NUM];
 
 		// Attached Effect
 		std::list<TAttachingEffect> m_AttachingEffectList;

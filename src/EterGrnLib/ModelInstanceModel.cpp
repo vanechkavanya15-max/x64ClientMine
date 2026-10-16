@@ -49,6 +49,7 @@ void CGrannyModelInstance::SetLinkedModelPointer(CGrannyModel* pkModel, CGraphic
 	}
 	else
 	{
+		m_ppkSkeletonInst = NULL;
 		__CreateWorldPose(NULL);			
 		__CreateMeshBindingVector(NULL);
 	}
@@ -67,10 +68,9 @@ granny_world_pose* CGrannyModelInstance::__GetWorldPosePtr() const
 	if (m_pgrnWorldPoseReal)
 		return m_pgrnWorldPoseReal;
 	
-	if (m_ppkSkeletonInst && *m_ppkSkeletonInst)
+	if (m_ppkSkeletonInst && *m_ppkSkeletonInst && *m_ppkSkeletonInst != this)
 		return (*m_ppkSkeletonInst)->m_pgrnWorldPoseReal;
 
-	assert(m_ppkSkeletonInst!=NULL && "__GetWorldPosePtr - NO HAVE SKELETON");		
 	return NULL;	
 }
 
@@ -115,19 +115,25 @@ void CGrannyModelInstance::__DestroyMeshBindingVector()
 
 void CGrannyModelInstance::__CreateWorldPose(CGrannyModelInstance* pkSkeletonInst)
 {
-	assert(m_pgrnModelInstance != NULL);
-	assert(m_pgrnWorldPoseReal == NULL);
+	// Zabezpieczenie przed wyciekiem: jesli instancja posiadala wlasny WorldPose, zwolnij go
+	if (m_pgrnWorldPoseReal)
+	{
+		GrannyFreeWorldPose(m_pgrnWorldPoseReal);
+		m_pgrnWorldPoseReal = NULL;
+	}
 
-	// WORK
+	// Przy wspoldzielonym szkieletem nie alokujemy unikalnego world pose
 	if (pkSkeletonInst)
-		return;	
-	// END_OF_WORK
+		return;
+
+	if (!m_pgrnModelInstance)
+		return;
 
 	granny_skeleton * pgrnSkeleton = GrannyGetSourceSkeleton(m_pgrnModelInstance);		
+	if (!pgrnSkeleton)
+		return;
 
-	// WORK
 	m_pgrnWorldPoseReal = GrannyNewWorldPose(pgrnSkeleton->BoneCount);	
-	// END_OF_WORK
 }
 
 void CGrannyModelInstance::__DestroyWorldPose()
@@ -164,27 +170,55 @@ void CGrannyModelInstance::__CreateMeshMatrices()
 	assert(m_pModel != NULL);
 	
 	if (m_pModel->GetMeshCount() <= 0) // 메쉬가 없는 (카메라 같은) 모델도 간혹 있다..
+	{
+		m_meshMatrixCount = 0;
 		return;
-	
-	int meshCount = m_pModel->GetMeshCount();	
-	for (int b = 0; b < TRANSFORM_BUFFER_COUNT; ++b)
-	{
-		m_meshMatrices[b] = new D3DXMATRIX[meshCount];
-		memset(m_meshMatrices[b], 0, sizeof(D3DXMATRIX) * meshCount);
 	}
-	m_activeTransformBuffer.store(0, std::memory_order_relaxed);
-}
+	
+	int meshCount = m_pModel->GetMeshCount();
+	m_meshMatrixCount = meshCount;
 
-void CGrannyModelInstance::__DestroyMeshMatrices()
-{
 	for (int b = 0; b < TRANSFORM_BUFFER_COUNT; ++b)
 	{
+		// Zabezpieczenie buforowania: ponowne uzycie zaalokowanego bufora,
+		// jesli miesci zadana liczbe meshy - unikamy niepotrzebnych alokacji na stercie w klatce renderujacej
+		if (m_meshMatrices[b] && m_meshMatrixCapacity >= meshCount)
+		{
+			memset(m_meshMatrices[b], 0, sizeof(D3DXMATRIX) * meshCount);
+			continue;
+		}
+
 		if (m_meshMatrices[b])
 		{
 			delete [] m_meshMatrices[b];
 			m_meshMatrices[b] = NULL;
 		}
+
+		m_meshMatrices[b] = new D3DXMATRIX[meshCount];
+		memset(m_meshMatrices[b], 0, sizeof(D3DXMATRIX) * meshCount);
 	}
+
+	if (m_meshMatrixCapacity < meshCount)
+		m_meshMatrixCapacity = meshCount;
+
+	m_activeTransformBuffer.store(0, std::memory_order_relaxed);
+}
+
+void CGrannyModelInstance::__DestroyMeshMatrices(bool bForce)
+{
+	if (bForce)
+	{
+		for (int b = 0; b < TRANSFORM_BUFFER_COUNT; ++b)
+		{
+			if (m_meshMatrices[b])
+			{
+				delete [] m_meshMatrices[b];
+				m_meshMatrices[b] = NULL;
+			}
+		}
+		m_meshMatrixCapacity = 0;
+	}
+	m_meshMatrixCount = 0;
 	m_activeTransformBuffer.store(0, std::memory_order_relaxed);
 }
 

@@ -198,19 +198,21 @@ class CCamera
 		// 줌.. 카메라 위치만 이동.. 타겟 위치는 고정...
 		void Zoom(float fRatio);
 
+		static float GetDeltaTime();
+
 		// 뷰 방향으로 이동.. 타겟위치가 달라지므로 줌과는 다르다...
-		void MoveAlongView(float fDistance);
+		void MoveAlongView(float fDistance, float fDeltaTime = 0.0f);
 		// 카메라 옆 방향으로 이동..
-		void MoveAlongCross(float fDistance);
+		void MoveAlongCross(float fDistance, float fDeltaTime = 0.0f);
 		// 카메라 업벡터 방향으로 이동...
-		void MoveAlongUp(float fDistance);
+		void MoveAlongUp(float fDistance, float fDeltaTime = 0.0f);
 
 		// 카메라 옆 방향으로 이동... MoveAlongCross과 동일..
-		void MoveLateral(float fDistance);
+		void MoveLateral(float fDistance, float fDeltaTime = 0.0f);
 		// 뷰 방향의 Z 성분을 무시한 XY평면 방향으로 이동..
-		void MoveFront(float fDistance);
+		void MoveFront(float fDistance, float fDeltaTime = 0.0f);
 		// Z방향(연직 방향)으로 이동...
-		void MoveVertical(float fDistance);
+		void MoveVertical(float fDistance, float fDeltaTime = 0.0f);
 		
 	//	//카메라 위치는 고정시키고 머리만 든다. 타겟이 달라지겠죠?
 	//	//회전각을 라디안이 아닌 "도(Degree)"로 넣는다.
@@ -219,10 +221,10 @@ class CCamera
 		// 타겟 중심으로 돈다. Eterlib의 SetAroundCamera의 기능과 유사...
 		// fPitchDegree는 수평(0도)로부터 아랫쪽으로 꺽어지는 각도...
 		// fRollDegree는 타겟 중심으로 시계방향으로 도는 각도...
-		void RotateEyeAroundTarget(float fPitchDegree, float fRollDegree);
+		void RotateEyeAroundTarget(float fPitchDegree, float fRollDegree, float fDeltaTime = 0.0f);
 
 		// 도는 중심점을 따로 지정 그 점을 중심으로 돈다. 타겟 점도 달라지겠죠?
-		void RotateEyeAroundPoint(const D3DXVECTOR3 & v3Point, float fPitchDegree, float fRollDegree);
+		void RotateEyeAroundPoint(const D3DXVECTOR3 & v3Point, float fPitchDegree, float fRollDegree, float fDeltaTime = 0.0f);
 
 	protected:
 		void SetViewMatrix();

@@ -101,7 +101,7 @@ bool PackInitialize(const char * c_pszFolder)
 
 	Tracef("PackInitialize: Loading root.pck\n");
 	DWORD dwStartTime = GetTickCount();
-	std::string rootPath = (std::filesystem::path(folder) / "root.pck").generic_string();
+	std::string rootPath = (std::filesystem::path(folder) / "root.pck").string();
 	if (!CPackManager::instance().AddPack(rootPath))
 	{
 		if (g_bHeadlessMode)
@@ -138,7 +138,7 @@ bool PackInitialize(const char * c_pszFolder)
 						{
 							continue; // root.pck zostal zaladowany jako pierwszy
 						}
-						packFiles.push_back(entry.path().generic_string());
+						packFiles.push_back(entry.path().string());
 					}
 				}
 			}
@@ -171,7 +171,7 @@ bool PackInitialize(const char * c_pszFolder)
 			{
 				continue; // root.pck zostal juz zaladowany
 			}
-			packFiles.push_back((std::filesystem::path(folder) / (fallbackName + ".pck")).generic_string());
+			packFiles.push_back((std::filesystem::path(folder) / (fallbackName + ".pck")).string());
 		}
 	}
 	else

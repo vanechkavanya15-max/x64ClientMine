@@ -86,12 +86,13 @@ void CGrannyModelInstance::Deform(const D3DXMATRIX * c_pWorldMatrix)
 	DeformPNTVerticesDirect3D();
 }
 
-void CGrannyModelInstance::UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float /*fLocalTime*/)
+void CGrannyModelInstance::UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float /*fLocalTime*/, bool bSkipBoneSampling)
 {	
 	// DELETED
 	//m_pgrnWorldPose = m_pgrnWorldPoseReal;
 	///////////////////////////////////////////
-	UpdateWorldPose();
+	if (!bSkipBoneSampling)
+		UpdateWorldPose();
 	UpdateWorldMatrices(c_pWorldMatrix);
 }
 
@@ -105,16 +106,25 @@ void CGrannyModelInstance::UpdateWorldPose()
 		if (*m_ppkSkeletonInst!=this)
 			return;
 
+	if (!m_pgrnModelInstance)
+		return;
+
 	granny_skeleton * pgrnSkeleton = GrannyGetSourceSkeleton(m_pgrnModelInstance);
 	if (!pgrnSkeleton)
 		return;
 
+	granny_world_pose* pWorldPose = __GetWorldPosePtr();
+	if (!pWorldPose)
+		return;
+
 	// Izolowany bufor local_pose per-instancja (brak wspoldzielonego s_SharedLocalPose)
 	granny_local_pose * pgrnLocalPose = m_localPose.Get(pgrnSkeleton->BoneCount);	
+	if (!pgrnLocalPose)
+		return;
 
 	const float * pAttachBoneMatrix = m_pCustomParentBoneMatrix ? m_pCustomParentBoneMatrix : ((mc_pParentInstance) ? mc_pParentInstance->GetBoneMatrixPointer(m_iParentBoneIndex) : NULL);
 
-	GrannySampleModelAnimationsAccelerated(m_pgrnModelInstance, pgrnSkeleton->BoneCount, pAttachBoneMatrix, pgrnLocalPose, __GetWorldPosePtr());
+	GrannySampleModelAnimationsAccelerated(m_pgrnModelInstance, pgrnSkeleton->BoneCount, pAttachBoneMatrix, pgrnLocalPose, pWorldPose);
 	/*
 	GrannySampleModelAnimations(m_pgrnModelInstance, 0, pgrnSkeleton->BoneCount, pgrnLocalPose);
 	GrannyBuildWorldPose(pgrnSkeleton, 0, pgrnSkeleton->BoneCount, pgrnLocalPose, pAttachBoneMatrix, m_pgrnWorldPose);
@@ -129,27 +139,42 @@ void CGrannyModelInstance::UpdateWorldMatrices(const D3DXMATRIX* c_pWorldMatrix)
 		return;
 	// END_OF_NO_MESH_BUG_FIX
 	
-	assert(m_pModel != NULL);
+	if (!m_pModel || m_pModel->GetMeshCount() <= 0)
+		return;
+	
 	assert(ms_lpd3dMatStack != NULL);
 	
 	int meshCount = m_pModel->GetMeshCount();
 	
-	granny_matrix_4x4 * pgrnMatCompositeBuffer = GrannyGetWorldPoseComposite4x4Array(__GetWorldPosePtr());
+	granny_world_pose* pWorldPose = __GetWorldPosePtr();
+	if (!pWorldPose)
+		return;
+
+	granny_matrix_4x4 * pgrnMatCompositeBuffer = GrannyGetWorldPoseComposite4x4Array(pWorldPose);
+	if (!pgrnMatCompositeBuffer)
+		return;
+
 	D3DXMATRIX * boneMatrices = (D3DXMATRIX *) pgrnMatCompositeBuffer;
 
 	// CPU Double-Buffering: Watki robocze zapisuja transformacje do izolowanego bufora RAM (back-buffer)
 	uint8_t currentFront = m_activeTransformBuffer.load(std::memory_order_relaxed);
 	uint8_t backIndex = 1 - currentFront;
 	D3DXMATRIX* pWorkMatrices = m_meshMatrices[backIndex];
+	if (!pWorkMatrices)
+		return;
 
 	for (int i = 0; i < meshCount; ++i)
 	{
 		D3DXMATRIX & rWorldMatrix = pWorkMatrices[i];
 
 		const CGrannyMesh * pMesh = m_pModel->GetMeshPointer(i);
+		if (!pMesh)
+			continue;
 
 		// WORK
 		int * boneIndices = __GetMeshBoneIndices(i);
+		if (!boneIndices)
+			continue;
 		// END_OF_WORK
 
 		if (pMesh->CanDeformPNTVertices())
@@ -176,7 +201,15 @@ void CGrannyModelInstance::DeformPNTVertices(void * pvDest)
 	assert(m_pModel != NULL);
 	assert(m_pModel->CanDeformPNTVertices());
 
+	granny_world_pose* pWorldPose = __GetWorldPosePtr();
+	if (!pWorldPose)
+		return;
+
+	granny_matrix_4x4 * pComposite = GrannyGetWorldPoseComposite4x4Array(pWorldPose);
+	if (!pComposite)
+		return;
+
 	// WORK
-	m_pModel->DeformPNTVertices(pvDest, (D3DXMATRIX *) GrannyGetWorldPoseComposite4x4Array(__GetWorldPosePtr()), m_vct_pgrnMeshBinding);
+	m_pModel->DeformPNTVertices(pvDest, (D3DXMATRIX *) pComposite, m_vct_pgrnMeshBinding);
 	// END_OF_WORK
 }

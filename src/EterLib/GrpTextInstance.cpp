@@ -137,15 +137,20 @@ void CGraphicTextInstance::Update()
 	const int utf8Len = (int)m_stText.size();
 	DWORD dwColor = m_dwTextColor;
 
-	// UTF-8 -> UTF-16 conversion
-	std::vector<wchar_t> wTextBuf((size_t)utf8Len + 1u, 0);
-	int wTextLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8, utf8Len, wTextBuf.data(), (int)wTextBuf.size());
+	m_pCharInfoVector.reserve(utf8Len);
+	m_kernVector.reserve(utf8Len);
+	m_dwColorInfoVector.reserve(utf8Len);
+
+	// UTF-8 -> UTF-16 conversion using static buffer to avoid heap allocations
+	static std::vector<wchar_t> s_wTextBuf;
+	s_wTextBuf.resize((size_t)utf8Len + 1u, 0);
+	int wTextLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8, utf8Len, s_wTextBuf.data(), (int)s_wTextBuf.size());
 
 	// If strict UTF-8 conversion fails, try lenient mode (replaces invalid sequences)
 	if (wTextLen <= 0)
 	{
 		// Try lenient conversion (no MB_ERR_INVALID_CHARS flag)
-		wTextLen = MultiByteToWideChar(CP_UTF8, 0, utf8, utf8Len, wTextBuf.data(), (int)wTextBuf.size());
+		wTextLen = MultiByteToWideChar(CP_UTF8, 0, utf8, utf8Len, s_wTextBuf.data(), (int)s_wTextBuf.size());
 
 		if (wTextLen <= 0)
 		{
@@ -222,13 +227,12 @@ void CGraphicTextInstance::Update()
 			// Re-convert to wide chars for tag-aware processing below
 			const char* utf8 = m_stText.c_str();
 			const int utf8Len = (int)m_stText.size();
-			wTextBuf.clear();
-			wTextBuf.resize((size_t)utf8Len + 1u, 0);
-			wTextLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8, utf8Len, wTextBuf.data(), (int)wTextBuf.size());
+			s_wTextBuf.resize((size_t)utf8Len + 1u, 0);
+			wTextLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8, utf8Len, s_wTextBuf.data(), (int)s_wTextBuf.size());
 
 			if (wTextLen <= 0)
 			{
-				wTextLen = MultiByteToWideChar(CP_UTF8, 0, utf8, utf8Len, wTextBuf.data(), (int)wTextBuf.size());
+				wTextLen = MultiByteToWideChar(CP_UTF8, 0, utf8, utf8Len, s_wTextBuf.data(), (int)s_wTextBuf.size());
 				if (wTextLen <= 0)
 				{
 					ResetState();
@@ -240,11 +244,11 @@ void CGraphicTextInstance::Update()
 	}
 
 	// Check if text contains tags or RTL
-	const bool hasTags = (std::find(wTextBuf.begin(), wTextBuf.begin() + wTextLen, L'|') != (wTextBuf.begin() + wTextLen));
+	const bool hasTags = (std::find(s_wTextBuf.begin(), s_wTextBuf.begin() + wTextLen, L'|') != (s_wTextBuf.begin() + wTextLen));
 	bool hasRTL = false;
 	for (int i = 0; i < wTextLen; ++i)
 	{
-		if (IsRTLCodepoint(wTextBuf[i]))
+		if (IsRTLCodepoint(s_wTextBuf[i]))
 		{
 			hasRTL = true;
 			break;
@@ -342,7 +346,7 @@ void CGraphicTextInstance::Update()
 		{
 			int tagLen = 0;
 			std::wstring tagExtra;
-			int tagType = GetTextTag(&wTextBuf[i], wTextLen - i, tagLen, tagExtra);
+			int tagType = GetTextTag(&s_wTextBuf[i], wTextLen - i, tagLen, tagExtra);
 
 			if (tagType == TEXT_TAG_COLOR)
 			{
@@ -468,13 +472,13 @@ void CGraphicTextInstance::Update()
 				if (hyperlinkStep == 1)
 				{
 					// Collecting hyperlink metadata (hidden)
-					hyperlinkMetadata.push_back(wTextBuf[i]);
+					hyperlinkMetadata.push_back(s_wTextBuf[i]);
 				}
 				else
 				{
 					// Add to current segment
 					// Will be BiDi-processed for normal text, or rendered directly for hyperlinks
-					s_currentSegment.push_back(wTextBuf[i]);
+					s_currentSegment.push_back(s_wTextBuf[i]);
 				}
 				i += tagLen;
 			}
@@ -494,8 +498,8 @@ void CGraphicTextInstance::Update()
 		wchar_t prevCh = 0;
 		for (int i = 0; i < wTextLen; ++i)
 		{
-			__DrawCharacter(pFontTexture, wTextBuf[i], dwColor, prevCh);
-			prevCh = wTextBuf[i];
+			__DrawCharacter(pFontTexture, s_wTextBuf[i], dwColor, prevCh);
+			prevCh = s_wTextBuf[i];
 		}
 	}
 
@@ -560,8 +564,10 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 
 	static std::unordered_map<LPDIRECT3DTEXTURE9, std::vector<SVertex>> s_outlineBatches;
 	static std::unordered_map<LPDIRECT3DTEXTURE9, std::vector<SVertex>> s_mainBatches;
-	s_outlineBatches.clear();
-	s_mainBatches.clear();
+	for (auto& pair : s_outlineBatches)
+		pair.second.clear();
+	for (auto& pair : s_mainBatches)
+		pair.second.clear();
 
 	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
@@ -653,6 +659,8 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 
 				pFontTexture->SelectTexture(pCurCharInfo->index);
 				std::vector<SVertex>& vtxBatch = s_outlineBatches[pFontTexture->GetD3DTexture()];
+				if (vtxBatch.empty())
+					vtxBatch.reserve(m_pCharInfoVector.size() * 24);
 
 				akVertex[0].u=pCurCharInfo->left;
 				akVertex[0].v=pCurCharInfo->top;
@@ -761,6 +769,8 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 
 			pFontTexture->SelectTexture(pCurCharInfo->index);
 			std::vector<SVertex>& vtxBatch = s_mainBatches[pFontTexture->GetD3DTexture()];
+			if (vtxBatch.empty())
+				vtxBatch.reserve(m_pCharInfoVector.size() * 6);
 
 			akVertex[0].x=fFontSx;
 			akVertex[0].y=fFontSy;

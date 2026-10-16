@@ -86,6 +86,7 @@ bool CGraphicFontTexture::CreateDeviceObjects()
 		cachedKeys.push_back(pair.first);
 
 	stl_wipe(m_pFontTextureVector);
+	m_pFontTextureVector.reserve(4);
 	m_charInfoMap.clear();
 	m_x = 0;
 	m_y = 0;
@@ -117,6 +118,8 @@ void CGraphicFontTexture::DestroyDeviceObjects()
 bool CGraphicFontTexture::Create(const char* c_szFontName, int fontSize, bool bItalic)
 {
 	Destroy();
+
+	m_pFontTextureVector.reserve(4);
 
 	m_fontSize = fontSize;
 	m_bItalic = bItalic;

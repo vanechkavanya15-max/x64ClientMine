@@ -60,6 +60,8 @@ void CGrannyModelInstance::SetParentModelInstance(const CGrannyModelInstance* c_
 const D3DXMATRIX * CGrannyModelInstance::GetActiveMeshMatrices() const
 {
 	uint8_t frontIndex = m_activeTransformBuffer.load(std::memory_order_acquire);
+	if (frontIndex >= TRANSFORM_BUFFER_COUNT)
+		frontIndex = 0;
 	return m_meshMatrices[frontIndex];
 }
 
@@ -67,6 +69,8 @@ bool CGrannyModelInstance::IsEmpty()
 {
 	if (m_pModel)
 	{
+		if (m_pModel->GetMeshCount() <= 0)
+			return true;
 		// NO_MESH_BUG_FIX
 		if (!m_meshMatrices[0] && !m_meshMatrices[1])
 			return true;
@@ -112,8 +116,8 @@ void CGrannyModelInstance::__Initialize()
 	m_ppkSkeletonInst = NULL;
 	// END_OF_TEST
 
-	for (int b = 0; b < TRANSFORM_BUFFER_COUNT; ++b)
-		m_meshMatrices[b] = NULL;
+	// Zachowujemy bufory m_meshMatrices, jesli byly zaalokowane (re-use bez alokacji na stercie)
+	m_meshMatrixCount = 0;
 	m_activeTransformBuffer.store(0, std::memory_order_relaxed);
 	m_localPose.Reset();
 
@@ -129,12 +133,17 @@ void CGrannyModelInstance::__Initialize()
 CGrannyModelInstance::CGrannyModelInstance()
 {
 	m_pModel = NULL;
+	for (int b = 0; b < TRANSFORM_BUFFER_COUNT; ++b)
+		m_meshMatrices[b] = NULL;
+	m_meshMatrixCapacity = 0;
+	m_meshMatrixCount = 0;
 	__Initialize();
 }
 
 CGrannyModelInstance::~CGrannyModelInstance()
 {
 	Clear();
+	__DestroyMeshMatrices(true);
 }
 
 CDynamicPool<CGrannyModelInstance> CGrannyModelInstance::ms_kPool;

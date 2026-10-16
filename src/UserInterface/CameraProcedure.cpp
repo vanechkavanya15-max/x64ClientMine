@@ -268,38 +268,43 @@ void CCamera::Update()
 {
 // 	ProcessBuildingCollision();
 
-	RotateEyeAroundTarget(m_v3AngularVelocity.z, m_v3AngularVelocity.x);
+	float fDeltaTime = CCamera::GetDeltaTime();
+	float fTimeScale = fDeltaTime * 60.0f;
 
-	float fNewDistance=fMAX(CAMERA_MIN_DISTANCE, fMIN( CAMERA_MAX_DISTANCE, GetDistance() - m_v3AngularVelocity.y ) );
+	RotateEyeAroundTarget(m_v3AngularVelocity.z * fTimeScale, m_v3AngularVelocity.x * fTimeScale);
+
+	float fNewDistance = fMAX(CAMERA_MIN_DISTANCE, fMIN(CAMERA_MAX_DISTANCE, GetDistance() - m_v3AngularVelocity.y * fTimeScale));
 	SetDistance(fNewDistance);
 	
 	if (m_bProcessTerrainCollision)
  		ProcessTerrainCollision();
 
-	m_v3AngularVelocity *= 0.5f;
-	if (fabs(m_v3AngularVelocity.x) < 1.0f)
+	// Tlumienie predkosci katowej niezalezne od liczby FPS
+	float fDamping = powf(0.5f, fTimeScale);
+	m_v3AngularVelocity *= fDamping;
+	if (fabs(m_v3AngularVelocity.x) < 0.05f)
 		m_v3AngularVelocity.x = 0.0f;
-	if (fabs(m_v3AngularVelocity.y) < 1.0f)
+	if (fabs(m_v3AngularVelocity.y) < 0.05f)
 		m_v3AngularVelocity.y = 0.0f;
-	if (fabs(m_v3AngularVelocity.z) < 1.0f)
+	if (fabs(m_v3AngularVelocity.z) < 0.05f)
 		m_v3AngularVelocity.z = 0.0f;
 
 	const float CAMERA_MOVABLE_DISTANCE = CAMERA_MAX_DISTANCE - CAMERA_MIN_DISTANCE;
 	const float CAMERA_TARGET_DELTA = CAMERA_TARGET_FACE - CAMERA_TARGET_STANDARD;
-	float fCameraCurMovableDistance=CAMERA_MAX_DISTANCE - GetDistance();
+	float fCameraCurMovableDistance = CAMERA_MAX_DISTANCE - GetDistance();
 	float fNewTargetHeight = CAMERA_TARGET_STANDARD + CAMERA_TARGET_DELTA * fCameraCurMovableDistance / CAMERA_MOVABLE_DISTANCE;
 
 	SetTargetHeight(fNewTargetHeight);
 
 	// Cinematic
 #ifdef __20040725_CAMERA_WORK__
-	m_MovementPosition += m_MovementSpeed;
+	m_MovementPosition += m_MovementSpeed * fTimeScale;
 	
 	if (0.0f != m_MovementPosition.m_fViewDir)
-		MoveFront(m_MovementPosition.m_fViewDir);
+		MoveFront(m_MovementPosition.m_fViewDir, fDeltaTime);
 	if (0.0f != m_MovementPosition.m_fCrossDir)
-		MoveAlongCross(m_MovementPosition.m_fCrossDir);
+		MoveAlongCross(m_MovementPosition.m_fCrossDir, fDeltaTime);
 	if (0.0f != m_MovementPosition.m_fUpDir)
-		MoveVertical(m_MovementPosition.m_fUpDir);
+		MoveVertical(m_MovementPosition.m_fUpDir, fDeltaTime);
 #endif
 }

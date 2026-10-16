@@ -30,20 +30,38 @@ bool CGraphicVertexBuffer::LockRange(unsigned count, void** pretVertices) const
 	if (!m_lpd3dVB)
 		return false;
 
-	DWORD dwLockSize=GetVertexStride() * count;
-	if (FAILED(m_lpd3dVB->Lock(0, dwLockSize, (void **) pretVertices, m_dwLockFlag)))
+	DWORD dwLockSize = GetVertexStride() * count;
+	assert(dwLockSize <= m_dwBufferSize);
+	if (dwLockSize > m_dwBufferSize)
+		return false;
+
+	DWORD dwFlags = m_dwLockFlag;
+	if (m_dwUsage & D3DUSAGE_DYNAMIC)
+	{
+		dwFlags = (dwLockSize == m_dwBufferSize) ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+	}
+
+	if (FAILED(m_lpd3dVB->Lock(0, dwLockSize, (void**)pretVertices, dwFlags)))
 		return false;
 
 	return true;
 }
 
-bool CGraphicVertexBuffer::Lock(void ** pretVertices) const
+bool CGraphicVertexBuffer::Lock(void** pretVertices) const
 {
 	if (!m_lpd3dVB)
 		return false;
 
-	DWORD dwLockSize=GetVertexStride()*GetVertexCount();
-	if (FAILED(m_lpd3dVB->Lock(0, dwLockSize, (void **) pretVertices, m_dwLockFlag)))
+	DWORD dwLockSize = GetVertexStride() * GetVertexCount();
+	assert(dwLockSize <= m_dwBufferSize);
+	if (dwLockSize > m_dwBufferSize)
+		return false;
+
+	DWORD dwFlags = m_dwLockFlag;
+	if (m_dwUsage & D3DUSAGE_DYNAMIC)
+		dwFlags = D3DLOCK_DISCARD;
+
+	if (FAILED(m_lpd3dVB->Lock(0, dwLockSize, (void**)pretVertices, dwFlags)))
 		return false;
 
 	return true;
@@ -54,7 +72,7 @@ bool CGraphicVertexBuffer::Unlock() const
 	if (!m_lpd3dVB)
 		return false;
 
-	if ( FAILED(m_lpd3dVB->Unlock()) )
+	if (FAILED(m_lpd3dVB->Unlock()))
 		return false;
 	return true;
 }
@@ -69,18 +87,44 @@ bool CGraphicVertexBuffer::LockDynamic(void** pretVertices)
 	if (!m_lpd3dVB)
 		return false;
 
-	if (FAILED(m_lpd3dVB->Lock(0, 0, (void**)pretVertices, 0)))
+	DWORD dwFlags = (m_dwUsage & D3DUSAGE_DYNAMIC) ? D3DLOCK_DISCARD : 0;
+	if (FAILED(m_lpd3dVB->Lock(0, 0, (void**)pretVertices, dwFlags)))
 		return false;
 
 	return true;
 }
 
-bool CGraphicVertexBuffer::Lock(void ** pretVertices)
+bool CGraphicVertexBuffer::Lock(void** pretVertices)
 {
 	if (!m_lpd3dVB)
 		return false;
 
-	if (FAILED(m_lpd3dVB->Lock(0, 0, (void**)pretVertices, m_dwLockFlag)))
+	DWORD dwFlags = m_dwLockFlag;
+	if (m_dwUsage & D3DUSAGE_DYNAMIC)
+		dwFlags = D3DLOCK_DISCARD;
+
+	if (FAILED(m_lpd3dVB->Lock(0, 0, (void**)pretVertices, dwFlags)))
+		return false;
+
+	return true;
+}
+
+bool CGraphicVertexBuffer::Lock(DWORD offset, DWORD size, void** pretVertices, DWORD dwFlags)
+{
+	if (!m_lpd3dVB)
+		return false;
+
+	assert(offset + size <= m_dwBufferSize);
+	if (offset + size > m_dwBufferSize)
+		return false;
+
+	if (m_dwUsage & D3DUSAGE_DYNAMIC)
+	{
+		if (dwFlags == 0)
+			dwFlags = (size == 0 || size == m_dwBufferSize) ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+	}
+
+	if (FAILED(m_lpd3dVB->Lock(offset, size, pretVertices, dwFlags)))
 		return false;
 
 	return true;
@@ -91,16 +135,27 @@ bool CGraphicVertexBuffer::Unlock()
 	if (!m_lpd3dVB)
 		return false;
 
-	if ( FAILED(m_lpd3dVB->Unlock()) )
+	if (FAILED(m_lpd3dVB->Unlock()))
 		return false;
 	return true;
 }
 
 bool CGraphicVertexBuffer::Copy(int bufSize, const void* srcVertices)
 {
-	void * dstVertices;
+	assert(m_lpd3dVB != NULL);
+	assert(srcVertices != NULL);
+	assert(bufSize > 0);
+	assert((DWORD)bufSize <= m_dwBufferSize);
 
-	if (!Lock(&dstVertices))
+	if (!m_lpd3dVB || !srcVertices || bufSize <= 0 || (DWORD)bufSize > m_dwBufferSize)
+		return false;
+
+	void* dstVertices = nullptr;
+	DWORD dwFlags = m_dwLockFlag;
+	if (m_dwUsage & D3DUSAGE_DYNAMIC)
+		dwFlags = ((DWORD)bufSize == m_dwBufferSize) ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+
+	if (FAILED(m_lpd3dVB->Lock(0, bufSize, &dstVertices, dwFlags)))
 		return false;
 
 	memcpy(dstVertices, srcVertices, bufSize);
@@ -116,16 +171,20 @@ bool CGraphicVertexBuffer::CreateDeviceObjects()
 
 	assert(m_lpd3dVB == NULL);
 
-	if (FAILED(
-		ms_lpd3dDevice->CreateVertexBuffer(
+	HRESULT hr = ms_lpd3dDevice->CreateVertexBuffer(
 		m_dwBufferSize, 
 		m_dwUsage, 
 		m_dwFVF, 
 		m_d3dPool, 
 		&m_lpd3dVB,
-		nullptr)
-		))
+		nullptr);
+
+	if (FAILED(hr))
+	{
+		TraceError("CGraphicVertexBuffer::CreateDeviceObjects: CreateVertexBuffer failed (hr=0x%08X, size=%u, fvf=0x%08X, usage=0x%08X, pool=%d)",
+			hr, m_dwBufferSize, m_dwFVF, m_dwUsage, m_d3dPool);
 		return false;
+	}
 
 	return true;
 }
@@ -148,7 +207,9 @@ bool CGraphicVertexBuffer::Create(int vtxCount, DWORD fvf, DWORD usage, D3DPOOL 
 	m_dwUsage = usage;
 	m_dwFVF = fvf;
 
-	if (usage == D3DUSAGE_WRITEONLY || usage == D3DUSAGE_DYNAMIC)
+	if (usage & D3DUSAGE_DYNAMIC)
+		m_dwLockFlag = D3DLOCK_DISCARD;
+	else if (usage & D3DUSAGE_WRITEONLY)
 		m_dwLockFlag = 0;
 	else
 		m_dwLockFlag = D3DLOCK_READONLY;

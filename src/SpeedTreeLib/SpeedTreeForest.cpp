@@ -131,9 +131,9 @@ void CSpeedTreeForest::DeleteInstance(SpeedTreeWrapperPtr pInstance)
 
 void CSpeedTreeForest::UpdateSystem(float fCurrentTime)
 {
-	// \xbe\xf7\xb5\xa5\xc0\xccƮ \xc7\xd2 \xb6\xa7 \xc7ѹ\xf8
 	static float fLastTime = fCurrentTime;
 	float fElapsedTime = fCurrentTime - fLastTime;
+	fLastTime = fCurrentTime;
 	CSpeedTreeRT::SetTime(fElapsedTime);
 
 	m_fAccumTime += fElapsedTime; 
@@ -183,13 +183,25 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 {
 	// matrix computational data
 	static float afMatrixTimes[c_nNumWindMatrices] = { 0.0f };
-	static float afFrequencies[c_nNumWindMatrices][2] = 
+	static const float afFrequencies[c_nNumWindMatrices][2] = 
 	{
 		{ 0.15f, 0.17f },
 		{ 0.25f, 0.15f },
 		{ 0.19f, 0.05f },
 		{ 0.15f, 0.22f }
 	};
+
+	// Buforowanie macierzy wiatru per klatka, aby zapobiec ich wielokrotnemu przeliczaniu
+	static float s_afCachedMatrices[c_nNumWindMatrices][16] = { { 0.0f } };
+	static float s_fLastComputedTime = -1000.0f;
+	static float s_fLastStrength = -1.0f;
+	static bool s_bMatricesCached = false;
+
+	// Jesli macierze zostaly juz policzone dla tej klatki (czasu) i sily wiatru, pomin kosztowne funkcje trygonometryczne
+	if (s_bMatricesCached && fabsf(fTimeInSecs - s_fLastComputedTime) < 0.0001f && fabsf(m_fWindStrength - s_fLastStrength) < 0.0001f)
+	{
+		return;
+	}
 
 	// compute time since last call
 	static float fTimeOfLastCall = 0.0f;
@@ -199,42 +211,73 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 	// wind strength
 	static float fOldStrength = m_fWindStrength;
 
+	// Jesli brak wiatru, ustaw macierze jednostkowe bez zbednych obliczen sin/cos
+	if (m_fWindStrength <= 0.0001f)
+	{
+		for (int j = 0; j < c_nNumWindMatrices; ++j)
+		{
+			memset(s_afCachedMatrices[j], 0, sizeof(float) * 16);
+			s_afCachedMatrices[j][0] = 1.0f;
+			s_afCachedMatrices[j][5] = 1.0f;
+			s_afCachedMatrices[j][10] = 1.0f;
+			s_afCachedMatrices[j][15] = 1.0f;
+
+			#ifdef WRAPPER_USE_CPU_WIND
+				CSpeedTreeRT::SetWindMatrix(j, s_afCachedMatrices[j]);
+			#endif
+
+			#ifdef WRAPPER_USE_GPU_WIND
+				UploadWindMatrix(c_nVertexShader_WindMatrices + j * 4, s_afCachedMatrices[j]);
+			#endif
+		}
+
+		fOldStrength = m_fWindStrength;
+		s_fLastComputedTime = fTimeInSecs;
+		s_fLastStrength = m_fWindStrength;
+		s_bMatricesCached = true;
+		return;
+	}
+
 	// increment matrix times
-	for (int i = 0; i < c_nNumWindMatrices; ++i)
-		afMatrixTimes[i] += fTimeSinceLastCall;
+	if (fTimeSinceLastCall > 0.0f && fTimeSinceLastCall < 1.0f)
+	{
+		for (int i = 0; i < c_nNumWindMatrices; ++i)
+			afMatrixTimes[i] += fTimeSinceLastCall;
+	}
 
 	// compute maximum branch throw
-	float fBaseAngle = m_fWindStrength * 35.0f;
+	const float fBaseAngle = m_fWindStrength * 35.0f;
+	const float c_fDeg2Rad = 57.2957795f;
+	const float fBaseFreq = m_fWindStrength * 20.0f;
 
 	// build rotation matrices
 	for (int j = 0; j < c_nNumWindMatrices; ++j)
 	{
 		// adjust time to prevent "jumping"
-		if (m_fWindStrength != 0.0f)
+		if (m_fWindStrength != 0.0f && fOldStrength != 0.0f)
 			afMatrixTimes[j] = (afMatrixTimes[j] * fOldStrength) / m_fWindStrength;
 
 		// compute percentages for each axis
-		float fBaseFreq = m_fWindStrength * 20.0f;
-		float fXPercent = sinf(fBaseFreq * afFrequencies[j % c_nNumWindMatrices][0] * afMatrixTimes[j]);
-		float fYPercent = cosf(fBaseFreq * afFrequencies[j % c_nNumWindMatrices][1] * afMatrixTimes[j]);
+		const float fXPercent = sinf(fBaseFreq * afFrequencies[j % c_nNumWindMatrices][0] * afMatrixTimes[j]);
+		const float fYPercent = cosf(fBaseFreq * afFrequencies[j % c_nNumWindMatrices][1] * afMatrixTimes[j]);
 
 		// build compound rotation matrix (rotate on 'x' then on 'y')
-		const float c_fDeg2Rad = 57.2957795f;
-        float fSinX = sinf(fBaseAngle * fXPercent / c_fDeg2Rad);
-        float fSinY = sinf(fBaseAngle * fYPercent / c_fDeg2Rad);
-        float fCosX = cosf(fBaseAngle * fXPercent / c_fDeg2Rad);
-        float fCosY = cosf(fBaseAngle * fYPercent / c_fDeg2Rad);
+		const float fSinX = sinf(fBaseAngle * fXPercent / c_fDeg2Rad);
+		const float fSinY = sinf(fBaseAngle * fYPercent / c_fDeg2Rad);
+		const float fCosX = cosf(fBaseAngle * fXPercent / c_fDeg2Rad);
+		const float fCosY = cosf(fBaseAngle * fYPercent / c_fDeg2Rad);
 
-        float afMatrix[16] = { 0.0f };
-        afMatrix[0] = fCosY;
-        afMatrix[2] = -fSinY;
-        afMatrix[4] = fSinX * fSinY;
-        afMatrix[5] = fCosX;
-        afMatrix[6] = fSinX * fCosY;
-        afMatrix[8] = fSinY * fCosX;
-        afMatrix[9] = -fSinX;
-        afMatrix[10] = fCosX * fCosY;
-        afMatrix[15] = 1.0f;
+		float* afMatrix = s_afCachedMatrices[j];
+		memset(afMatrix, 0, sizeof(float) * 16);
+		afMatrix[0] = fCosY;
+		afMatrix[2] = -fSinY;
+		afMatrix[4] = fSinX * fSinY;
+		afMatrix[5] = fCosX;
+		afMatrix[6] = fSinX * fCosY;
+		afMatrix[8] = fSinY * fCosX;
+		afMatrix[9] = -fSinX;
+		afMatrix[10] = fCosX * fCosY;
+		afMatrix[15] = 1.0f;
 
 		#ifdef WRAPPER_USE_CPU_WIND
 			CSpeedTreeRT::SetWindMatrix(j, afMatrix);
@@ -246,8 +289,11 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 		#endif
 	}
 
-	// track wind strength
+	// track wind strength and frame cache
 	fOldStrength = m_fWindStrength;
+	s_fLastComputedTime = fTimeInSecs;
+	s_fLastStrength = m_fWindStrength;
+	s_bMatricesCached = true;
 }
 
 

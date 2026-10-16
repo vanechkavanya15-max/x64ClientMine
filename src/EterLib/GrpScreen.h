@@ -72,6 +72,16 @@ public:
 	static void Identity();
 	static Frustum & GetFrustum() { return ms_frustum; }
 
+	struct TRenderStatistics
+	{
+		uint32_t dwDrawCallCount;
+		uint32_t dwPrimitiveCount;
+		uint32_t dwFaceCount;
+		float fFrameTimeMs;
+		float fFPS;
+	};
+	static const TRenderStatistics& GetRenderStatistics();
+
 protected:
 	static DWORD		ms_diffuseColor;
 	static DWORD		ms_clearColor;
@@ -79,4 +89,5 @@ protected:
 	static float		ms_clearDepth;
 
 	static Frustum ms_frustum;
+	static TRenderStatistics ms_renderStats;
 };

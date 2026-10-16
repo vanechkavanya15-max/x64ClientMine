@@ -89,7 +89,7 @@ class CGrannyModelInstance : public CGraphicCollisionObject
 		void	UpdateLocalTime(float fElapsedTime);
 		void	UpdateTransform(D3DXMATRIX * pMatrix, float fSecondsElapsed);
 
-		void	UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float fLocalTime);
+		void	UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float fLocalTime, bool bSkipBoneSampling = false);
 		void	DeformNoSkin(const D3DXMATRIX * c_pWorldMatrix);
 		void	Deform(const D3DXMATRIX * c_pWorldMatrix);
 
@@ -159,7 +159,7 @@ class CGrannyModelInstance : public CGraphicCollisionObject
 		void	__Initialize();
 				
 		void	__DestroyModelInstance();
-		void	__DestroyMeshMatrices();
+		void	__DestroyMeshMatrices(bool bForce = false);
 		void	__DestroyDynamicVertexBuffer();
 
 		
@@ -210,6 +210,8 @@ class CGrannyModelInstance : public CGraphicCollisionObject
 		// Meshes' Transform Data (CPU Double-Buffering)
 		enum { TRANSFORM_BUFFER_COUNT = 2 };
 		D3DXMATRIX *					m_meshMatrices[TRANSFORM_BUFFER_COUNT];
+		int								m_meshMatrixCapacity;
+		int								m_meshMatrixCount;
 		std::atomic<uint8_t>			m_activeTransformBuffer;
 
 		// Bone Evaluation Data (Izolowany bufor local_pose per-instancja)

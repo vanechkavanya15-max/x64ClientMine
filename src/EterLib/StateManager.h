@@ -345,10 +345,10 @@ public:
 
 	LPDIRECT3DDEVICE9EX GetDevice();
 
-#ifdef _DEBUG
 	void ResetDrawCallCounter();
 	int GetDrawCallCount() const;
-#endif
+	void ResetPrimitiveCounter();
+	uint32_t GetPrimitiveCount() const;
 
 private:
 	void SetDevice(LPDIRECT3DDEVICE9EX lpDevice);
@@ -378,11 +378,11 @@ private:
 	std::vector<CStreamData>				m_StreamStack[STATEMANAGER_MAX_STREAMS];
 	std::vector<CIndexData>					m_IndexStack;
 
-#ifdef _DEBUG
-	// Saving Flag
+	// Metrics Counters (Active in all configurations)
 	int					m_iDrawCallCount;
 	int					m_iLastDrawCallCount;
-#endif _DEBUG
+	uint32_t			m_dwPrimitiveCount;
+	uint32_t			m_dwLastPrimitiveCount;
 };
 
 #define STATEMANAGER (CStateManager::Instance())

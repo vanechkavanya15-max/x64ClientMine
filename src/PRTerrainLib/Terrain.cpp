@@ -63,8 +63,7 @@ void CTerrainImpl::Clear()
 	{
 		if (m_lpAlphaTexture[i])
 		{
-			m_lpAlphaTexture[i]->Release();
-			m_lpAlphaTexture[i] = NULL;
+			SAFE_RELEASE(m_lpAlphaTexture[i]);
 		}
 	}
 	

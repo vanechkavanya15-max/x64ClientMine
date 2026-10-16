@@ -108,5 +108,8 @@ add_custom_command(TARGET UserInterface POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different
 		$<TARGET_FILE:UserInterface>
 		${CMAKE_SOURCE_DIR}/m2dev-client-main/$<TARGET_FILE_NAME:UserInterface>
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different
+		$<TARGET_FILE:UserInterface>
+		${CMAKE_SOURCE_DIR}/m2dev-client-main/metin2client.exe
 	COMMENT "Deploying binary to m2dev-client-main runtime directory..."
 )

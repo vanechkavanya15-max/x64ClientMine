@@ -202,29 +202,106 @@ void CPythonTextTail::ArrangeTextTail()
 			++itorCompare;
 		}
 
+		// Dampened LERP for item text tail vertical position
+		if (!pInsertTextTail->bInitCurY || fabsf(pInsertTextTail->y - pInsertTextTail->fCurY) > 150.0f)
+		{
+			pInsertTextTail->fCurY = pInsertTextTail->y;
+			pInsertTextTail->bInitCurY = true;
+		}
+		else
+		{
+			const float fDamping = 0.25f;
+			pInsertTextTail->fCurY += (pInsertTextTail->y - pInsertTextTail->fCurY) * fDamping;
+		}
+		pInsertTextTail->y = pInsertTextTail->fCurY;
+
+		// Distance culling & Alpha fade-out (2500 - 3500)
+		float fAlpha = 1.0f;
+		if (pInsertTextTail->fDistanceFromPlayer >= 3500.0f)
+			fAlpha = 0.0f;
+		else if (pInsertTextTail->fDistanceFromPlayer > 2500.0f)
+			fAlpha = 1.0f - (pInsertTextTail->fDistanceFromPlayer - 2500.0f) / 1000.0f;
 
 		if (pInsertTextTail->pOwnerTextInstance)
 		{
 			pInsertTextTail->pOwnerTextInstance->SetPosition(pInsertTextTail->x, pInsertTextTail->y, pInsertTextTail->z);
+			pInsertTextTail->pOwnerTextInstance->SetColor(1.0f, 1.0f, 1.0f, fAlpha);
+			pInsertTextTail->pOwnerTextInstance->SetOutLineColor(0.0f, 0.0f, 0.0f, fAlpha);
 			pInsertTextTail->pOwnerTextInstance->Update();
 
-			pInsertTextTail->pTextInstance->SetColor(pInsertTextTail->Color.r, pInsertTextTail->Color.g, pInsertTextTail->Color.b);
+			pInsertTextTail->pTextInstance->SetColor(pInsertTextTail->Color.r, pInsertTextTail->Color.g, pInsertTextTail->Color.b, fAlpha);
+			pInsertTextTail->pTextInstance->SetOutLineColor(0.0f, 0.0f, 0.0f, fAlpha);
 			pInsertTextTail->pTextInstance->SetPosition(pInsertTextTail->x, pInsertTextTail->y + 15.0f, pInsertTextTail->z);
 			pInsertTextTail->pTextInstance->Update();
 
 		}
 		else
 		{
-			pInsertTextTail->pTextInstance->SetColor(pInsertTextTail->Color.r, pInsertTextTail->Color.g, pInsertTextTail->Color.b);
+			pInsertTextTail->pTextInstance->SetColor(pInsertTextTail->Color.r, pInsertTextTail->Color.g, pInsertTextTail->Color.b, fAlpha);
+			pInsertTextTail->pTextInstance->SetOutLineColor(0.0f, 0.0f, 0.0f, fAlpha);
 			pInsertTextTail->pTextInstance->SetPosition(pInsertTextTail->x, pInsertTextTail->y, pInsertTextTail->z);
 			pInsertTextTail->pTextInstance->Update();
 
 		}
 	}
 
+	// Character TextTail collision resolution
+	for (itor = m_CharacterTextTailList.begin(); itor != m_CharacterTextTailList.end(); ++itor)
+	{
+		TTextTail * pInsertTextTail = *itor;
+
+		int yTemp = 3;
+		int LimitCount = 0;
+
+		for (itorCompare = m_CharacterTextTailList.begin(); itorCompare != m_CharacterTextTailList.end();)
+		{
+			TTextTail * pCompareTextTail = *itorCompare;
+
+			if (*itorCompare == *itor)
+			{
+				++itorCompare;
+				continue;
+			}
+
+			if (LimitCount >= 10)
+				break;
+
+			if (isIn(pInsertTextTail, pCompareTextTail))
+			{
+				pInsertTextTail->y = pCompareTextTail->y - (pCompareTextTail->yEnd - pCompareTextTail->yStart + yTemp);
+
+				itorCompare = m_CharacterTextTailList.begin();
+				++LimitCount;
+				continue;
+			}
+
+			++itorCompare;
+		}
+	}
+
 	for (itor = m_CharacterTextTailList.begin(); itor != m_CharacterTextTailList.end(); ++itor)
 	{
 		TTextTail* pTextTail = *itor;
+
+		// Dampened LERP for character text tail vertical position (eliminates jitter/flickering)
+		if (!pTextTail->bInitCurY || fabsf(pTextTail->y - pTextTail->fCurY) > 150.0f)
+		{
+			pTextTail->fCurY = pTextTail->y;
+			pTextTail->bInitCurY = true;
+		}
+		else
+		{
+			const float fDamping = 0.25f;
+			pTextTail->fCurY += (pTextTail->y - pTextTail->fCurY) * fDamping;
+		}
+		pTextTail->y = pTextTail->fCurY;
+
+		// Distance culling & Alpha fade-out (2500 - 3500)
+		float fAlpha = 1.0f;
+		if (pTextTail->fDistanceFromPlayer >= 3500.0f)
+			fAlpha = 0.0f;
+		else if (pTextTail->fDistanceFromPlayer > 2500.0f)
+			fAlpha = 1.0f - (pTextTail->fDistanceFromPlayer - 2500.0f) / 1000.0f;
 
 		CGraphicMarkInstance* pMarkInstance = pTextTail->pMarkInstance;
 		CGraphicTextInstance* pGuildNameInstance = pTextTail->pGuildNameTextInstance;
@@ -235,7 +312,10 @@ void CPythonTextTail::ArrangeTextTail()
 			pGuildNameInstance->GetTextSize(&iWidth, &iHeight);
 
 			pMarkInstance->SetPosition(pTextTail->x - iWidth / 2 - iImageHalfSize, pTextTail->y - c_fyMarkPosition);
+			pMarkInstance->SetDiffuseColor(1.0f, 1.0f, 1.0f, fAlpha);
 			pGuildNameInstance->SetPosition(pTextTail->x + iImageHalfSize, pTextTail->y - c_fyGuildNamePosition, pTextTail->z);
+			pGuildNameInstance->SetColor(c_TextTail_Guild_Name_Color.r, c_TextTail_Guild_Name_Color.g, c_TextTail_Guild_Name_Color.b, fAlpha);
+			pGuildNameInstance->SetOutLineColor(0.0f, 0.0f, 0.0f, fAlpha);
 			pGuildNameInstance->Update();
 		}
 
@@ -257,12 +337,24 @@ void CPythonTextTail::ArrangeTextTail()
 		const float nameLeftEdge = pTextTail->x - (iNameWidth / 2.0f);
 		float cursor = nameLeftEdge - fxAdd;
 
+		if (pTextTail->pTitleTextInstance)
+		{
+			pTextTail->pTitleTextInstance->SetColor(pTextTail->TitleColor.r, pTextTail->TitleColor.g, pTextTail->TitleColor.b, fAlpha);
+			pTextTail->pTitleTextInstance->SetOutLineColor(0.0f, 0.0f, 0.0f, fAlpha);
+		}
+		if (pTextTail->pLevelTextInstance)
+		{
+			pTextTail->pLevelTextInstance->SetColor(pTextTail->LevelColor.r, pTextTail->LevelColor.g, pTextTail->LevelColor.b, fAlpha);
+			pTextTail->pLevelTextInstance->SetOutLineColor(0.0f, 0.0f, 0.0f, fAlpha);
+		}
+
 		// [Level] [Title] Name - LTR.
 		// It can be set for RTL - Name [Title] [Level] by adding the required check.
 		cursor = TextTailBiDi(pTextTail->pTitleTextInstance, cursor, nameY, pTextTail->z, fxAdd, EPlaceDir::Left);
 		cursor = TextTailBiDi(pTextTail->pLevelTextInstance, cursor, nameY, pTextTail->z, fxAdd, EPlaceDir::Left);
 
-		pTextTail->pTextInstance->SetColor(pTextTail->Color.r, pTextTail->Color.g, pTextTail->Color.b);
+		pTextTail->pTextInstance->SetColor(pTextTail->Color.r, pTextTail->Color.g, pTextTail->Color.b, fAlpha);
+		pTextTail->pTextInstance->SetOutLineColor(0.0f, 0.0f, 0.0f, fAlpha);
 		pTextTail->pTextInstance->SetPosition(nameX, nameY, pTextTail->z);
 		pTextTail->pTextInstance->Update();
 	}
@@ -293,6 +385,9 @@ void CPythonTextTail::Render()
 	for (itor = m_CharacterTextTailList.begin(); itor != m_CharacterTextTailList.end(); ++itor)
 	{
 		TTextTail * pTextTail = *itor;
+		if (pTextTail->fDistanceFromPlayer >= 3500.0f)
+			continue;
+
 		pTextTail->pTextInstance->Render();
 		if (pTextTail->pMarkInstance && pTextTail->pGuildNameTextInstance)
 		{
@@ -312,6 +407,8 @@ void CPythonTextTail::Render()
 	for (itor = m_ItemTextTailList.begin(); itor != m_ItemTextTailList.end(); ++itor)
 	{
 		TTextTail * pTextTail = *itor;
+		if (pTextTail->fDistanceFromPlayer >= 3500.0f)
+			continue;
 
 		RenderTextTailBox(pTextTail);
 		pTextTail->pTextInstance->Render();
@@ -329,8 +426,14 @@ void CPythonTextTail::Render()
 
 void CPythonTextTail::RenderTextTailBox(TTextTail * pTextTail)
 {
+	float fAlpha = 1.0f;
+	if (pTextTail->fDistanceFromPlayer >= 3500.0f)
+		return;
+	else if (pTextTail->fDistanceFromPlayer > 2500.0f)
+		fAlpha = 1.0f - (pTextTail->fDistanceFromPlayer - 2500.0f) / 1000.0f;
+
 	// 검은색 테두리
-	CPythonGraphic::Instance().SetDiffuseColor(0.0f, 0.0f, 0.0f, 1.0f);
+	CPythonGraphic::Instance().SetDiffuseColor(0.0f, 0.0f, 0.0f, 1.0f * fAlpha);
 	CPythonGraphic::Instance().RenderBox2d(pTextTail->x + pTextTail->xStart,
 										   pTextTail->y + pTextTail->yStart,
 										   pTextTail->x + pTextTail->xEnd,
@@ -338,7 +441,7 @@ void CPythonTextTail::RenderTextTailBox(TTextTail * pTextTail)
 										   pTextTail->z);
 
 	// 검은색 투명박스
-	CPythonGraphic::Instance().SetDiffuseColor(0.0f, 0.0f, 0.0f, 0.3f);
+	CPythonGraphic::Instance().SetDiffuseColor(0.0f, 0.0f, 0.0f, 0.3f * fAlpha);
 	CPythonGraphic::Instance().RenderBar2d(pTextTail->x + pTextTail->xStart,
 										   pTextTail->y + pTextTail->yStart,
 										   pTextTail->x + pTextTail->xEnd,
@@ -760,6 +863,10 @@ CPythonTextTail::TTextTail * CPythonTextTail::RegisterTextTail(DWORD dwVirtualID
 	pTextTail->x = -100.0f;
 	pTextTail->y = -100.0f;
 	pTextTail->z = 0.0f;
+	pTextTail->fCurY = -100.0f;
+	pTextTail->bInitCurY = false;
+	pTextTail->TitleColor = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
+	pTextTail->LevelColor = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
 	pTextTail->pMarkInstance = NULL;
 	pTextTail->pGuildNameTextInstance = NULL;
 	pTextTail->pTitleTextInstance = NULL;
@@ -841,6 +948,7 @@ void CPythonTextTail::AttachTitle(DWORD dwVID, const char * c_szName, const D3DX
 		return;
 
 	TTextTail * pTextTail = itor->second;
+	pTextTail->TitleColor = c_rColor;
 
 	CGraphicTextInstance *& prTitle = pTextTail->pTitleTextInstance;
 	if (!prTitle)
@@ -890,6 +998,7 @@ void CPythonTextTail::AttachLevel(DWORD dwVID, const char * c_szText, const D3DX
 		return;
 
 	TTextTail * pTextTail = itor->second;
+	pTextTail->LevelColor = c_rColor;
 
 	CGraphicTextInstance *& prLevel = pTextTail->pLevelTextInstance;
 	if (!prLevel)

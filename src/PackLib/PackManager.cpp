@@ -5,6 +5,27 @@
 #include <algorithm>
 #include "EterBase/Debug.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+static std::string PathToGenericUtf8String(const std::filesystem::path& p)
+{
+	std::wstring w = p.generic_wstring();
+	if (w.empty())
+		return {};
+#ifdef _WIN32
+	int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), static_cast<int>(w.size()), nullptr, 0, nullptr, nullptr);
+	if (sizeNeeded <= 0)
+		return {};
+	std::string result(sizeNeeded, '\0');
+	WideCharToMultiByte(CP_UTF8, 0, w.c_str(), static_cast<int>(w.size()), &result[0], sizeNeeded, nullptr, nullptr);
+	return result;
+#else
+	return p.generic_string();
+#endif
+}
+
 static std::string StripDrivePrefix(std::string_view p)
 {
 	// Usun wiodace ukosniki
@@ -74,22 +95,22 @@ bool CPackManager::AddPack(const std::string& path)
 		if (std::filesystem::exists(cand, ec) && std::filesystem::is_directory(cand, ec))
 		{
 			auto can = std::filesystem::canonical(cand, ec);
-			m_assetBasePath = ec ? cand.generic_string() : can.generic_string();
+			m_assetBasePath = ec ? PathToGenericUtf8String(cand) : PathToGenericUtf8String(can);
 		}
 		else if (std::filesystem::exists("assets", ec) && std::filesystem::is_directory("assets", ec))
 		{
 			auto can = std::filesystem::canonical("assets", ec);
-			m_assetBasePath = ec ? "assets" : can.generic_string();
+			m_assetBasePath = ec ? "assets" : PathToGenericUtf8String(can);
 		}
 		else if (std::filesystem::exists("m2dev-client-main/assets", ec) && std::filesystem::is_directory("m2dev-client-main/assets", ec))
 		{
 			auto can = std::filesystem::canonical("m2dev-client-main/assets", ec);
-			m_assetBasePath = ec ? "m2dev-client-main/assets" : can.generic_string();
+			m_assetBasePath = ec ? "m2dev-client-main/assets" : PathToGenericUtf8String(can);
 		}
 		else if (std::filesystem::exists("../../m2dev-client-main/assets", ec) && std::filesystem::is_directory("../../m2dev-client-main/assets", ec))
 		{
 			auto can = std::filesystem::canonical("../../m2dev-client-main/assets", ec);
-			m_assetBasePath = ec ? "../../m2dev-client-main/assets" : can.generic_string();
+			m_assetBasePath = ec ? "../../m2dev-client-main/assets" : PathToGenericUtf8String(can);
 		}
 	}
 
@@ -107,6 +128,24 @@ bool CPackManager::AddPack(const std::string& path)
 	return true;
 }
 
+static bool DiskFileExists(const std::string& fullPath)
+{
+	if (fullPath.empty())
+		return false;
+#ifdef _WIN32
+	int wlen = MultiByteToWideChar(CP_UTF8, 0, fullPath.c_str(), static_cast<int>(fullPath.size()), nullptr, 0);
+	if (wlen <= 0)
+		return false;
+	std::wstring wpath(wlen, L'\0');
+	MultiByteToWideChar(CP_UTF8, 0, fullPath.c_str(), static_cast<int>(fullPath.size()), &wpath[0], wlen);
+	DWORD attr = GetFileAttributesW(wpath.c_str());
+	return (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY));
+#else
+	std::error_code ec;
+	return std::filesystem::is_regular_file(std::filesystem::u8path(fullPath), ec);
+#endif
+}
+
 void CPackManager::EnsureAssetIndexBuilt() const
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
@@ -119,48 +158,17 @@ void CPackManager::EnsureAssetIndexBuilt() const
 		if (std::filesystem::exists("assets", ec) && std::filesystem::is_directory("assets", ec))
 		{
 			auto can = std::filesystem::canonical("assets", ec);
-			m_assetBasePath = ec ? "assets" : can.generic_string();
+			m_assetBasePath = ec ? "assets" : PathToGenericUtf8String(can);
 		}
 		else if (std::filesystem::exists("m2dev-client-main/assets", ec) && std::filesystem::is_directory("m2dev-client-main/assets", ec))
 		{
 			auto can = std::filesystem::canonical("m2dev-client-main/assets", ec);
-			m_assetBasePath = ec ? "m2dev-client-main/assets" : can.generic_string();
+			m_assetBasePath = ec ? "m2dev-client-main/assets" : PathToGenericUtf8String(can);
 		}
 		else if (std::filesystem::exists("../../m2dev-client-main/assets", ec) && std::filesystem::is_directory("../../m2dev-client-main/assets", ec))
 		{
 			auto can = std::filesystem::canonical("../../m2dev-client-main/assets", ec);
-			m_assetBasePath = ec ? "../../m2dev-client-main/assets" : can.generic_string();
-		}
-	}
-
-	if (m_assetBasePath.empty())
-	{
-		m_assetIndexBuilt = true;
-		return;
-	}
-
-	std::error_code ec;
-	std::filesystem::path rootPath = std::filesystem::u8path(m_assetBasePath);
-	if (!std::filesystem::exists(rootPath, ec) || !std::filesystem::is_directory(rootPath, ec))
-	{
-		m_assetIndexBuilt = true;
-		return;
-	}
-
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(rootPath, std::filesystem::directory_options::skip_permission_denied, ec))
-	{
-		if (entry.is_regular_file(ec))
-		{
-			auto rel = std::filesystem::relative(entry.path(), rootPath, ec);
-			if (!ec)
-			{
-				std::string relNorm;
-				NormalizePath(rel.generic_string(), relNorm);
-				if (!relNorm.empty())
-				{
-					m_assetFileIndex[relNorm] = entry.path().generic_string();
-				}
-			}
+			m_assetBasePath = ec ? "../../m2dev-client-main/assets" : PathToGenericUtf8String(can);
 		}
 	}
 
@@ -170,6 +178,11 @@ void CPackManager::EnsureAssetIndexBuilt() const
 std::string CPackManager::ResolveDiskPath(const std::string& clean, const std::string& preferredPack) const
 {
 	if (clean.empty())
+		return {};
+
+	EnsureAssetIndexBuilt();
+
+	if (m_assetBasePath.empty())
 		return {};
 
 	std::string cacheKey = preferredPack.empty() ? clean : (preferredPack + "#" + clean);
@@ -183,33 +196,22 @@ std::string CPackManager::ResolveDiskPath(const std::string& clean, const std::s
 		}
 	}
 
-	EnsureAssetIndexBuilt();
-
-	std::lock_guard<std::mutex> lock(m_mutex);
-	auto it = m_diskPathCache.find(cacheKey);
-	if (it != m_diskPathCache.end())
-	{
-		return it->second;
-	}
-
 	std::string resolvedPath;
 
 	// 1. assets/<clean>
-	auto fit = m_assetFileIndex.find(clean);
-	if (fit != m_assetFileIndex.end())
+	std::string cand1 = m_assetBasePath + "/" + clean;
+	if (DiskFileExists(cand1))
 	{
-		resolvedPath = fit->second;
+		resolvedPath = cand1;
 	}
 
 	// 2. assets/<preferredPack>/<clean>
 	if (resolvedPath.empty() && !preferredPack.empty())
 	{
-		std::string candNorm;
-		NormalizePath(preferredPack + "/" + clean, candNorm);
-		auto pit = m_assetFileIndex.find(candNorm);
-		if (pit != m_assetFileIndex.end())
+		std::string cand2 = m_assetBasePath + "/" + preferredPack + "/" + clean;
+		if (DiskFileExists(cand2))
 		{
-			resolvedPath = pit->second;
+			resolvedPath = cand2;
 		}
 	}
 
@@ -221,17 +223,16 @@ std::string CPackManager::ResolveDiskPath(const std::string& clean, const std::s
 			if (*rit == preferredPack)
 				continue;
 
-			std::string candNorm;
-			NormalizePath(*rit + "/" + clean, candNorm);
-			auto oit = m_assetFileIndex.find(candNorm);
-			if (oit != m_assetFileIndex.end())
+			std::string cand3 = m_assetBasePath + "/" + *rit + "/" + clean;
+			if (DiskFileExists(cand3))
 			{
-				resolvedPath = oit->second;
+				resolvedPath = cand3;
 				break;
 			}
 		}
 	}
 
+	std::lock_guard<std::mutex> lock(m_mutex);
 	m_diskPathCache[cacheKey] = resolvedPath;
 	return resolvedPath;
 }
@@ -253,7 +254,15 @@ bool CPackManager::GetFileWithPool(std::string_view path, TPackFile& result, CBu
 			return false;
 
 		std::error_code ec;
+#ifdef _WIN32
+		int wlen = MultiByteToWideChar(CP_UTF8, 0, diskPath.c_str(), static_cast<int>(diskPath.size()), nullptr, 0);
+		std::wstring wdisk(wlen, L'\0');
+		if (wlen > 0)
+			MultiByteToWideChar(CP_UTF8, 0, diskPath.c_str(), static_cast<int>(diskPath.size()), &wdisk[0], wlen);
+		std::filesystem::path fspath(wdisk);
+#else
 		std::filesystem::path fspath = std::filesystem::u8path(diskPath);
+#endif
 		if (std::filesystem::exists(fspath, ec) && std::filesystem::is_regular_file(fspath, ec)) {
 			std::ifstream ifs(fspath, std::ios::binary);
 			if (ifs.is_open()) {

@@ -64,8 +64,18 @@ void CTerrainPatch::BuildWaterVertexBuffer(SWaterVertex* akSrcVertex, UINT uWate
 {
 	CGraphicVertexBuffer& rkVB=m_WaterVertexBuffer;
 
-	if (!rkVB.Create(uWaterVertexCount, D3DFVF_XYZ | D3DFVF_DIFFUSE, D3DUSAGE_DYNAMIC, D3DPOOL_DEFAULT)) 
+	if (uWaterVertexCount == 0 || !akSrcVertex)
+	{
+		rkVB.Destroy();
+		m_dwWaterPriCount = 0;
 		return;
+	}
+
+	if (!rkVB.Create(uWaterVertexCount, D3DFVF_XYZ | D3DFVF_DIFFUSE, D3DUSAGE_DYNAMIC, D3DPOOL_DEFAULT)) 
+	{
+		m_dwWaterPriCount = 0;
+		return;
+	}
 	
 	SWaterVertex* akDstWaterVertex;
 	if (rkVB.Lock((void **) &akDstWaterVertex))
@@ -75,7 +85,11 @@ void CTerrainPatch::BuildWaterVertexBuffer(SWaterVertex* akSrcVertex, UINT uWate
 		m_dwWaterPriCount=uWaterVertexCount/3;
 
 		rkVB.Unlock();		
-	}	
+	}
+	else
+	{
+		m_dwWaterPriCount = 0;
+	}
 }
 		
 void CTerrainPatch::BuildTerrainVertexBuffer(HardwareTransformPatch_SSourceVertex* akSrcVertex)

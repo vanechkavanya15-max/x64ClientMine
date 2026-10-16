@@ -320,6 +320,7 @@ class CGrannyLODController : public CGraphicCollisionObject
 		CGrannyLODController *				m_pAttachedParentModel;
 
 		BYTE								m_bLODLevel;
+		DWORD								m_dwSampleFrameCounter;
 		CGrannyModelInstance *				m_pCurrentModelInstance;		
 
 		// WORK

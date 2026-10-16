@@ -241,6 +241,7 @@ void CGrannyLODController::SetSpecularInfo(const char* c_szMtrlName, BOOL bEnabl
 CGrannyLODController::CGrannyLODController() : 
 	m_pCurrentModelInstance(NULL),
 	m_bLODLevel(0),
+	m_dwSampleFrameCounter(0),
 	m_pAttachedParentModel(NULL),
 	m_fLODDistance(0.0f),
 	m_dwLODAniFPS(CGrannyModelInstance::ANIFPS_MAX),
@@ -267,6 +268,7 @@ CGrannyLODController::~CGrannyLODController()
 void CGrannyLODController::Clear()
 {
 	m_gltfMaterials.clear();
+	m_dwSampleFrameCounter = 0;
 
 	if (m_pGltfModelInstance)
 	{
@@ -282,26 +284,37 @@ void CGrannyLODController::Clear()
 		m_pAttachedParentModel->DetachModelInstance(this);
 	}
 
+	// Bezpieczne odpiecie wszystkich dzieci przed usunieciem instancji modeli nadrzednych
+	for (size_t c = 0; c < m_AttachedModelDataVector.size(); ++c)
+	{
+		CGrannyLODController * pkChild = m_AttachedModelDataVector[c].pkLODController;
+		if (pkChild)
+		{
+			pkChild->m_pAttachedParentModel = NULL;
+			if (pkChild->m_pGltfModelInstance)
+			{
+				pkChild->m_pGltfModelInstance->SetParentModelInstance(NULL, -1);
+				pkChild->m_pGltfModelInstance->SetParentBoneMatrix(NULL);
+				pkChild->m_pGltfModelInstance->LinkSkeleton(NULL);
+			}
+			for (size_t lod = 0; lod < pkChild->m_que_pkModelInst.size(); ++lod)
+			{
+				CGrannyModelInstance * pChildInst = pkChild->m_que_pkModelInst[lod];
+				if (pChildInst)
+				{
+					pChildInst->SetParentModelInstance(NULL, 0);
+					pChildInst->SetCustomParentBoneMatrix(NULL);
+				}
+			}
+		}
+	}
+	m_AttachedModelDataVector.clear();
+
 	m_pCurrentModelInstance = NULL;
 	m_pAttachedParentModel = NULL;
 
 	std::for_each(m_que_pkModelInst.begin(), m_que_pkModelInst.end(), CGrannyModelInstance::Delete);
 	m_que_pkModelInst.clear();
-
-	std::vector<TAttachingModelData>::iterator itor = m_AttachedModelDataVector.begin();
-	for (; m_AttachedModelDataVector.end() != itor; ++itor)
-	{
-		TAttachingModelData & rData = *itor;
-		rData.pkLODController->m_pAttachedParentModel = NULL;
-		if (rData.pkLODController->m_pGltfModelInstance)
-		{
-			rData.pkLODController->m_pGltfModelInstance->SetParentModelInstance(NULL, -1);
-			rData.pkLODController->m_pGltfModelInstance->SetParentBoneMatrix(NULL);
-			rData.pkLODController->m_pGltfModelInstance->LinkSkeleton(NULL);
-		}
-	}
-
-	m_AttachedModelDataVector.clear();
 }
 
 void CGrannyLODController::AddModel(CGraphicThing * pThing, int iSrcModel, CGrannyLODController * pSkelLODController)
@@ -478,11 +491,22 @@ void CGrannyLODController::DetachModelInstance(CGrannyLODController * pSrcLODCon
 		pSrcLODController->m_pGltfModelInstance->LinkSkeleton(NULL);
 	}
 
+	// Bezpieczne odpiecie wskaznika instancji rodzica we wszystkich poziomach LOD instancji dziecka
+	for (size_t lod = 0; lod < pSrcLODController->m_que_pkModelInst.size(); ++lod)
+	{
+		CGrannyModelInstance * pInst = pSrcLODController->m_que_pkModelInst[lod];
+		if (pInst)
+		{
+			pInst->SetParentModelInstance(NULL, 0);
+			pInst->SetCustomParentBoneMatrix(NULL);
+		}
+	}
+
 	CGrannyModelInstance * pSrcInstance = pSrcLODController->GetModelInstance();
-	CGrannyModelInstance * pDestInstance = GetModelInstance();
-	if (pSrcInstance && pDestInstance)
+	if (pSrcInstance)
 	{
 		pSrcInstance->SetParentModelInstance(NULL, 0);
+		pSrcInstance->SetCustomParentBoneMatrix(NULL);
 	}
 
 	// Unlink Child Data
@@ -810,7 +834,21 @@ void CGrannyLODController::UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, flo
 		m_pGltfModelInstance->Update(fElapsedTime);
 
 	if (m_pCurrentModelInstance)
-		m_pCurrentModelInstance->UpdateSkeleton(c_pWorldMatrix, fElapsedTime);
+	{
+		++m_dwSampleFrameCounter;
+		bool bSkipBoneSampling = false;
+		// Optymalizacja czestotliwosci probkowania animacji dla postaci oddalonych od kamery (LOD2/LOD3):
+		// Pomijanie probkowania kosci co druga klatke
+		if (m_bLODLevel >= 2)
+		{
+			if ((m_dwSampleFrameCounter & 1) != 0)
+			{
+				bSkipBoneSampling = true;
+			}
+		}
+
+		m_pCurrentModelInstance->UpdateSkeleton(c_pWorldMatrix, fElapsedTime, bSkipBoneSampling);
+	}
 
 	RefreshAttachedModelInstance();
 }

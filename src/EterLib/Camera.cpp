@@ -4,12 +4,29 @@
 
 #include "StdAfx.h"
 #include "EterBase/Utils.h"
+#include "EterBase/Timer.h"
+#include "FrameTimer.h"
 #include "Camera.h"
 #include <cmath>
+#include <algorithm>
 
 const float c_fDefaultResistance = 0.3f;
 
 CCameraManager aCameraManager;	// CCameraManager Instance
+
+float CCamera::GetDeltaTime()
+{
+	float dt = FrameTimer::Instance().GetDeltaTime();
+	if (dt <= 0.0f || std::isnan(dt))
+	{
+		dt = CTimer::Instance().GetElapsedSecond();
+	}
+	if (dt <= 0.0001f || dt > 0.2f || std::isnan(dt))
+	{
+		dt = 1.0f / 60.0f;
+	}
+	return dt;
+}
 
 void CCamera::SetCameraMaxDistance(float fMax)
 {
@@ -264,94 +281,119 @@ bool IsNaN(const D3DXVECTOR3& v)
 
 void CCamera::SetViewMatrix()
 {
-	// Calculate view direction
-	m_v3View = m_v3Target - m_v3Eye;
-	if (IsNaN(m_v3View))
+	// Sprawdzenie integralnosci wektorow zrodlowych
+	if (IsNaN(m_v3Eye) || IsNaN(m_v3Target) || IsNaN(m_v3Up))
 	{
-		m_v3View = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+		m_v3Eye = D3DXVECTOR3(0.0f, -500.0f, 200.0f);
+		m_v3Target = D3DXVECTOR3(0.0f, 0.0f, 100.0f);
+		m_v3Up = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
 	}
 
-	// v3CenterRay is the reverse of the view vector
+	// Obliczenie kierunku widoku
+	m_v3View = m_v3Target - m_v3Eye;
+	float viewLenSq = D3DXVec3LengthSq(&m_v3View);
+	if (viewLenSq < 1e-6f || std::isnan(viewLenSq) || IsNaN(m_v3View))
+	{
+		// Eye jest zbyt blisko targetu (np. scisniecie przez kolizje z terenem)
+		// Odsun eye na bezpieczna odleglosc wzdluz bezpiecznego wektora
+		m_v3View = D3DXVECTOR3(0.0f, -1.0f, 0.5f);
+		D3DXVec3Normalize(&m_v3View, &m_v3View);
+		m_v3Eye = m_v3Target - m_v3View * 10.0f;
+		viewLenSq = 100.0f;
+	}
+
+	m_fDistance = std::sqrt(viewLenSq);
+	if (std::isnan(m_fDistance) || m_fDistance < 1e-4f)
+	{
+		m_fDistance = 10.0f;
+	}
+	m_v3View /= m_fDistance;
+
+	// v3CenterRay jest odwrotnoscia wektora widoku
 	D3DXVECTOR3 v3CenterRay = -m_v3View;
 
-	// Calculate roll (if this function uses m_v3View, ensure it’s valid)
+	// Bezpieczne obliczenie roll
 	CalculateRoll();
 
-	// Compute the distance from eye to target
-	m_fDistance = D3DXVec3Length(&m_v3View);
-	if (std::isnan(m_fDistance))
+	// Normalizacja i walidacja Up
+	float upLenSq = D3DXVec3LengthSq(&m_v3Up);
+	if (upLenSq < 1e-6f || std::isnan(upLenSq) || IsNaN(m_v3Up))
 	{
-		m_fDistance = 0.0f;
-	}
-	m_fDistance = std::fmax(0.0f, m_fDistance);
-	assert(m_fDistance >= 0);
-
-	// Normalize the view vector if possible
-	if (m_fDistance > FLT_EPSILON)
-	{
-		D3DXVec3Normalize(&m_v3View, &m_v3View);
+		m_v3Up = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
 	}
 	else
 	{
-		// Avoid dividing by zero; set to a default forward direction
-		m_v3View = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+		m_v3Up /= std::sqrt(upLenSq);
 	}
 
-	// Compute the cross product for the right vector and normalize
+	// Wektor Cross (Right) = Up x View
 	D3DXVec3Cross(&m_v3Cross, &m_v3Up, &m_v3View);
-	float crossLength = D3DXVec3Length(&m_v3Cross);
-	if (crossLength > FLT_EPSILON)
+	float crossLenSq = D3DXVec3LengthSq(&m_v3Cross);
+	if (crossLenSq < 1e-6f || std::isnan(crossLenSq) || IsNaN(m_v3Cross))
 	{
-		D3DXVec3Normalize(&m_v3Cross, &m_v3Cross);
+		// Gimbal lock: Up i View sa niemal rownolegle (widok pionowo w dol/gore)
+		D3DXVECTOR3 refAxis = (fabsf(m_v3View.z) > 0.9f) ? D3DXVECTOR3(0.0f, 1.0f, 0.0f) : D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+		D3DXVec3Cross(&m_v3Cross, &refAxis, &m_v3View);
+		crossLenSq = D3DXVec3LengthSq(&m_v3Cross);
+		if (crossLenSq < 1e-6f || std::isnan(crossLenSq))
+		{
+			m_v3Cross = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+		}
+		else
+		{
+			m_v3Cross /= std::sqrt(crossLenSq);
+		}
 	}
 	else
 	{
-		// Use a default right vector if the cross product is near zero
-		m_v3Cross = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+		m_v3Cross /= std::sqrt(crossLenSq);
 	}
 
-	// Recompute the up vector and normalize
+	// Rekalkulacja Up = View x Cross dla idealnej ortonormalnosci
 	D3DXVec3Cross(&m_v3Up, &m_v3View, &m_v3Cross);
-	float upLength = D3DXVec3Length(&m_v3Up);
-	if (upLength > FLT_EPSILON)
+	upLenSq = D3DXVec3LengthSq(&m_v3Up);
+	if (upLenSq > 1e-6f && !std::isnan(upLenSq))
 	{
-		D3DXVec3Normalize(&m_v3Up, &m_v3Up);
+		m_v3Up /= std::sqrt(upLenSq);
 	}
 	else
 	{
-		// Use a default up vector.
-		m_v3Up = D3DXVECTOR3(0.0f, 1.0f, 0.0f);
+		m_v3Up = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
 	}
 
-	// Calculate the pitch angle from the up vector
-	D3DXVECTOR3 val = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
-	m_fPitch = D3DXVec3Dot(&m_v3Up, &val);
-	// Clamp the dot product so acosf is safe
-	if (m_fPitch >= 1.0f)
-		m_fPitch = 1.0f;
-	else if (m_fPitch <= -1.0f)
-		m_fPitch = -1.0f;
-	m_fPitch = acosf(m_fPitch);
+	// Ochrona przed niepozadanym odwracaniem wektora Up
+	if (m_v3Up.z < -0.1f && fabsf(m_v3View.z) < 0.999f)
+	{
+		m_v3Up = -m_v3Up;
+		m_v3Cross = -m_v3Cross;
+	}
+
+	// Obliczenie pitch z zabezpieczeniem przed NaN
+	D3DXVECTOR3 zAxis = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+	float dotUpZ = D3DXVec3Dot(&m_v3Up, &zAxis);
+	dotUpZ = std::clamp(dotUpZ, -1.0f, 1.0f);
+	m_fPitch = acosf(dotUpZ);
 	if (std::isnan(m_fPitch))
 	{
 		m_fPitch = 0.0f;
 	}
 	m_fPitch *= (180.0f / D3DX_PI);
-	if (m_v3View.z > 0)
+	if (m_v3View.z > 0.0f)
 		m_fPitch = -m_fPitch;
+	m_fPitch = std::clamp(m_fPitch, -89.5f, 89.5f);
 
-	// Build the view matrix.
+	// Wyznaczenie macierzy widoku
 	D3DXMatrixLookAtRH(&m_matView, &m_v3Eye, &m_v3Target, &m_v3Up);
 
-	// Compute the determinant and check it.
-	float fDeterminantD3DMatView = D3DXMatrixDeterminant(&m_matView);
-	if (std::isnan(fDeterminantD3DMatView) || fabs(fDeterminantD3DMatView) < FLT_EPSILON)
+	// Odwracalnosc macierzy
+	float fDet = D3DXMatrixDeterminant(&m_matView);
+	if (std::isnan(fDet) || fabsf(fDet) < 1e-6f)
 	{
 		D3DXMatrixIdentity(&m_matInverseView);
 	}
 	else
 	{
-		D3DXMatrixInverse(&m_matInverseView, &fDeterminantD3DMatView, &m_matView);
+		D3DXMatrixInverse(&m_matInverseView, &fDet, &m_matView);
 	}
 
 	m_matBillboard = m_matInverseView;
@@ -376,8 +418,9 @@ void CCamera::SetViewMatrix()
 	m_kCameraRightToTerrainRay.SetDirection(m_v3Cross, 3.0f * m_fTerrainCollisionRadius);
 
 	D3DXVECTOR3 temp = (v3CenterRay - m_fTerrainCollisionRadius * m_v3Up);
-	m_kTargetToCameraBottomRay.SetDirection(v3CenterRay - m_fTerrainCollisionRadius * m_v3Up,
-		D3DXVec3Length(&temp));
+	float tempLen = D3DXVec3Length(&temp);
+	if (tempLen > 1e-4f && !std::isnan(tempLen))
+		m_kTargetToCameraBottomRay.SetDirection(temp, tempLen);
 
 	m_kLeftObjectCollisionRay.SetStartPoint(m_v3Target);
 	m_kTopObjectCollisionRay.SetStartPoint(m_v3Target);
@@ -385,16 +428,24 @@ void CCamera::SetViewMatrix()
 	m_kBottomObjectCollisionRay.SetStartPoint(m_v3Target);
 
 	D3DXVECTOR3 val1 = (v3CenterRay + m_fObjectCollisionRadius * m_v3Cross);
-	m_kLeftObjectCollisionRay.SetDirection(val1, D3DXVec3Length(&val1));
+	float val1Len = D3DXVec3Length(&val1);
+	if (val1Len > 1e-4f && !std::isnan(val1Len))
+		m_kLeftObjectCollisionRay.SetDirection(val1, val1Len);
 
 	D3DXVECTOR3 val2 = (v3CenterRay - m_fObjectCollisionRadius * m_v3Cross);
-	m_kRightObjectCollisionRay.SetDirection(val2, D3DXVec3Length(&val2));
+	float val2Len = D3DXVec3Length(&val2);
+	if (val2Len > 1e-4f && !std::isnan(val2Len))
+		m_kRightObjectCollisionRay.SetDirection(val2, val2Len);
 
 	D3DXVECTOR3 val3 = (v3CenterRay + m_fObjectCollisionRadius * m_v3Up);
-	m_kTopObjectCollisionRay.SetDirection(val3, D3DXVec3Length(&val3));
+	float val3Len = D3DXVec3Length(&val3);
+	if (val3Len > 1e-4f && !std::isnan(val3Len))
+		m_kTopObjectCollisionRay.SetDirection(val3, val3Len);
 
 	D3DXVECTOR3 val4 = (v3CenterRay - m_fObjectCollisionRadius * m_v3Up);
-	m_kBottomObjectCollisionRay.SetDirection(val4, D3DXVec3Length(&val4));
+	float val4Len = D3DXVec3Length(&val4);
+	if (val4Len > 1e-4f && !std::isnan(val4Len))
+		m_kBottomObjectCollisionRay.SetDirection(val4, val4Len);
 }
 
 void CCamera::Move(const D3DXVECTOR3 & v3Displacement)
@@ -423,13 +474,20 @@ void CCamera::Zoom(float fRatio)
 	SetViewMatrix();
 }
 
-void CCamera::MoveAlongView(float fDistance) 
+void CCamera::MoveAlongView(float fDistance, float fDeltaTime) 
 {
 	if (IsLock())
 		return;
 
+	if (fDeltaTime > 0.0f)
+		fDistance *= (fDeltaTime * 60.0f);
+
+	float lenSq = D3DXVec3LengthSq(&m_v3View);
 	D3DXVECTOR3 v3Temp;
-	D3DXVec3Normalize(&v3Temp, &m_v3View);
+	if (lenSq > 1e-6f && !std::isnan(lenSq))
+		v3Temp = m_v3View / std::sqrt(lenSq);
+	else
+		v3Temp = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
 	
 	m_v3Eye += v3Temp * fDistance;
 	m_v3Target += v3Temp * fDistance;
@@ -437,13 +495,20 @@ void CCamera::MoveAlongView(float fDistance)
 	SetViewMatrix();
 }
 
-void CCamera::MoveAlongCross(float fDistance) 
+void CCamera::MoveAlongCross(float fDistance, float fDeltaTime) 
 {
 	if (IsLock())
 		return;
 
+	if (fDeltaTime > 0.0f)
+		fDistance *= (fDeltaTime * 60.0f);
+
+	float lenSq = D3DXVec3LengthSq(&m_v3Cross);
 	D3DXVECTOR3 v3Temp;
-	D3DXVec3Normalize(&v3Temp, &m_v3Cross);
+	if (lenSq > 1e-6f && !std::isnan(lenSq))
+		v3Temp = m_v3Cross / std::sqrt(lenSq);
+	else
+		v3Temp = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
 
 	m_v3Eye += v3Temp * fDistance;
 	m_v3Target += v3Temp * fDistance;
@@ -451,33 +516,58 @@ void CCamera::MoveAlongCross(float fDistance)
 	SetViewMatrix();
 }
 
-void CCamera::MoveAlongUp(FLOAT fDistance) 
+void CCamera::MoveAlongUp(FLOAT fDistance, float fDeltaTime) 
 {
 	if (IsLock())
 		return;
 
-	D3DXVECTOR3 v3Temp ;
-	D3DXVec3Normalize(&v3Temp, &m_v3Up);
+	if (fDeltaTime > 0.0f)
+		fDistance *= (fDeltaTime * 60.0f);
+
+	float lenSq = D3DXVec3LengthSq(&m_v3Up);
+	D3DXVECTOR3 v3Temp;
+	if (lenSq > 1e-6f && !std::isnan(lenSq))
+		v3Temp = m_v3Up / std::sqrt(lenSq);
+	else
+		v3Temp = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+
 	m_v3Target += v3Temp * fDistance;
 	m_v3Eye += v3Temp * fDistance;
 	SetViewMatrix();
 }
 
-void CCamera::MoveLateral(float fDistance)
+void CCamera::MoveLateral(float fDistance, float fDeltaTime)
 {
 	if (IsLock())
 		return;
 
-	MoveAlongCross(fDistance);
+	MoveAlongCross(fDistance, fDeltaTime);
 }
 
-void CCamera::MoveFront(float fDistance) 
+void CCamera::MoveFront(float fDistance, float fDeltaTime) 
 {	
 	if (IsLock())
 		return;
 
+	if (fDeltaTime > 0.0f)
+		fDistance *= (fDeltaTime * 60.0f);
+
 	D3DXVECTOR3 v3Temp = D3DXVECTOR3(m_v3View.x, m_v3View.y, 0.0f);
-	D3DXVec3Normalize(&v3Temp, &v3Temp);
+	float lenSq = D3DXVec3LengthSq(&v3Temp);
+	if (lenSq > 1e-6f && !std::isnan(lenSq))
+	{
+		v3Temp /= std::sqrt(lenSq);
+	}
+	else
+	{
+		// Fallback jesli kamera patrzy pionowo w dol/gore
+		v3Temp = D3DXVECTOR3(m_v3Up.x, m_v3Up.y, 0.0f);
+		lenSq = D3DXVec3LengthSq(&v3Temp);
+		if (lenSq > 1e-6f && !std::isnan(lenSq))
+			v3Temp /= std::sqrt(lenSq);
+		else
+			v3Temp = D3DXVECTOR3(0.0f, 1.0f, 0.0f);
+	}
 
 	m_v3Eye += v3Temp * fDistance; 
 	m_v3Target += v3Temp * fDistance;
@@ -485,10 +575,13 @@ void CCamera::MoveFront(float fDistance)
 	SetViewMatrix();	
 }
 
-void CCamera::MoveVertical(float fDistance) 
+void CCamera::MoveVertical(float fDistance, float fDeltaTime) 
 {
 	if (IsLock())
 		return;
+
+	if (fDeltaTime > 0.0f)
+		fDistance *= (fDeltaTime * 60.0f);
 
 	m_v3Eye.z += fDistance;
 	m_v3Target.z += fDistance;
@@ -508,32 +601,42 @@ void CCamera::MoveVertical(float fDistance)
 //	SetViewMatrix() ;
 //}
 
-void CCamera::RotateEyeAroundTarget(float fPitchDegree, float fRollDegree) 
+void CCamera::RotateEyeAroundTarget(float fPitchDegree, float fRollDegree, float fDeltaTime) 
 {
 	if (IsLock())
 		return;
 
+	if (fDeltaTime > 0.0f)
+	{
+		float fTimeScale = fDeltaTime * 60.0f;
+		fPitchDegree *= fTimeScale;
+		fRollDegree *= fTimeScale;
+	}
+
+	// Bezpieczna plynna klamra pitch (-89.5 do +89.5 stopnia) bez ryzyka gimbal locka i odwracania Up
+	constexpr float PITCH_MIN = -89.5f;
+	constexpr float PITCH_MAX = 89.5f;
+
+	float fTargetPitch = std::clamp(m_fPitch + fPitchDegree, PITCH_MIN, PITCH_MAX);
+	fPitchDegree = fTargetPitch - m_fPitch;
+
 	D3DXMATRIX matRot, matRotPitch, matRotRoll;
-
-	// 머리위로 넘어가기 막기...
-	if (m_fPitch + fPitchDegree > 80.0f)
-	{
-		fPitchDegree = 80.0f - m_fPitch;
-	}
-	else if( m_fPitch + fPitchDegree < -80.0f)
-	{
-		fPitchDegree = -80.0f - m_fPitch;
-	}
-
 	D3DXMatrixRotationAxis(&matRotPitch, &m_v3Cross, D3DXToRadian(fPitchDegree));
-
 	D3DXMatrixRotationZ(&matRotRoll, -D3DXToRadian(fRollDegree));
 	matRot = matRotPitch * matRotRoll;
 
 	D3DXVECTOR3 v3Temp = m_v3Eye - m_v3Target;
+	float distSq = D3DXVec3LengthSq(&v3Temp);
+	if (distSq < 1e-4f || std::isnan(distSq))
+	{
+		float fallbackDist = (m_fDistance > 10.0f) ? m_fDistance : 100.0f;
+		v3Temp = D3DXVECTOR3(0.0f, -fallbackDist, 50.0f);
+	}
+
 	D3DXVec3TransformCoord(&m_v3Eye, &v3Temp, &matRot);
 	m_v3Eye += m_v3Target;
 
+	// Zachowaj Up wektor jako czysty wektor gora (0, 0, 1) bez odwracania
 	SetUp(D3DXVECTOR3(0.0f, 0.0f, 1.0f));
 
 	m_fRoll += fRollDegree;
@@ -544,10 +647,17 @@ void CCamera::RotateEyeAroundTarget(float fPitchDegree, float fRollDegree)
 		m_fRoll += 360.0f;
 }
 
-void CCamera::RotateEyeAroundPoint(const D3DXVECTOR3 & v3Point, float fPitchDegree, float fRollDegree)
+void CCamera::RotateEyeAroundPoint(const D3DXVECTOR3 & v3Point, float fPitchDegree, float fRollDegree, float fDeltaTime)
 {
 //	if (IsLock())
 //		return;
+
+	if (fDeltaTime > 0.0f)
+	{
+		float fTimeScale = fDeltaTime * 60.0f;
+		fPitchDegree *= fTimeScale;
+		fRollDegree *= fTimeScale;
+	}
 
 	D3DXMATRIX matRot, matRotPitch, matRotRoll;
 
@@ -600,23 +710,30 @@ void CCamera::CalculateRoll()
 	D3DXVECTOR2 v2ViewXY;
 	v2ViewXY.x = m_v3View.x;
 	v2ViewXY.y = m_v3View.y;
- 	D3DXVec2Normalize(&v2ViewXY, &v2ViewXY);
+	float lenSq = D3DXVec2LengthSq(&v2ViewXY);
+	if (lenSq < 1e-6f || std::isnan(lenSq))
+	{
+		// Gdy kamera patrzy pionowo wzdluz osi Z, roll nie ulega zmianie
+		return;
+	}
+	v2ViewXY /= std::sqrt(lenSq);
+
 	const auto vv = D3DXVECTOR2(0.0f, 1.0f);
 	float fDot = D3DXVec2Dot(&v2ViewXY, &vv);
-	if (fDot >= 1)
-		fDot = 1;
-	else if (fDot <= -1)
-		fDot = -1;
+	fDot = std::clamp(fDot, -1.0f, 1.0f);
 	fDot = acosf(fDot);
+	if (std::isnan(fDot))
+	{
+		fDot = 0.0f;
+	}
 	fDot *= (180.0f / D3DX_PI);
-	float fCross = D3DXVec2CCW (&v2ViewXY, &vv);
-	if ( 0 > fCross)
+	float fCross = D3DXVec2CCW(&v2ViewXY, &vv);
+	if (0.0f > fCross)
 	{
 		fDot = -fDot;
 	}
 
 	m_fRoll = fDot;
-
 }
 
 //////////////////////////////////////////////////////////////////////////
