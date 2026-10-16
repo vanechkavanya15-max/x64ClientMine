@@ -519,14 +519,63 @@ void CStateManager::GetRenderState(D3DRENDERSTATETYPE Type, DWORD* pdwValue)
 }
 
 // Textures
+bool CStateManager::IsValidTexturePointer(LPDIRECT3DBASETEXTURE9 pTexture)
+{
+	if (!pTexture)
+		return false;
+
+	const uintptr_t uPtr = reinterpret_cast<uintptr_t>(pTexture);
+	// Zakres przestrzeni adresowej uzytkownika w architekturze x64 / x86
+	if (uPtr < 0x10000 || uPtr >= 0x00007FFFFFFFFFFF)
+		return false;
+
+	// Wskaznik na interfejs COM musi byc naturalnie wyrownany w pamieci
+	if ((uPtr & (sizeof(void*) - 1)) != 0)
+		return false;
+
+	// Weryfikacja czy wskaznik wskazuje na prawidlowy blok pamieci do odczytu
+	if (IsBadReadPtr(reinterpret_cast<const void*>(uPtr), sizeof(void*)))
+		return false;
+
+	__try
+	{
+		// Pierwsze pole interfejsu COM to wskaznik na tablice funkcji wirtualnych (vtable)
+		void* const* pVtbl = *reinterpret_cast<void* const* const*>(uPtr);
+		const uintptr_t uVtbl = reinterpret_cast<uintptr_t>(pVtbl);
+		if (!pVtbl || uVtbl < 0x10000 || uVtbl >= 0x00007FFFFFFFFFFF || (uVtbl & (sizeof(void*) - 1)) != 0)
+			return false;
+
+		// Sprawdzenie czy poczatek vtable (QueryInterface, AddRef, Release) jest odczytywalny
+		if (IsBadReadPtr(reinterpret_cast<const void*>(uVtbl), sizeof(void*) * 4))
+			return false;
+
+		// Wskaznik na pierwsza metode w vtable musi wskazywac na kod wykonywalny w przestrzeni uzytkownika
+		const uintptr_t uFn = reinterpret_cast<uintptr_t>(pVtbl[0]);
+		if (uFn < 0x10000 || uFn >= 0x00007FFFFFFFFFFF)
+			return false;
+
+		return true;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return false;
+	}
+}
+
 void CStateManager::SaveTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9 pTexture)
 {
+	if (dwStage >= STATEMANAGER_MAX_STAGES)
+		return;
+
 	m_TextureStack[dwStage].push_back(m_CurrentState.m_Textures[dwStage]);
 	SetTexture(dwStage, pTexture);
 }
 
 void CStateManager::RestoreTexture(DWORD dwStage)
 {
+	if (dwStage >= STATEMANAGER_MAX_STAGES)
+		return;
+
 	if (m_TextureStack[dwStage].empty())
 		return;
 
@@ -536,15 +585,51 @@ void CStateManager::RestoreTexture(DWORD dwStage)
 
 void CStateManager::SetTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9 pTexture)
 {
+	if (dwStage >= STATEMANAGER_MAX_STAGES)
+		return;
+
+	if (!m_lpD3DDev)
+		return;
+
+	// Ochrona przed nullem, uszkodzonym lub wiszacym wskaznikiem tekstury COM
+	if (pTexture != nullptr && !IsValidTexturePointer(pTexture))
+	{
+		pTexture = nullptr;
+	}
+
 	if (pTexture == m_CurrentState.m_Textures[dwStage])
 		return;
 
-	m_lpD3DDev->SetTexture(dwStage, pTexture);
-	m_CurrentState.m_Textures[dwStage] = pTexture;
+	__try
+	{
+		HRESULT hr = m_lpD3DDev->SetTexture(dwStage, pTexture);
+		if (FAILED(hr))
+		{
+			m_lpD3DDev->SetTexture(dwStage, nullptr);
+			m_CurrentState.m_Textures[dwStage] = nullptr;
+			return;
+		}
+		m_CurrentState.m_Textures[dwStage] = pTexture;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		// W razie wyjatku sprzetowego w d3d9.dll bezpiecznie odpinamy teksture
+		__try
+		{
+			m_lpD3DDev->SetTexture(dwStage, nullptr);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+		}
+		m_CurrentState.m_Textures[dwStage] = nullptr;
+	}
 }
 
 void CStateManager::GetTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9* ppTexture)
 {
+	if (dwStage >= STATEMANAGER_MAX_STAGES || !ppTexture)
+		return;
+
 	*ppTexture = m_CurrentState.m_Textures[dwStage];
 }
 

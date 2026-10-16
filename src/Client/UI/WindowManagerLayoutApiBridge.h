@@ -6,6 +6,13 @@
 #include <optional>
 #include <algorithm>
 
+#ifdef CreateWindow
+#undef CreateWindow
+#endif
+#ifdef DestroyWindow
+#undef DestroyWindow
+#endif
+
 namespace Client::UI {
 
 enum class LayoutError {
@@ -72,6 +79,10 @@ class WindowManagerLayoutApiBridge {
 public:
     WindowManagerLayoutApiBridge() = default;
     ~WindowManagerLayoutApiBridge() = default;
+
+    static WindowManagerLayoutApiBridge& Instance();
+    [[nodiscard]] bool HasWindow(uint32_t windowId) const noexcept { return m_layouts.contains(windowId); }
+    void Clear() { m_layouts.clear(); }
 
     // Lifetime
     std::expected<void, LayoutError> CreateWindow(uint32_t windowId);

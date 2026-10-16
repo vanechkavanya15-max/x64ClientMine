@@ -2,10 +2,15 @@
 #include "EterBase/Stl.h"
 #include "GrpTexture.h"
 #include "StateManager.h"
+#include "TextureUploadBridge.h"
 
 void CGraphicTexture::DestroyDeviceObjects()
 {
-	safe_release(m_lpd3dTexture);
+	if (m_lpd3dTexture)
+	{
+		CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(m_lpd3dTexture));
+		safe_release(m_lpd3dTexture);
+	}
 }
 
 void CGraphicTexture::Destroy()

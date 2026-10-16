@@ -1,6 +1,17 @@
 #include "IMEClipboardBridge.h"
 #include <stdexcept>
 #include <algorithm>
+#include <cstring>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace Client::Input {
 
@@ -311,6 +322,103 @@ void IMEClipboardBridge::EncodeUtf8Codepoint(char32_t codepoint, std::string& ou
 bool IMEClipboardBridge::IsValidAnsi(char /*c*/) noexcept {
     // Any byte is valid in ISO-8859-1.
     return true;
+}
+
+ClipboardResult<void> IMEClipboardBridge::SetClipboardTextWide(std::wstring_view text) {
+    std::u16string u16(reinterpret_cast<const char16_t*>(text.data()), text.size());
+    auto u8res = Utf16ToUtf8(u16);
+    if (!u8res) {
+        return std::unexpected(u8res.error());
+    }
+    return SetClipboardText(*u8res, ClipboardEncoding::UTF8);
+}
+
+ClipboardResult<std::wstring> IMEClipboardBridge::GetClipboardTextWide() const {
+    if (m_clipboard.empty()) {
+        return std::unexpected(ClipboardError::EmptyClipboard);
+    }
+    auto u16res = Utf8ToUtf16(m_clipboard);
+    if (!u16res) {
+        return std::unexpected(u16res.error());
+    }
+    return std::wstring(reinterpret_cast<const wchar_t*>(u16res->data()), u16res->size());
+}
+
+std::wstring IMEClipboardBridge::SanitizeTextWide(std::wstring_view input) {
+    std::wstring out;
+    out.reserve(input.size());
+    for (wchar_t c : input) {
+        char32_t cp = static_cast<char32_t>(c);
+        if (IsPrintable(cp) || c == L'\n' || c == L'\t') {
+            out.push_back(c);
+        }
+    }
+    return out;
+}
+
+ClipboardResult<void> IMEClipboardBridge::CopyToWindowsClipboard(void* hWnd, std::wstring_view text) {
+#ifdef _WIN32
+    if (text.empty()) {
+        return {};
+    }
+    HWND hWindow = static_cast<HWND>(hWnd);
+    if (!OpenClipboard(hWindow)) {
+        return std::unexpected(ClipboardError::EmptyClipboard);
+    }
+    EmptyClipboard();
+    const SIZE_T bytes = (text.size() + 1) * sizeof(wchar_t);
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, bytes);
+    if (!hMem) {
+        CloseClipboard();
+        return std::unexpected(ClipboardError::OutOfMemory);
+    }
+    wchar_t* dst = static_cast<wchar_t*>(GlobalLock(hMem));
+    if (!dst) {
+        GlobalFree(hMem);
+        CloseClipboard();
+        return std::unexpected(ClipboardError::OutOfMemory);
+    }
+    std::memcpy(dst, text.data(), text.size() * sizeof(wchar_t));
+    dst[text.size()] = L'\0';
+    GlobalUnlock(hMem);
+
+    if (!SetClipboardData(CF_UNICODETEXT, hMem)) {
+        GlobalFree(hMem);
+    }
+    CloseClipboard();
+    return {};
+#else
+    (void)hWnd;
+    (void)text;
+    return std::unexpected(ClipboardError::ConversionFailed);
+#endif
+}
+
+ClipboardResult<std::wstring> IMEClipboardBridge::GetFromWindowsClipboard(void* hWnd) {
+#ifdef _WIN32
+    HWND hWindow = static_cast<HWND>(hWnd);
+    if (!OpenClipboard(hWindow)) {
+        return std::unexpected(ClipboardError::EmptyClipboard);
+    }
+    HANDLE hUni = GetClipboardData(CF_UNICODETEXT);
+    if (!hUni) {
+        CloseClipboard();
+        return std::unexpected(ClipboardError::EmptyClipboard);
+    }
+    const wchar_t* wbuf = static_cast<const wchar_t*>(GlobalLock(hUni));
+    if (!wbuf) {
+        CloseClipboard();
+        return std::unexpected(ClipboardError::EmptyClipboard);
+    }
+    std::wstring raw(wbuf);
+    GlobalUnlock(hUni);
+    CloseClipboard();
+
+    return SanitizeTextWide(raw);
+#else
+    (void)hWnd;
+    return std::unexpected(ClipboardError::EmptyClipboard);
+#endif
 }
 
 } // namespace Client::Input

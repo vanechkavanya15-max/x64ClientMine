@@ -59,6 +59,15 @@ namespace UserInterface::InstanceControllers
         virtual uint32_t GetMountVnum() const = 0;
         virtual void UpdateMountTransform(float x, float y, float z, float rot) = 0;
         virtual void Clear() = 0;
+
+        virtual bool IsInterpolating() const { return false; }
+        virtual float GetInterpolatedZ() const { return 0.0f; }
+        virtual float GetInterpolationProgress() const { return 1.0f; }
+        virtual uint32_t GetMountLevel() const { return 0; }
+        virtual bool IsNewMount() const { return false; }
+        virtual bool CanAttack() const { return true; }
+        virtual bool CanUseSkill() const { return true; }
+        virtual int GetHorseMotionMode(uint8_t weaponSubType) const;
     };
 
     /**
@@ -77,6 +86,15 @@ namespace UserInterface::InstanceControllers
         uint32_t GetMountVnum() const override;
         void UpdateMountTransform(float x, float y, float z, float rot) override;
         void Clear() override;
+
+        bool IsInterpolating() const override { return m_isInterpolating; }
+        float GetInterpolatedZ() const override { return m_z; }
+        float GetInterpolationProgress() const override { return m_interpolationProgress; }
+        uint32_t GetMountLevel() const override;
+        bool IsNewMount() const override;
+        bool CanAttack() const override;
+        bool CanUseSkill() const override;
+        int GetHorseMotionMode(uint8_t weaponSubType) const override;
 
     private:
         bool m_isMounted{false};
@@ -109,6 +127,12 @@ namespace UserInterface::InstanceControllers
         uint32_t GetMountVnum() const override;
         void UpdateMountTransform(float x, float y, float z, float rot) override;
         void Clear() override;
+
+        uint32_t GetMountLevel() const override;
+        bool IsNewMount() const override;
+        bool CanAttack() const override;
+        bool CanUseSkill() const override;
+        int GetHorseMotionMode(uint8_t weaponSubType) const override;
 
     private:
         bool m_isMounted{false};

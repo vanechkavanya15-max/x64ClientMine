@@ -117,6 +117,7 @@ class CGrannyMaterialPalette
 		void	SetSpecularInfo(const char* c_szMtrlName, BOOL bEnable, float fPower);
 
 		CGrannyMaterial& GetMaterialRef(DWORD mtrlIndex);
+		const CGrannyMaterial& GetMaterialRef(DWORD mtrlIndex) const;
 
 		DWORD	GetMaterialCount() const;
 

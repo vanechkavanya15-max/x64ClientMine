@@ -1,6 +1,8 @@
 #pragma once
 #include "GameLib/ItemData.h"
 #include "EterBase/Poly/Poly.h"
+#include "Client/Skills/SkillTableRegistry.h"
+#include "Client/Skills/SkillRequirementEvaluator.h"
 
 class CInstanceBase;
 
@@ -195,6 +197,7 @@ class CPythonSkill : public CSingleton<CPythonSkill>
 			BOOL IsOnlyForGuildWar();
 
 			bool GetState(const char * c_szStateName, int * piState, int iMinMaxType = VALUE_TYPE_FREE);
+			float ProcessFormula(const std::string& strFormula, float fSkillLevel = 0.0f, int iMinMaxType = VALUE_TYPE_FREE);
 			float ProcessFormula(CPoly * pPoly, float fSkillLevel = 0.0f, int iMinMaxType = VALUE_TYPE_FREE);
 			const char * GetAffectDescription(DWORD dwIndex, float fSkillLevel);
 			DWORD GetSkillCoolTime(float fSkillPoint);
@@ -281,6 +284,11 @@ class CPythonSkill : public CSingleton<CPythonSkill>
 
 		void TEST();
 
+		const Client::Skills::SkillTableRegistry & GetSkillTableRegistry() const { return m_skillTableRegistry; }
+		Client::Skills::SkillTableRegistry & GetSkillTableRegistry() { return m_skillTableRegistry; }
+		const Client::Skills::SkillRequirementEvaluator & GetSkillRequirementEvaluator() const { return m_skillRequirementEvaluator; }
+		Client::Skills::SkillRequirementEvaluator & GetSkillRequirementEvaluator() { return m_skillRequirementEvaluator; }
+
 	protected:
 		void __RegisterGradeIconImage(TSkillData & rData, const char * c_szHeader, const char * c_szImageName);
 		void __RegisterNormalIconImage(TSkillData & rData, const char * c_szHeader, const char * c_szImageName);
@@ -295,4 +303,7 @@ class CPythonSkill : public CSingleton<CPythonSkill>
 		std::map<std::string, DWORD> m_SkillNeedWeaponIndexMap;
 		std::map<std::string, DWORD> m_SkillWeaponTypeIndexMap;
 		TPathNameMap m_PathNameMap;
+
+		Client::Skills::SkillTableRegistry m_skillTableRegistry;
+		Client::Skills::SkillRequirementEvaluator m_skillRequirementEvaluator;
 };

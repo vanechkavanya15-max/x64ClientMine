@@ -37,15 +37,19 @@ void CMapOutdoorSky::UpdateAtmosphere(const TEnvironmentData* pEnvData, int iFog
 
 	// 1. Swiatlo slonca (kierunek, kolor)
 	const D3DLIGHT9& sunLight = pEnvData->DirLights[ENV_DIRLIGHT_CHARACTER];
+	m_uniforms.vSunLightDir = D3DXVECTOR3(sunLight.Direction.x, sunLight.Direction.y, sunLight.Direction.z);
+	m_uniforms.vSunLightColor = D3DXCOLOR(sunLight.Diffuse.r, sunLight.Diffuse.g, sunLight.Diffuse.b, sunLight.Diffuse.a);
 	m_uniforms.v4SunDirection = D3DXVECTOR4(sunLight.Direction.x, sunLight.Direction.y, sunLight.Direction.z, 1.0f);
 	m_uniforms.v4SunColor = D3DXVECTOR4(sunLight.Diffuse.r, sunLight.Diffuse.g, sunLight.Diffuse.b, sunLight.Diffuse.a);
 
 	// 2. Kolor otoczenia (ambient)
+	m_uniforms.vAmbientColor = D3DXCOLOR(sunLight.Ambient.r, sunLight.Ambient.g, sunLight.Ambient.b, sunLight.Ambient.a);
 	m_uniforms.v4AmbientColor = D3DXVECTOR4(sunLight.Ambient.r, sunLight.Ambient.g, sunLight.Ambient.b, sunLight.Ambient.a);
 
-	// 3. Zasieg mgly (fFogNear, fFogFar)
+	// 3. Zasieg i kolor mgly (fFogNear, fFogFar, vFogColor)
 	float fFogNear = pEnvData->GetFogNearDistance();
 	float fFogFar = pEnvData->GetFogFarDistance();
+	m_uniforms.vFogColor = pEnvData->FogColor;
 
 	if (pEnvData->bFogEnable)
 	{
@@ -54,11 +58,15 @@ void CMapOutdoorSky::UpdateAtmosphere(const TEnvironmentData* pEnvData, int iFog
 		fFogNear *= fFogScaleLevel[fogIdx];
 		fFogFar *= fFogScaleLevel[fogIdx];
 
+		m_uniforms.fFogNear = fFogNear;
+		m_uniforms.fFogFar = fFogFar;
 		const float fLinearScale = (fFogFar > fFogNear) ? (1.0f / (fFogFar - fFogNear)) : 0.0f;
 		m_uniforms.v4FogParams = D3DXVECTOR4(fFogNear, fFogFar, fLinearScale, 1.0f);
 	}
 	else
 	{
+		m_uniforms.fFogNear = fFogNear;
+		m_uniforms.fFogFar = fFogFar;
 		m_uniforms.v4FogParams = D3DXVECTOR4(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
@@ -74,6 +82,8 @@ void CMapOutdoorSky::UpdateAtmosphere(const TEnvironmentData* pEnvData, int iFog
 
 void CMapOutdoorSky::SetSunLight(const D3DXVECTOR3& v3Direction, const D3DCOLORVALUE& cDiffuse)
 {
+	m_uniforms.vSunLightDir = v3Direction;
+	m_uniforms.vSunLightColor = D3DXCOLOR(cDiffuse.r, cDiffuse.g, cDiffuse.b, cDiffuse.a);
 	m_uniforms.v4SunDirection = D3DXVECTOR4(v3Direction.x, v3Direction.y, v3Direction.z, 1.0f);
 	m_uniforms.v4SunColor = D3DXVECTOR4(cDiffuse.r, cDiffuse.g, cDiffuse.b, cDiffuse.a);
 	SyncUniformsToRenderQueue();
@@ -81,12 +91,16 @@ void CMapOutdoorSky::SetSunLight(const D3DXVECTOR3& v3Direction, const D3DCOLORV
 
 void CMapOutdoorSky::SetAmbientColor(const D3DCOLORVALUE& cAmbient)
 {
+	m_uniforms.vAmbientColor = D3DXCOLOR(cAmbient.r, cAmbient.g, cAmbient.b, cAmbient.a);
 	m_uniforms.v4AmbientColor = D3DXVECTOR4(cAmbient.r, cAmbient.g, cAmbient.b, cAmbient.a);
 	SyncUniformsToRenderQueue();
 }
 
 void CMapOutdoorSky::SetFogRange(float fNear, float fFar, DWORD dwFogColor, bool bEnable)
 {
+	m_uniforms.fFogNear = fNear;
+	m_uniforms.fFogFar = fFar;
+	m_uniforms.vFogColor = D3DXCOLOR(dwFogColor);
 	const float fLinearScale = (fFar > fNear) ? (1.0f / (fFar - fNear)) : 0.0f;
 	m_uniforms.v4FogParams = D3DXVECTOR4(fNear, fFar, fLinearScale, bEnable ? 1.0f : 0.0f);
 	SyncUniformsToRenderQueue();
@@ -94,10 +108,21 @@ void CMapOutdoorSky::SetFogRange(float fNear, float fFar, DWORD dwFogColor, bool
 
 void CMapOutdoorSky::SyncUniformsToRenderQueue()
 {
-	CRenderQueueManager::Instance().SetFrameUniforms(m_uniforms);
+	TRenderFrameUniforms merged = CRenderQueueManager::Instance().GetFrameUniforms();
+	merged.vSunLightDir = m_uniforms.vSunLightDir;
+	merged.vSunLightColor = m_uniforms.vSunLightColor;
+	merged.vAmbientColor = m_uniforms.vAmbientColor;
+	merged.vFogColor = m_uniforms.vFogColor;
+	merged.fFogNear = m_uniforms.fFogNear;
+	merged.fFogFar = m_uniforms.fFogFar;
+	merged.v4SunDirection = m_uniforms.v4SunDirection;
+	merged.v4SunColor = m_uniforms.v4SunColor;
+	merged.v4AmbientColor = m_uniforms.v4AmbientColor;
+	merged.v4FogParams = m_uniforms.v4FogParams;
+	CRenderQueueManager::Instance().SetFrameUniforms(merged);
 	if (m_pSkyBox)
 	{
-		m_pSkyBox->SetAtmosphereUniforms(m_uniforms);
+		m_pSkyBox->SetAtmosphereUniforms(merged);
 	}
 }
 

@@ -50,6 +50,21 @@ enum class AuthError : uint8_t {
     return "UnknownError";
 }
 
+[[nodiscard]] constexpr std::string_view to_string(AuthState state) noexcept {
+    switch (state) {
+        case AuthState::Disconnected: return "Disconnected";
+        case AuthState::Connecting: return "Connecting";
+        case AuthState::Authenticating: return "Authenticating";
+        case AuthState::Authenticated: return "Authenticated";
+        case AuthState::FetchingSlots: return "FetchingSlots";
+        case AuthState::SlotsReady: return "SlotsReady";
+        case AuthState::CharacterSelecting: return "CharacterSelecting";
+        case AuthState::CharacterCreating: return "CharacterCreating";
+        case AuthState::EnteringGame: return "EnteringGame";
+    }
+    return "UnknownState";
+}
+
 struct CharacterSlotInfo {
     uint8_t slotIndex;
     std::string name;
@@ -89,6 +104,9 @@ public:
     [[nodiscard]] bool HasCredentials() const noexcept;
     [[nodiscard]] AuthState GetState() const noexcept;
     [[nodiscard]] bool IsAutoReconnect() const noexcept;
+
+    void Reset(AuthState state = AuthState::Disconnected) noexcept;
+    void SetState(AuthState state) noexcept { m_state = state; }
 
 private:
     IAuthNetworkProvider& m_networkProvider;

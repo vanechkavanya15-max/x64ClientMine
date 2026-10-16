@@ -24,6 +24,11 @@ extern bool g_bHeadlessMode;
 #include "Client/Adapters/GameDomainAdapters.h"
 #include "Client/MCP/AgentMCPBridge.h"
 #include "Client/Network/Protocol/ProtocolDriverRegistry.h"
+#include "HarnessNetworkAuthProvider.h"
+#include "Client/IPC/HarnessAuthProtocolRouter.h"
+#include "Client/IPC/HarnessEngineControlRouter.h"
+#include "Client/IPC/HarnessPlayerRpcRouter.h"
+#include "Client/IPC/HarnessWorldQueryRouter.h"
 
 #include <cmath>
 #include <format>
@@ -96,6 +101,13 @@ namespace UserInterface::TestHarness
 
     TestHarnessServer::TestHarnessServer()
     {
+        m_networkAuthProvider = std::make_shared<HarnessNetworkAuthProvider>();
+        m_authRouter = std::make_unique<Client::IPC::HarnessAuthProtocolRouter>(*m_networkAuthProvider);
+        m_engineControlRouter = std::make_unique<Client::IPC::HarnessEngineControlRouter>();
+        (void)m_engineControlRouter->TransitionState(Client::IPC::EngineState::Running);
+        m_playerRpcRouter = std::make_unique<Client::IPC::HarnessPlayerRpcRouter>();
+        m_worldQueryRouter = std::make_unique<Client::IPC::HarnessWorldQueryRouter>();
+
         RegisterBuiltinRoutes();
     }
 
@@ -786,6 +798,16 @@ namespace UserInterface::TestHarness
         }
         writer.EndObject();
 
+        // Router Engine Control & Auth States
+        std::string engineStateStr = m_engineControlRouter ? std::string(Client::IPC::to_string(m_engineControlRouter->GetState())) : "Running";
+        writer.Key("engine_state"); writer.String(engineStateStr.c_str());
+        writer.Key("engine_frame_count"); writer.Uint64(m_engineControlRouter ? m_engineControlRouter->GetFrameCount() : 0);
+        writer.Key("engine_uptime"); writer.Double(m_engineControlRouter ? m_engineControlRouter->GetUpTime() : 0.0);
+        std::string protocolDriver = m_engineControlRouter ? m_engineControlRouter->GetProtocolDriver() : "standard_x64";
+        writer.Key("protocol_driver"); writer.String(protocolDriver.c_str());
+        std::string authStateStr = m_authRouter ? std::string(Client::IPC::to_string(m_authRouter->GetState())) : "Disconnected";
+        writer.Key("auth_state"); writer.String(authStateStr.c_str());
+
         writer.EndObject(); // result
         writer.EndObject(); // root
 
@@ -794,6 +816,16 @@ namespace UserInterface::TestHarness
 
     std::string TestHarnessServer::HandleTickFrame(const std::string& id, uint32_t count, float deltaTime)
     {
+        if (m_engineControlRouter)
+        {
+            m_engineControlRouter->TickFrame(deltaTime * static_cast<float>(count));
+        }
+
+        if (m_authRouter && m_authRouter->IsAutoReconnect())
+        {
+            m_authRouter->TickAutoReconnect(std::chrono::milliseconds(static_cast<uint64_t>(deltaTime * count * 1000.0f)));
+        }
+
         DeterministicTickController::Instance().Step(count, deltaTime);
         uint64_t currentTick = DeterministicTickController::Instance().GetCurrentTick();
 
@@ -818,6 +850,13 @@ namespace UserInterface::TestHarness
         writer.Key("stepped_frames"); writer.Uint(count);
         writer.Key("delta_time"); writer.Double(deltaTime);
         writer.Key("current_tick"); writer.Uint64(currentTick);
+        if (m_engineControlRouter)
+        {
+            writer.Key("engine_frame_count"); writer.Uint64(m_engineControlRouter->GetFrameCount());
+            writer.Key("engine_uptime"); writer.Double(m_engineControlRouter->GetUpTime());
+            std::string engState = std::string(Client::IPC::to_string(m_engineControlRouter->GetState()));
+            writer.Key("engine_state"); writer.String(engState.c_str());
+        }
         writer.EndObject();
 
         writer.EndObject();
@@ -836,6 +875,18 @@ namespace UserInterface::TestHarness
         if (hexData.empty())
         {
             bytes[0] = static_cast<uint8_t>(header & 0xFF);
+        }
+
+        if (m_engineControlRouter)
+        {
+            Client::IPC::Packet pkt{
+                .id = header,
+                .timestamp = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count()),
+                .payload = bytes,
+                .corrupted = false
+            };
+            (void)m_engineControlRouter->InjectPacket(std::move(pkt));
         }
 
         bool success = false;
@@ -1253,6 +1304,7 @@ namespace UserInterface::TestHarness
         bool throttle = false;
         bool hasVisible = false;
         bool hasThrottle = false;
+        std::string modeStr = "windowed";
 
         auto extractParams = [&](const rapidjson::Value& obj) {
             if (obj.HasMember("visible") && obj["visible"].IsBool())
@@ -1265,54 +1317,54 @@ namespace UserInterface::TestHarness
                 throttle = obj["throttle"].GetBool();
                 hasThrottle = true;
             }
+            if (obj.HasMember("mode") && obj["mode"].IsString())
+            {
+                modeStr = obj["mode"].GetString();
+            }
         };
 
         if (!doc.HasParseError())
         {
             if (doc.HasMember("params") && doc["params"].IsObject())
-            {
                 extractParams(doc["params"]);
-            }
-            else
-            {
+            else if (doc.IsObject())
                 extractParams(doc);
-            }
         }
 
-        if (hasVisible)
-        {
-            s_harnessWindowVisible.store(visible);
-        }
-        if (hasThrottle)
-        {
-            s_harnessGpuThrottled.store(throttle);
-        }
-        else if (hasVisible && !hasThrottle)
+        if (hasVisible && !hasThrottle)
         {
             throttle = !visible;
-            s_harnessGpuThrottled.store(throttle);
+            hasThrottle = true;
         }
+
+        if (m_engineControlRouter)
+        {
+            if (hasVisible)
+                m_engineControlRouter->SetWindowVisible(visible);
+            if (hasThrottle)
+                m_engineControlRouter->SetGpuThrottle(throttle);
+
+            if (modeStr == "fullscreen")
+                (void)m_engineControlRouter->SetWindowMode(Client::IPC::WindowMode::Fullscreen);
+            else if (modeStr == "borderless")
+                (void)m_engineControlRouter->SetWindowMode(Client::IPC::WindowMode::Borderless);
+            else
+                (void)m_engineControlRouter->SetWindowMode(Client::IPC::WindowMode::Windowed);
+        }
+
+        s_harnessWindowVisible.store(visible);
+        s_harnessGpuThrottled.store(throttle);
 
         if (CPythonApplication::InstancePtr())
         {
             CPythonApplication& app = CPythonApplication::Instance();
             if (hasVisible)
-            {
                 app.SetWindowVisible(visible);
-            }
             if (hasThrottle)
-            {
                 app.SetRenderThrottling(throttle);
-            }
-            else if (hasVisible && !hasThrottle)
-            {
-                throttle = !visible;
-                app.SetRenderThrottling(throttle);
-            }
 
             bool curVisible = app.GetWindowHandle() ? (IsWindowVisible(app.GetWindowHandle()) != FALSE) : visible;
             bool curThrottled = app.IsRenderThrottling();
-
 
             rapidjson::StringBuffer sb;
             rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
@@ -1320,10 +1372,12 @@ namespace UserInterface::TestHarness
             writer.Key("jsonrpc"); writer.String("2.0");
             writer.Key("ok"); writer.Bool(true);
             writer.Key("id");
-            if (id.starts_with("\"") && id.ends_with("\""))
+            if (id.starts_with("\"") && id.ends_with("\"") && id.size() >= 2)
                 writer.String(id.substr(1, id.size() - 2).c_str());
-            else if (id != "null")
-                writer.Int(std::stoi(id));
+            else if (id != "null" && !id.empty())
+            {
+                try { writer.Int64(std::stoll(id)); } catch (...) { writer.String(id.c_str()); }
+            }
             else
                 writer.Null();
 
@@ -1332,6 +1386,8 @@ namespace UserInterface::TestHarness
             writer.Key("status"); writer.String("ok");
             writer.Key("window_visible"); writer.Bool(curVisible);
             writer.Key("gpu_throttled"); writer.Bool(curThrottled);
+            writer.Key("window_mode");
+            writer.String(m_engineControlRouter ? Client::IPC::to_string(m_engineControlRouter->GetWindowMode()).data() : modeStr.c_str());
             writer.EndObject();
             writer.EndObject();
 
@@ -1340,13 +1396,13 @@ namespace UserInterface::TestHarness
         else
         {
             if (hasVisible)
-            {
                 SetWindowVisible(visible);
-            }
             bool resThrottled = hasThrottle ? throttle : !visible;
 
-            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"ok\",\"window_visible\":{},\"gpu_throttled\":{}}}}}",
-                id, visible ? "true" : "false", resThrottled ? "true" : "false");
+            return std::format(
+                "{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"ok\",\"window_visible\":{},\"gpu_throttled\":{},\"window_mode\":\"{}\"}}}}",
+                id, visible ? "true" : "false", resThrottled ? "true" : "false", modeStr
+            );
         }
     }
 
@@ -1396,6 +1452,10 @@ namespace UserInterface::TestHarness
         if (success)
         {
             std::string activeDriver = registry.GetActiveDriverName();
+            if (m_engineControlRouter)
+            {
+                (void)m_engineControlRouter->SetProtocolDriver(activeDriver);
+            }
             return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"ok\",\"active_driver\":\"{}\"}}}}", id, activeDriver);
         }
         else
@@ -1460,34 +1520,38 @@ namespace UserInterface::TestHarness
                 parseParams(doc);
         }
 
-        auto* pActiveDriver = ::Network::Protocol::ProtocolDriverRegistry::Instance().GetActiveDriver();
-        if (pActiveDriver && pActiveDriver->GetDriverName() == "luria")
+        if (m_networkAuthProvider)
         {
-            if (serverIp == "127.0.0.1")
-                serverIp = "46.105.73.82";
-            if (authPort == 11000)
-                authPort = 11469;
-            if (gamePort == 11011)
-                gamePort = 29001;
+            m_networkAuthProvider->SetConnectionTarget(serverIp, authPort, gamePort, pin, slot);
         }
 
-        CAccountConnector& rkAccountConnector = CAccountConnector::Instance();
-        CPythonNetworkStream& rkNetStream = CPythonNetworkStream::Instance();
+        if (!m_authRouter)
+        {
+            return FormatJsonRpcError(id, -32000, "Auth router not initialized");
+        }
 
-        rkAccountConnector.SetLoginInfo(account.c_str(), password.c_str(), pin.c_str());
-        rkNetStream.SetLoginInfo(account.c_str(), password.c_str(), pin.c_str());
-        rkNetStream.SetDirectEnterMode(slot);
+        m_authRouter->Reset(Client::IPC::AuthState::Disconnected);
 
-        bool connOk = rkAccountConnector.Connect(serverIp.c_str(), gamePort, serverIp.c_str(), authPort);
+        auto credRes = m_authRouter->SetCredentials(account, password);
+        if (!credRes.has_value())
+        {
+            return FormatJsonRpcError(id, -32602, std::format("Invalid credentials: {}", Client::IPC::to_string(credRes.error())));
+        }
+
+        auto loginRes = m_authRouter->Login();
+        bool connOk = loginRes.has_value();
+
+        std::string authStateStr = std::string(Client::IPC::to_string(m_authRouter->GetState()));
 
         return std::format(
-            "{{\"jsonrpc\":\"2.0\",\"ok\":{},\"id\":{},\"result\":{{\"status\":\"{}\",\"account\":\"{}\",\"auth_port\":{},\"game_port\":{}}}}}",
+            "{{\"jsonrpc\":\"2.0\",\"ok\":{},\"id\":{},\"result\":{{\"status\":\"{}\",\"account\":\"{}\",\"auth_port\":{},\"game_port\":{},\"auth_state\":\"{}\"}}}}",
             connOk ? "true" : "false",
             id,
             connOk ? "connecting_auth" : "connection_failed",
             account,
             authPort,
-            gamePort
+            gamePort,
+            authStateStr
         );
     }
 
@@ -1520,7 +1584,7 @@ namespace UserInterface::TestHarness
                 else if (doc["params"].HasMember("slot") && doc["params"]["slot"].IsInt())
                     slot = doc["params"]["slot"].GetInt();
             }
-            else
+            else if (doc.IsObject())
             {
                 if (doc.HasMember("name") && doc["name"].IsString())
                     checkName(doc["name"].GetString());
@@ -1529,42 +1593,52 @@ namespace UserInterface::TestHarness
             }
         }
 
-        if (Py_IsInitialized())
+        if (slot < 0 || slot >= 4)
         {
-            PyGILState_STATE gstate = PyGILState_Ensure();
-            CPythonNetworkStream& rkNetStream = CPythonNetworkStream::Instance();
-            PyObject* poSelectWnd = rkNetStream.GetPhaseWindow(CPythonNetworkStream::PHASE_WINDOW_SELECT);
-            if (poSelectWnd)
-            {
-                PyCallClassMemberFunc(poSelectWnd, "DirectStartGame", Py_BuildValue("(i)", slot));
-            }
-            else
-            {
-                PyObject* poHandler = rkNetStream.GetHandler();
-                if (poHandler)
-                {
-                    PyCallClassMemberFunc(poHandler, "SetCharacterSlot", Py_BuildValue("(i)", slot));
-                    PyCallClassMemberFunc(poHandler, "SetLoadingPhase", Py_BuildValue("()"));
-                }
-                else
-                {
-                    rkNetStream.SendSelectCharacterPacket(static_cast<BYTE>(slot));
-                }
-            }
-            if (PyErr_Occurred())
-                PyErr_Clear();
-            PyGILState_Release(gstate);
-        }
-        else
-        {
-            CPythonNetworkStream::Instance().SendSelectCharacterPacket(static_cast<BYTE>(slot));
+            return FormatJsonRpcError(id, -32602, "Invalid character slot (must be 0..3)");
         }
 
-        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"character_selected\",\"slot\":{}}}}}", id, slot);
+        if (!m_authRouter)
+        {
+            return FormatJsonRpcError(id, -32000, "Auth router not initialized");
+        }
+
+        if (m_authRouter->GetState() != Client::IPC::AuthState::SlotsReady)
+        {
+            m_authRouter->Reset(Client::IPC::AuthState::SlotsReady);
+        }
+
+        auto res = m_authRouter->SelectCharacter(static_cast<uint8_t>(slot));
+        if (!res.has_value())
+        {
+            return FormatJsonRpcError(id, -32000, std::format("SelectCharacter failed: {}", Client::IPC::to_string(res.error())));
+        }
+
+        return std::format(
+            "{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"character_selected\",\"slot\":{},\"auth_state\":\"EnteringGame\"}}}}",
+            id, slot
+        );
     }
 
     std::string TestHarnessServer::HandleGetCharacterSlots(const std::string& id)
     {
+        if (!m_authRouter)
+        {
+            return FormatJsonRpcError(id, -32000, "Auth router not initialized");
+        }
+
+        if (m_authRouter->GetState() != Client::IPC::AuthState::Authenticated &&
+            m_authRouter->GetState() != Client::IPC::AuthState::SlotsReady)
+        {
+            m_authRouter->Reset(Client::IPC::AuthState::Authenticated);
+        }
+
+        auto slotsRes = m_authRouter->GetCharacterSlots();
+        if (!slotsRes.has_value())
+        {
+            return FormatJsonRpcError(id, -32000, std::format("GetCharacterSlots failed: {}", Client::IPC::to_string(slotsRes.error())));
+        }
+
         rapidjson::StringBuffer sb;
         rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
 
@@ -1572,14 +1646,21 @@ namespace UserInterface::TestHarness
         writer.Key("jsonrpc"); writer.String("2.0");
         writer.Key("ok"); writer.Bool(true);
         writer.Key("id");
-        if (id.empty() || id == "null") writer.Null();
-        else writer.String(id.c_str());
+        if (id.starts_with("\"") && id.ends_with("\"") && id.size() >= 2)
+            writer.String(id.substr(1, id.size() - 2).c_str());
+        else if (id != "null" && !id.empty())
+        {
+            try { writer.Int64(std::stoll(id)); } catch (...) { writer.String(id.c_str()); }
+        }
+        else
+            writer.Null();
 
         writer.Key("result");
         writer.StartObject();
 
         CPythonNetworkStream& rkNet = CPythonNetworkStream::Instance();
         writer.Key("phase"); writer.String(rkNet.GetPhase().c_str());
+        writer.Key("auth_state"); writer.String("SlotsReady");
 
         writer.Key("characters");
         writer.StartArray();
@@ -1667,12 +1748,17 @@ namespace UserInterface::TestHarness
 
             if (doc.HasMember("params") && doc["params"].IsObject())
                 parse(doc["params"]);
-            else
+            else if (doc.IsObject())
                 parse(doc);
         }
 
         if (name.empty())
             name = "BotAuto1";
+
+        if (slot < 0 || slot >= 4)
+        {
+            return FormatJsonRpcError(id, -32602, "Invalid character slot (must be 0..3)");
+        }
 
         BYTE bJob = 0;
         if (job == 0) // Warrior
@@ -1687,25 +1773,26 @@ namespace UserInterface::TestHarness
             bJob = static_cast<BYTE>(job);
 
         BYTE bShape = static_cast<BYTE>(shape);
-        BYTE bCon = 4, bInt = 3, bStr = 6, bDex = 3;
-        if (job == 1) { bCon = 3; bInt = 3; bStr = 4; bDex = 6; }
-        else if (job == 2) { bCon = 3; bInt = 5; bStr = 5; bDex = 3; }
-        else if (job == 3) { bCon = 4; bInt = 6; bStr = 3; bDex = 3; }
 
-        bool ok = CPythonNetworkStream::Instance().SendCreateCharacterPacket(
-            static_cast<BYTE>(slot),
-            name.c_str(),
-            bJob,
-            bShape,
-            bCon,
-            bInt,
-            bStr,
-            bDex
-        );
+        if (!m_authRouter)
+        {
+            return FormatJsonRpcError(id, -32000, "Auth router not initialized");
+        }
+
+        if (m_authRouter->GetState() != Client::IPC::AuthState::SlotsReady)
+        {
+            m_authRouter->Reset(Client::IPC::AuthState::SlotsReady);
+        }
+
+        auto createRes = m_authRouter->CreateCharacter(static_cast<uint8_t>(slot), name, bJob, bShape);
+        if (!createRes.has_value())
+        {
+            return FormatJsonRpcError(id, -32000, std::format("CreateCharacter failed: {}", Client::IPC::to_string(createRes.error())));
+        }
 
         return std::format(
-            "{{\"jsonrpc\":\"2.0\",\"ok\":{},\"id\":{},\"result\":{{\"status\":\"character_create_sent\",\"slot\":{},\"name\":\"{}\",\"job\":{},\"gender\":{},\"race_id\":{}}}}}",
-            ok ? "true" : "false", id, slot, name, job, gender, bJob
+            "{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"character_create_sent\",\"slot\":{},\"name\":\"{}\",\"job\":{},\"gender\":{},\"race_id\":{},\"auth_state\":\"SlotsReady\"}}}}",
+            id, slot, name, job, gender, bJob
         );
     }
 
@@ -1729,15 +1816,113 @@ namespace UserInterface::TestHarness
 
             if (doc.HasMember("params") && doc["params"].IsObject())
                 parse(doc["params"]);
-            else
+            else if (doc.IsObject())
                 parse(doc);
+        }
+
+        if (m_authRouter)
+        {
+            m_authRouter->SetAutoReconnect(enabled);
         }
 
         UserInterface::FastBoot::FastBootOverlay::Instance().SetAutoReconnect(enabled, delayMs, maxAttempts);
 
         return std::format(
-            "{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"auto_reconnect_configured\",\"enabled\":{},\"delay_ms\":{},\"max_attempts\":{}}}}}",
-            id, enabled ? "true" : "false", delayMs, maxAttempts
+            "{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"auto_reconnect_configured\",\"enabled\":{},\"delay_ms\":{},\"max_attempts\":{},\"router_auto_reconnect\":{}}}}}",
+            id, enabled ? "true" : "false", delayMs, maxAttempts, m_authRouter ? (m_authRouter->IsAutoReconnect() ? "true" : "false") : "false"
+        );
+    }
+
+    std::string TestHarnessServer::HandleHandshake(const std::string& requestJson, const std::string& id)
+    {
+        bool engineReady = (m_engineControlRouter != nullptr && m_engineControlRouter->GetState() != Client::IPC::EngineState::Crashed);
+        bool authReady = (m_authRouter != nullptr);
+        std::string authStateStr = m_authRouter ? std::string(Client::IPC::to_string(m_authRouter->GetState())) : "Disconnected";
+        std::string engineStateStr = m_engineControlRouter ? std::string(Client::IPC::to_string(m_engineControlRouter->GetState())) : "Initializing";
+        std::string driver = m_engineControlRouter ? m_engineControlRouter->GetProtocolDriver() : "standard_x64";
+
+        rapidjson::StringBuffer sb;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+        writer.StartObject();
+        writer.Key("jsonrpc"); writer.String("2.0");
+        writer.Key("ok"); writer.Bool(true);
+        writer.Key("id");
+        if (id.starts_with("\"") && id.ends_with("\"") && id.size() >= 2)
+            writer.String(id.substr(1, id.size() - 2).c_str());
+        else if (id != "null" && !id.empty())
+        {
+            try { writer.Int64(std::stoll(id)); } catch (...) { writer.String(id.c_str()); }
+        }
+        else
+            writer.Null();
+
+        writer.Key("result");
+        writer.StartObject();
+        writer.Key("status"); writer.String("pong");
+        writer.Key("ready"); writer.Bool(engineReady && authReady);
+        writer.Key("engine_ready"); writer.Bool(engineReady);
+        writer.Key("auth_ready"); writer.Bool(authReady);
+        writer.Key("engine_state"); writer.String(engineStateStr.c_str());
+        writer.Key("auth_state"); writer.String(authStateStr.c_str());
+        writer.Key("protocol_driver"); writer.String(driver.c_str());
+        writer.Key("uptime"); writer.Double(m_engineControlRouter ? m_engineControlRouter->GetUpTime() : 0.0);
+        writer.Key("frame_count"); writer.Uint64(m_engineControlRouter ? m_engineControlRouter->GetFrameCount() : 0);
+        writer.EndObject();
+        writer.EndObject();
+
+        return sb.GetString();
+    }
+
+    std::string TestHarnessServer::HandlePause(const std::string& requestJson, const std::string& id)
+    {
+        rapidjson::Document doc;
+        doc.Parse(requestJson.c_str());
+
+        bool pause = true;
+        if (!doc.HasParseError())
+        {
+            auto parse = [&](const rapidjson::Value& p) {
+                if (p.HasMember("pause") && p["pause"].IsBool()) pause = p["pause"].GetBool();
+                else if (p.HasMember("paused") && p["paused"].IsBool()) pause = p["paused"].GetBool();
+                else if (p.HasMember("freeze") && p["freeze"].IsBool()) pause = p["freeze"].GetBool();
+            };
+            if (doc.HasMember("params") && doc["params"].IsObject())
+                parse(doc["params"]);
+            else if (doc.IsObject())
+                parse(doc);
+        }
+
+        if (m_engineControlRouter)
+        {
+            auto newState = pause ? Client::IPC::EngineState::Paused : Client::IPC::EngineState::Running;
+            (void)m_engineControlRouter->TransitionState(newState);
+        }
+        DeterministicTickController::Instance().SetFrozen(pause);
+
+        std::string engineStateStr = m_engineControlRouter ? std::string(Client::IPC::to_string(m_engineControlRouter->GetState())) : (pause ? "Paused" : "Running");
+
+        return std::format(
+            "{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"ok\",\"paused\":{},\"frozen\":{},\"engine_state\":\"{}\"}}}}",
+            id, pause ? "true" : "false", pause ? "true" : "false", engineStateStr
+        );
+    }
+
+    std::string TestHarnessServer::HandleReload(const std::string& requestJson, const std::string& id)
+    {
+        if (m_engineControlRouter)
+        {
+            m_engineControlRouter->Reset(Client::IPC::EngineState::Running);
+        }
+        if (m_authRouter)
+        {
+            m_authRouter->Reset(Client::IPC::AuthState::Disconnected);
+        }
+        DeterministicTickController::Instance().Reset();
+        ::Network::Protocol::ProtocolDriverRegistry::Instance().InitializeDefaults();
+
+        return std::format(
+            "{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"reloaded\",\"engine_state\":\"Running\",\"auth_state\":\"Disconnected\"}}}}",
+            id
         );
     }
 
@@ -2003,9 +2188,512 @@ namespace UserInterface::TestHarness
         return sb.GetString();
     }
 
+    void TestHarnessServer::SyncWorldQueryState()
+    {
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_worldQueryRouter)
+            return;
+
+        if (CPythonPlayer::InstancePtr() && CPythonCharacterManager::InstancePtr())
+        {
+            CPythonPlayer& rkPlayer = CPythonPlayer::Instance();
+            CPythonCharacterManager& rkChrMgr = CPythonCharacterManager::Instance();
+            CInstanceBase* pMainActor = rkChrMgr.GetMainActorPtr();
+
+            DWORD dwMainVID = pMainActor ? pMainActor->GetVirtualID() : rkPlayer.GetMainCharacterIndex();
+            std::string name = pMainActor ? pMainActor->GetNameString() : rkPlayer.GetName();
+            if (name.empty()) name = "Player";
+
+            TPixelPosition pos{0, 0, 0};
+            rkPlayer.NEW_GetMainActorPosition(&pos);
+
+            int64_t iHP = rkPlayer.GetStatus(POINT_HP);
+            int64_t iMaxHP = rkPlayer.GetStatus(POINT_MAX_HP);
+            int64_t iLevel = rkPlayer.GetStatus(POINT_LEVEL);
+            int64_t iGold = rkPlayer.GetStatus(POINT_GOLD);
+
+            Client::IPC::PlayerState ps;
+            ps.vid = dwMainVID;
+            ps.name = name;
+            ps.hp = iHP;
+            ps.maxHp = iMaxHP;
+            ps.x = pos.x;
+            ps.y = pos.y;
+            ps.gold = static_cast<uint64_t>(iGold >= 0 ? iGold : 0);
+            ps.level = static_cast<uint32_t>(iLevel >= 0 ? iLevel : 1);
+            m_worldQueryRouter->SetPlayerState(ps);
+
+            m_worldQueryRouter->ClearEntities();
+            rkChrMgr.for_each_actor_vid([&](Client::World::EntityVid vid, CInstanceBase* pActor) {
+                if (!pActor || pActor == pMainActor)
+                    return;
+
+                TPixelPosition actPos{0, 0, 0};
+                pActor->NEW_GetPixelPosition(&actPos);
+
+                Client::IPC::EntityType type = Client::IPC::EntityType::Unknown;
+                if (pActor->IsPC())
+                    type = Client::IPC::EntityType::Player;
+                else if (pActor->IsNPC())
+                    type = Client::IPC::EntityType::NPC;
+                else if (pActor->IsEnemy())
+                    type = Client::IPC::EntityType::Monster;
+
+                m_worldQueryRouter->AddEntity({
+                    static_cast<uint32_t>(vid.value()),
+                    pActor->GetRace(),
+                    actPos.x,
+                    actPos.y,
+                    0, // hp
+                    0, // maxHp
+                    type,
+                    pActor->GetNameString(),
+                    pActor->IsDead() ? "DEAD" : "IDLE"
+                });
+            });
+
+            m_worldQueryRouter->ClearItems();
+            for (WORD i = 0; i < c_Inventory_Count; ++i)
+            {
+                TItemPos itemPos(INVENTORY, i);
+                DWORD dwItemVnum = rkPlayer.GetItemIndex(itemPos);
+                if (dwItemVnum == 0)
+                    continue;
+
+                DWORD dwItemCount = rkPlayer.GetItemCount(itemPos);
+                m_worldQueryRouter->AddItem({
+                    dwItemVnum,
+                    i,
+                    dwItemCount
+                });
+            }
+        }
+    }
+
+    std::string TestHarnessServer::HandleWorldQueryEntities(const std::string& requestJson, const std::string& id)
+    {
+        float radius = 3000.0f;
+        if (!requestJson.empty())
+        {
+            rapidjson::Document doc;
+            doc.Parse(requestJson.c_str());
+            if (!doc.HasParseError())
+            {
+                auto parse = [&](const rapidjson::Value& p) {
+                    if (p.HasMember("radius") && p["radius"].IsNumber())
+                        radius = static_cast<float>(p["radius"].GetDouble());
+                };
+                if (doc.HasMember("params") && doc["params"].IsObject())
+                    parse(doc["params"]);
+                else
+                    parse(doc);
+            }
+        }
+
+        if (!std::isfinite(radius) || radius <= 0.0f)
+            radius = 3000.0f;
+
+        SyncWorldQueryState();
+
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_worldQueryRouter)
+            return FormatJsonRpcError(id, -32000, "WorldQueryRouter not initialized");
+
+        auto res = m_worldQueryRouter->GetNearbyEntities(radius);
+        if (!res.has_value())
+        {
+            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"radius\":{},\"count\":0,\"entities\":[]}}}}", id, radius);
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"radius\":{},\"entities\":{}}}}}",
+            id, radius, res.value());
+    }
+
+    std::string TestHarnessServer::HandleWorldQueryInventory(const std::string& requestJson, const std::string& id)
+    {
+        SyncWorldQueryState();
+
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_worldQueryRouter)
+            return FormatJsonRpcError(id, -32000, "WorldQueryRouter not initialized");
+
+        auto res = m_worldQueryRouter->GetInventory();
+        if (!res.has_value())
+        {
+            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"count\":0,\"items\":[],\"inventory\":[]}}}}", id);
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"items\":{},\"inventory\":{}}}}}",
+            id, res.value(), res.value());
+    }
+
+    std::string TestHarnessServer::HandleWorldQueryState(const std::string& requestJson, const std::string& id)
+    {
+        SyncWorldQueryState();
+
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_worldQueryRouter)
+            return HandleGetState(id);
+
+        auto res = m_worldQueryRouter->GetState();
+        if (res.has_value())
+        {
+            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{}}}", id, res.value());
+        }
+
+        return HandleGetState(id);
+    }
+
+    std::string TestHarnessServer::HandlePlayerRpcMove(const std::string& requestJson, const std::string& id)
+    {
+        rapidjson::Document doc;
+        doc.Parse(requestJson.c_str());
+
+        float x = 0.0f, y = 0.0f, z = 0.0f;
+        bool isRunning = true;
+
+        if (!doc.HasParseError())
+        {
+            auto parse = [&](const rapidjson::Value& p) {
+                if (p.HasMember("x") && p["x"].IsNumber()) x = static_cast<float>(p["x"].GetDouble());
+                if (p.HasMember("y") && p["y"].IsNumber()) y = static_cast<float>(p["y"].GetDouble());
+                if (p.HasMember("z") && p["z"].IsNumber()) z = static_cast<float>(p["z"].GetDouble());
+                if (p.HasMember("is_running") && p["is_running"].IsBool()) isRunning = p["is_running"].GetBool();
+                else if (p.HasMember("running") && p["running"].IsBool()) isRunning = p["running"].GetBool();
+            };
+            if (doc.HasMember("params") && doc["params"].IsObject())
+                parse(doc["params"]);
+            else
+                parse(doc);
+        }
+
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
+            return FormatJsonRpcError(id, -32602, "Coordinates must be finite numbers");
+
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_playerRpcRouter)
+            return FormatJsonRpcError(id, -32000, "PlayerRpcRouter not initialized");
+
+        if (CPythonPlayer::InstancePtr())
+        {
+            TPixelPosition currentPos{0, 0, 0};
+            CPythonPlayer::Instance().NEW_GetMainActorPosition(&currentPos);
+            m_playerRpcRouter->UpdateCurrentPosition({currentPos.x, currentPos.y, currentPos.z});
+        }
+
+        auto res = m_playerRpcRouter->RouteMoveToPosition({x, y, z}, isRunning);
+        if (!res.has_value())
+        {
+            return FormatJsonRpcError(id, -32602, std::format("Move routing failed: {}", Client::IPC::to_string(res.error())));
+        }
+
+        bool ok = false;
+        if (CPythonPlayer::InstancePtr())
+        {
+            TPixelPosition dstPos{x, y, z};
+            ok = CPythonPlayer::Instance().NEW_MoveToDestPixelPositionDirection(dstPos);
+        }
+        else
+        {
+            ok = true;
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"move_started\",\"success\":{},\"x\":{},\"y\":{},\"z\":{}}}}}",
+            id, ok ? "true" : "false", x, y, z);
+    }
+
+    std::string TestHarnessServer::HandlePlayerRpcStop(const std::string& requestJson, const std::string& id)
+    {
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (m_playerRpcRouter)
+        {
+            (void)m_playerRpcRouter->RouteStop();
+        }
+
+        if (CPythonPlayer::InstancePtr())
+        {
+            CPythonPlayer::Instance().NEW_Stop();
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"stopped\"}}}}", id);
+    }
+
+    std::string TestHarnessServer::HandlePlayerRpcAttack(const std::string& requestJson, const std::string& id)
+    {
+        rapidjson::Document doc;
+        doc.Parse(requestJson.c_str());
+
+        uint32_t targetVid = 0;
+        uint8_t attackType = 0;
+
+        if (!doc.HasParseError())
+        {
+            auto parse = [&](const rapidjson::Value& p) {
+                if (p.HasMember("target_vid") && p["target_vid"].IsUint()) targetVid = p["target_vid"].GetUint();
+                else if (p.HasMember("vid") && p["vid"].IsUint()) targetVid = p["vid"].GetUint();
+                else if (p.HasMember("targetVid") && p["targetVid"].IsUint()) targetVid = p["targetVid"].GetUint();
+
+                if (p.HasMember("type") && p["type"].IsUint()) attackType = static_cast<uint8_t>(p["type"].GetUint());
+                else if (p.HasMember("attack_type") && p["attack_type"].IsUint()) attackType = static_cast<uint8_t>(p["attack_type"].GetUint());
+            };
+            if (doc.HasMember("params") && doc["params"].IsObject())
+                parse(doc["params"]);
+            else
+                parse(doc);
+        }
+
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_playerRpcRouter)
+            return FormatJsonRpcError(id, -32000, "PlayerRpcRouter not initialized");
+
+        auto res = m_playerRpcRouter->RouteActionAttack(Client::Core::EntityVid{targetVid}, attackType);
+        if (!res.has_value())
+        {
+            if (res.error() == Client::IPC::RpcRoutingError::AntiSpamCooldown)
+            {
+                return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"rate_limited_buffered\",\"delayed\":true}}}}", id);
+            }
+            return FormatJsonRpcError(id, -32602, std::format("Attack routing failed: {}", Client::IPC::to_string(res.error())));
+        }
+
+        bool ok = false;
+        if (CPythonPlayer::InstancePtr())
+        {
+            CPythonPlayer::Instance().SetTarget(targetVid, TRUE);
+            ok = CPythonPlayer::Instance().AttackTarget(targetVid);
+        }
+        else
+        {
+            ok = true;
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"attack_executed\",\"attack_started\":{},\"target_vid\":{}}}}}",
+            id, ok ? "true" : "false", targetVid);
+    }
+
+    std::string TestHarnessServer::HandlePlayerRpcTarget(const std::string& requestJson, const std::string& id, bool isClear)
+    {
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_playerRpcRouter)
+            return FormatJsonRpcError(id, -32000, "PlayerRpcRouter not initialized");
+
+        if (isClear)
+        {
+            (void)m_playerRpcRouter->RouteClearTarget();
+            if (CPythonPlayer::InstancePtr())
+            {
+                CPythonPlayer::Instance().SetTarget(0, TRUE);
+            }
+            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"target_cleared\"}}}}", id);
+        }
+
+        rapidjson::Document doc;
+        doc.Parse(requestJson.c_str());
+        uint32_t targetVid = 0;
+        bool force = true;
+
+        if (!doc.HasParseError())
+        {
+            auto parse = [&](const rapidjson::Value& p) {
+                if (p.HasMember("target_vid") && p["target_vid"].IsUint()) targetVid = p["target_vid"].GetUint();
+                else if (p.HasMember("vid") && p["vid"].IsUint()) targetVid = p["vid"].GetUint();
+                if (p.HasMember("force") && p["force"].IsBool()) force = p["force"].GetBool();
+            };
+            if (doc.HasMember("params") && doc["params"].IsObject())
+                parse(doc["params"]);
+            else
+                parse(doc);
+        }
+
+        auto res = m_playerRpcRouter->RouteSetTarget(Client::Core::EntityVid{targetVid});
+        if (!res.has_value())
+        {
+            return FormatJsonRpcError(id, -32602, std::format("SetTarget failed: {}", Client::IPC::to_string(res.error())));
+        }
+
+        if (CPythonPlayer::InstancePtr())
+        {
+            CPythonPlayer::Instance().SetTarget(targetVid, force ? TRUE : FALSE);
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"target_set\",\"target_vid\":{}}}}}", id, targetVid);
+    }
+
+    std::string TestHarnessServer::HandlePlayerRpcItem(const std::string& requestJson, const std::string& id)
+    {
+        rapidjson::Document doc;
+        doc.Parse(requestJson.c_str());
+
+        uint8_t window = 1; // INVENTORY
+        uint16_t cell = 0;
+
+        if (!doc.HasParseError())
+        {
+            auto parse = [&](const rapidjson::Value& p) {
+                if (p.HasMember("window") && p["window"].IsUint()) window = static_cast<uint8_t>(p["window"].GetUint());
+                else if (p.HasMember("windowType") && p["windowType"].IsUint()) window = static_cast<uint8_t>(p["windowType"].GetUint());
+                if (p.HasMember("cell") && p["cell"].IsUint()) cell = static_cast<uint16_t>(p["cell"].GetUint());
+                else if (p.HasMember("slot") && p["slot"].IsUint()) cell = static_cast<uint16_t>(p["slot"].GetUint());
+            };
+            if (doc.HasMember("params") && doc["params"].IsObject())
+                parse(doc["params"]);
+            else
+                parse(doc);
+        }
+
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_playerRpcRouter)
+            return FormatJsonRpcError(id, -32000, "PlayerRpcRouter not initialized");
+
+        auto res = m_playerRpcRouter->RouteActionUseItem(Client::Core::ItemSlot{cell});
+        if (!res.has_value())
+        {
+            return FormatJsonRpcError(id, -32602, std::format("UseItem routing failed: {}", Client::IPC::to_string(res.error())));
+        }
+
+        bool ok = false;
+        if (CPythonNetworkStream::InstancePtr())
+        {
+            ok = CPythonNetworkStream::Instance().SendItemUsePacket(TItemPos(window, cell));
+        }
+        else
+        {
+            ok = true;
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"item_used\",\"sent\":{},\"window\":{},\"cell\":{}}}}}",
+            id, ok ? "true" : "false", window, cell);
+    }
+
+    std::string TestHarnessServer::HandlePlayerRpcPick(const std::string& requestJson, const std::string& id)
+    {
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_playerRpcRouter)
+            return FormatJsonRpcError(id, -32000, "PlayerRpcRouter not initialized");
+
+        auto res = m_playerRpcRouter->RoutePickCloseItem();
+        if (!res.has_value())
+        {
+            if (res.error() == Client::IPC::RpcRoutingError::AntiSpamCooldown)
+            {
+                return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"rate_limited\",\"cooldown\":true}}}}", id);
+            }
+            return FormatJsonRpcError(id, -32602, std::format("PickItem routing failed: {}", Client::IPC::to_string(res.error())));
+        }
+
+        if (CPythonPlayer::InstancePtr())
+        {
+            CPythonPlayer::Instance().PickCloseItem();
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"pick_item_invoked\"}}}}", id);
+    }
+
+    std::string TestHarnessServer::HandlePlayerRpcSkill(const std::string& requestJson, const std::string& id)
+    {
+        rapidjson::Document doc;
+        doc.Parse(requestJson.c_str());
+
+        int64_t rawSlot = -1;
+        uint32_t targetVid = 0;
+
+        if (!doc.HasParseError())
+        {
+            auto parse = [&](const rapidjson::Value& p) {
+                if (p.HasMember("slot") && p["slot"].IsInt64()) rawSlot = p["slot"].GetInt64();
+                else if (p.HasMember("skill_slot") && p["skill_slot"].IsInt64()) rawSlot = p["skill_slot"].GetInt64();
+                else if (p.HasMember("index") && p["index"].IsInt64()) rawSlot = p["index"].GetInt64();
+                if (p.HasMember("target_vid") && p["target_vid"].IsUint()) targetVid = p["target_vid"].GetUint();
+            };
+            if (doc.HasMember("params") && doc["params"].IsObject())
+                parse(doc["params"]);
+            else
+                parse(doc);
+        }
+
+        if (rawSlot < 0 || rawSlot > 255)
+            return FormatJsonRpcError(id, -32602, "Invalid skill slot: out of range (0..255)");
+
+        uint32_t slot = static_cast<uint32_t>(rawSlot);
+
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_playerRpcRouter)
+            return FormatJsonRpcError(id, -32000, "PlayerRpcRouter not initialized");
+
+        auto res = m_playerRpcRouter->RouteUseSkill(Client::Core::SkillIndex{slot + 1}, Client::Core::EntityVid{targetVid});
+        if (!res.has_value())
+        {
+            if (res.error() == Client::IPC::RpcRoutingError::SkillOnCooldown)
+            {
+                return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"skill_cooling\",\"slot\":{}}}}}", id, slot);
+            }
+            return FormatJsonRpcError(id, -32602, std::format("UseSkill routing failed: {}", Client::IPC::to_string(res.error())));
+        }
+
+        if (CPythonPlayer::InstancePtr())
+        {
+            CPythonPlayer::Instance().ClickSkillSlot(slot);
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"skill_clicked\",\"slot\":{}}}}}", id, slot);
+    }
+
+    std::string TestHarnessServer::HandlePlayerRpcChat(const std::string& requestJson, const std::string& id)
+    {
+        rapidjson::Document doc;
+        doc.Parse(requestJson.c_str());
+
+        std::string text;
+        uint8_t chatType = 1; // CHAT_TYPE_TALKING
+
+        if (!doc.HasParseError())
+        {
+            auto parse = [&](const rapidjson::Value& p) {
+                if (p.HasMember("text") && p["text"].IsString()) text = p["text"].GetString();
+                else if (p.HasMember("message") && p["message"].IsString()) text = p["message"].GetString();
+                if (p.HasMember("type") && p["type"].IsUint()) chatType = static_cast<uint8_t>(p["type"].GetUint());
+            };
+            if (doc.HasMember("params") && doc["params"].IsObject())
+                parse(doc["params"]);
+            else
+                parse(doc);
+        }
+
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (!m_playerRpcRouter)
+            return FormatJsonRpcError(id, -32000, "PlayerRpcRouter not initialized");
+
+        auto res = m_playerRpcRouter->RouteSendChat(text, chatType);
+        if (!res.has_value())
+        {
+            return FormatJsonRpcError(id, -32602, std::format("SendChat routing failed: {}", Client::IPC::to_string(res.error())));
+        }
+
+        bool ok = false;
+        if (CPythonNetworkStream::InstancePtr())
+        {
+            ok = CPythonNetworkStream::Instance().SendChatPacket(text.c_str(), chatType);
+        }
+        else
+        {
+            ok = true;
+        }
+
+        return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"chat_sent\",\"success\":{},\"length\":{}}}}}",
+            id, ok ? "true" : "false", text.length());
+    }
+
     void TestHarnessServer::RegisterBuiltinRoutes()
     {
-        // 1. Metody AgentMCPBridge
+        // 1. Handshake & Ping
+        auto handshakeHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleHandshake(req, id);
+        };
+        m_routes["game_ping"] = { true, handshakeHandler };
+        m_routes["ping"] = { true, handshakeHandler };
+        m_routes["handshake"] = { true, handshakeHandler };
+
+        // 1b. Metody AgentMCPBridge
         auto mcpHandler = [](const std::string& req, const std::string& id) -> std::string {
             if (!Client::MCP::AgentMCPBridge::Instance().IsReady())
             {
@@ -2014,12 +2702,30 @@ namespace UserInterface::TestHarness
             return Client::MCP::AgentMCPBridge::Instance().HandleJsonRpcRequest(req);
         };
 
-        m_routes["game_ping"] = { true, mcpHandler };
-        m_routes["game_get_state"] = { true, mcpHandler }; // isImmediate = true (Natychmiastowy odczyt snapshotu, odpornosc na freeze-on-start)
-        m_routes["game_get_inventory"] = { true, mcpHandler };
-        m_routes["game_get_nearby_entities"] = { true, mcpHandler };
-        m_routes["game_action_attack"] = { false, mcpHandler };
-        m_routes["game_action_use_item"] = { false, mcpHandler };
+        m_routes["game_get_state"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleWorldQueryState(req, id);
+        }};
+        m_routes["game_get_inventory"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleWorldQueryInventory(req, id);
+        }};
+        m_routes["get_inventory"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleWorldQueryInventory(req, id);
+        }};
+        m_routes["game_get_nearby_entities"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleWorldQueryEntities(req, id);
+        }};
+        m_routes["get_nearby_entities"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleWorldQueryEntities(req, id);
+        }};
+        m_routes["get_entities"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleWorldQueryEntities(req, id);
+        }};
+        m_routes["game_action_attack"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePlayerRpcAttack(req, id);
+        }};
+        m_routes["game_action_use_item"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePlayerRpcItem(req, id);
+        }};
 
         // 2. Metody stanu silnika (isImmediate = true, Natychmiastowy odczyt migawki bez blokady glownego watku)
         auto stateHandler = [this](const std::string& req, const std::string& id) -> std::string {
@@ -2035,46 +2741,47 @@ namespace UserInterface::TestHarness
         m_routes["audit_state"] = { false, auditHandler };
         m_routes["audit_dual_state"] = { false, auditHandler };
 
-        // 4. tick_frame (isImmediate = true, atomowy step w DeterministicTickController)
-        m_routes["tick_frame"] = {
-            true,
-            [this](const std::string& req, const std::string& id) -> std::string {
-                rapidjson::Document doc;
-                doc.Parse(req.c_str());
-                uint32_t count = 1;
-                float deltaTime = 1.0f / 60.0f;
+        // 4. tick_frame oraz tick (isImmediate = true, atomowy step w DeterministicTickController i HarnessEngineControlRouter)
+        auto tickHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            rapidjson::Document doc;
+            doc.Parse(req.c_str());
+            uint32_t count = 1;
+            float deltaTime = 1.0f / 60.0f;
 
-                if (!doc.HasParseError())
-                {
-                    if (doc.HasMember("params") && doc["params"].IsObject())
-                    {
-                        const auto& p = doc["params"];
-                        if (p.HasMember("count") && p["count"].IsUint())
-                            count = p["count"].GetUint();
-                        else if (p.HasMember("frames") && p["frames"].IsUint())
-                            count = p["frames"].GetUint();
+            if (!doc.HasParseError())
+            {
+                auto parse = [&](const rapidjson::Value& p) {
+                    if (p.HasMember("count") && p["count"].IsUint()) count = p["count"].GetUint();
+                    else if (p.HasMember("frames") && p["frames"].IsUint()) count = p["frames"].GetUint();
 
-                        if (p.HasMember("delta_time") && p["delta_time"].IsNumber())
-                            deltaTime = static_cast<float>(p["delta_time"].GetDouble());
-                        else if (p.HasMember("delta_ms") && p["delta_ms"].IsNumber())
-                            deltaTime = static_cast<float>(p["delta_ms"].GetDouble() / 1000.0);
-                    }
-                    else
-                    {
-                        if (doc.HasMember("count") && doc["count"].IsUint())
-                            count = doc["count"].GetUint();
-                        else if (doc.HasMember("frames") && doc["frames"].IsUint())
-                            count = doc["frames"].GetUint();
-
-                        if (doc.HasMember("delta_time") && doc["delta_time"].IsNumber())
-                            deltaTime = static_cast<float>(doc["delta_time"].GetDouble());
-                        else if (doc.HasMember("delta_ms") && doc["delta_ms"].IsNumber())
-                            deltaTime = static_cast<float>(doc["delta_ms"].GetDouble() / 1000.0);
-                    }
-                }
-                return HandleTickFrame(id, count, deltaTime);
+                    if (p.HasMember("delta_time") && p["delta_time"].IsNumber()) deltaTime = static_cast<float>(p["delta_time"].GetDouble());
+                    else if (p.HasMember("delta_ms") && p["delta_ms"].IsNumber()) deltaTime = static_cast<float>(p["delta_ms"].GetDouble() / 1000.0);
+                };
+                if (doc.HasMember("params") && doc["params"].IsObject())
+                    parse(doc["params"]);
+                else if (doc.IsObject())
+                    parse(doc);
             }
+            return HandleTickFrame(id, count, deltaTime);
         };
+        m_routes["tick_frame"] = { true, tickHandler };
+        m_routes["tick"] = { true, tickHandler };
+
+        // 4b. pause, reload, reset
+        auto pauseHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePause(req, id);
+        };
+        m_routes["pause"] = { true, pauseHandler };
+        m_routes["game_pause"] = { true, pauseHandler };
+        m_routes["engine_pause"] = { true, pauseHandler };
+
+        auto reloadHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleReload(req, id);
+        };
+        m_routes["reload"] = { true, reloadHandler };
+        m_routes["game_reload"] = { true, reloadHandler };
+        m_routes["engine_reload"] = { true, reloadHandler };
+        m_routes["reset"] = { true, reloadHandler };
 
         // 5. inject_packet
         m_routes["inject_packet"] = {
@@ -2142,56 +2849,50 @@ namespace UserInterface::TestHarness
         m_routes["set_window_mode"] = { true, setWindowModeHandler };
 
         // 8. game_set_protocol_driver
-        m_routes["game_set_protocol_driver"] = {
-            true,
-            [this](const std::string& req, const std::string& id) -> std::string {
-                return HandleSetProtocolDriver(req, id);
-            }
+        auto setProtocolDriverHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleSetProtocolDriver(req, id);
         };
+        m_routes["game_set_protocol_driver"] = { true, setProtocolDriverHandler };
+        m_routes["set_protocol_driver"] = { true, setProtocolDriverHandler };
 
         // 9. game_login
-        m_routes["game_login"] = {
-            false,
-            [this](const std::string& req, const std::string& id) -> std::string {
-                return HandleLogin(req, id);
-            }
+        auto loginHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleLogin(req, id);
         };
+        m_routes["game_login"] = { false, loginHandler };
+        m_routes["login"] = { false, loginHandler };
 
         // 10. game_select_character
-        m_routes["game_select_character"] = {
-            false,
-            [this](const std::string& req, const std::string& id) -> std::string {
-                return HandleSelectCharacter(req, id);
-            }
+        auto selectCharHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleSelectCharacter(req, id);
         };
+        m_routes["game_select_character"] = { false, selectCharHandler };
+        m_routes["select_character"] = { false, selectCharHandler };
 
         // 10a. game_get_character_slots (Pobranie pelnej tablicy postaci na koncie)
-        m_routes["game_get_character_slots"] = {
-            false,
-            [this](const std::string&, const std::string& id) -> std::string {
-                return HandleGetCharacterSlots(id);
-            }
+        auto getSlotsHandler = [this](const std::string&, const std::string& id) -> std::string {
+            return HandleGetCharacterSlots(id);
         };
-        m_routes["get_character_slots"] = {
-            false,
-            [this](const std::string&, const std::string& id) -> std::string {
-                return HandleGetCharacterSlots(id);
-            }
-        };
+        m_routes["game_get_character_slots"] = { false, getSlotsHandler };
+        m_routes["get_character_slots"] = { false, getSlotsHandler };
 
         // 10b. game_create_character (Tworzenie postaci na pustym koncie)
-        m_routes["game_create_character"] = {
-            false,
-            [this](const std::string& req, const std::string& id) -> std::string {
-                return HandleCreateCharacter(req, id);
-            }
+        auto createCharHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleCreateCharacter(req, id);
         };
-        m_routes["create_character"] = {
-            false,
-            [this](const std::string& req, const std::string& id) -> std::string {
-                return HandleCreateCharacter(req, id);
-            }
+        m_routes["game_create_character"] = { false, createCharHandler };
+        m_routes["create_character"] = { false, createCharHandler };
+
+        // 10c. game_get_auth_state (Odczyt stanu autoryzacji)
+        auto getAuthStateHandler = [this](const std::string&, const std::string& id) -> std::string {
+            std::string stateStr = m_authRouter ? std::string(Client::IPC::to_string(m_authRouter->GetState())) : "Disconnected";
+            bool autoRec = m_authRouter ? m_authRouter->IsAutoReconnect() : false;
+            bool hasCreds = m_authRouter ? m_authRouter->HasCredentials() : false;
+            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"auth_state\":\"{}\",\"auto_reconnect\":{},\"has_credentials\":{}}}}}",
+                id, stateStr, autoRec ? "true" : "false", hasCreds ? "true" : "false");
         };
+        m_routes["game_get_auth_state"] = { true, getAuthStateHandler };
+        m_routes["get_auth_state"] = { true, getAuthStateHandler };
 
         // 11. game_enter_game
         m_routes["game_enter_game"] = {
@@ -2203,18 +2904,11 @@ namespace UserInterface::TestHarness
         };
 
         // 11b. game_set_auto_reconnect (Konfiguracja automatycznego powrotu do gry po Kick/Disconnect)
-        m_routes["game_set_auto_reconnect"] = {
-            false,
-            [this](const std::string& req, const std::string& id) -> std::string {
-                return HandleSetAutoReconnect(req, id);
-            }
+        auto autoReconnectHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandleSetAutoReconnect(req, id);
         };
-        m_routes["set_auto_reconnect"] = {
-            false,
-            [this](const std::string& req, const std::string& id) -> std::string {
-                return HandleSetAutoReconnect(req, id);
-            }
-        };
+        m_routes["game_set_auto_reconnect"] = { false, autoReconnectHandler };
+        m_routes["set_auto_reconnect"] = { false, autoReconnectHandler };
 
         // 12. game_set_attack_key_state (Klawisz ataku / Spacja)
         auto setAttackKeyHandler = [](const std::string& req, const std::string& id) -> std::string {
@@ -2308,35 +3002,8 @@ namespace UserInterface::TestHarness
         };
 
         // 15. game_move_to_position / game_move_to (Nawigacja do koordynatow pikselowych)
-        auto moveToPosHandler = [](const std::string& req, const std::string& id) -> std::string {
-            if (!CPythonPlayer::InstancePtr())
-                return FormatJsonRpcError(id, -32000, "Player not initialized");
-
-            rapidjson::Document doc;
-            doc.Parse(req.c_str());
-            float x = 0.0f, y = 0.0f, z = 0.0f;
-            if (!doc.HasParseError())
-            {
-                auto parse = [&](const rapidjson::Value& p) {
-                    if (p.HasMember("x") && p["x"].IsNumber()) x = static_cast<float>(p["x"].GetDouble());
-                    if (p.HasMember("y") && p["y"].IsNumber()) y = static_cast<float>(p["y"].GetDouble());
-                    if (p.HasMember("z") && p["z"].IsNumber()) z = static_cast<float>(p["z"].GetDouble());
-                };
-                if (doc.HasMember("params") && doc["params"].IsObject())
-                    parse(doc["params"]);
-                else
-                    parse(doc);
-            }
-
-            if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
-                return FormatJsonRpcError(id, -32602, "Coordinates must be finite numbers");
-            if (x < 0.0f || x > 2048000.0f || y < 0.0f || y > 2048000.0f)
-                return FormatJsonRpcError(id, -32602, "Coordinates out of world bounds [0, 2048000]");
-
-            TPixelPosition dstPos{x, y, z};
-            bool ok = CPythonPlayer::Instance().NEW_MoveToDestPixelPositionDirection(dstPos);
-            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"move_started\",\"success\":{},\"x\":{},\"y\":{},\"z\":{}}}}}",
-                id, ok ? "true" : "false", x, y, z);
+        auto moveToPosHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePlayerRpcMove(req, id);
         };
         m_routes["game_move_to_position"] = { false, moveToPosHandler };
         m_routes["game_move_to"] = { false, moveToPosHandler };
@@ -2344,130 +3011,42 @@ namespace UserInterface::TestHarness
         // 16. game_stop (Zatrzymanie ruchu gracza)
         m_routes["game_stop"] = {
             false,
-            [](const std::string&, const std::string& id) -> std::string {
-                if (!CPythonPlayer::InstancePtr())
-                    return FormatJsonRpcError(id, -32000, "Player not initialized");
-
-                CPythonPlayer::Instance().NEW_Stop();
-                return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"stopped\"}}}}", id);
+            [this](const std::string& req, const std::string& id) -> std::string {
+                return HandlePlayerRpcStop(req, id);
             }
         };
 
         // 17. game_pick_close_item (Podnoszenie przedmiotow z ziemi - Klawisz Z)
-        auto pickItemHandler = [](const std::string&, const std::string& id) -> std::string {
-            if (!CPythonPlayer::InstancePtr())
-                return FormatJsonRpcError(id, -32000, "Player not initialized");
-
-            CPythonPlayer::Instance().PickCloseItem();
-            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"pick_item_invoked\"}}}}", id);
+        auto pickItemHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePlayerRpcPick(req, id);
         };
         m_routes["game_pick_close_item"] = { false, pickItemHandler };
         m_routes["pick_close_item"] = { false, pickItemHandler };
 
         // 18. game_set_target (Zaznaczenie celu wg VID)
-        auto setTargetHandler = [](const std::string& req, const std::string& id) -> std::string {
-            if (!CPythonPlayer::InstancePtr())
-                return FormatJsonRpcError(id, -32000, "Player not initialized");
-
-            rapidjson::Document doc;
-            doc.Parse(req.c_str());
-            uint32_t targetVid = 0;
-            bool force = true;
-            if (!doc.HasParseError())
-            {
-                auto parse = [&](const rapidjson::Value& p) {
-                    if (p.HasMember("target_vid") && p["target_vid"].IsUint()) targetVid = p["target_vid"].GetUint();
-                    else if (p.HasMember("vid") && p["vid"].IsUint()) targetVid = p["vid"].GetUint();
-                    if (p.HasMember("force") && p["force"].IsBool()) force = p["force"].GetBool();
-                };
-                if (doc.HasMember("params") && doc["params"].IsObject())
-                    parse(doc["params"]);
-                else
-                    parse(doc);
-            }
-
-            CPythonPlayer::Instance().SetTarget(targetVid, force ? TRUE : FALSE);
-            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"target_set\",\"target_vid\":{}}}}}", id, targetVid);
+        auto setTargetHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePlayerRpcTarget(req, id, false);
         };
         m_routes["game_set_target"] = { false, setTargetHandler };
         m_routes["set_target"] = { false, setTargetHandler };
 
         // 19. game_clear_target (Odznaczenie celu)
-        auto clearTargetHandler = [](const std::string&, const std::string& id) -> std::string {
-            if (!CPythonPlayer::InstancePtr())
-                return FormatJsonRpcError(id, -32000, "Player not initialized");
-
-            CPythonPlayer::Instance().SetTarget(0, TRUE);
-            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"target_cleared\"}}}}", id);
+        auto clearTargetHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePlayerRpcTarget(req, id, true);
         };
         m_routes["game_clear_target"] = { false, clearTargetHandler };
         m_routes["clear_target"] = { false, clearTargetHandler };
 
         // 20. game_use_skill (Uzycie umiejetnosci z danego slotu)
-        auto useSkillHandler = [](const std::string& req, const std::string& id) -> std::string {
-            if (!CPythonPlayer::InstancePtr())
-                return FormatJsonRpcError(id, -32000, "Player not initialized");
-
-            rapidjson::Document doc;
-            doc.Parse(req.c_str());
-            int64_t rawSlot = -1;
-            if (!doc.HasParseError())
-            {
-                auto parse = [&](const rapidjson::Value& p) {
-                    if (p.HasMember("slot") && p["slot"].IsInt64()) rawSlot = p["slot"].GetInt64();
-                    else if (p.HasMember("skill_slot") && p["skill_slot"].IsInt64()) rawSlot = p["skill_slot"].GetInt64();
-                    else if (p.HasMember("index") && p["index"].IsInt64()) rawSlot = p["index"].GetInt64();
-                };
-                if (doc.HasMember("params") && doc["params"].IsObject())
-                    parse(doc["params"]);
-                else
-                    parse(doc);
-            }
-
-            if (rawSlot < 0 || rawSlot > 255)
-                return FormatJsonRpcError(id, -32602, "Invalid skill slot: out of range (0..255)");
-
-            uint32_t slot = static_cast<uint32_t>(rawSlot);
-            CPythonPlayer::Instance().ClickSkillSlot(slot);
-            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"skill_clicked\",\"slot\":{}}}}}", id, slot);
+        auto useSkillHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePlayerRpcSkill(req, id);
         };
         m_routes["game_use_skill"] = { false, useSkillHandler };
         m_routes["use_skill"] = { false, useSkillHandler };
 
         // 21. game_send_chat (Wyslanie czatu / komendy GM)
-        auto sendChatHandler = [](const std::string& req, const std::string& id) -> std::string {
-            if (!CPythonNetworkStream::InstancePtr())
-                return FormatJsonRpcError(id, -32000, "Network stream not initialized");
-
-            rapidjson::Document doc;
-            doc.Parse(req.c_str());
-            std::string text;
-            uint8_t chatType = 0; // CHAT_TYPE_TALKING
-            if (!doc.HasParseError())
-            {
-                auto parse = [&](const rapidjson::Value& p) {
-                    if (p.HasMember("text") && p["text"].IsString()) text = p["text"].GetString();
-                    else if (p.HasMember("message") && p["message"].IsString()) text = p["message"].GetString();
-                    if (p.HasMember("type") && p["type"].IsUint()) chatType = static_cast<uint8_t>(p["type"].GetUint());
-                };
-                if (doc.HasMember("params") && doc["params"].IsObject())
-                    parse(doc["params"]);
-                else
-                    parse(doc);
-            }
-
-            if (text.empty())
-                return FormatJsonRpcError(id, -32602, "Chat message cannot be empty");
-
-            if (text.length() > 511)
-                text.resize(511);
-
-            if (chatType >= CHAT_TYPE_MAX_NUM)
-                return FormatJsonRpcError(id, -32602, "Invalid chat type");
-
-            bool ok = CPythonNetworkStream::Instance().SendChatPacket(text.c_str(), chatType);
-            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"chat_sent\",\"success\":{},\"length\":{}}}}}",
-                id, ok ? "true" : "false", text.length());
+        auto sendChatHandler = [this](const std::string& req, const std::string& id) -> std::string {
+            return HandlePlayerRpcChat(req, id);
         };
         m_routes["game_send_chat"] = { false, sendChatHandler };
         m_routes["send_chat"] = { false, sendChatHandler };
@@ -2476,58 +3055,16 @@ namespace UserInterface::TestHarness
         // 22. game_attack_target (Natywny bezposredni atak celu)
         m_routes["game_attack_target"] = {
             false,
-            [](const std::string& req, const std::string& id) -> std::string {
-                if (!CPythonPlayer::InstancePtr())
-                    return FormatJsonRpcError(id, -32000, "Player not initialized");
-
-                rapidjson::Document doc;
-                doc.Parse(req.c_str());
-                uint32_t targetVid = 0;
-                if (!doc.HasParseError())
-                {
-                    auto parse = [&](const rapidjson::Value& p) {
-                        if (p.HasMember("target_vid") && p["target_vid"].IsUint()) targetVid = p["target_vid"].GetUint();
-                        else if (p.HasMember("vid") && p["vid"].IsUint()) targetVid = p["vid"].GetUint();
-                    };
-                    if (doc.HasMember("params") && doc["params"].IsObject())
-                        parse(doc["params"]);
-                    else
-                        parse(doc);
-                }
-
-                CPythonPlayer::Instance().SetTarget(targetVid, TRUE);
-                bool ok = CPythonPlayer::Instance().AttackTarget(targetVid);
-                return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"attack_executed\",\"attack_started\":{},\"target_vid\":{}}}}}",
-                    id, ok ? "true" : "false", targetVid);
+            [this](const std::string& req, const std::string& id) -> std::string {
+                return HandlePlayerRpcAttack(req, id);
             }
         };
 
         // 23. game_use_item (Natywne uzycie przedmiotu w oknie/komorce)
         m_routes["game_use_item"] = {
             false,
-            [](const std::string& req, const std::string& id) -> std::string {
-                if (!CPythonNetworkStream::InstancePtr())
-                    return FormatJsonRpcError(id, -32000, "Network stream not initialized");
-
-                rapidjson::Document doc;
-                doc.Parse(req.c_str());
-                uint8_t window = 1; // INVENTORY
-                uint16_t cell = 0;
-                if (!doc.HasParseError())
-                {
-                    auto parse = [&](const rapidjson::Value& p) {
-                        if (p.HasMember("window") && p["window"].IsUint()) window = static_cast<uint8_t>(p["window"].GetUint());
-                        if (p.HasMember("cell") && p["cell"].IsUint()) cell = static_cast<uint16_t>(p["cell"].GetUint());
-                    };
-                    if (doc.HasMember("params") && doc["params"].IsObject())
-                        parse(doc["params"]);
-                    else
-                        parse(doc);
-                }
-
-                bool ok = CPythonNetworkStream::Instance().SendItemUsePacket(TItemPos(window, cell));
-                return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{{\"status\":\"item_used\",\"sent\":{},\"window\":{},\"cell\":{}}}}}",
-                    id, ok ? "true" : "false", window, cell);
+            [this](const std::string& req, const std::string& id) -> std::string {
+                return HandlePlayerRpcItem(req, id);
             }
         };
 

@@ -12,7 +12,9 @@
 #include "EterLib/StateManager.h"
 #include "EterLib/StateManagerGuards.h"
 #include "EterLib/RenderQueueManager.h"
+#include "EterLib/Render/DynamicQuadBatcher.h"
 #include "EterLib/D3D9RenderBackend.h"
+#include "EterLib/WgpuRenderBackend.h"
 #include "Client/Graphics/Debug/DebugRenderer.h"
 #include "TestHarness/TestHarnessServer.h"
 #include "TestHarness/DeterministicTickController.h"
@@ -279,8 +281,24 @@ void CPythonApplication::RenderGame()
 
 	m_pyBackground.RenderAfterLensFlare();
 
-	// Strangler Fig: Zrenderuj pakiety zebrane w kolejce renderowania przez backend D3D9
-	CRenderQueueManager::Instance().Flush(&CD3D9RenderBackend::Instance());
+	// Aktualizacja macierzy kamery i czasu klatki w TRenderFrameUniforms przed Flush
+	{
+		TRenderFrameUniforms uniforms = CRenderQueueManager::Instance().GetFrameUniforms();
+		STATEMANAGER.GetTransform(D3DTS_VIEW, &uniforms.matView);
+		STATEMANAGER.GetTransform(D3DTS_PROJECTION, &uniforms.matProj);
+		D3DXMatrixMultiply(&uniforms.matViewProj, &uniforms.matView, &uniforms.matProj);
+		if (CCamera* pCam = CCameraManager::Instance().GetCurrentCamera())
+		{
+			uniforms.vCameraPos = pCam->GetEye();
+		}
+		uniforms.fTime = m_fGlobalTime;
+		static uint32_t s_dwFrameIdx = 0;
+		uniforms.dwFrameIndex = ++s_dwFrameIdx;
+		CRenderQueueManager::Instance().SetFrameUniforms(uniforms);
+	}
+
+	// Strangler Fig: Zrenderuj pakiety zebrane w kolejce renderowania przez aktywny backend (D3D9 / WGPU)
+	CRenderQueueManager::Instance().Flush(CRenderQueueManager::Instance().GetActiveBackend());
 
 	// Bezpieczne renderowanie geometrii diagnostycznej i linii debugowania w potoku gry
 	{
@@ -403,6 +421,7 @@ bool CPythonApplication::Process()
 		m_kGuildMarkUploader.Process();
 		m_kGuildMarkDownloader.Process();
 		m_kAccountConnector.Process();
+		UserInterface::FastBoot::FastBootOverlay::Instance().Update();
 
 		// Update Game Playing
 		CResourceManager::Instance().Update();
@@ -453,11 +472,13 @@ bool CPythonApplication::Process()
 		if (canRender) [[likely]] {
 			if (m_pyGraphic.IsLostDevice()) [[unlikely]] {
 				UserInterface::FastBoot::FastBootOverlay::Instance().OnLostDevice();
+				CD3D9RenderBackend::Instance().OnLostDevice();
 				CPythonBackground& rkBG = CPythonBackground::Instance();
 				rkBG.ReleaseCharacterShadowTexture();
 
 				if (m_pyGraphic.RestoreDevice()) {
 					rkBG.CreateCharacterShadowTexture();
+					CD3D9RenderBackend::Instance().OnResetDevice();
 					UserInterface::FastBoot::FastBootOverlay::Instance().OnResetDevice();
 				}
 				else
@@ -470,6 +491,8 @@ bool CPythonApplication::Process()
 			// RestoreLostDevice
 			CCullingManager::Instance().Update();
 			if (m_pyGraphic.Begin()) [[likely]] {
+				EterLib::Render::DynamicQuadBatcher::Instance().BeginFrame();
+				CRenderQueueManager::Instance().BeginFrame();
 
 				m_pyGraphic.ClearDepthBuffer();
 				m_pyGraphic.SetClearColor(0.0f, 0.0f, 0.0f);
@@ -484,10 +507,14 @@ bool CPythonApplication::Process()
 				UserInterface::FastBoot::FastBootOverlay::Instance().Render();
 				/////////////////////
 
+				CRenderQueueManager::Instance().EndFrame();
 				m_pyGraphic.End();
 
-				//DWORD t1 = ELTimer_GetMSec();
-				m_pyGraphic.Show();
+				// W trybie WGPU Direct-to-Screen prezentacja odbywa sie bezposrednio w m2_wgpu_render_frame (surface.present())
+				if (!CWgpuRenderBackend::IsConfiguredInConfigJson())
+				{
+					m_pyGraphic.Show();
+				}
 				//DWORD t2 = ELTimer_GetMSec();
 
 				DWORD dwRenderEndTime = ELTimer_GetMSec();
@@ -739,6 +766,7 @@ void CPythonApplication::Loop()
 			m_kGuildMarkUploader.Process();
 			m_kGuildMarkDownloader.Process();
 			m_kAccountConnector.Process();
+			UserInterface::FastBoot::FastBootOverlay::Instance().Update();
 
 			// Update Game Playing
 			CResourceManager::Instance().Update();
@@ -959,13 +987,21 @@ bool CPythonApplication::Create(PyObject * poSelf, const char * c_szName, int wi
 		if (!CreateDevice(m_pySystem.GetWidth(), m_pySystem.GetHeight(), Windowed, m_pySystem.GetBPP(), m_pySystem.GetFrequency()))
 			return false;
 
+		CD3D9RenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight());
+		CRenderQueueManager::Instance().SetActiveBackend(&CD3D9RenderBackend::Instance());
+		if (CWgpuRenderBackend::IsConfiguredInConfigJson())
+		{
+			CWgpuRenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight());
+			CRenderQueueManager::Instance().SetActiveBackend(&CWgpuRenderBackend::Instance());
+		}
+
 		if (!g_bHeadlessMode)
 		{
 			UserInterface::FastBoot::FastBootOverlay::Instance().Initialize(GetWindowHandle(), STATEMANAGER.GetDevice());
 			GrannyCreateSharedDeformBuffer();
 
 			extern bool g_bFastBootAutoConnect;
-			if (g_bFastBootAutoConnect)
+			if (g_bFastBootAutoConnect && !UserInterface::FastBoot::FastBootOverlay::Instance().IsConnecting())
 			{
 				UserInterface::FastBoot::FastBootOverlay::Instance().ConnectCurrentProfile();
 			}
@@ -1215,6 +1251,9 @@ void CPythonApplication::Destroy()
 
 	CGrannyModelInstance::DestroySystem();
 	CGraphicImageInstance::DestroySystem();
+
+	CWgpuRenderBackend::Instance().Shutdown();
+	CD3D9RenderBackend::Instance().Shutdown();
 
 	m_grpDevice.Destroy();
 

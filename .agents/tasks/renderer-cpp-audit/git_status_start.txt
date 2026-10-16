@@ -1,0 +1,66 @@
+ M src/Client/Network/Protocol/Drivers/LuriaProtocolDriver.cpp
+ M src/EffectLib/EffectParticleBatcher.cpp
+ M src/EffectLib/EffectParticleBatcher.h
+ M src/EffectLib/ParticleSystemInstance.cpp
+ M src/EterGrnLib/Material.cpp
+ M src/EterGrnLib/Material.h
+ M src/EterGrnLib/Mesh.cpp
+ M src/EterGrnLib/ModelInstanceModel.cpp
+ M src/EterGrnLib/ModelInstanceUpdate.cpp
+ M src/EterLib/CMakeLists.txt
+ M src/EterLib/D3D9RenderBackend.cpp
+ M src/EterLib/D3D9RenderBackend.h
+ M src/EterLib/GameThreadPool.cpp
+ M src/EterLib/GrpExpandedImageInstance.cpp
+ M src/EterLib/GrpImageInstance.cpp
+ M src/EterLib/GrpImageTexture.cpp
+ M src/EterLib/GrpMarkInstance.cpp
+ M src/EterLib/GrpTexture.cpp
+ M src/EterLib/IRenderBackend.h
+ M src/EterLib/LensFlare.cpp
+ M src/EterLib/LensFlare.h
+ M src/EterLib/Render/DynamicQuadBatcher.cpp
+ M src/EterLib/Render/DynamicQuadBatcher.h
+ M src/EterLib/Render/TerrainShaderPipeline.cpp
+ M src/EterLib/Render/TerrainShaderPipeline.h
+ M src/EterLib/Render/TerrainSplatWeightMap.cpp
+ M src/EterLib/Render/TerrainSplatWeightMap.h
+ M src/EterLib/RenderPacketTypes.h
+ M src/EterLib/RenderQueueManager.cpp
+ M src/EterLib/RenderQueueManager.h
+ M src/EterLib/SkyBox.cpp
+ M src/EterLib/StateManager.cpp
+ M src/EterLib/StateManager.h
+ M src/GameLib/ActorInstance.cpp
+ M src/GameLib/ActorRenderExtractor.cpp
+ M src/GameLib/AreaTerrain.cpp
+ M src/GameLib/CMakeLists.txt
+ M src/GameLib/DungeonBlock.cpp
+ M src/GameLib/DungeonBlock.h
+ M src/GameLib/MapOutdoorRender.cpp
+ M src/GameLib/MapOutdoorSky.cpp
+ M src/GameLib/SnowEnvironment.cpp
+ M src/GameLib/SnowEnvironment.h
+ M src/GameLib/SnowParticle.cpp
+ M src/GameLib/SnowParticle.h
+ M src/GameLib/TerrainRenderExtractor.cpp
+ M src/SpeedTreeLib/SpeedTreeForest.cpp
+ M src/SpeedTreeLib/SpeedTreeForestDirectX.cpp
+ M src/UserInterface/AccountConnector.cpp
+ M src/UserInterface/FastBootOverlay.cpp
+ M src/UserInterface/FastBootOverlay.h
+ M src/UserInterface/PythonApplication.cpp
+ M src/UserInterface/PythonApplicationProcedure.cpp
+ M src/UserInterface/UserInterface.cpp
+ M tests/test_c26_phase_game_skills_bridge.cpp
+?? src/EterLib/TextureUploadBridge.cpp
+?? src/EterLib/TextureUploadBridge.h
+?? src/EterLib/WgpuRenderBackend.cpp
+?? src/EterLib/WgpuRenderBackend.h
+?? src/GameLib/DungeonBlockRenderExtractor.cpp
+?? src/GameLib/DungeonBlockRenderExtractor.h
+?? tools/check_client_window.py
+?? tools/diagnose_running_client.py
+?? tools/diagnosis_report.json
+?? tools/dump_threads.cpp
+?? tools/test_launch_client.py

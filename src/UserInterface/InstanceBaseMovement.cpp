@@ -347,13 +347,13 @@ void CInstanceBase::EndGoing()
 void CInstanceBase::SetRunMode()
 {
 	m_GraphicThingInstance.SetRunMode();
-	if (m_mountComponent.IsMounting())
+	if (IsMountingHorse() && m_mountComponent.GetActorPtr())
 		m_mountComponent.GetActorRef().SetRunMode();
 }
 
 void CInstanceBase::SetWalkMode()
 {
 	m_GraphicThingInstance.SetWalkMode();
-	if (m_mountComponent.IsMounting())
+	if (IsMountingHorse() && m_mountComponent.GetActorPtr())
 		m_mountComponent.GetActorRef().SetWalkMode();
 }

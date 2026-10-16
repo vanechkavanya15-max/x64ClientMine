@@ -7881,3 +7881,14 @@ target_include_directories(test_c26_terrain_env_config PRIVATE
 )
 target_link_libraries(test_c26_terrain_env_config PRIVATE Client2026 EterLib EterBase ws2_32)
 add_test(NAME test_c26_terrain_env_config COMMAND test_c26_terrain_env_config)
+
+add_executable(test_c26_minimap_coord_projector test_c26_minimap_coord_projector.cpp ${CMAKE_SOURCE_DIR}/src/UserInterface/MiniMap/MiniMapCoordinateProjector.cpp)
+target_include_directories(test_c26_minimap_coord_projector PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/UserInterface
+    ${CMAKE_SOURCE_DIR}/src/UserInterface/MiniMap
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_minimap_coord_projector PRIVATE EterBase ws2_32)
+add_test(NAME test_c26_minimap_coord_projector COMMAND test_c26_minimap_coord_projector)
+

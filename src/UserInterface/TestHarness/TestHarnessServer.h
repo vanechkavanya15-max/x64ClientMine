@@ -13,8 +13,15 @@
 #include <unordered_map>
 #include <functional>
 
+#include "Client/IPC/HarnessAuthProtocolRouter.h"
+#include "Client/IPC/HarnessEngineControlRouter.h"
+#include "Client/IPC/HarnessPlayerRpcRouter.h"
+#include "Client/IPC/HarnessWorldQueryRouter.h"
+
 namespace UserInterface::TestHarness
 {
+    class HarnessNetworkAuthProvider;
+
     enum class HarnessTaskState : uint32_t
     {
         PENDING = 0,
@@ -88,6 +95,12 @@ namespace UserInterface::TestHarness
          */
         std::string ExecuteCommand(const std::string& requestJson);
 
+        [[nodiscard]] Client::IPC::HarnessAuthProtocolRouter* GetAuthRouter() const noexcept { return m_authRouter.get(); }
+        [[nodiscard]] Client::IPC::HarnessEngineControlRouter* GetEngineControlRouter() const noexcept { return m_engineControlRouter.get(); }
+        [[nodiscard]] Client::IPC::HarnessPlayerRpcRouter* GetPlayerRpcRouter() const noexcept { return m_playerRpcRouter.get(); }
+        [[nodiscard]] Client::IPC::HarnessWorldQueryRouter* GetWorldQueryRouter() const noexcept { return m_worldQueryRouter.get(); }
+        [[nodiscard]] HarnessNetworkAuthProvider* GetNetworkAuthProvider() const noexcept { return m_networkAuthProvider.get(); }
+
     private:
         void ServerThreadProc();
         void HandleClientConnection(HANDLE hPipe);
@@ -105,6 +118,25 @@ namespace UserInterface::TestHarness
         std::string HandleSetAutoReconnect(const std::string& requestJson, const std::string& id);
         std::string HandleWorldMegaSnapshot(const std::string& id, const std::string& requestJson);
 
+        std::string HandleHandshake(const std::string& requestJson, const std::string& id);
+        std::string HandlePause(const std::string& requestJson, const std::string& id);
+        std::string HandleReload(const std::string& requestJson, const std::string& id);
+
+        // Routery podsystemu Player RPC i World Queries
+        std::string HandlePlayerRpcMove(const std::string& requestJson, const std::string& id);
+        std::string HandlePlayerRpcStop(const std::string& requestJson, const std::string& id);
+        std::string HandlePlayerRpcAttack(const std::string& requestJson, const std::string& id);
+        std::string HandlePlayerRpcTarget(const std::string& requestJson, const std::string& id, bool isClear = false);
+        std::string HandlePlayerRpcItem(const std::string& requestJson, const std::string& id);
+        std::string HandlePlayerRpcPick(const std::string& requestJson, const std::string& id);
+        std::string HandlePlayerRpcSkill(const std::string& requestJson, const std::string& id);
+        std::string HandlePlayerRpcChat(const std::string& requestJson, const std::string& id);
+
+        std::string HandleWorldQueryEntities(const std::string& requestJson, const std::string& id);
+        std::string HandleWorldQueryInventory(const std::string& requestJson, const std::string& id);
+        std::string HandleWorldQueryState(const std::string& requestJson, const std::string& id);
+        void SyncWorldQueryState();
+
         struct CommandRoute
         {
             bool isImmediate{false};
@@ -121,7 +153,14 @@ namespace UserInterface::TestHarness
         std::thread m_ioThread;
 
         std::mutex m_queueMutex;
+        std::mutex m_routerMutex;
         std::vector<std::shared_ptr<HarnessTask>> m_pendingTasks;
         std::unordered_map<std::string, CommandRoute> m_routes;
+
+        std::shared_ptr<HarnessNetworkAuthProvider> m_networkAuthProvider;
+        std::unique_ptr<Client::IPC::HarnessAuthProtocolRouter> m_authRouter;
+        std::unique_ptr<Client::IPC::HarnessEngineControlRouter> m_engineControlRouter;
+        std::unique_ptr<Client::IPC::HarnessPlayerRpcRouter> m_playerRpcRouter;
+        std::unique_ptr<Client::IPC::HarnessWorldQueryRouter> m_worldQueryRouter;
     };
 }

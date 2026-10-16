@@ -30,11 +30,13 @@ CTerrain::CTerrain()
 {
 	memset(&m_lpAlphaTexture, 0, sizeof(m_lpAlphaTexture));
 	memset(&m_lpMarkedTexture, 0, sizeof(m_lpMarkedTexture));
+	m_lpSplatTexture = nullptr;
 	Initialize();
 }
 
 CTerrain::~CTerrain()
 {
+	ReleaseSplatTexture();
 	DeallocateMarkedSplats();
 	RAW_DeallocateSplats();
 	Clear();
@@ -47,6 +49,7 @@ void CTerrain::SetMapOutDoor(CMapOutdoor * pOwnerOutdoorMap)
 
 void CTerrain::Clear()
 {
+	ReleaseSplatTexture();
 	DeallocateMarkedSplats();
 	CTerrainImpl::Clear();
   	Initialize();
@@ -59,6 +62,7 @@ bool CTerrain::Initialize()
 	m_wX = m_wY = 0xFFFF;
 	m_bReady = false;
 	m_bMarked = false;
+	m_lpSplatTexture = nullptr;
 
 	for (BYTE byY = 0; byY < PATCH_YCOUNT; ++byY)
 		for (BYTE byX = 0; byX < PATCH_XCOUNT; ++byX)
@@ -435,8 +439,30 @@ bool CTerrain::GetWaterHeight(WORD wCoordX, WORD wCoordY, long * plWaterHeight)
 	return true;
 }
 
+bool CTerrain::CreateSplatTexture()
+{
+	ReleaseSplatTexture();
+	if (!m_SplatWeightMap.GenerateFromTileMap(m_abyTileMap, TILEMAP_RAW_XSIZE, TILEMAP_RAW_YSIZE, 256, 256))
+		return false;
+
+	if (ms_lpd3dDevice && m_SplatWeightMap.UploadToGPU(ms_lpd3dDevice))
+	{
+		m_lpSplatTexture = m_SplatWeightMap.GetD3DTexture();
+		return true;
+	}
+	return false;
+}
+
+void CTerrain::ReleaseSplatTexture()
+{
+	m_SplatWeightMap.ReleaseGPU();
+	m_lpSplatTexture = nullptr;
+}
+
 void CTerrain::RAW_DeallocateSplats(bool bBGLoading)
 {
+	ReleaseSplatTexture();
+
 	for (DWORD i = 1; i < GetTextureSet()->GetTextureCount(); ++i)
 	{
 		TTerainSplat & rSplat = m_TerrainSplatPatch.Splats[i];
@@ -467,6 +493,9 @@ void CTerrain::RAW_AllocateSplats(bool bBGLoading)
 // 	if ( WAIT_OBJECT_0 == LockDataWrite() )
 		RAW_GenerateSplat(bBGLoading);
 // 	UnlockDataWrite();
+
+	if (!bBGLoading)
+		CreateSplatTexture();
 	
 	m_TerrainSplatPatch.m_bNeedsUpdate = false;					
 }

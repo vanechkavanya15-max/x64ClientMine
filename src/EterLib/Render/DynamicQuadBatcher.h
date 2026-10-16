@@ -14,7 +14,8 @@ namespace EterLib::Render
     /**
      * @brief Dynamiczny batcher quadow dla systemu 2D UI w Metin2.
      * Zapewnia zero-alokacji na klatke, automatyczne grupowanie i rozbijanie partii
-     * wedlug identyfikatora tekstury (tekstury .sub / atlasy) oraz stanu Scissor Rect.
+     * wedlug identyfikatora tekstury oraz stanu Scissor Rect.
+     * Wykorzystuje Monotonic Frame Ring-Buffer eliminujacy blad Use-After-Clear.
      */
     class DynamicQuadBatcher
     {
@@ -34,7 +35,8 @@ namespace EterLib::Render
         DynamicQuadBatcher& operator=(DynamicQuadBatcher&&) = delete;
 
         // Cykl zycia klatki
-        void Begin();
+        void BeginFrame() noexcept;
+        void Begin() noexcept { BeginFrame(); }
         void Flush();
         void FlushToQueue(CRenderQueueManager& queue);
         void Clear() noexcept;
@@ -45,15 +47,18 @@ namespace EterLib::Render
         void ResetScissorRect() noexcept;
         void GetScissorRect(RECT* pOutRect, bool* pbOutEnable) const noexcept;
 
+        // Biala tekstura (White Pixel Atlas)
+        void SetWhiteTexture(uintptr_t dwTextureID, float u = 0.0f, float v = 0.0f) noexcept;
+
         // Dodawanie geometrii quadow
         void AddQuad(float x, float y, float w, float h,
-                     uint32_t color, uint32_t dwTextureID = 0,
+                     uint32_t color, uintptr_t dwTextureID = 0,
                      float u0 = 0.0f, float v0 = 0.0f,
                      float u1 = 1.0f, float v1 = 1.0f,
                      uint32_t dwBlendMode = 0);
 
         void AddQuadVertices(const TUIVertex vertices[4],
-                             uint32_t dwTextureID = 0,
+                             uintptr_t dwTextureID = 0,
                              uint32_t dwBlendMode = 0);
 
         // Pomocnicze metody UI (parametry x, y, w, h)
@@ -71,14 +76,14 @@ namespace EterLib::Render
                               float width, float height, uint32_t diffuseColor = 0xFFFFFFFF);
 
         // Metryki i diagnostyka
-        [[nodiscard]] size_t GetVertexCount() const noexcept { return m_vertexBuffer.size(); }
+        [[nodiscard]] size_t GetVertexCount() const noexcept { return m_frameVertexOffset; }
         [[nodiscard]] size_t GetBatchCount() const noexcept { return m_activeBatchCount; }
-        [[nodiscard]] size_t GetVertexCapacity() const noexcept { return m_vertexBuffer.capacity(); }
+        [[nodiscard]] size_t GetVertexCapacity() const noexcept { return m_frameVertexBuffer.capacity(); }
 
     private:
         struct BatchEntry
         {
-            uint32_t dwTextureID = 0;
+            uintptr_t dwTextureID = 0;
             uint32_t dwBlendMode = 0;
             uint32_t bUseScissor = 0;
             RECT scissorRect{ 0, 0, 0, 0 };
@@ -86,15 +91,22 @@ namespace EterLib::Render
             uint32_t vertexCount = 0;
         };
 
-        void PrepareBatch(uint32_t dwTextureID, uint32_t dwBlendMode);
+        void PrepareBatch(uintptr_t dwTextureID, uint32_t dwBlendMode);
         static bool AreRectsEqual(const RECT& a, const RECT& b) noexcept;
 
-        std::vector<TUIVertex> m_vertexBuffer;
+        // Monotoniczny bufor klatki (Frame Ring-Buffer) - zero alokacji i zwalniania w trakcie klatki
+        std::vector<TUIVertex> m_frameVertexBuffer;
+        size_t m_frameVertexOffset{ 0 };
+
         std::vector<BatchEntry> m_batchPool;
-        size_t m_activeBatchCount = 0;
+        size_t m_activeBatchCount{ 0 };
 
         RECT m_currentScissorRect{ 0, 0, 0, 0 };
-        bool m_bScissorEnable = false;
+        bool m_bScissorEnable{ false };
+
+        uintptr_t m_dwWhiteTextureID{ 0 };
+        float m_fWhitePixelU{ 0.0f };
+        float m_fWhitePixelV{ 0.0f };
     };
 }
 

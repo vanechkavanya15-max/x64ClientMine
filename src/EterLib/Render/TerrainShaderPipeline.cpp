@@ -1,71 +1,95 @@
+#ifndef TEST_MODE_DISABLE_STDAFX
+#include "../StdAfx.h"
+#endif
+
 #include "TerrainShaderPipeline.h"
 #include <d3dx9.h>
+#include <string_view>
 
 namespace EterLib::Render {
 
 namespace {
 
+// row_major gwarantuje pelna zgodnosc z ukladem pamieci D3DMATRIX w C++ bez narzutu transpozycji
 const char* g_terrainShaderHLSL = R"(
-float4x4 ViewProj : register(c0);
-float4x4 World : register(c4);
-float4 LightDir : register(c8); // Vertex Shader light direction (to pass to PS)
+row_major float4x4 ViewProj : register(c0);
+float4 SectorParams : register(c8); // xy = sectorOriginWorld, z = invSectorSize, w = detailTileScale
 
 struct VS_INPUT {
-    float4 Pos : POSITION;
-    float2 Tex : TEXCOORD0;
+    float3 Pos    : POSITION;
     float3 Normal : NORMAL;
 };
 
 struct VS_OUTPUT {
-    float4 Pos : POSITION;
-    float2 Tex : TEXCOORD0;
-    float3 NormalWorld : TEXCOORD1; // Pass normal to PS for Phong
+    float4 Pos         : POSITION;
+    float2 SplatUV     : TEXCOORD0;
+    float2 DetailUV    : TEXCOORD1;
+    float3 NormalWorld : TEXCOORD2;
+    float  ViewDepth   : TEXCOORD3;
 };
 
 VS_OUTPUT VS_Main(VS_INPUT input) {
     VS_OUTPUT output;
-    float4 worldPos = mul(input.Pos, World);
+    float4 worldPos = float4(input.Pos, 1.0f);
     output.Pos = mul(worldPos, ViewProj);
-    output.Tex = (input.Tex.x != 0.0f || input.Tex.y != 0.0f) ? input.Tex : float2(input.Pos.x / 25600.0f, -input.Pos.y / 25600.0f);
 
-    // Transform normal to world space and pass to PS for per-pixel lighting
-    output.NormalWorld = mul(input.Normal, (float3x3)World);
+    // Lokalna wspolrzedna UV [0..1] wzgledem poczatku sektora
+    float2 localPos = float2(input.Pos.x - SectorParams.x, -input.Pos.y - SectorParams.y);
+    output.SplatUV = localPos * SectorParams.z;
+    output.DetailUV = output.SplatUV * SectorParams.w;
 
+    output.NormalWorld = input.Normal;
+    output.ViewDepth = output.Pos.w;
     return output;
 }
 
-sampler2D TexSplat : register(s0);
+sampler2D TexSplat  : register(s0);
 sampler2D TexLayer0 : register(s1);
 sampler2D TexLayer1 : register(s2);
 sampler2D TexLayer2 : register(s3);
 sampler2D TexLayer3 : register(s4);
 
-float4 PS_LightDir : register(c0); // Pixel Shader light direction
+float4 PS_LightDir     : register(c0);
+float4 PS_AmbientColor : register(c1);
+float4 PS_FogParams    : register(c2); // rgb = fogColor, w = invFogEnd
 
 float4 PS_Main(VS_OUTPUT input) : COLOR {
-    float4 splatMap = tex2D(TexSplat, input.Tex);
-    
-    // Sample terrain layers
-    float4 c0 = tex2D(TexLayer0, input.Tex * 10.0f);
-    float4 c1 = tex2D(TexLayer1, input.Tex * 10.0f);
-    float4 c2 = tex2D(TexLayer2, input.Tex * 10.0f);
-    float4 c3 = tex2D(TexLayer3, input.Tex * 10.0f);
-    
-    // Multi-layer terrain blending (splatting up to 4 textures)
-    float4 finalColor = c0 * splatMap.r + c1 * splatMap.g + c2 * splatMap.b + c3 * splatMap.a;
-    
-    // Phong shading: per-pixel lighting calculation
+    float4 weights = tex2D(TexSplat, input.SplatUV);
+
+    // Normalizacja wag zapobiega ciemnym szwom na granicach filtrowania
+    float weightSum = dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
+    weights = (weightSum > 0.001f) ? (weights / weightSum) : float4(1.0f, 0.0f, 0.0f, 0.0f);
+
+    float4 c0 = tex2D(TexLayer0, input.DetailUV);
+    float4 c1 = tex2D(TexLayer1, input.DetailUV);
+    float4 c2 = tex2D(TexLayer2, input.DetailUV);
+    float4 c3 = tex2D(TexLayer3, input.DetailUV);
+
+    float4 albedo = c0 * weights.r + c1 * weights.g + c2 * weights.b + c3 * weights.a;
+
     float3 normal = normalize(input.NormalWorld);
-    float nDotL = max(0.0f, dot(normal, -PS_LightDir.xyz));
-    float3 lightIntensity = saturate(float3(nDotL, nDotL, nDotL) + 0.2f); // Add ambient
-    
-    return finalColor * float4(lightIntensity, 1.0f);
+    float nDotL = saturate(dot(normal, -PS_LightDir.xyz));
+    float3 litColor = albedo.rgb * saturate(PS_AmbientColor.rgb + nDotL);
+
+    // Liniowa mgla odleglosciowa
+    float fogFactor = saturate(input.ViewDepth * PS_FogParams.w);
+    float3 finalRgb = lerp(litColor, PS_FogParams.rgb, fogFactor);
+
+    return float4(finalRgb, 1.0f);
 }
 )";
 
 } // namespace
 
 TerrainShaderPipeline::~TerrainShaderPipeline() {
+    Shutdown();
+}
+
+void TerrainShaderPipeline::Shutdown() noexcept {
+    if (m_fallbackWhiteTex) {
+        m_fallbackWhiteTex->Release();
+        m_fallbackWhiteTex = nullptr;
+    }
     if (m_vertexShader) {
         m_vertexShader->Release();
         m_vertexShader = nullptr;
@@ -73,82 +97,136 @@ TerrainShaderPipeline::~TerrainShaderPipeline() {
     if (m_pixelShader) {
         m_pixelShader->Release();
         m_pixelShader = nullptr;
+    }
+    if (m_vertexDecl) {
+        m_vertexDecl->Release();
+        m_vertexDecl = nullptr;
     }
 }
 
 bool TerrainShaderPipeline::Initialize(LPDIRECT3DDEVICE9 dev) {
     if (!dev) return false;
+    if (IsReady()) return true;
 
-    if (m_vertexShader && m_pixelShader) {
-        return true;
-    }
+    Shutdown();
 
-    if (m_vertexShader) {
-        m_vertexShader->Release();
-        m_vertexShader = nullptr;
-    }
-    if (m_pixelShader) {
-        m_pixelShader->Release();
-        m_pixelShader = nullptr;
+    constexpr D3DVERTEXELEMENT9 declElements[] = {
+        {0, 0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+        {0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,   0},
+        D3DDECL_END()
+    };
+
+    if (FAILED(dev->CreateVertexDeclaration(declElements, &m_vertexDecl))) {
+        Shutdown();
+        return false;
     }
 
     ID3DXBuffer* vsCode = nullptr;
     ID3DXBuffer* psCode = nullptr;
     ID3DXBuffer* errorMsgs = nullptr;
+    const UINT srcLen = static_cast<UINT>(std::string_view(g_terrainShaderHLSL).length());
 
-    // Compile Vertex Shader
-    if (FAILED(D3DXCompileShader(g_terrainShaderHLSL, static_cast<UINT>(std::string_view(g_terrainShaderHLSL).length()), 
-                                 nullptr, nullptr, "VS_Main", "vs_3_0", 0, &vsCode, &errorMsgs, nullptr))) {
+    if (FAILED(D3DXCompileShader(g_terrainShaderHLSL, srcLen, nullptr, nullptr, "VS_Main", "vs_3_0", 0, &vsCode, &errorMsgs, nullptr))) {
         if (errorMsgs) errorMsgs->Release();
+        Shutdown();
         return false;
     }
-
-    if (FAILED(dev->CreateVertexShader(static_cast<DWORD*>(vsCode->GetBufferPointer()), &m_vertexShader))) {
-        vsCode->Release();
-        return false;
-    }
+    const HRESULT hrVS = dev->CreateVertexShader(static_cast<const DWORD*>(vsCode->GetBufferPointer()), &m_vertexShader);
     vsCode->Release();
+    if (FAILED(hrVS)) {
+        Shutdown();
+        return false;
+    }
 
-    // Compile Pixel Shader
-    if (FAILED(D3DXCompileShader(g_terrainShaderHLSL, static_cast<UINT>(std::string_view(g_terrainShaderHLSL).length()), 
-                                 nullptr, nullptr, "PS_Main", "ps_3_0", 0, &psCode, &errorMsgs, nullptr))) {
+    if (FAILED(D3DXCompileShader(g_terrainShaderHLSL, srcLen, nullptr, nullptr, "PS_Main", "ps_3_0", 0, &psCode, &errorMsgs, nullptr))) {
         if (errorMsgs) errorMsgs->Release();
+        Shutdown();
+        return false;
+    }
+    const HRESULT hrPS = dev->CreatePixelShader(static_cast<const DWORD*>(psCode->GetBufferPointer()), &m_pixelShader);
+    psCode->Release();
+    if (FAILED(hrPS)) {
+        Shutdown();
         return false;
     }
 
-    if (FAILED(dev->CreatePixelShader(static_cast<DWORD*>(psCode->GetBufferPointer()), &m_pixelShader))) {
-        psCode->Release();
-        return false;
+    // Tekstura zapasowa 1x1 (R=255)
+    if (SUCCEEDED(dev->CreateTexture(1, 1, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &m_fallbackWhiteTex, nullptr))) {
+        D3DLOCKED_RECT lr{};
+        if (SUCCEEDED(m_fallbackWhiteTex->LockRect(0, &lr, nullptr, 0))) {
+            *static_cast<uint32_t*>(lr.pBits) = 0x00FF0000u; // R=1, G=0, B=0, A=0
+            m_fallbackWhiteTex->UnlockRect(0);
+        }
     }
-    psCode->Release();
 
     return true;
 }
 
-void TerrainShaderPipeline::Bind(LPDIRECT3DDEVICE9 dev, const D3DMATRIX& viewProj, const D3DMATRIX& world, const D3DVECTOR& lightDir) {
-    if (!dev) return;
+void TerrainShaderPipeline::BeginFrame(
+    LPDIRECT3DDEVICE9 dev,
+    const D3DMATRIX& viewProj,
+    const D3DVECTOR& lightDir,
+    const D3DVECTOR& ambientColor,
+    const float (&fogColorAndRange)[4]) noexcept {
+    if (!dev || !IsReady()) return;
 
-    if (m_vertexShader) {
-        dev->SetVertexShader(m_vertexShader);
-    }
-    if (m_pixelShader) {
-        dev->SetPixelShader(m_pixelShader);
-    }
+    dev->SetVertexDeclaration(m_vertexDecl);
+    dev->SetVertexShader(m_vertexShader);
+    dev->SetPixelShader(m_pixelShader);
 
-    dev->SetVertexShaderConstantF(0, (const float*)&viewProj, 4);
-    dev->SetVertexShaderConstantF(4, (const float*)&world, 4);
+    dev->SetVertexShaderConstantF(0, reinterpret_cast<const float*>(&viewProj), 4);
 
-    float lightData[4] = { lightDir.x, lightDir.y, lightDir.z, 1.0f };
-    dev->SetVertexShaderConstantF(8, lightData, 1);
+    const float lightData[4] = {lightDir.x, lightDir.y, lightDir.z, 0.0f};
+    const float ambientData[4] = {ambientColor.x, ambientColor.y, ambientColor.z, 1.0f};
     dev->SetPixelShaderConstantF(0, lightData, 1);
+    dev->SetPixelShaderConstantF(1, ambientData, 1);
+    dev->SetPixelShaderConstantF(2, fogColorAndRange, 1);
+
+    // Sampler s0: Splatmapa (CLAMP)
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+
+    // Samplery s1..s4: Warstwy szczegolowe (WRAP)
+    for (DWORD i = 1; i <= 4; ++i) {
+        dev->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+        dev->SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+        dev->SetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+        dev->SetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        dev->SetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+    }
 }
 
-void TerrainShaderPipeline::Unbind(LPDIRECT3DDEVICE9 dev) noexcept {
+void TerrainShaderPipeline::BindSector(LPDIRECT3DDEVICE9 dev, const TerrainSectorBindDesc& desc) noexcept {
+    if (!dev || !IsReady()) return;
+
+    const float sectorParams[4] = {
+        desc.sectorOriginX,
+        desc.sectorOriginY,
+        desc.invSectorSize,
+        desc.detailTileScale
+    };
+    dev->SetVertexShaderConstantF(8, sectorParams, 1);
+
+    LPDIRECT3DTEXTURE9 splatTex = desc.splatTexture ? desc.splatTexture : m_fallbackWhiteTex;
+    dev->SetTexture(0, splatTex);
+
+    for (DWORD i = 0; i < 4; ++i) {
+        LPDIRECT3DTEXTURE9 layerTex = desc.layerTextures[i] ? desc.layerTextures[i] : m_fallbackWhiteTex;
+        dev->SetTexture(i + 1, layerTex);
+    }
+}
+
+void TerrainShaderPipeline::EndFrame(LPDIRECT3DDEVICE9 dev) noexcept {
     if (!dev) return;
-    
+
+    for (DWORD i = 0; i < 5; ++i) {
+        dev->SetTexture(i, nullptr);
+    }
     dev->SetVertexShader(nullptr);
     dev->SetPixelShader(nullptr);
+    dev->SetVertexDeclaration(nullptr);
 }
 
 } // namespace EterLib::Render
-

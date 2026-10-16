@@ -3,6 +3,7 @@
 #include "GrpImageTexture.h"
 #include "EterImageLib/DDSTextureLoader9.h"
 #include "DecodedImageData.h"
+#include "TextureUploadBridge.h"
 
 #include <stb_image.h>
 
@@ -205,6 +206,16 @@ bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize, const void * c_pvB
 		m_width = 32;
 		m_height = 32;
 		m_bEmpty = false;
+
+		CTextureUploadBridge::Instance().RegisterTexture(
+			reinterpret_cast<uintptr_t>(this),
+			static_cast<uint32_t>(m_width),
+			static_cast<uint32_t>(m_height),
+			static_cast<uint32_t>(d3dFmt),
+			reinterpret_cast<const uint8_t*>(c_pvBuf),
+			static_cast<size_t>(bufSize)
+		);
+
 		return true;
 	}
 
@@ -276,6 +287,27 @@ bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize, const void * c_pvB
 	}
 
 	m_bEmpty = false;
+
+	uint32_t texFormat = static_cast<uint32_t>(d3dFmt);
+	if (m_lpd3dTexture)
+	{
+		D3DSURFACE_DESC desc;
+		if (SUCCEEDED(m_lpd3dTexture->GetLevelDesc(0, &desc)))
+		{
+			texFormat = static_cast<uint32_t>(desc.Format);
+		}
+	}
+
+	const uintptr_t dwTextureID = reinterpret_cast<uintptr_t>(m_lpd3dTexture ? (void*)m_lpd3dTexture : (void*)this);
+	CTextureUploadBridge::Instance().RegisterTexture(
+		dwTextureID,
+		static_cast<uint32_t>(m_width),
+		static_cast<uint32_t>(m_height),
+		texFormat,
+		reinterpret_cast<const uint8_t*>(c_pvBuf),
+		static_cast<size_t>(bufSize)
+	);
+
 	return true;
 }
 
@@ -382,6 +414,20 @@ bool CGraphicImageTexture::CreateFromDecodedData(const TDecodedImageData& decode
 	{
 		TraceError("CreateFromDecodedData: Unsupported decoded image format");
 		return false;
+	}
+
+	if (!m_bEmpty)
+	{
+		const uintptr_t dwTextureID = reinterpret_cast<uintptr_t>(m_lpd3dTexture ? (void*)m_lpd3dTexture : (void*)this);
+		const uint32_t texFormat = static_cast<uint32_t>(decodedImage.d3dFormat != D3DFMT_UNKNOWN ? decodedImage.d3dFormat : (decodedImage.format == TDecodedImageData::FORMAT_RGBA8 ? D3DFMT_A8R8G8B8 : d3dFmt));
+		CTextureUploadBridge::Instance().RegisterTexture(
+			dwTextureID,
+			static_cast<uint32_t>(m_width),
+			static_cast<uint32_t>(m_height),
+			texFormat,
+			decodedImage.pixels.data(),
+			decodedImage.pixels.size()
+		);
 	}
 
 	return !m_bEmpty;

@@ -52,7 +52,17 @@ void CGraphicMarkInstance::Render()
 void CGraphicMarkInstance::OnRender()
 {
 	CGraphicImage * pImage = m_roImage.GetPointer();
+	if (!pImage)
+		return;
+
 	CGraphicTexture * pTexture = pImage->GetTexturePointer();
+	if (!pTexture)
+		return;
+
+	int iTexWidth = pTexture->GetWidth();
+	int iTexHeight = pTexture->GetHeight();
+	if (iTexWidth <= 0 || iTexHeight <= 0)
+		return;
 	
 	UINT uColCount = pImage->GetWidth() / MARK_WIDTH;
 
@@ -68,8 +78,8 @@ void CGraphicMarkInstance::OnRender()
 	kRect.right=kRect.left+MARK_WIDTH;
 	kRect.bottom=kRect.top+MARK_HEIGHT;
 
-	float texReverseWidth = 1.0f / float(pTexture->GetWidth());
-	float texReverseHeight = 1.0f / float(pTexture->GetHeight());
+	float texReverseWidth = 1.0f / float(iTexWidth);
+	float texReverseHeight = 1.0f / float(iTexHeight);
 	float su = kRect.left * texReverseWidth;
 	float sv = kRect.top * texReverseHeight;
 	float eu = kRect.right * texReverseWidth;
@@ -107,12 +117,12 @@ void CGraphicMarkInstance::OnRender()
 	for (int i = 0; i < 4; ++i)
 	{
 		uiVertices[i].position = D3DXVECTOR3(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z);
-		uiVertices[i].color = D3DXCOLOR(vertices[i].diffuse);
+		uiVertices[i].color = static_cast<uint32_t>(vertices[i].diffuse);
 		uiVertices[i].texCoord = vertices[i].texCoord;
 	}
 	EterLib::Render::DynamicQuadBatcher::Instance().AddQuadVertices(
 		uiVertices,
-		static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture())),
+		reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture()),
 		0
 	);
 }

@@ -32,6 +32,8 @@ public:
 	void SubmitTerrain(const TTerrainSectorPacket& packet);
 	void SubmitEffect(const TEffectInstancePacket& packet);
 	void SubmitWater(const TWaterPacket& packet);
+	void SubmitSkyBox(const TSkyBoxPacket& packet);
+	void SubmitDungeonBlock(const TDungeonBlockPacket& packet);
 
 	void Flush(IRenderBackend* pBackend);
 	void FlushSpeedTree();
@@ -43,18 +45,28 @@ public:
 	const std::vector<TTerrainSectorPacket>& GetTerrainPackets() const;
 	const std::vector<TEffectInstancePacket>& GetEffectPackets() const;
 	const std::vector<TWaterPacket>& GetWaterPackets() const;
+	const std::vector<TSkyBoxPacket>& GetSkyBoxPackets() const;
+	const std::vector<TDungeonBlockPacket>& GetDungeonPackets() const;
+	const std::vector<TDungeonBlockPacket>& GetDungeonBlockPackets() const;
 
 	size_t GetTotalPacketCount() const;
 
 	TParticleInstanceData* AllocateParticleData(size_t count);
 	void ClearParticleData();
 
-	// Golden Master Frame Dumper (T036)
+	TSpeedTreeInstanceData* AllocateSpeedTreeInstanceData(size_t count);
+	void ClearSpeedTreeInstanceData();
+
+	// Golden Master Frame Dumper (Faza 6) & Backend Switcher (Faza 8)
 	bool ExportFrameToBinary(const char* c_pszFileName) const;
+	bool CaptureReferenceScreenshot(const char* c_pszFileName) const;
 	void RequestFrameDump(const std::string& filename = "frame_dump.bin");
 	bool HasPendingFrameDump() const;
 	const std::string& GetPendingFrameDumpPath() const;
 	void ClearPendingFrameDump();
+
+	void SetActiveBackend(IRenderBackend* pBackend);
+	IRenderBackend* GetActiveBackend() const;
 
 private:
 	CRenderQueueManager(const CRenderQueueManager&) = delete;
@@ -67,8 +79,20 @@ private:
 	std::vector<TTerrainSectorPacket> m_terrainPackets;
 	std::vector<TEffectInstancePacket> m_effectPackets;
 	std::vector<TWaterPacket> m_waterPackets;
-	std::vector<TParticleInstanceData> m_particleDataPool;
+	std::vector<TSkyBoxPacket> m_skyBoxPackets;
+	std::vector<TDungeonBlockPacket> m_dungeonPackets;
 
+	size_t m_flushedSpeedTreeOffset{ 0 };
+	size_t m_flushedUIOffset{ 0 };
+
+	// Monotoniczne pule danych klatki (zero alokacji i brak inwalidacji wskaznikow w trakcie klatki)
+	std::vector<TParticleInstanceData> m_particleDataPool;
+	size_t m_particleDataOffset{ 0 };
+
+	std::vector<TSpeedTreeInstanceData> m_speedTreeInstancePool;
+	size_t m_speedTreeInstanceOffset{ 0 };
+
+	IRenderBackend* m_pActiveBackend{ nullptr };
 	bool m_bPendingDump{ false };
 	std::string m_strPendingDumpPath;
 };

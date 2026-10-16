@@ -1,57 +1,54 @@
 #include "StdAfx.h"
 #include "DungeonBlock.h"
+#include "DungeonBlockRenderExtractor.h"
 
 #include "EterLib/StateManager.h"
 
-class CDungeonModelInstance : public CGrannyModelInstance
+void CDungeonModelInstance::RenderDungeonBlock()
 {
-	public:
-		CDungeonModelInstance() {}
-		virtual ~CDungeonModelInstance() {}
+	if (IsEmpty())
+		return;
 
-		void RenderDungeonBlock()
-		{
-			if (IsEmpty())
-				return;
+	// Ekstrakcja stanu i emisja pakietow do CRenderQueueManager
+	CDungeonBlockRenderExtractor::ExtractAndSubmit(this);
 
-			ScopedD3DVertexDeclGuard declGuard(ms_pnt2VS, false);
-			LPDIRECT3DVERTEXBUFFER9 lpd3dRigidPNTVtxBuf = m_pModel->GetPNTD3DVertexBuffer();
-			if (lpd3dRigidPNTVtxBuf)
-			{
-				STATEMANAGER.SetStreamSource(0, lpd3dRigidPNTVtxBuf, sizeof(TPNT2Vertex));
-				RenderMeshNodeListWithTwoTexture(CGrannyMesh::TYPE_RIGID, CGrannyMaterial::TYPE_BLEND_PNT);
-			}
-		}
+	ScopedD3DVertexDeclGuard declGuard(ms_pnt2VS, false);
+	LPDIRECT3DVERTEXBUFFER9 lpd3dRigidPNTVtxBuf = m_pModel->GetPNTD3DVertexBuffer();
+	if (lpd3dRigidPNTVtxBuf)
+	{
+		STATEMANAGER.SetStreamSource(0, lpd3dRigidPNTVtxBuf, sizeof(TPNT2Vertex));
+		RenderMeshNodeListWithTwoTexture(CGrannyMesh::TYPE_RIGID, CGrannyMaterial::TYPE_BLEND_PNT);
+	}
+}
 
-		void RenderDungeonBlockShadow()
-		{
-			if (IsEmpty())
-				return;
+void CDungeonModelInstance::RenderDungeonBlockShadow()
+{
+	if (IsEmpty())
+		return;
 
-			STATEMANAGER.SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
-			STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
-			STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1);
-			STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
-			STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-			STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
-			STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
+	STATEMANAGER.SetRenderState(D3DRS_TEXTUREFACTOR, 0xffffffff);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
+	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
 
-			ScopedD3DVertexDeclGuard declGuard(ms_pnt2VS, false);
-			LPDIRECT3DVERTEXBUFFER9 lpd3dRigidPNTVtxBuf = m_pModel->GetPNTD3DVertexBuffer();
-			if (lpd3dRigidPNTVtxBuf)
-			{
-				STATEMANAGER.SetStreamSource(0, lpd3dRigidPNTVtxBuf, sizeof(TPNT2Vertex));
-				RenderMeshNodeListWithoutTexture(CGrannyMesh::TYPE_RIGID, CGrannyMaterial::TYPE_BLEND_PNT);
-			}
+	ScopedD3DVertexDeclGuard declGuard(ms_pnt2VS, false);
+	LPDIRECT3DVERTEXBUFFER9 lpd3dRigidPNTVtxBuf = m_pModel->GetPNTD3DVertexBuffer();
+	if (lpd3dRigidPNTVtxBuf)
+	{
+		STATEMANAGER.SetStreamSource(0, lpd3dRigidPNTVtxBuf, sizeof(TPNT2Vertex));
+		RenderMeshNodeListWithoutTexture(CGrannyMesh::TYPE_RIGID, CGrannyMaterial::TYPE_BLEND_PNT);
+	}
 
-			STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
-			STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
-			STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
-			STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-			STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-			STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-		}
-};
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+}
 
 
 struct FUpdate

@@ -70,6 +70,10 @@ namespace UserInterface::InstanceControllers
         virtual uint8_t GetEmpire() const = 0;
         virtual void SetCustomTitle(std::string_view title, uint32_t color) = 0;
         virtual void Clear() = 0;
+
+        virtual uint32_t GetAlignmentGrade() const = 0;
+        virtual int32_t GetAlignmentType() const = 0;
+        virtual std::string GetRankName() const = 0;
     };
 
     /**
@@ -91,9 +95,15 @@ namespace UserInterface::InstanceControllers
         void SetCustomTitle(std::string_view title, uint32_t color) override;
         void Clear() override;
 
-    private:
-        std::string CalculateRank(int32_t alignment) const;
+        uint32_t GetAlignmentGrade() const override;
+        int32_t GetAlignmentType() const override;
+        std::string GetRankName() const override;
 
+        static uint32_t CalculateAlignmentGrade(int32_t alignment);
+        static int32_t CalculateAlignmentType(uint32_t grade);
+        static std::string CalculateRank(int32_t alignment);
+
+    private:
         int32_t m_alignment{0};
         uint8_t m_pkMode{0};
         uint32_t m_guildId{0};
@@ -119,6 +129,10 @@ namespace UserInterface::InstanceControllers
         uint8_t GetEmpire() const override { return 0; }
         void Clear() override {}
 
+        uint32_t GetAlignmentGrade() const override { return 4; }
+        int32_t GetAlignmentType() const override { return 1; }
+        std::string GetRankName() const override { return ""; }
+
         void SetCustomTitle(std::string_view title, uint32_t color) override;
     };
 
@@ -141,6 +155,10 @@ namespace UserInterface::InstanceControllers
         uint8_t GetEmpire() const override;
         void SetCustomTitle(std::string_view title, uint32_t color) override;
         void Clear() override;
+
+        uint32_t GetAlignmentGrade() const override;
+        int32_t GetAlignmentType() const override;
+        std::string GetRankName() const override;
 
     private:
         EterBase::EntityId m_ownerId{0};

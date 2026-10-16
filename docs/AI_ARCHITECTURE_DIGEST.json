@@ -1,0 +1,1275 @@
+{
+  "system_metadata": {
+    "system_name": "Metin2 Client C++23 Modern Engine",
+    "version": "2026.1",
+    "architecture_pattern": "Strangler Fig Pattern + Zero-SDK Pure Domain Contracts",
+    "language_standard": "C++23 (MSVC /std:c++20 lub nowszy / Clang 19+)",
+    "description": "Centralny maszynowy rejestr architektoniczny (AI Architecture Digest) podsumowujacy domeny klienta, czyste kontrakty DTO, protokoly sieciowe oraz testy CTest dla agentow AI (Antigravity & Jules Swarm).",
+    "language_rules": "Wylacznie jezyk polski BEZ polskich znakow diakrytycznych",
+    "single_source_of_truth": {
+      "architecture_digest": "docs/AI_ARCHITECTURE_DIGEST.json",
+      "protocol_map": "docs/AI_PROTOCOL_MAP.json",
+      "system_index": "docs/AI_NATIVE_SYSTEM_INDEX.json",
+      "domain_dtos": "src/Client/Contracts/DomainDTOs.h",
+      "preflight_tool": "tools/ai_preflight_check.py"
+    }
+  },
+  "zero_sdk_contracts": {
+    "design_principle": "Czyste struktury POD (Plain Old Data) bez zaleznosci od Win32 (windows.h), Pythona (Python.h) czy DirectX (d3d9.h). Gwarancja zero-copy FFI, serializacji pamieciowej oraz stabilnosci w trybie headless.",
+    "header_file": "src/Client/Contracts/DomainDTOs.h",
+    "namespace": "Client::Contracts",
+    "structures": [
+      {
+        "name": "ActorSnapshot",
+        "size_bytes": 32,
+        "alignment_bytes": 4,
+        "is_pod": true,
+        "is_standard_layout": true,
+        "is_trivially_copyable": true,
+        "description": "Zrzut stanu aktora (moba, NPC, metina, innego gracza) w swiecie gry.",
+        "fields": [
+          {
+            "name": "vid",
+            "type": "uint32_t",
+            "offset": 0,
+            "size": 4,
+            "description": "Unikalny wirtualny identyfikator encji (VID)"
+          },
+          {
+            "name": "vnum",
+            "type": "uint32_t",
+            "offset": 4,
+            "size": 4,
+            "description": "Identyfikator typu encji w bazie (VNUM z mob_proto)"
+          },
+          {
+            "name": "x",
+            "type": "float",
+            "offset": 8,
+            "size": 4,
+            "description": "Wspolrzedna pozycji X w swiecie gry"
+          },
+          {
+            "name": "y",
+            "type": "float",
+            "offset": 12,
+            "size": 4,
+            "description": "Wspolrzedna pozycji Y w swiecie gry"
+          },
+          {
+            "name": "z",
+            "type": "float",
+            "offset": 16,
+            "size": 4,
+            "description": "Wysokosc Z pozycji (z terenu)"
+          },
+          {
+            "name": "hp",
+            "type": "int32_t",
+            "offset": 20,
+            "size": 4,
+            "description": "Aktualna liczba punktow zycia"
+          },
+          {
+            "name": "max_hp",
+            "type": "int32_t",
+            "offset": 24,
+            "size": 4,
+            "description": "Maksymalna liczba punktow zycia"
+          },
+          {
+            "name": "type",
+            "type": "uint8_t",
+            "offset": 28,
+            "size": 1,
+            "description": "Typ encji (0=mob, 1=npc, 2=metin, 6=player)"
+          },
+          {
+            "name": "is_dead",
+            "type": "uint8_t",
+            "offset": 29,
+            "size": 1,
+            "description": "Flaga smierci (0=zywy, 1=martwy)"
+          },
+          {
+            "name": "_reserved",
+            "type": "uint16_t",
+            "offset": 30,
+            "size": 2,
+            "description": "Wyrownanie do 32 bajtow (4-bajtowa granica)"
+          }
+        ]
+      },
+      {
+        "name": "ItemSlotDTO",
+        "size_bytes": 104,
+        "alignment_bytes": 4,
+        "is_pod": true,
+        "is_standard_layout": true,
+        "is_trivially_copyable": true,
+        "description": "Stan przedmiotu w slocie ekwipunku, wyposazenia, pasa lub smoczej alchemii.",
+        "fields": [
+          {
+            "name": "vnum",
+            "type": "uint32_t",
+            "offset": 0,
+            "size": 4,
+            "description": "Identyfikator przedmiotu w bazie (item_proto)"
+          },
+          {
+            "name": "count",
+            "type": "uint32_t",
+            "offset": 4,
+            "size": 4,
+            "description": "Liczba sztuk przedmiotu w stosie"
+          },
+          {
+            "name": "flags",
+            "type": "uint32_t",
+            "offset": 8,
+            "size": 4,
+            "description": "Flagi zachowania przedmiotu"
+          },
+          {
+            "name": "anti_flags",
+            "type": "uint32_t",
+            "offset": 12,
+            "size": 4,
+            "description": "Antyflagi wyposazenia (klasy, plec, handel)"
+          },
+          {
+            "name": "cell",
+            "type": "uint16_t",
+            "offset": 16,
+            "size": 2,
+            "description": "Numer slotu w danym oknie"
+          },
+          {
+            "name": "window_type",
+            "type": "uint8_t",
+            "offset": 18,
+            "size": 1,
+            "description": "Typ okna (1=Inventory, 2=Equip, 10=Belt, 11=DragonSoul)"
+          },
+          {
+            "name": "is_equipped",
+            "type": "uint8_t",
+            "offset": 19,
+            "size": 1,
+            "description": "Flaga zalozenia (1=zalozony, 0=w plecaku)"
+          },
+          {
+            "name": "is_locked",
+            "type": "uint8_t",
+            "offset": 20,
+            "size": 1,
+            "description": "Flaga blokady (1=zablokowany np. podczas handlu)"
+          },
+          {
+            "name": "_reserved",
+            "type": "uint8_t[3]",
+            "offset": 21,
+            "size": 3,
+            "description": "Dopelnienie do 4 bajtow"
+          },
+          {
+            "name": "sockets",
+            "type": "int32_t[6]",
+            "offset": 24,
+            "size": 24,
+            "description": "6 slotow kamieni dusz / przetopow / czasu"
+          },
+          {
+            "name": "attributes",
+            "type": "ItemAttributeDTO[7]",
+            "offset": 48,
+            "size": 56,
+            "description": "7 bonusow przedmiotu (typ 2B, pad 2B, wartosc 4B)"
+          }
+        ]
+      },
+      {
+        "name": "CombatCommandDTO",
+        "size_bytes": 28,
+        "alignment_bytes": 4,
+        "is_pod": true,
+        "is_standard_layout": true,
+        "is_trivially_copyable": true,
+        "description": "Polecenie akcji bojowej (atak bronia, uzycie umiejetnosci, sekwencja combo).",
+        "fields": [
+          {
+            "name": "target_vid",
+            "type": "uint32_t",
+            "offset": 0,
+            "size": 4,
+            "description": "Identyfikator VID atakowanego celu"
+          },
+          {
+            "name": "skill_vnum",
+            "type": "uint32_t",
+            "offset": 4,
+            "size": 4,
+            "description": "VNUM umiejetnosci (0 = zwykly atak wręcz)"
+          },
+          {
+            "name": "attack_type",
+            "type": "uint8_t",
+            "offset": 8,
+            "size": 1,
+            "description": "Rodzaj akcji (0=Melee, 1=Skill, 2=Combo, 3=Cancel)"
+          },
+          {
+            "name": "combo_index",
+            "type": "uint8_t",
+            "offset": 9,
+            "size": 1,
+            "description": "Krok sekwencji combo (0..5)"
+          },
+          {
+            "name": "motion_index",
+            "type": "uint8_t",
+            "offset": 10,
+            "size": 1,
+            "description": "Indeks animacji/ruchu"
+          },
+          {
+            "name": "flags",
+            "type": "uint8_t",
+            "offset": 11,
+            "size": 1,
+            "description": "Flagi akcji (bit 0=AutoFace, bit 1=Dash)"
+          },
+          {
+            "name": "target_x",
+            "type": "float",
+            "offset": 12,
+            "size": 4,
+            "description": "Docelowa wspolrzedna pozycji X celu"
+          },
+          {
+            "name": "target_y",
+            "type": "float",
+            "offset": 16,
+            "size": 4,
+            "description": "Docelowa wspolrzedna pozycji Y celu"
+          },
+          {
+            "name": "target_z",
+            "type": "float",
+            "offset": 20,
+            "size": 4,
+            "description": "Docelowa wspolrzedna pozycji Z celu"
+          },
+          {
+            "name": "range_limit",
+            "type": "float",
+            "offset": 24,
+            "size": 4,
+            "description": "Maksymalny zasieg ataku (0.0 = domyslny)"
+          }
+        ]
+      },
+      {
+        "name": "NavigationWaypointDTO",
+        "size_bytes": 28,
+        "alignment_bytes": 4,
+        "is_pod": true,
+        "is_standard_layout": true,
+        "is_trivially_copyable": true,
+        "description": "Punkt trasy nawigacji, pathfindingu i sterowania ruchem gracza.",
+        "fields": [
+          {
+            "name": "x",
+            "type": "float",
+            "offset": 0,
+            "size": 4,
+            "description": "Docelowa wspolrzedna pozycji X w swiecie gry"
+          },
+          {
+            "name": "y",
+            "type": "float",
+            "offset": 4,
+            "size": 4,
+            "description": "Docelowa wspolrzedna pozycji Y w swiecie gry"
+          },
+          {
+            "name": "z",
+            "type": "float",
+            "offset": 8,
+            "size": 4,
+            "description": "Wysokosc pozycji Z punktu docelowego"
+          },
+          {
+            "name": "acceptance_radius",
+            "type": "float",
+            "offset": 12,
+            "size": 4,
+            "description": "Promien akceptacji osiagniecia punktu"
+          },
+          {
+            "name": "wait_time_ms",
+            "type": "uint32_t",
+            "offset": 16,
+            "size": 4,
+            "description": "Czas oczekiwania w punkcie (ms)"
+          },
+          {
+            "name": "action_id",
+            "type": "uint32_t",
+            "offset": 20,
+            "size": 4,
+            "description": "Identyfikator akcji po dotarciu (np. NPC)"
+          },
+          {
+            "name": "movement_mode",
+            "type": "uint8_t",
+            "offset": 24,
+            "size": 1,
+            "description": "Tryb ruchu (0=Stop, 1=Walk, 2=Run, 3=Mount, 4=Warp)"
+          },
+          {
+            "name": "flags",
+            "type": "uint8_t",
+            "offset": 25,
+            "size": 1,
+            "description": "Flagi nawigacji (bit 0=IgnoreMobs, bit 1=StrictPath)"
+          },
+          {
+            "name": "_reserved",
+            "type": "uint16_t",
+            "offset": 26,
+            "size": 2,
+            "description": "Wyrownanie do 4 bajtow"
+          }
+        ]
+      }
+    ],
+    "abstract_contracts": [
+      {
+        "interface": "IPlayerDomainContract",
+        "header": "src/Client/Contracts/IPlayerDomainContract.h",
+        "methods": [
+          "GetPlayerVID() -> uint32_t",
+          "GetPlayerName() -> std::string_view",
+          "GetPlayerLevel() -> int",
+          "GetCurrentHP() -> int64_t",
+          "GetMaxHP() -> int64_t",
+          "GetCurrentSP() -> int64_t",
+          "GetMaxSP() -> int64_t",
+          "GetYang() -> int64_t",
+          "GetExp() -> int64_t",
+          "GetCoordinates() -> PlayerCoordinates",
+          "GetTargetVID() -> uint32_t",
+          "IsInCombat() -> bool",
+          "CaptureSnapshot() -> PlayerStatusSnapshot",
+          "GetStatus(int statusType) -> int64_t",
+          "RequestMove(float x, float y) -> bool"
+        ]
+      },
+      {
+        "interface": "IWorldQueryContract",
+        "header": "src/Client/Contracts/IWorldQueryContract.h",
+        "methods": [
+          "GetEntitiesInRadius(float radius) -> std::vector<EntitySnapshot>",
+          "GetEntityByVID(uint32_t vid) -> std::optional<EntitySnapshot>",
+          "GetNearestHostile() -> std::optional<EntitySnapshot>",
+          "GetNearestItemGround() -> std::optional<EntitySnapshot>",
+          "ForEachEntityInRadius(float radius, EntityVisitor visitor, void* userData) -> int"
+        ]
+      },
+      {
+        "interface": "ICombatDomainContract",
+        "header": "src/Client/Contracts/ICombatDomainContract.h",
+        "methods": [
+          "EvaluateAttack(uint32_t targetVid) -> CombatVerdict",
+          "GetAttackCooldown() -> float",
+          "GetLastTargetVID() -> uint32_t",
+          "ExecuteAttack(uint32_t targetVid) -> bool",
+          "UpdateCombatState(float deltaTime) -> void"
+        ]
+      },
+      {
+        "interface": "IInventoryDomainContract",
+        "header": "src/Client/Contracts/IInventoryDomainContract.h",
+        "methods": [
+          "GetItem(const ItemCellAddress& pos) -> std::optional<ItemDataSnapshot>",
+          "GetAllItems(uint8_t windowType) -> std::vector<ItemDataSnapshot>",
+          "IsCellEmpty(const ItemCellAddress& pos) -> bool",
+          "GetFreeSlotCount(uint8_t windowType) -> size_t",
+          "RequestUseItem(const ItemCellAddress& pos) -> bool",
+          "RequestMoveItem(const ItemCellAddress& src, const ItemCellAddress& dst, uint32_t count) -> bool",
+          "RequestDropItem(const ItemCellAddress& pos, uint32_t count) -> bool"
+        ]
+      }
+    ]
+  },
+  "domains": {
+    "Actors": {
+      "path": "src/Client/Actors",
+      "responsibility": "Komponenty instancji aktorow, integracja ruchu w pikselach, synchronizacja pozycji i animacji."
+    },
+    "Bridge": {
+      "path": "src/Client/Bridge",
+      "responsibility": "Natywne mostki C-ABI (BotApi_FFI), PhaseGame*Bridge, translatory zdarzen i telemetryczne dla Pythona i MCP."
+    },
+    "Contracts": {
+      "path": "src/Client/Contracts",
+      "responsibility": "Czyste kontrakty domenowe C++23 (IPlayer, IWorld, ICombat, IInventory) oraz struktury POD DTOs."
+    },
+    "Core": {
+      "path": "src/Client/Core",
+      "responsibility": "Fundamenty silnika, logowanie TraceError, zarzadzanie czasem i konfiguracja klienta."
+    },
+    "Events": {
+      "path": "src/Client/Events",
+      "responsibility": "Szyna zdarzen domenowych, delegaty pub/sub, powiadomienia o zmianie stanu."
+    },
+    "Gameplay": {
+      "path": "src/Client/Gameplay",
+      "responsibility": "Logika rozgrywki: kontrolery ruchu, rate limiting, nawigacja pathfinding i walidacja kolizji terenu."
+    },
+    "Graphics": {
+      "path": "src/Client/Graphics",
+      "responsibility": "Silnik renderowania, viewport kamery, zarzadzanie buforami render target i efektami wizualnymi."
+    },
+    "Headless": {
+      "path": "src/Client/Headless",
+      "responsibility": "Tryb bezglowy (0% GPU) bez okna Win32 i Direct3D, deterministyczny dlawik 60 Hz z pelna fizyka terenu."
+    },
+    "Input": {
+      "path": "src/Client/Input",
+      "responsibility": "Przechwytywanie wejscia klawiatury i myszy, mapowanie komend ruchu i ataku."
+    },
+    "IPC": {
+      "path": "src/Client/IPC",
+      "responsibility": "Komunikacja miedzyprocesowa JSON-RPC 2.0 przez potok nazwany \\\\.\\pipe\\M2ClientEngineHarness."
+    },
+    "MCP": {
+      "path": "src/Client/MCP",
+      "responsibility": "Mostek Model Context Protocol (AgentMCPBridge) laczacy agentow AI z wewnetrznymi kontraktami domenowymi."
+    },
+    "Mimic": {
+      "path": "src/Client/Mimic",
+      "responsibility": "Symulacja zachowania gracza: rozklad opoznien Gaussa (GaussianPacketJitter), humanizacja akcji."
+    },
+    "MiniMap": {
+      "path": "src/Client/MiniMap",
+      "responsibility": "Zarzadzanie punktami nawigacyjnymi (waypoints), radar encji i wizualizacja mapy.",
+      "components": [
+        "MiniMapWaypointTracker (zarzadzanie waypointami, markerami misji i interpolacja obserwatorow)",
+        "MiniMapCoordinateProjector (czysta matematyka rzutowania 3D swiata na radar 2D i Atlas)"
+      ]
+    },
+    "Network": {
+      "path": "src/Client/Network",
+      "responsibility": "Protokol sieciowy: dynamiczny framer pakietow, kodeki pakietow, dyspozytor oraz mechanizm recovery po desynchronizacji."
+    },
+    "Player": {
+      "path": "src/Client/Player",
+      "responsibility": "Zarzadzanie stanem gracza: wspolrzedne, punkty HP/SP, poziom, doswiadczenie, waluta Yang, buffy."
+    },
+    "Skills": {
+      "path": "src/Client/Skills",
+      "responsibility": "Drzewka umiejetnosci, obsluga czasu odnowienia (cooldown), sprawdzanie wymagan i aktywacja skilli."
+    },
+    "Terrain": {
+      "path": "src/Client/Terrain",
+      "responsibility": "Ladowanie terenu swiata, kalkulacja wysokosci CPythonBackground::GetHeight, sprawdzanie kolizji scian."
+    },
+    "UI": {
+      "path": "src/Client/UI",
+      "responsibility": "Nowoczesne kontrolery interfejsu uzytkownika, niezalezne od srodowiska Pythona.",
+      "components": [
+        "PythonNetworkStreamModule_TradeShop (dekompozycja handlu, sklepow i magazynu)",
+        "PythonNetworkStreamModule_GuildParty (dekompozycja gildii, grupy i znajomych)",
+        "PythonCharacterModule_Visual (zarzadzanie instancjami, zbrojami, broniami, fryzurami, szarfami i efektami)",
+        "PythonCharacterModule_Motion (ruch, rotacja, combo, tryby walki i animacje)"
+      ]
+    },
+    "World": {
+      "path": "src/Client/World",
+      "responsibility": "Zarzadzanie encjami swiata, siatka przestrzenna SpatialHashGrid, zapytania w promieniu."
+    }
+  },
+  "network_protocols": {
+    "architecture": "Universal Protocol Matrix (UPM) - obsługa wielu profili serwerowych w jednym silniku",
+    "profiles": {
+      "standard_x64": {
+        "display_name": "Standard Metin2 x64 2026",
+        "description": "Zunifikowany, 64-bitowy standard protokolu z 4-bajtowym jednolitym ramkowaniem pakietow (UPM Filar A).",
+        "framing": {
+          "type": "UNIFORM_4B",
+          "header_size_bytes": 4,
+          "format": "[Header: 2B (uint16_t little-endian)][Length: 2B (uint16_t little-endian)][Payload: (Length - 4)B]",
+          "length_includes_header": true,
+          "dynamic_handling": "uniform_length_field_at_offset_2"
+        },
+        "cryptography": {
+          "key_agreement": "None (TLS session / direct handshake)",
+          "cipher": "Plaintext / TLS 1.3 / Session Token",
+          "block_size_bytes": 0,
+          "auth_security": "Direct Session Token + Login Key"
+        },
+        "network": {
+          "default_ip": "127.0.0.1",
+          "default_auth_port": 11000,
+          "default_game_ports": [
+            11011,
+            11021,
+            11031,
+            11041
+          ],
+          "mark_port": 11011
+        },
+        "total_cg_opcodes": 68,
+        "total_gc_opcodes": 109,
+        "key_cg_opcodes": [
+          {
+            "name": "CLIENT_VERSION",
+            "hex": "0x000D",
+            "dec": 13,
+            "desc": "Wersja klienta"
+          },
+          {
+            "name": "STATE_CHECKER",
+            "hex": "0x000F",
+            "dec": 15,
+            "desc": "Sprawdzanie stanu serwera"
+          },
+          {
+            "name": "TEXT",
+            "hex": "0x0011",
+            "dec": 17,
+            "desc": "Tekst kontrolny"
+          },
+          {
+            "name": "LOGIN2",
+            "hex": "0x0101",
+            "dec": 257,
+            "desc": "Logowanie do serwera gry"
+          },
+          {
+            "name": "LOGIN3",
+            "hex": "0x0102",
+            "dec": 258,
+            "desc": "Logowanie alternatywne"
+          },
+          {
+            "name": "LOGIN_SECURE",
+            "hex": "0x0103",
+            "dec": 259,
+            "desc": "Logowanie z podpisem"
+          },
+          {
+            "name": "EMPIRE",
+            "hex": "0x010A",
+            "dec": 266,
+            "desc": "Wybor krolestwa"
+          },
+          {
+            "name": "CHANGE_NAME",
+            "hex": "0x010B",
+            "dec": 267,
+            "desc": "Zmiana nazwy postaci"
+          },
+          {
+            "name": "CHARACTER_CREATE",
+            "hex": "0x0201",
+            "dec": 513,
+            "desc": "Tworzenie nowej postaci"
+          },
+          {
+            "name": "CHARACTER_DELETE",
+            "hex": "0x0202",
+            "dec": 514,
+            "desc": "Usuniecie postaci"
+          },
+          {
+            "name": "CHARACTER_SELECT",
+            "hex": "0x0203",
+            "dec": 515,
+            "desc": "Wybor postaci ze slotu"
+          },
+          {
+            "name": "ENTERGAME",
+            "hex": "0x0204",
+            "dec": 516,
+            "desc": "Wejscie do swiata gry"
+          }
+        ],
+        "key_gc_opcodes": [
+          {
+            "name": "RESPOND_CHANNELSTATUS",
+            "hex": "0x0010",
+            "dec": 16,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_SUCCESS3",
+            "hex": "0x0104",
+            "dec": 260,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_SUCCESS4",
+            "hex": "0x0105",
+            "dec": 261,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_FAILURE",
+            "hex": "0x0106",
+            "dec": 262,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_KEY",
+            "hex": "0x0107",
+            "dec": 263,
+            "desc": null
+          },
+          {
+            "name": "AUTH_SUCCESS",
+            "hex": "0x0108",
+            "dec": 264,
+            "desc": null
+          },
+          {
+            "name": "EMPIRE",
+            "hex": "0x0109",
+            "dec": 265,
+            "desc": null
+          },
+          {
+            "name": "CHANGE_NAME",
+            "hex": "0x010C",
+            "dec": 268,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_ADD",
+            "hex": "0x0205",
+            "dec": 517,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_ADD2",
+            "hex": "0x0206",
+            "dec": 518,
+            "desc": null
+          },
+          {
+            "name": "CHAR_ADDITIONAL_INFO",
+            "hex": "0x0207",
+            "dec": 519,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_DEL",
+            "hex": "0x0208",
+            "dec": 520,
+            "desc": null
+          }
+        ]
+      },
+      "luria": {
+        "display_name": "Luria Online (UPM Profil Luria)",
+        "description": "Protokol produkcyjny serwera Luria z 1-bajtowym ramkowaniem, tablica 137 pakietow GC, DH2 MODP 1024-bit i Blowfish CTR.",
+        "framing": {
+          "type": "TABLE_LOOKUP_1B",
+          "header_size_bytes": 1,
+          "format": "[Header: 1B (uint8_t)][Payload...]",
+          "dynamic_handling": "16-bit uint16_t little-endian na offsetcie 1 (CHAT 0x04, WHISPER 0x05, SCRIPT 0x26), lub 32-bit uint32_t na offsetcie 1 dla pakietu 0xBE"
+        },
+        "cryptography": {
+          "key_agreement": "Diffie-Hellman DH2 MODP 1024-bit (256B handshake, selekcja c1==11 && c2==11)",
+          "cipher": "Blowfish CTR (64-bit blok, big-endian increment counter, niezalezne klucze RX/TX)",
+          "block_size_bytes": 8,
+          "auth_security": "TPacketCGAuthLuria (168B: login, haslo, PIN 5B, token STARRS3543S22, HWID SHA-256 hex 64B)"
+        },
+        "network": {
+          "default_ip": "46.105.73.82",
+          "default_auth_port": 11469,
+          "default_game_ports": [
+            29001,
+            29101,
+            29201,
+            29301,
+            29401,
+            29501
+          ],
+          "mark_port": 29001
+        },
+        "total_cg_opcodes": 21,
+        "total_gc_opcodes": 71,
+        "key_cg_opcodes": [
+          {
+            "name": "LOGIN",
+            "hex": "0x01",
+            "dec": 1,
+            "desc": "Logowanie standardowe (49B)"
+          },
+          {
+            "name": "ATTACK",
+            "hex": "0x02",
+            "dec": 2,
+            "desc": "Atak 8B z zabezpieczeniem rotujacej sumy CRC_XOR_TABLE = { 102, 30, 188, 44, 39, 201, 43, 5 }"
+          },
+          {
+            "name": "MOVE",
+            "hex": "0x03",
+            "dec": 3,
+            "desc": "Ruch 19B z precyzyjna rotacja 4B float fRot"
+          },
+          {
+            "name": "CHAT",
+            "hex": "0x04",
+            "dec": 4,
+            "desc": "Dynamiczny czat"
+          },
+          {
+            "name": "CHARACTER_CREATE",
+            "hex": "0x04",
+            "dec": 4,
+            "desc": "Tworzenie postaci (34B: slot, nazwa 25B, job 2B, shape, con, int, str, dex)"
+          },
+          {
+            "name": "CHARACTER_DELETE",
+            "hex": "0x05",
+            "dec": 5,
+            "desc": "Usuniecie postaci kodem PIN (10B: slot, szPrivateCode 8B)"
+          },
+          {
+            "name": "CHARACTER_SELECT",
+            "hex": "0x06",
+            "dec": 6,
+            "desc": "Wybor postaci ze slotu (2B: header, index)"
+          },
+          {
+            "name": "ENTERGAME",
+            "hex": "0x0A",
+            "dec": 10,
+            "desc": "Wejscie do gry (1B)"
+          },
+          {
+            "name": "ITEM_USE",
+            "hex": "0x0B",
+            "dec": 11,
+            "desc": "Uzycie przedmiotu (4B: window_type, cell 2B)"
+          },
+          {
+            "name": "ITEM_DROP",
+            "hex": "0x0C",
+            "dec": 12,
+            "desc": "Wyrzucenie przedmiotu / zlota (8B: window, cell, count 4B)"
+          },
+          {
+            "name": "ITEM_MOVE",
+            "hex": "0x0D",
+            "dec": 13,
+            "desc": "Przeniesienie w ekwipunku (9B: srcWin, srcCell, dstWin, dstCell, count 2B)"
+          },
+          {
+            "name": "ITEM_PICKUP",
+            "hex": "0x0F",
+            "dec": 15,
+            "desc": "Podniesienie przedmiotu (5B: header, dwVID 4B)"
+          }
+        ],
+        "key_gc_opcodes": [
+          {
+            "name": "CHARACTER_ADD",
+            "hex": "0x01",
+            "dec": 1,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_DEL",
+            "hex": "0x02",
+            "dec": 2,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_MOVE",
+            "hex": "0x03",
+            "dec": 3,
+            "desc": null
+          },
+          {
+            "name": "CHAT",
+            "hex": "0x04",
+            "dec": 4,
+            "desc": null
+          },
+          {
+            "name": "WHISPER",
+            "hex": "0x05",
+            "dec": 5,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_SUCCESS3",
+            "hex": "0x06",
+            "dec": 6,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_FAILURE",
+            "hex": "0x07",
+            "dec": 7,
+            "desc": null
+          },
+          {
+            "name": "GC_08",
+            "hex": "0x08",
+            "dec": 8,
+            "desc": null
+          },
+          {
+            "name": "GC_09",
+            "hex": "0x09",
+            "dec": 9,
+            "desc": null
+          },
+          {
+            "name": "GC_0A",
+            "hex": "0x0A",
+            "dec": 10,
+            "desc": null
+          },
+          {
+            "name": "GC_0B",
+            "hex": "0x0B",
+            "dec": 11,
+            "desc": null
+          },
+          {
+            "name": "ATTACK",
+            "hex": "0x0C",
+            "dec": 12,
+            "desc": null
+          }
+        ]
+      },
+      "beavium": {
+        "display_name": "Beavium (Custom Security Profile)",
+        "description": "Customowy profil serwera Beavium z zabezpieczeniami AES-256-CTR, X25519 DH oraz specyficznym ukladem pakietow.",
+        "framing": {
+          "type": "TABLE_LOOKUP_1B",
+          "header_size_bytes": 1,
+          "format": "[Header: 1B (uint8_t)][Payload...]",
+          "dynamic_handling": "16-bit uint16_t na offsetcie 1 dla pakietow dynamicznych, oraz 32-bit uint32_t na offsetcie 1 dla pakietow glosowych (0x90/0x91)"
+        },
+        "cryptography": {
+          "key_agreement": "X25519 Diffie-Hellman (opcode 0xFA, 137B)",
+          "cipher": "AES-256-CTR (AesKey 32B, AesIv 16B, DefaultClientKey 16B)",
+          "block_size_bytes": 16,
+          "auth_security": "Base64 AES-CFB encrypted payload w pakiecie 0x67 (32B)"
+        },
+        "network": {
+          "default_ip": "127.0.0.1",
+          "default_auth_port": 11000,
+          "default_game_ports": [
+            11011,
+            11021
+          ],
+          "mark_port": 11011
+        },
+        "total_cg_opcodes": 31,
+        "total_gc_opcodes": 47,
+        "key_cg_opcodes": [
+          {
+            "name": "LOGIN",
+            "hex": "0x01",
+            "dec": 1,
+            "desc": "Logowanie Beavium (53B)"
+          },
+          {
+            "name": "ATTACK",
+            "hex": "0x02",
+            "dec": 2,
+            "desc": "Atak 8B z 16-bitowa sekwencja"
+          },
+          {
+            "name": "CHAT",
+            "hex": "0x03",
+            "dec": 3,
+            "desc": "Dynamiczny czat"
+          },
+          {
+            "name": "CHARACTER_CREATE",
+            "hex": "0x04",
+            "dec": 4,
+            "desc": "Tworzenie postaci (42B)"
+          },
+          {
+            "name": "CHARACTER_DESTROY",
+            "hex": "0x05",
+            "dec": 5,
+            "desc": "Usuniecie postaci (10B)"
+          },
+          {
+            "name": "CHAR_SELECT",
+            "hex": "0x06",
+            "dec": 6,
+            "desc": "Wybor postaci ze slotu z tokenem (14B)"
+          },
+          {
+            "name": "MOVE",
+            "hex": "0x07",
+            "dec": 7,
+            "desc": "Ruch 29B z mikrostopniami (* 1e6)"
+          },
+          {
+            "name": "ENTERGAME",
+            "hex": "0x0A",
+            "dec": 10,
+            "desc": "Wejscie do gry (1B)"
+          },
+          {
+            "name": "ITEM_USE",
+            "hex": "0x0C",
+            "dec": 12,
+            "desc": "Uzycie przedmiotu (12B: cell, win, vnum, vid)"
+          },
+          {
+            "name": "ITEM_MOVE",
+            "hex": "0x0D",
+            "dec": 13,
+            "desc": "Przeniesienie w ekwipunku (8B)"
+          },
+          {
+            "name": "ITEM_PICKUP",
+            "hex": "0x0E",
+            "dec": 14,
+            "desc": "Podniesienie przedmiotu (5B: itemVid)"
+          },
+          {
+            "name": "ON_CLICK",
+            "hex": "0x14",
+            "dec": 20,
+            "desc": "Klikniecie w cel (6B: targetVid, flag 0x00)"
+          }
+        ],
+        "key_gc_opcodes": [
+          {
+            "name": "CHARACTER_ADD",
+            "hex": "0x01",
+            "dec": 1,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_DEL",
+            "hex": "0x02",
+            "dec": 2,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_MOVE",
+            "hex": "0x03",
+            "dec": 3,
+            "desc": null
+          },
+          {
+            "name": "CHAT",
+            "hex": "0x04",
+            "dec": 4,
+            "desc": null
+          },
+          {
+            "name": "SYNC_POSITION",
+            "hex": "0x05",
+            "dec": 5,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_SUCCESS3",
+            "hex": "0x06",
+            "dec": 6,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_FAILURE",
+            "hex": "0x07",
+            "dec": 7,
+            "desc": null
+          },
+          {
+            "name": "CHAR_CREATE_SUCCESS",
+            "hex": "0x08",
+            "dec": 8,
+            "desc": null
+          },
+          {
+            "name": "CHAR_CREATE_FAILURE",
+            "hex": "0x09",
+            "dec": 9,
+            "desc": null
+          },
+          {
+            "name": "CHAR_DELETE_SUCCESS",
+            "hex": "0x0A",
+            "dec": 10,
+            "desc": null
+          },
+          {
+            "name": "CHAR_DELETE_WRONG_PIN",
+            "hex": "0x0B",
+            "dec": 11,
+            "desc": null
+          },
+          {
+            "name": "ATTACK",
+            "hex": "0x0C",
+            "dec": 12,
+            "desc": null
+          }
+        ]
+      },
+      "martysama": {
+        "display_name": "MartySama (Ymir Mainline Standard)",
+        "description": "Standardowy serwer vaniliowy MartySama (Ymir mainline) oparty na 1-bajtowym opkodzie naglowka.",
+        "framing": {
+          "type": "TABLE_LOOKUP_1B",
+          "header_size_bytes": 1,
+          "format": "[Header: 1B (uint8_t)][Payload...]",
+          "dynamic_handling": "16-bit uint16_t little-endian na offsetcie 1 dla pakietow dynamicznych (CHAT 0x04, WHISPER 0x22, SHOP 0x26, SHOP_SIGN 0x27, SCRIPT 0x2D, COMMAND 0x40, QUEST_INFO 0x51, PANAMA_PACK 0x97, RESPOND_CHANNELSTATUS 0xD2)"
+        },
+        "cryptography": {
+          "key_agreement": "Ymir Handshake / Opcjonalny XTEA",
+          "cipher": "TEA / XTEA (klucze 16B) lub Plaintext",
+          "block_size_bytes": 8,
+          "auth_security": "Standard Login Key + Ymir Token"
+        },
+        "network": {
+          "default_ip": "127.0.0.1",
+          "default_auth_port": 11002,
+          "default_game_ports": [
+            13000,
+            13001,
+            13002,
+            13003
+          ],
+          "mark_port": 13000
+        },
+        "total_cg_opcodes": 17,
+        "total_gc_opcodes": 68,
+        "key_cg_opcodes": [
+          {
+            "name": "LOGIN",
+            "hex": "0x01",
+            "dec": 1,
+            "desc": "Logowanie standardowe (49B)"
+          },
+          {
+            "name": "ATTACK",
+            "hex": "0x02",
+            "dec": 2,
+            "desc": "Atak 8B: opcode 2, bType, dwVictimVID, CRC"
+          },
+          {
+            "name": "CHAT",
+            "hex": "0x03",
+            "dec": 3,
+            "desc": "Dynamiczny czat"
+          },
+          {
+            "name": "CHARACTER_CREATE",
+            "hex": "0x04",
+            "dec": 4,
+            "desc": "Tworzenie postaci (34B)"
+          },
+          {
+            "name": "CHARACTER_DELETE",
+            "hex": "0x05",
+            "dec": 5,
+            "desc": "Usuniecie postaci kodem PIN (10B)"
+          },
+          {
+            "name": "CHARACTER_SELECT",
+            "hex": "0x06",
+            "dec": 6,
+            "desc": "Wybor postaci ze slotu (2B)"
+          },
+          {
+            "name": "MOVE",
+            "hex": "0x07",
+            "dec": 7,
+            "desc": "Ruch 16B: opcode 7, bFunc, bArg, bRot, lX, lY, dwTime"
+          },
+          {
+            "name": "ENTERGAME",
+            "hex": "0x0A",
+            "dec": 10,
+            "desc": "Wejscie do gry (1B)"
+          },
+          {
+            "name": "ITEM_USE",
+            "hex": "0x0B",
+            "dec": 11,
+            "desc": "Uzycie przedmiotu 4B: opcode 11, window, cell"
+          },
+          {
+            "name": "ITEM_DROP",
+            "hex": "0x0C",
+            "dec": 12,
+            "desc": "Wyrzucenie przedmiotu (9B)"
+          },
+          {
+            "name": "ITEM_MOVE",
+            "hex": "0x0D",
+            "dec": 13,
+            "desc": "Przeniesienie w ekwipunku (9B)"
+          },
+          {
+            "name": "ITEM_PICKUP",
+            "hex": "0x0F",
+            "dec": 15,
+            "desc": "Podniesienie przedmiotu (5B)"
+          }
+        ],
+        "key_gc_opcodes": [
+          {
+            "name": "CHARACTER_ADD",
+            "hex": "0x01",
+            "dec": 1,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_DEL",
+            "hex": "0x02",
+            "dec": 2,
+            "desc": null
+          },
+          {
+            "name": "MOVE",
+            "hex": "0x03",
+            "dec": 3,
+            "desc": null
+          },
+          {
+            "name": "CHAT",
+            "hex": "0x04",
+            "dec": 4,
+            "desc": null
+          },
+          {
+            "name": "SYNC_POSITION",
+            "hex": "0x05",
+            "dec": 5,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_SUCCESS",
+            "hex": "0x06",
+            "dec": 6,
+            "desc": null
+          },
+          {
+            "name": "LOGIN_FAILURE",
+            "hex": "0x07",
+            "dec": 7,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_CREATE_SUCCESS",
+            "hex": "0x08",
+            "dec": 8,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_CREATE_FAILURE",
+            "hex": "0x09",
+            "dec": 9,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_DELETE_SUCCESS",
+            "hex": "0x0A",
+            "dec": 10,
+            "desc": null
+          },
+          {
+            "name": "CHARACTER_DELETE_WRONG_SOCIAL_ID",
+            "hex": "0x0B",
+            "dec": 11,
+            "desc": null
+          },
+          {
+            "name": "ATTACK",
+            "hex": "0x0C",
+            "dec": 12,
+            "desc": null
+          }
+        ]
+      }
+    }
+  },
+  "ctest_summary": {
+    "total_registered_tests": 401,
+    "execution_command": "ctest -C Release",
+    "fast_preflight_command": "python tools/ai_preflight_check.py",
+    "test_suites": {
+      "c26_domain_and_engine": {
+        "count": 347,
+        "description": "Testy jednostkowe podsystemow silnika: Strangler Facade, Memory Pool, Radix Sort, Render Target, Skill Cooldown, Item Bonus, Inventory Domain, World Query, State Unification."
+      },
+      "c27_gltf_pipeline": {
+        "target": "test_c27_gltf_pipeline",
+        "description": "Test potoku importu modeli glTF 2.0 i konwersji ze zrzutow GR2."
+      },
+      "c28_real_simulation": {
+        "target": "test_c28_real_simulation",
+        "description": "Pelna deterministyczna symulacja rozgrywki i synchronizacji pozycji gracza."
+      },
+      "c29_gltf_d3d_bridge": {
+        "target": "test_c29_gltf_d3d_bridge",
+        "description": "Mostek renderowania modeli glTF przez DirectX 9."
+      },
+      "c33_bot_ffi_bridge": {
+        "target": "BotFFIBridgeTest",
+        "description": "Test eksportowanego C-ABI BotApi_FFI (ActorSnapshot 32B wyrownanie, operacje bez alokacji pamieci, fallback do AgentMCPBridge)."
+      },
+      "mcp_and_ipc": {
+        "targets": [
+          "AgentMCPBridgeTest",
+          "IPCTransportPipeTest",
+          "TestHarnessEngineTest",
+          "McpHarnessSelfTest"
+        ],
+        "description": "Testy warstwy integracji AI: JSON-RPC 2.0 przez Named Pipe, komunikacja z AgentMCPBridge."
+      },
+      "headless_client": {
+        "target": "HeadlessClientLiveTest",
+        "description": "Testy klienta bezokienkowego z dlawikiem 60 Hz i symulacja klatek."
+      },
+      "multi_server_protocol": {
+        "targets": [
+          "MultiServerProtocolTest",
+          "UniversalProtocolDriversTest",
+          "CryptoProvidersTest",
+          "BeaviumServerProfileTest"
+        ],
+        "description": "Weryfikacja sterownikow protokolu sieciowego, ramkowania 4B i kryptografii (AES-CTR, Blowfish, X25519)."
+      }
+    },
+    "total_active_tests": 402,
+    "recent_additions": [
+      "test_c26_wm_slot_api",
+      "test_c26_wm_button_api",
+      "test_c26_wm_layout_api",
+      "test_c26_wm_input_api",
+      "test_c26_harness_auth_protocol",
+      "test_c26_harness_engine_control",
+      "test_c26_harness_player_rpc",
+      "test_c26_harness_world_query",
+      "test_c26_skill_table_registry",
+      "test_c26_skill_desc_parser",
+      "test_c26_skill_requirement",
+      "test_c26_actor_mount",
+      "test_c26_actor_sound",
+      "test_c26_actor_title",
+      "test_c26_minimap_coord_projector"
+    ]
+  }
+}

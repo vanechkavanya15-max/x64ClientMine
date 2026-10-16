@@ -350,13 +350,13 @@ void CParticleSystemInstance::OnRender()
 	const DWORD frameCount = static_cast<DWORD>(m_kVct_pkImgInst.size());
 	for (DWORD dwFrameIndex = 0; dwFrameIndex < frameCount; ++dwFrameIndex)
 	{
-		uint32_t dwTextureID = 0;
+		uintptr_t dwTextureID = 0;
 		if (m_kVct_pkImgInst[dwFrameIndex])
 		{
 			LPDIRECT3DTEXTURE9 pD3DTexture = m_kVct_pkImgInst[dwFrameIndex]->GetTextureReference().GetD3DTexture();
 			if (pD3DTexture)
 			{
-				dwTextureID = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pD3DTexture) & 0xFFFFFFFF);
+				dwTextureID = reinterpret_cast<uintptr_t>(pD3DTexture);
 			}
 		}
 

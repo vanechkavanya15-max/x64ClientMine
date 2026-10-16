@@ -144,8 +144,10 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 	if (m_pMainTreeMap.empty())
 		return;
 
-	// Przekazuj partie drzew do CRenderQueueManager
-	SubmitTreePackets(ulRenderBitVector);
+	// Przekazuj partie drzew do CRenderQueueManager tylko z glownego przebiegu kamery
+	// (przebiegi cienia i minimapy wywoluja Render() ponownie i duplikowaly pakiety)
+	if (!(ulRenderBitVector & Forest_RenderToShadow) && !(ulRenderBitVector & Forest_RenderToMiniMap))
+		SubmitTreePackets(ulRenderBitVector);
 
 	// Gwarancja RAII: wyczyszczenie deklaracji wierzcholkow po zakonczeniu renderowania drzew SpeedTree
 	ScopedD3DVertexDeclGuard speedTreeDeclGuard(nullptr, false);

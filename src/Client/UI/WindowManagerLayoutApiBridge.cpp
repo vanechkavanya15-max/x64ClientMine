@@ -2,6 +2,11 @@
 
 namespace Client::UI {
 
+WindowManagerLayoutApiBridge& WindowManagerLayoutApiBridge::Instance() {
+    static WindowManagerLayoutApiBridge s_instance;
+    return s_instance;
+}
+
 std::expected<void, LayoutError> WindowManagerLayoutApiBridge::CreateWindow(uint32_t windowId) {
     if (m_layouts.contains(windowId)) {
         return std::unexpected(LayoutError::WindowAlreadyExists);

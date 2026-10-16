@@ -86,6 +86,7 @@ public:
 	void			DrawBeforeFlare();
 	void			DrawAfterFlare();
 	void			DrawFlare();
+	void			Render();
 	
 	void			SetMainFlare(std::string strSunFile, float fSunSize);
 	void			Initialize(std::string strPath);

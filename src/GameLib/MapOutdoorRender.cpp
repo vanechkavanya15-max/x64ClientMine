@@ -3,6 +3,7 @@
 #include "TerrainPatch.h"
 #include "AreaTerrain.h"
 #include "TerrainQuadtree.h"
+#include "TerrainRenderExtractor.h"
 
 #include "EterLib/Camera.h"
 #include "EterLib/StateManager.h"
@@ -48,6 +49,9 @@ void CMapOutdoor::RenderTerrain()
 	m_visibleQuadtreeNodeList.clear();
 
 	__RenderTerrain_RecurseRenderQuadTree(m_pRootNode);
+
+	static CTerrainRenderExtractor s_terrainExtractor;
+	s_terrainExtractor.ExtractAndSubmitFromOutdoor(this);
 	
 	// 거리순 정렬
 	std::sort(m_PatchVector.begin(),m_PatchVector.end());

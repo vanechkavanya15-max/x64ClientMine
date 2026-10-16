@@ -127,4 +127,47 @@ TEST_CASE("WindowManagerSlotApiBridge: Slot operations, locking and cooltime") {
         CHECK_FALSE(slot->cover.active);
         CHECK(slot->cover.coverType == 0);
     }
+
+    SUBCASE("SetSlotCount operations") {
+        bridge.SetSlot(SlotIndex(10), ItemVnum(909), 1);
+        auto res = bridge.SetSlotCount(SlotIndex(10), 50);
+        CHECK(res.has_value());
+        
+        auto slot = bridge.GetSlot(SlotIndex(10));
+        REQUIRE(slot.has_value());
+        CHECK(slot->count == 50);
+
+        // Non-existent slot created with count
+        auto res2 = bridge.SetSlotCount(SlotIndex(11), 25);
+        CHECK(res2.has_value());
+        auto slot2 = bridge.GetSlot(SlotIndex(11));
+        REQUIRE(slot2.has_value());
+        CHECK(slot2->count == 25);
+    }
+
+    SUBCASE("Drag and drop / Attaching icon operations") {
+        CHECK_FALSE(bridge.IsAttaching());
+        CHECK_FALSE(bridge.IsDragging());
+
+        bridge.AttachIcon(1, 5001, 3, 32, 64);
+        CHECK(bridge.IsAttaching());
+        CHECK(bridge.IsDragging());
+
+        const auto& icon = bridge.GetAttachedIcon();
+        CHECK(icon.type == 1);
+        CHECK(icon.index == 5001);
+        CHECK(icon.slotNumber == 3);
+        CHECK(icon.width == 32);
+        CHECK(icon.height == 64);
+
+        bridge.SetAttachingFlag(false);
+        CHECK_FALSE(bridge.IsAttaching());
+
+        bridge.AttachIcon(2, 6002, 5, 32, 32);
+        CHECK(bridge.IsAttaching());
+        bridge.DeattachIcon();
+        CHECK_FALSE(bridge.IsAttaching());
+        CHECK_FALSE(bridge.IsDragging());
+    }
 }
+

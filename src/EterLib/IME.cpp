@@ -6,6 +6,23 @@
 #include <oleauto.h>
 #include <algorithm>
 #include <utf8.h>
+#include "Client/Input/IMECompositionManager.h"
+#include "Client/Input/IMEClipboardBridge.h"
+
+namespace {
+	Client::Input::IMECompositionManager s_compManager;
+	Client::Input::IMEClipboardBridge s_clipboardBridge;
+}
+
+Client::Input::IMECompositionManager& CIME::GetCompositionManager()
+{
+	return s_compManager;
+}
+
+Client::Input::IMEClipboardBridge& CIME::GetClipboardBridge()
+{
+	return s_clipboardBridge;
+}
 
 #define COUNTOF(a)						( sizeof( a ) / sizeof( ( a )[0] ) )
 
@@ -423,7 +440,11 @@ void CIME::Clear()
 	ms_lastpos = 0;
 	ms_curpos = 0;
 
+	s_compManager.Clear();
+	s_clipboardBridge.Clear();
+
 	ms_compLen = 0;
+	ms_compCaret = 0;
 	ms_ulbegin = 0;
 	ms_ulend = 0;
 
@@ -464,7 +485,11 @@ void CIME::SetUserMax(int iMax)
 
 void CIME::SetText(const char* szText, int len)
 {
+	s_compManager.Clear();
+	s_clipboardBridge.Clear();
+
 	ms_compLen = 0;
+	ms_compCaret = 0;
 	ms_ulbegin = 0;
 	ms_ulend = 0;
 
@@ -513,6 +538,7 @@ void CIME::SetText(const char* szText, int len)
 	ms_lastpos = written;
 	ms_curpos = ms_lastpos;
 	ms_selbegin = ms_selend = ms_curpos;
+	s_clipboardBridge.SetSelection((size_t)ms_curpos, (size_t)ms_curpos);
 }
 
 int CIME::GetText(std::string& rstrText)
@@ -524,9 +550,16 @@ int CIME::GetText(std::string& rstrText)
 	if (ms_curpos > 0)
 		w.append(m_wText, m_wText + ms_curpos);
 
-	// composition (uncommitted)
-	if (ms_compLen > 0)
+	// composition (uncommitted) via IMECompositionManager
+	if (s_compManager.HasComposition())
+	{
+		std::wstring wideComp = s_compManager.GetWideString();
+		w.append(wideComp);
+	}
+	else if (ms_compLen > 0)
+	{
 		w.append(m_wszComposition, m_wszComposition + ms_compLen);
+	}
 
 	// after cursor
 	if (ms_lastpos > ms_curpos)
@@ -740,6 +773,9 @@ void CIME::Redo()
 
 void CIME::SelectAll()
 {
+	s_clipboardBridge.SetSelection(0, (size_t)ms_lastpos);
+	s_clipboardBridge.SelectAll();
+
 	ms_selbegin = 0;
 	ms_selend = ms_lastpos;
 	ms_curpos = ms_lastpos;
@@ -761,6 +797,9 @@ void CIME::DeleteSelection()
 	const int selLen = b - a;
 	if (selLen <= 0)
 		return;
+
+	s_clipboardBridge.SetSelection((size_t)a, (size_t)b);
+	s_clipboardBridge.DeleteSelection();
 
 	const int tailCount = (ms_lastpos - b) + 1;
 	memmove(m_wText + a, m_wText + b, (size_t)tailCount * sizeof(wchar_t));
@@ -786,36 +825,12 @@ void CIME::CopySelectionToClipboard(HWND hWnd)
 	if (selLen <= 0)
 		return;
 
-	if (!OpenClipboard(hWnd))
-		return;
+	std::wstring_view selView(m_wText + a, (size_t)selLen);
 
-	EmptyClipboard();
-
-	const SIZE_T bytes = (SIZE_T)(selLen + 1) * sizeof(wchar_t);
-	HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, bytes);
-	if (!hMem)
-	{
-		CloseClipboard();
-		return;
-	}
-
-	wchar_t* dst = (wchar_t*)GlobalLock(hMem);
-	if (!dst)
-	{
-		GlobalFree(hMem);
-		CloseClipboard();
-		return;
-	}
-
-	memcpy(dst, m_wText + a, (size_t)selLen * sizeof(wchar_t));
-	dst[selLen] = L'\0';
-
-	GlobalUnlock(hMem);
-
-	if (!SetClipboardData(CF_UNICODETEXT, hMem))
-		GlobalFree(hMem); // only free if SetClipboardData failed
-
-	CloseClipboard();
+	// Delegate clipboard buffering, sanitization, and Windows OS transfer to IMEClipboardBridge
+	s_clipboardBridge.SetClipboardTextWide(selView);
+	s_clipboardBridge.SetSelection((size_t)a, (size_t)b);
+	s_clipboardBridge.CopyToWindowsClipboard(hWnd, selView);
 }
 
 void CIME::CutSelectionToClipboard(HWND hWnd)
@@ -829,24 +844,20 @@ void CIME::PasteTextFromClipBoard()
 	if (!m_bEnablePaste)
 		return;
 
-	if (!OpenClipboard(ms_hWnd))
-		return;
-
-	// 1) Prefer Unicode clipboard
-	if (HANDLE hUni = GetClipboardData(CF_UNICODETEXT))
+	// Delegate Windows OS clipboard retrieval and sanitization to IMEClipboardBridge
+	auto clipResult = s_clipboardBridge.GetFromWindowsClipboard(ms_hWnd);
+	if (!clipResult.has_value())
 	{
-		if (wchar_t* wbuf = (wchar_t*)GlobalLock(hUni))
-		{
-			InsertString(wbuf, (int)wcslen(wbuf));
-			GlobalUnlock(hUni);
-		}
-
-		CloseClipboard();
 		if (ms_pEvent) ms_pEvent->OnUpdate();
 		return;
 	}
 
-	CloseClipboard();
+	const std::wstring& wbuf = clipResult.value();
+	if (!wbuf.empty())
+	{
+		InsertString(const_cast<wchar_t*>(wbuf.c_str()), (int)wbuf.length());
+	}
+
 	if (ms_pEvent) ms_pEvent->OnUpdate();
 }
 
@@ -874,6 +885,7 @@ void CIME::FinalizeString(bool bSend)
 
 	//InitCompStringData();
 	// clear composition string in IME
+	s_compManager.Clear();
 	ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
 	if (ms_bUILessMode)
 	{
@@ -891,6 +903,8 @@ void CIME::FinalizeString(bool bSend)
 
 int CIME::GetCompLen()
 {
+	if (s_compManager.HasComposition())
+		return (int)s_compManager.GetLength();
 	return ms_compLen;
 }
 
@@ -916,6 +930,7 @@ int CIME::GetSelEnd()
 
 void CIME::ClearSelection()
 {
+	s_clipboardBridge.SetSelection((size_t)ms_curpos, (size_t)ms_curpos);
 	ms_selbegin = ms_selend = ms_curpos;
 }
 
@@ -1072,16 +1087,29 @@ void CIME::DelCurPos()
 
 void CIME::PasteString(const char * str)
 {
-	const char * begin = str;
-	const char * end = str + strlen(str);
-	wchar_t m_wText[IMESTR_MAXLEN];
-	int wstrLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, begin, end - begin, m_wText, IMESTR_MAXLEN);
+	if (!str)
+		return;
+
+	// Delegate sanitization and encoding conversion to IMEClipboardBridge
+	std::string sanitized = Client::Input::IMEClipboardBridge::SanitizeText(str);
+	auto utf16Res = Client::Input::IMEClipboardBridge::Utf8ToUtf16(sanitized);
+	if (!utf16Res.has_value())
+		return;
+
+	const auto& u16Str = utf16Res.value();
+	wchar_t pasteBuf[IMESTR_MAXLEN];
+	int wstrLen = static_cast<int>(std::min(u16Str.length(), static_cast<size_t>(IMESTR_MAXLEN - 1)));
+	for (int i = 0; i < wstrLen; ++i)
+	{
+		pasteBuf[i] = static_cast<wchar_t>(u16Str[i]);
+	}
+	pasteBuf[wstrLen] = L'\0';
 
 	// Check if pasting a hyperlink (contains |H tag)
 	bool isHyperlink = false;
 	for (int i = 0; i < wstrLen - 1; ++i)
 	{
-		if (m_wText[i] == L'|' && m_wText[i + 1] == L'H')
+		if (pasteBuf[i] == L'|' && pasteBuf[i + 1] == L'H')
 		{
 			isHyperlink = true;
 			break;
@@ -1094,7 +1122,7 @@ void CIME::PasteString(const char * str)
 		ms_curpos = ms_lastpos;  // Move cursor to end first
 	}
 
-	InsertString(m_wText, wstrLen);
+	InsertString(pasteBuf, wstrLen);
 	if(ms_pEvent)
 		ms_pEvent->OnUpdate();
 }
@@ -1154,22 +1182,36 @@ void CIME::OnChar(wchar_t c)
 
 void CIME::CompositionProcess(HIMC hImc)
 {
-	LONG bytes = ImmGetCompositionStringW(hImc, GCS_COMPSTR, m_wszComposition, sizeof(m_wszComposition));
+	wchar_t wszComp[IMESTR_MAXLEN];
+	LONG bytes = ImmGetCompositionStringW(hImc, GCS_COMPSTR, wszComp, sizeof(wszComp));
 	if (bytes <= 0)
 	{
+		s_compManager.Clear();
 		ms_compLen = 0;
 		m_wszComposition[0] = L'\0';
 		return;
 	}
 
-	ms_compLen = (int)(bytes / (LONG)sizeof(wchar_t));
+	int compLen = (int)(bytes / (LONG)sizeof(wchar_t));
 
-	if (IsMax(m_wszComposition, ms_compLen))
+	if (IsMax(wszComp, compLen))
 	{
 		ImmNotifyIME(hImc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+		s_compManager.Clear();
 		ms_compLen = 0;
 		m_wszComposition[0] = L'\0';
+		return;
 	}
+
+	LONG caretPos = ImmGetCompositionStringW(hImc, GCS_CURSORPOS, nullptr, 0);
+	s_compManager.SetCompositionWide(std::wstring_view(wszComp, compLen), (caretPos < 0) ? compLen : (int32_t)caretPos);
+
+	// Synchronize legacy buffer for GrpTextInstance and compatibility
+	std::wstring wideComp = s_compManager.GetWideString();
+	wcsncpy(m_wszComposition, wideComp.c_str(), IMESTR_MAXLEN - 1);
+	m_wszComposition[IMESTR_MAXLEN - 1] = L'\0';
+	ms_compLen = (int)wideComp.length();
+	ms_compCaret = s_compManager.GetCaretPos();
 }
 
 void CIME::CompositionProcessBuilding(HIMC hImc)
@@ -1181,11 +1223,29 @@ void CIME::CompositionProcessBuilding(HIMC hImc)
 	if (textLen >= m_max)
 	{
 		ImmNotifyIME(hImc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+		s_compManager.Clear();
 		ms_compLen = 0;
+		m_wszComposition[0] = L'\0';
 		return;
 	}
 
-	ms_compLen = ImmGetCompositionStringW(hImc, GCS_COMPSTR, m_wszComposition, sizeof(m_wszComposition))/sizeof(wchar_t);
+	wchar_t wszComp[IMESTR_MAXLEN];
+	LONG bytes = ImmGetCompositionStringW(hImc, GCS_COMPSTR, wszComp, sizeof(wszComp));
+	if (bytes > 0)
+	{
+		int compLen = (int)(bytes / (LONG)sizeof(wchar_t));
+		s_compManager.SetCompositionWide(std::wstring_view(wszComp, compLen), compLen);
+		std::wstring wideComp = s_compManager.GetWideString();
+		wcsncpy(m_wszComposition, wideComp.c_str(), IMESTR_MAXLEN - 1);
+		m_wszComposition[IMESTR_MAXLEN - 1] = L'\0';
+		ms_compLen = (int)wideComp.length();
+	}
+	else
+	{
+		s_compManager.Clear();
+		ms_compLen = 0;
+		m_wszComposition[0] = L'\0';
+	}
 }
 
 void CIME::ResultProcess(HIMC hImc)
@@ -1207,11 +1267,15 @@ void CIME::AttributeProcess(HIMC hImc)
 {
 	BYTE	attribute[IMESTR_MAXLEN];
 	LONG	attributeLen = ImmGetCompositionStringW(hImc, GCS_COMPATTR, &attribute, sizeof(attribute)) / sizeof(BYTE);
+	if (attributeLen <= 0)
+	{
+		ms_ulbegin = 0;
+		ms_ulend = 0;
+		return;
+	}
 
-	int start,end;
-	for(start=0; start<attributeLen; ++start) if(attribute[start]==ATTR_TARGET_CONVERTED || attribute[start]==ATTR_TARGET_NOTCONVERTED) break;
-	for(end=start; end<attributeLen; ++end) if(attribute[end]!=attribute[start]) break;
-
+	s_compManager.SetRawAttributes(attribute, (size_t)attributeLen);
+	auto [start, end] = s_compManager.GetTargetClauseRange();
 	ms_ulbegin = start;
 	ms_ulend = end;
 }
@@ -2362,6 +2426,10 @@ LRESULT CIME::WMComposition(HWND hWnd, UINT /*uiMsg*/, WPARAM /*wParam*/, LPARAM
 	{
 		LONG pos = ImmGetCompositionStringW(hImc, GCS_CURSORPOS, nullptr, 0);
 		ms_compCaret = (pos < 0) ? 0 : (int)pos;
+		if (s_compManager.HasComposition())
+		{
+			s_compManager.SetCompositionString(s_compManager.GetString(), ms_compCaret);
+		}
 	}
 
 	ImmReleaseContext(hWnd, hImc);
@@ -2374,7 +2442,9 @@ LRESULT CIME::WMComposition(HWND hWnd, UINT /*uiMsg*/, WPARAM /*wParam*/, LPARAM
 
 LRESULT CIME::WMEndComposition(HWND /*hWnd*/, UINT /*uiMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/)
 {
+	s_compManager.Clear();
 	ms_compLen = 0;
+	m_wszComposition[0] = L'\0';
 	ms_ulbegin = 0;
 	ms_ulend = 0;
 

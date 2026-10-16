@@ -839,6 +839,48 @@ void CSkyBox::Update()
 
 void CSkyBox::Render()
 {
+	// Ekstrakcja stanu nieba do kolejki pakietow C-ABI (WGPU / Strangler Fig Pattern)
+	TSkyBoxPacket pkt{};
+	pkt.matWorld = m_matWorld;
+	pkt.dwFaceCount = 6;
+
+	pkt.dwSkyTextureID = 0;
+	for (unsigned int i = 0; i < 6; ++i)
+	{
+		auto it = m_GraphicImageInstanceMap.find(m_Faces[i].m_strFaceTextureFileName);
+		if (it != m_GraphicImageInstanceMap.end() && it->second)
+		{
+			LPDIRECT3DTEXTURE9 pTex = it->second->GetTextureReference().GetD3DTexture();
+			if (pTex)
+			{
+				pkt.dwSkyTextureID = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pTex) & 0xFFFFFFFF);
+				break;
+			}
+		}
+	}
+
+	pkt.dwCloudTextureID = 0;
+	if (!m_FaceCloud.m_strfacename.empty())
+	{
+		auto it = m_GraphicImageInstanceMap.find(m_FaceCloud.m_strfacename);
+		if (it != m_GraphicImageInstanceMap.end() && it->second)
+		{
+			CGraphicTexture* pTexObj = it->second->GetTexturePointer();
+			if (pTexObj && pTexObj->GetD3DTexture())
+			{
+				pkt.dwCloudTextureID = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pTexObj->GetD3DTexture()) & 0xFFFFFFFF);
+			}
+		}
+	}
+
+	pkt.fCloudScale = m_fCloudScaleX;
+	pkt.fCloudHeight = m_fCloudHeight;
+	pkt.fCloudScrollSpeed = m_fCloudScrollSpeedU;
+	pkt.fPad = 0.0f;
+	pkt.vSkyColor = m_atmosphereUniforms.vFogColor;
+
+	CRenderQueueManager::Instance().SubmitSkyBox(pkt);
+
 	// 2004.01.25 myevan 처리를 렌더링 후반으로 옮기고, DepthTest 처리
 	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE,	TRUE);
 	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);

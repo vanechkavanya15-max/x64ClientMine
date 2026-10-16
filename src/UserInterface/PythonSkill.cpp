@@ -5,6 +5,10 @@
 #include "PackLib/PackManager.h"
 #include "InstanceBase.h"
 #include "PythonPlayer.h"
+#include "Client/Skills/SkillDescriptionParser.h"
+#include "Client/Skills/SkillTableLoader.h"
+#include "Client/Skills/SkillTableRegistry.h"
+#include "Client/Skills/SkillRequirementEvaluator.h"
 
 std::map<std::string, DWORD> CPythonSkill::SSkillData::ms_StatusNameMap;
 std::map<std::string, DWORD> CPythonSkill::SSkillData::ms_NewMinStatusNameMap;
@@ -93,14 +97,153 @@ bool CPythonSkill::RegisterSkillTable(const char * c_szFileName)
 	if (!CPackManager::Instance().GetFile(c_szFileName, kFile))
 		return false;
 
-	CMemoryTextFileLoader textFileLoader;
-	textFileLoader.Bind(kFile.size(), kFile.data());
+	// Delegacja parsowania i rejestracji tabeli skilli do SkillTableLoader oraz SkillTableRegistry
+	std::string_view tsvData(reinterpret_cast<const char*>(kFile.data()), kFile.size());
+	auto loadResult = Client::Skills::SkillTableLoader::LoadFromMemory(tsvData);
+	if (loadResult.has_value())
+	{
+		m_skillTableRegistry.Initialize(loadResult.value());
+	}
 
 	// OVERWRITE_SKILLPROTO_POLY
 	std::string src_poly_rand;
 	std::string src_poly_atk;
 	std::string src_poly_mwep;
 	// END_OF_OVERWRITE_SKILLPROTO_POLY
+
+	const DWORD LevelEmpty = 1;
+
+	if (loadResult.has_value() && !loadResult.value().empty())
+	{
+		for (const auto & record : loadResult.value())
+		{
+			uint32_t iVnum = record.dwVnum.Get();
+			TSkillDataMap::iterator itor = m_SkillDataMap.find(iVnum);
+			if (m_SkillDataMap.end() == itor)
+			{
+				Tracef("CPythonSkill::RegisterSkillTable(%s) - NOT EXIST SkillDesc [Vnum:%d]\n", c_szFileName, iVnum);
+				continue;
+			}
+
+			TSkillData & rSkillData = itor->second;
+
+			if (!record.strSPCostPoly.empty())
+			{
+				rSkillData.strNeedSPFormula = record.strSPCostPoly;
+			}
+
+			if (!record.strCooldownPoly.empty())
+			{
+				rSkillData.strCoolTimeFormula = record.strCooldownPoly;
+			}
+
+			if (!record.strDurationSPCostPoly.empty())
+			{
+				rSkillData.strContinuationSPFormula = record.strDurationSPCostPoly;
+			}
+
+			if (record.dwTargetRange > 0)
+			{
+				rSkillData.dwTargetRange = record.dwTargetRange;
+			}
+
+			rSkillData.strDuration = record.strDurationPoly;
+
+			if (record.bMaxLevel > LevelEmpty)
+			{
+				rSkillData.byMaxLevel = record.bMaxLevel;
+			}
+
+			if (record.bLevelLimit > LevelEmpty)
+			{
+				rSkillData.byLevelLimit = record.bLevelLimit;
+			}
+
+			if (record.dwPrerequisiteSkillVnum.Get() > 0)
+			{
+				rSkillData.isRequirement = TRUE;
+				rSkillData.byRequireSkillLevel = record.bPrerequisiteSkillLevel;
+				TSkillDataMap::iterator prereqIt = m_SkillDataMap.find(record.dwPrerequisiteSkillVnum.Get());
+				if (prereqIt != m_SkillDataMap.end())
+				{
+					rSkillData.strRequireSkillName = prereqIt->second.strName;
+				}
+			}
+
+			// OVERWRITE_SKILLPROTO_POLY
+			bool USE_SKILL_PROTO = true;
+
+			switch (iVnum)
+			{
+				case 34:
+
+				// GUILD_SKILL_DISPLAY_BUG_FIX
+				case 151:
+				case 152:
+				case 153:
+				case 154:
+				case 155:
+				case 156:
+				case 157:
+				// END_OF_GUILD_SKILL_DISPLAY_BUG_FIX
+					USE_SKILL_PROTO = false;
+					break;
+			}
+
+			const std::string & c_strPointPoly = record.strPointPoly;
+
+			if (!rSkillData.AffectDataVector.empty() && USE_SKILL_PROTO)
+			{
+				TAffectData& affect = rSkillData.AffectDataVector[0];
+
+				if (strstr(c_strPointPoly.c_str(), "atk")		!= NULL ||
+					strstr(c_strPointPoly.c_str(), "mwep")		!= NULL ||
+					strstr(c_strPointPoly.c_str(), "number")	!= NULL)
+				{
+					src_poly_rand = "";
+					src_poly_atk = "";
+					src_poly_mwep = "";
+
+					// MIN
+					string_replace_word(c_strPointPoly.c_str(), c_strPointPoly.length(),
+						"number", 6, "min", 3, src_poly_rand);				
+					string_replace_word(src_poly_rand.c_str(), src_poly_rand.length(),
+						"atk", 3, "minatk", 6, src_poly_atk);
+					string_replace_word(src_poly_atk.c_str(), src_poly_atk.length(),
+						"mwep", 4, "minmwep", 7, affect.strAffectMinFormula);
+					// END_OF_MIN
+
+					// MAX
+					string_replace_word(c_strPointPoly.c_str(), c_strPointPoly.length(),
+						"number", 6, "max", 3, src_poly_rand);				
+					string_replace_word(src_poly_rand.c_str(), src_poly_rand.length(),
+						"atk", 3, "maxatk", 6, src_poly_atk);
+					string_replace_word(src_poly_atk.c_str(), src_poly_atk.length(),
+						"mwep", 4, "maxmwep", 7, affect.strAffectMaxFormula);
+					// END_OF_MAX
+
+					switch (iVnum)
+					{
+						case 1:
+							affect.strAffectMinFormula += "* 3";
+							affect.strAffectMaxFormula += "* 3";
+							break;
+					}
+				}
+				else
+				{
+					affect.strAffectMinFormula = c_strPointPoly;
+					affect.strAffectMaxFormula = "";
+				}
+			}
+			// END_OF_OVERWRITE_SKILLPROTO_POLY
+		}
+
+		return true;
+	}
+
+	CMemoryTextFileLoader textFileLoader;
+	textFileLoader.Bind(kFile.size(), kFile.data());
 
 	CTokenVector TokenVector;
 	for (DWORD i = 0; i < textFileLoader.GetLineCount(); ++i)
@@ -152,9 +295,6 @@ bool CPythonSkill::RegisterSkillTable(const char * c_szFileName)
 		}
 
 		rSkillData.strDuration = TokenVector[TABLE_TOKEN_TYPE_DURATION_POLY];
-
-		
-		const DWORD LevelEmpty = 1;
 
 		const std::string & c_strMaxLevel = TokenVector[TABLE_TOKEN_TYPE_MAX_LEVEL];
 		if (!c_strMaxLevel.empty())
@@ -538,7 +678,8 @@ bool CPythonSkill::RegisterSkillDesc(const char * c_szFileName)
 
 void CPythonSkill::Destroy()
 {
-	m_SkillDataMap.clear();	
+	m_SkillDataMap.clear();
+	m_skillTableRegistry.Initialize({});
 }
 
 bool CPythonSkill::RegisterSkill(DWORD dwSkillIndex, const char * c_szFileName)
@@ -902,6 +1043,7 @@ void CPythonSkill::TEST()
 }
 
 CPythonSkill::CPythonSkill()
+	: m_skillRequirementEvaluator(Client::Skills::SkillRequirementEvaluator::CreateStandardEvaluator())
 {
 	m_SkillTypeIndexMap.insert(std::map<std::string, DWORD>::value_type("none", SKILL_TYPE_NONE));
 	m_SkillTypeIndexMap.insert(std::map<std::string, DWORD>::value_type("active", SKILL_TYPE_ACTIVE));
@@ -1244,6 +1386,59 @@ bool CPythonSkill::SSkillData::GetState(const char * c_szStateName, int * piStat
 	return true;
 }
 
+float CPythonSkill::SSkillData::ProcessFormula(const std::string& strFormula, float fSkillLevel, int iMinMaxType)
+{
+	if (strFormula.empty())
+		return 0.0f;
+
+	// Build context with variables from player status and skill level
+	Client::Skills::SkillFormulaEvaluator::Context context;
+
+	std::map<std::string, DWORD> * pStatusNameMap = NULL;
+	switch (iMinMaxType)
+	{
+		case VALUE_TYPE_FREE:
+			pStatusNameMap = &ms_StatusNameMap;
+			break;
+		case VALUE_TYPE_MIN:
+			pStatusNameMap = &ms_NewMinStatusNameMap;
+			break;
+		case VALUE_TYPE_MAX:
+			pStatusNameMap = &ms_NewMaxStatusNameMap;
+			break;
+		default:
+			break;
+	}
+
+	if (pStatusNameMap)
+	{
+		for (const auto& kv : *pStatusNameMap)
+		{
+			float fVal = float(CPythonPlayer::Instance().GetStatus(kv.second));
+			if (kv.first == "ar")
+				fVal /= 100.0f;
+			context[kv.first] = fVal;
+		}
+	}
+
+	context["k"] = fSkillLevel;
+	context["SkillPoint"] = fSkillLevel;
+	context["skillLevel"] = fSkillLevel;
+	context["JeungJi"] = 0.0;
+
+	// Redirect formula evaluation to SkillDescriptionParser
+	auto evalResult = Client::Skills::SkillDescriptionParser::EvaluateFormula(strFormula, context);
+	if (evalResult.has_value())
+	{
+		return static_cast<float>(evalResult.value());
+	}
+
+	// Fallback to legacy CPoly if needed
+	CPoly poly;
+	poly.SetStr(strFormula.c_str());
+	return ProcessFormula(&poly, fSkillLevel, iMinMaxType);
+}
+
 float CPythonSkill::SSkillData::ProcessFormula(CPoly * pPoly, float fSkillLevel, int iMinMaxType)
 {
 	if (pPoly->Analyze())
@@ -1279,62 +1474,6 @@ float CPythonSkill::SSkillData::ProcessFormula(CPoly * pPoly, float fSkillLevel,
 	return pPoly->Eval();
 }
 
-// Format specifiers supported in skill descriptions
-static const char* FORMAT_SPECIFIERS[] = {
-	"%.0f",  // Integer (no decimals)
-	"%.1f",  // 1 decimal place
-	"%.2f",  // 2 decimal places
-	"%d",    // Integer (alternative)
-};
-static const size_t FORMAT_SPECIFIER_COUNT = sizeof(FORMAT_SPECIFIERS) / sizeof(FORMAT_SPECIFIERS[0]);
-
-// Find and replace the first occurrence of any format specifier with the given value
-// Returns true if a replacement was made
-static bool ReplaceNextFormatSpecifier(std::string& s, float value)
-{
-	size_t bestPos = std::string::npos;
-	size_t bestLen = 0;
-	const char* bestSpec = nullptr;
-
-	// Find the first (leftmost) format specifier in the string
-	for (size_t i = 0; i < FORMAT_SPECIFIER_COUNT; ++i)
-	{
-		size_t pos = s.find(FORMAT_SPECIFIERS[i]);
-		if (pos != std::string::npos && (bestPos == std::string::npos || pos < bestPos))
-		{
-			bestPos = pos;
-			bestLen = strlen(FORMAT_SPECIFIERS[i]);
-			bestSpec = FORMAT_SPECIFIERS[i];
-		}
-	}
-
-	if (bestPos == std::string::npos)
-		return false;
-
-	// Format the value according to the specifier found
-	char szValue[64];
-	if (strcmp(bestSpec, "%.0f") == 0 || strcmp(bestSpec, "%d") == 0)
-		_snprintf(szValue, sizeof(szValue), "%.0f", floorf(value));
-	else if (strcmp(bestSpec, "%.1f") == 0)
-		_snprintf(szValue, sizeof(szValue), "%.1f", value);
-	else // %.2f or other
-		_snprintf(szValue, sizeof(szValue), "%.2f", value);
-
-	s.replace(bestPos, bestLen, szValue);
-	return true;
-}
-
-// Replace all occurrences of "%%" with "%" (escaped percent sign)
-static void UnescapePercent(std::string& s)
-{
-	size_t pos = 0;
-	while ((pos = s.find("%%", pos)) != std::string::npos)
-	{
-		s.replace(pos, 2, "%");
-		++pos; // Move past the replaced '%'
-	}
-}
-
 const char* CPythonSkill::SSkillData::GetAffectDescription(DWORD dwIndex, float fSkillLevel)
 {
 	if (dwIndex >= AffectDataVector.size())
@@ -1344,28 +1483,25 @@ const char* CPythonSkill::SSkillData::GetAffectDescription(DWORD dwIndex, float 
 	const std::string& minF = AffectDataVector[dwIndex].strAffectMinFormula;
 	const std::string& maxF = AffectDataVector[dwIndex].strAffectMaxFormula;
 
-	CPoly minPoly;
-	CPoly maxPoly;
-	minPoly.SetStr(minF.c_str());
-	maxPoly.SetStr(maxF.c_str());
-
-	float fMinValue = ProcessFormula(&minPoly, fSkillLevel);
-	float fMaxValue = ProcessFormula(&maxPoly, fSkillLevel);
+	float fMinValue = ProcessFormula(minF, fSkillLevel);
+	float fMaxValue = ProcessFormula(maxF, fSkillLevel);
 
 	// Take absolute values
 	if (fMinValue < 0.0f) fMinValue = -fMinValue;
 	if (fMaxValue < 0.0f) fMaxValue = -fMaxValue;
 
 	static std::string out;
-	out = desc;
+	Client::Skills::SkillDescriptionContext ctx;
+	ctx.skillLevel = fSkillLevel;
+	ctx.playerInt = float(CPythonPlayer::Instance().GetStatus(POINT_IQ));
+	ctx.variables["k"] = fSkillLevel;
+	ctx.variables["SkillPoint"] = fSkillLevel;
+	ctx.variables["skillLevel"] = fSkillLevel;
+	ctx.variables["min_val"] = fMinValue;
+	ctx.variables["max_val"] = fMaxValue;
+	ctx.variables["val"] = fMinValue;
 
-	// Replace format specifiers in order of appearance
-	// First specifier gets min value, second gets max value
-	ReplaceNextFormatSpecifier(out, fMinValue);
-	ReplaceNextFormatSpecifier(out, fMaxValue);
-
-	// Convert escaped %% to single % (for display like "30%")
-	UnescapePercent(out);
+	out = Client::Skills::SkillDescriptionParser::FormatDescription(desc, fMinValue, fMaxValue, &ctx);
 
 	return out.c_str();
 }
@@ -1375,10 +1511,7 @@ DWORD CPythonSkill::SSkillData::GetSkillCoolTime(float fSkillPoint)
 	if (strCoolTimeFormula.empty())
 		return 0;
 
-	CPoly poly;
-	poly.SetStr(strCoolTimeFormula.c_str());
-
-	return DWORD(ProcessFormula(&poly, fSkillPoint));
+	return DWORD(ProcessFormula(strCoolTimeFormula, fSkillPoint));
 }
 
 
@@ -1387,10 +1520,7 @@ DWORD CPythonSkill::SSkillData::GetTargetCount(float fSkillPoint)
 	if (strTargetCountFormula.empty())
 		return 0;
 
-	CPoly poly;
-	poly.SetStr(strTargetCountFormula.c_str());
-
-	return DWORD(ProcessFormula(&poly, fSkillPoint));
+	return DWORD(ProcessFormula(strTargetCountFormula, fSkillPoint));
 }
 
 DWORD CPythonSkill::SSkillData::GetSkillMotionIndex(int iGrade)
@@ -1441,10 +1571,7 @@ DWORD CPythonSkill::SSkillData::GetMotionLoopCount(float fSkillPoint)
 	if (strMotionLoopCountFormula.empty())
 		return 0;
 
-	CPoly poly;
-	poly.SetStr(strMotionLoopCountFormula.c_str());
-
-	return DWORD(ProcessFormula(&poly, fSkillPoint));
+	return DWORD(ProcessFormula(strMotionLoopCountFormula, fSkillPoint));
 }
 
 int CPythonSkill::SSkillData::GetNeedSP(float fSkillPoint)
@@ -1452,10 +1579,7 @@ int CPythonSkill::SSkillData::GetNeedSP(float fSkillPoint)
 	if (strNeedSPFormula.empty())
 		return 0;
 
-	CPoly poly;
-	poly.SetStr(strNeedSPFormula.c_str());
-
-	return int(ProcessFormula(&poly, fSkillPoint));
+	return int(ProcessFormula(strNeedSPFormula, fSkillPoint));
 }
 
 DWORD CPythonSkill::SSkillData::GetContinuationSP(float fSkillPoint)
@@ -1463,10 +1587,7 @@ DWORD CPythonSkill::SSkillData::GetContinuationSP(float fSkillPoint)
 	if (strContinuationSPFormula.empty())
 		return 0;
 
-	CPoly poly;
-	poly.SetStr(strContinuationSPFormula.c_str());
-
-	return DWORD(ProcessFormula(&poly, fSkillPoint));
+	return DWORD(ProcessFormula(strContinuationSPFormula, fSkillPoint));
 }
 
 DWORD CPythonSkill::SSkillData::GetDuration(float fSkillPoint)
@@ -1474,10 +1595,7 @@ DWORD CPythonSkill::SSkillData::GetDuration(float fSkillPoint)
 	if (strDuration.empty())
 		return 0;
 
-	CPoly poly;
-	poly.SetStr(strDuration.c_str());
-
-	return DWORD(ProcessFormula(&poly, fSkillPoint));
+	return DWORD(ProcessFormula(strDuration, fSkillPoint));
 }
 
 CPythonSkill::SSkillData::SSkillData()
@@ -1601,6 +1719,16 @@ PyObject * skillGetSkillDescription(PyObject * poSelf, PyObject * poArgs)
 	CPythonSkill::SSkillData * c_pSkillData;
 	if (!CPythonSkill::Instance().GetSkillData(iSkillIndex, &c_pSkillData))
 		return Py_BuildValue("s", "");
+
+	if (c_pSkillData->strDescription.find('{') != std::string::npos ||
+		c_pSkillData->strDescription.find('[') != std::string::npos)
+	{
+		Client::Skills::SkillDescriptionContext ctx;
+		ctx.playerInt = float(CPythonPlayer::Instance().GetStatus(POINT_IQ));
+		auto parsed = Client::Skills::SkillDescriptionParser::Parse(c_pSkillData->strDescription, ctx);
+		if (parsed.has_value())
+			return Py_BuildValue("s", parsed.value().c_str());
+	}
 
 	return Py_BuildValue("s", c_pSkillData->strDescription.c_str());
 }
@@ -1790,6 +1918,12 @@ PyObject * skillGetSkillLevelLimit(PyObject * poSelf, PyObject * poArgs)
 	if (!CPythonSkill::Instance().GetSkillData(iSkillIndex, &c_pSkillData))
 		return Py_BuildException("skill.GetSkillLevelLimit - Failed to find skill by %d", iSkillIndex);
 
+	auto optRecord = CPythonSkill::Instance().GetSkillTableRegistry().GetSkill(Client::Core::SkillId(iSkillIndex));
+	if (optRecord.has_value() && optRecord->bLevelLimit > 0)
+	{
+		return Py_BuildValue("i", optRecord->bLevelLimit);
+	}
+
 	return Py_BuildValue("i", c_pSkillData->byLevelLimit);
 }
 
@@ -1896,19 +2030,56 @@ PyObject * skillCanLevelUpSkill(PyObject * poSelf, PyObject * poArgs)
 			DWORD dwRequireSkillSlotIndex;
 			if (CPythonPlayer::Instance().FindSkillSlotIndexBySkillIndex(pRequireSkillData->dwSkillIndex, &dwRequireSkillSlotIndex))
 			{
-				int iSkillGrade = CPythonPlayer::Instance().GetSkillGrade(dwRequireSkillSlotIndex);
-				int iSkillLevel = CPythonPlayer::Instance().GetSkillLevel(dwRequireSkillSlotIndex);
-				if (iSkillGrade <= 0)
-				if (iSkillLevel < c_pSkillData->byRequireSkillLevel)
-					return Py_BuildValue("i", FALSE);
+				int iReqSkillGrade = CPythonPlayer::Instance().GetSkillGrade(dwRequireSkillSlotIndex);
+				int iReqSkillLevel = CPythonPlayer::Instance().GetSkillLevel(dwRequireSkillSlotIndex);
+				if (iReqSkillGrade <= 0)
+				{
+					Client::Skills::SkillEvaluationContext prereqCtx;
+					prereqCtx.character.actorLevel = Client::Skills::EvalLevel(iReqSkillLevel);
+					prereqCtx.skill.minLevel = Client::Skills::EvalLevel(c_pSkillData->byRequireSkillLevel);
+					prereqCtx.skill.isLearned = (iReqSkillLevel > 0);
+
+					Client::Skills::LevelRequirementRule prereqLevelRule;
+					if (!prereqLevelRule.Evaluate(prereqCtx).has_value())
+						return Py_BuildValue("i", FALSE);
+				}
 			}
 		}
+	}
+
+	// Kalkulacja wymogow poziomu postaci przez Client::Skills::LevelRequirementRule
+	uint32_t currentLevel = CPythonPlayer::Instance().GetStatus(POINT_LEVEL);
+	uint32_t requiredLevel = c_pSkillData->byLevelLimit;
+	auto optRecord = CPythonSkill::Instance().GetSkillTableRegistry().GetSkill(Client::Core::SkillId(iSkillIndex));
+	if (optRecord.has_value() && optRecord->bLevelLimit > requiredLevel)
+	{
+		requiredLevel = optRecord->bLevelLimit;
 	}
 
 	for (DWORD i = 0; i < c_pSkillData->RequireStatDataVector.size(); ++i)
 	{
 		const CPythonSkill::TRequireStatData & c_rRequireStatData = c_pSkillData->RequireStatDataVector[i];
-		if (CPythonPlayer::Instance().GetStatus(c_rRequireStatData.byPoint) < c_rRequireStatData.byLevel)
+		if (POINT_LEVEL == c_rRequireStatData.byPoint)
+		{
+			if (c_rRequireStatData.byLevel > requiredLevel)
+				requiredLevel = c_rRequireStatData.byLevel;
+		}
+		else
+		{
+			if (CPythonPlayer::Instance().GetStatus(c_rRequireStatData.byPoint) < c_rRequireStatData.byLevel)
+				return Py_BuildValue("i", FALSE);
+		}
+	}
+
+	if (requiredLevel > 0)
+	{
+		Client::Skills::SkillEvaluationContext levelCtx;
+		levelCtx.character.actorLevel = Client::Skills::EvalLevel(currentLevel);
+		levelCtx.skill.minLevel = Client::Skills::EvalLevel(requiredLevel);
+		levelCtx.skill.isLearned = true;
+
+		Client::Skills::LevelRequirementRule levelRule;
+		if (!levelRule.Evaluate(levelCtx).has_value())
 			return Py_BuildValue("i", FALSE);
 	}
 
@@ -1936,11 +2107,19 @@ PyObject * skillCheckRequirementSueccess(PyObject * poSelf, PyObject * poArgs)
 			DWORD dwRequireSkillSlotIndex;
 			if (CPythonPlayer::Instance().FindSkillSlotIndexBySkillIndex(pRequireSkillData->dwSkillIndex, &dwRequireSkillSlotIndex))
 			{
-				int iSkillGrade = CPythonPlayer::Instance().GetSkillGrade(dwRequireSkillSlotIndex);
-				int iSkillLevel = CPythonPlayer::Instance().GetSkillLevel(dwRequireSkillSlotIndex);
-				if (iSkillGrade <= 0)
-				if (iSkillLevel < c_pSkillData->byRequireSkillLevel)
-					return Py_BuildValue("i", FALSE);
+				int iReqSkillGrade = CPythonPlayer::Instance().GetSkillGrade(dwRequireSkillSlotIndex);
+				int iReqSkillLevel = CPythonPlayer::Instance().GetSkillLevel(dwRequireSkillSlotIndex);
+				if (iReqSkillGrade <= 0)
+				{
+					Client::Skills::SkillEvaluationContext prereqCtx;
+					prereqCtx.character.actorLevel = Client::Skills::EvalLevel(iReqSkillLevel);
+					prereqCtx.skill.minLevel = Client::Skills::EvalLevel(c_pSkillData->byRequireSkillLevel);
+					prereqCtx.skill.isLearned = (iReqSkillLevel > 0);
+
+					Client::Skills::LevelRequirementRule prereqLevelRule;
+					if (!prereqLevelRule.Evaluate(prereqCtx).has_value())
+						return Py_BuildValue("i", FALSE);
+				}
 			}
 		}
 	}
@@ -1957,6 +2136,18 @@ PyObject * skillGetNeedCharacterLevel(PyObject * poSelf, PyObject * poArgs)
 	CPythonSkill::SSkillData * c_pSkillData;
 	if (!CPythonSkill::Instance().GetSkillData(iSkillIndex, &c_pSkillData))
 		return Py_BuildException("skill.GetNeedCharacterLevel - Failed to find skill by %d", iSkillIndex);
+
+	// Pobranie limitu poziomu z rejestru tabeli skilli
+	auto optRecord = CPythonSkill::Instance().GetSkillTableRegistry().GetSkill(Client::Core::SkillId(iSkillIndex));
+	if (optRecord.has_value() && optRecord->bLevelLimit > 0)
+	{
+		return Py_BuildValue("i", optRecord->bLevelLimit);
+	}
+
+	if (c_pSkillData->byLevelLimit > 0)
+	{
+		return Py_BuildValue("i", c_pSkillData->byLevelLimit);
+	}
 
 	std::vector<CPythonSkill::TRequireStatData>::iterator itor = c_pSkillData->RequireStatDataVector.begin();
 	for (; itor != c_pSkillData->RequireStatDataVector.end(); ++itor)
@@ -2018,6 +2209,27 @@ PyObject * skillCanUseSkill(PyObject * poSelf, PyObject * poArgs)
 	CPythonSkill::SSkillData * c_pSkillData;
 	if (!CPythonSkill::Instance().GetSkillData(iSkillIndex, &c_pSkillData))
 		return Py_BuildException("skill.CanUseSkill - Failed to find skill by %d", iSkillIndex);
+
+	// Ewaluacja wymogow rzucenia skilla przez SkillRequirementEvaluator
+	Client::Skills::SkillEvaluationContext evalCtx;
+	evalCtx.character.currentSP = Client::Skills::EvalManaPoints(CPythonPlayer::Instance().GetStatus(POINT_SP));
+	evalCtx.character.currentHP = Client::Skills::EvalHealthPoints(CPythonPlayer::Instance().GetStatus(POINT_HP));
+	evalCtx.character.actorLevel = Client::Skills::EvalLevel(CPythonPlayer::Instance().GetStatus(POINT_LEVEL));
+	
+	evalCtx.skill.isLearned = true;
+	evalCtx.skill.requiredSP = Client::Skills::EvalManaPoints(c_pSkillData->GetNeedSP(1.0f));
+	evalCtx.skill.minLevel = Client::Skills::EvalLevel(c_pSkillData->byLevelLimit > 0 ? c_pSkillData->byLevelLimit : 1);
+	evalCtx.skill.isPassive = (0 != (c_pSkillData->dwSkillAttribute & CPythonSkill::SKILL_ATTRIBUTE_PASSIVE));
+
+	auto evalRes = CPythonSkill::Instance().GetSkillRequirementEvaluator().CanCast(evalCtx);
+	if (!evalRes.has_value())
+	{
+		if (evalRes.error() == Client::Skills::SkillEvaluationError::LevelTooLow ||
+			evalRes.error() == Client::Skills::SkillEvaluationError::SkillNotLearned)
+		{
+			return Py_BuildValue("i", FALSE);
+		}
+	}
 
 	return Py_BuildValue("i", c_pSkillData->IsCanUseSkill());
 }
@@ -2196,14 +2408,8 @@ PyObject * skillGetNewAffectData(PyObject * poSelf, PyObject * poArgs)
 
 	CPythonSkill::TAffectDataNew & rAffectData = pSkillData->AffectDataNewVector[iAffectIndex];
 
-	CPoly minPoly;
-	CPoly maxPoly;
-	minPoly.SetRandom(CPoly::RANDOM_TYPE_FORCE_MIN);
-	maxPoly.SetRandom(CPoly::RANDOM_TYPE_FORCE_MAX);
-	minPoly.SetStr(rAffectData.strPointPoly.c_str());
-	maxPoly.SetStr(rAffectData.strPointPoly.c_str());
-	float fMinValue = pSkillData->ProcessFormula(&minPoly, fSkillLevel, CPythonSkill::VALUE_TYPE_MIN);
-	float fMaxValue = pSkillData->ProcessFormula(&maxPoly, fSkillLevel, CPythonSkill::VALUE_TYPE_MAX);
+	float fMinValue = pSkillData->ProcessFormula(rAffectData.strPointPoly, fSkillLevel, CPythonSkill::VALUE_TYPE_MIN);
+	float fMaxValue = pSkillData->ProcessFormula(rAffectData.strPointPoly, fSkillLevel, CPythonSkill::VALUE_TYPE_MAX);
 
 	return Py_BuildValue("sff", rAffectData.strPointType.c_str(), fMinValue, fMaxValue);
 }

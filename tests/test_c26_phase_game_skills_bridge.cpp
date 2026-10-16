@@ -134,9 +134,9 @@ TEST_CASE("HandleSkillLevel") {
     CHECK(result == true);
     CHECK(stream.refreshSkillWindowCalled == true);
     CHECK(stream.refreshStatusCalled == true);
-    CHECK(CPythonPlayer::Instance().setSkillLevels.size() == SKILL_MAX_NUM);
-    CHECK(CPythonPlayer::Instance().setSkillLevels[5].first == 5);
-    CHECK(CPythonPlayer::Instance().setSkillLevels[5].second == 10);
+    CHECK(CPythonPlayer::Instance().setSkillLevel_s.size() == SKILL_MAX_NUM);
+    CHECK(CPythonPlayer::Instance().setSkillLevel_s[5].skillIndex == 5);
+    CHECK(CPythonPlayer::Instance().setSkillLevel_s[5].bLevel == 10);
 }
 
 TEST_CASE("HandleSkillLevelNew") {

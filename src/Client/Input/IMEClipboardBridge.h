@@ -83,6 +83,13 @@ public:
     [[nodiscard]] size_t GetTextLength() const noexcept { return m_clipboard.length(); }
     void Clear() noexcept;
 
+    // Wide and OS Clipboard interop
+    ClipboardResult<void> SetClipboardTextWide(std::wstring_view text);
+    [[nodiscard]] ClipboardResult<std::wstring> GetClipboardTextWide() const;
+    [[nodiscard]] static std::wstring SanitizeTextWide(std::wstring_view input);
+    static ClipboardResult<void> CopyToWindowsClipboard(void* hWnd, std::wstring_view text);
+    static ClipboardResult<std::wstring> GetFromWindowsClipboard(void* hWnd);
+
 private:
     std::string m_clipboard{};
     TextSelection m_selection{};

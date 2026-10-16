@@ -417,6 +417,12 @@ CGrannyMaterial& CGrannyMaterialPalette::GetMaterialRef(DWORD mtrlIndex)
 	return *m_mtrlVector[mtrlIndex].GetPointer();
 }
 
+const CGrannyMaterial& CGrannyMaterialPalette::GetMaterialRef(DWORD mtrlIndex) const
+{
+	assert(mtrlIndex<m_mtrlVector.size());
+	return *m_mtrlVector[mtrlIndex].GetPointer();
+}
+
 void CGrannyMaterialPalette::SetMaterialImagePointer(const char* c_szImageName, CGraphicImage* pImage)
 {
 	DWORD size=m_mtrlVector.size();

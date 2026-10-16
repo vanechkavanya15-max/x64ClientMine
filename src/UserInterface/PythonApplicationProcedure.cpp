@@ -2,6 +2,8 @@
 #include "PythonApplication.h"
 #include "FastBootOverlay.h"
 #include "Eterlib/Camera.h"
+#include "EterLib/RenderQueueManager.h"
+#include "EterLib/WgpuRenderBackend.h"
 
 #include <winuser.h>
 
@@ -123,6 +125,8 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 		case WM_KEYDOWN:
 			if (wParam == VK_ESCAPE && IsUserMovingMainWindow())
 				SetUserMovingMainWindow(false);
+			if (wParam == VK_F11)
+				CRenderQueueManager::Instance().RequestFrameDump("frame_dump.bin");
 			OnIMEKeyDown(LOWORD(wParam));
 			break;
 
@@ -216,7 +220,8 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 						UINT uHeight=rcWnd.bottom-rcWnd.top; 
 						if (uWidth > 0 && uHeight > 0)
 						{
-							m_grpDevice.ResizeBackBuffer(uWidth, uHeight);				
+							m_grpDevice.ResizeBackBuffer(uWidth, uHeight);
+							CWgpuRenderBackend::Instance().Resize(uWidth, uHeight);
 						}
 					}
 					break;
@@ -240,7 +245,8 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 				UINT uHeight=rcWnd.bottom-rcWnd.top; 
 				if (uWidth > 0 && uHeight > 0)
 				{
-					m_grpDevice.ResizeBackBuffer(uWidth, uHeight);				
+					m_grpDevice.ResizeBackBuffer(uWidth, uHeight);
+					CWgpuRenderBackend::Instance().Resize(uWidth, uHeight);
 				}
 				OnSizeChange(short(LOWORD(lParam)), short(HIWORD(lParam)));
 			}

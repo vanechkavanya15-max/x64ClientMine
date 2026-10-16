@@ -45,14 +45,24 @@ void CGraphicImageInstance::Render()
 void CGraphicImageInstance::OnRender()
 {
 	CGraphicImage * pImage = m_roImage.GetPointer();
+	if (!pImage)
+		return;
+
 	CGraphicTexture * pTexture = pImage->GetTexturePointer();
+	if (!pTexture)
+		return;
+
+	int iTexWidth = pTexture->GetWidth();
+	int iTexHeight = pTexture->GetHeight();
+	if (iTexWidth <= 0 || iTexHeight <= 0)
+		return;
 
 	float fimgWidth = pImage->GetWidth();
 	float fimgHeight = pImage->GetHeight();
 
 	const RECT& c_rRect = pImage->GetRectReference();
-	float texReverseWidth = 1.0f / float(pTexture->GetWidth());
-	float texReverseHeight = 1.0f / float(pTexture->GetHeight());
+	float texReverseWidth = 1.0f / float(iTexWidth);
+	float texReverseHeight = 1.0f / float(iTexHeight);
 	float su = c_rRect.left * texReverseWidth;
 	float sv = c_rRect.top * texReverseHeight;
 	float eu = (c_rRect.left + (c_rRect.right-c_rRect.left)) * texReverseWidth;
@@ -88,12 +98,12 @@ void CGraphicImageInstance::OnRender()
 	for (int i = 0; i < 4; ++i)
 	{
 		uiVertices[i].position = D3DXVECTOR3(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z);
-		uiVertices[i].color = D3DXCOLOR(vertices[i].diffuse);
+		uiVertices[i].color = static_cast<uint32_t>(vertices[i].diffuse);
 		uiVertices[i].texCoord = vertices[i].texCoord;
 	}
 	EterLib::Render::DynamicQuadBatcher::Instance().AddQuadVertices(
 		uiVertices,
-		static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture())),
+		reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture()),
 		0
 	);
 }

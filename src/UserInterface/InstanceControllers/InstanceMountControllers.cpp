@@ -1,11 +1,17 @@
 #include "../StdAfx.h"
 #include "InstanceMountControllers.h"
+#include "../InstanceComponents/InstanceMountComponent.h"
 #include "../../EterBase/LogModern.h"
 
 #include <cmath>
 
 namespace UserInterface::InstanceControllers
 {
+    int IInstanceMountHorseController::GetHorseMotionMode(uint8_t weaponSubType) const
+    {
+        return InstanceComponents::InstanceMountComponent::GetHorseMotionMode(weaponSubType);
+    }
+
     // =========================================================================
     // InstanceMount_Board
     // =========================================================================
@@ -14,8 +20,7 @@ namespace UserInterface::InstanceControllers
     {
         if (m_isMounted)
         {
-            EterBase::ModernLogger::Error("InstanceMount_Board::Mount - Already mounted on VID: {}", static_cast<uint32_t>(m_mountVid));
-            return std::unexpected(EterBase::PacketError::SequenceMismatch);
+            Dismount();
         }
 
         m_mountVid = mountVid;
@@ -40,7 +45,7 @@ namespace UserInterface::InstanceControllers
     {
         if (!m_isMounted)
         {
-            EterBase::ModernLogger::Error("InstanceMount_Board::Dismount - Not mounted.");
+            EterBase::ModernLogger::Warning("InstanceMount_Board::Dismount - Not mounted.");
             return std::unexpected(EterBase::PacketError::SequenceMismatch);
         }
 
@@ -73,14 +78,15 @@ namespace UserInterface::InstanceControllers
 
     void InstanceMount_Board::UpdateMountTransform(float x, float y, float z, float rot)
     {
-        if (!m_isMounted)
-        {
-            return;
-        }
-
         m_x = x;
         m_y = y;
         m_rot = rot;
+
+        if (!m_isMounted)
+        {
+            m_z = z;
+            return;
+        }
 
         if (m_isInterpolating)
         {
@@ -105,6 +111,39 @@ namespace UserInterface::InstanceControllers
         m_mountVid = EterBase::EntityId{0};
         m_mountVnum = 0;
         m_interpolationProgress = 0.0f;
+    }
+
+    uint32_t InstanceMount_Board::GetMountLevel() const
+    {
+        if (!m_isMounted)
+            return 0;
+        return InstanceComponents::InstanceMountComponent::CalculateMountLevel(m_mountVnum);
+    }
+
+    bool InstanceMount_Board::IsNewMount() const
+    {
+        if (!m_isMounted)
+            return false;
+        return InstanceComponents::InstanceMountComponent::IsNewMountRace(m_mountVnum);
+    }
+
+    bool InstanceMount_Board::CanAttack() const
+    {
+        if (m_isMounted)
+            return GetMountLevel() > 1;
+        return true;
+    }
+
+    bool InstanceMount_Board::CanUseSkill() const
+    {
+        if (m_isMounted)
+            return GetMountLevel() > 2;
+        return true;
+    }
+
+    int InstanceMount_Board::GetHorseMotionMode(uint8_t weaponSubType) const
+    {
+        return InstanceComponents::InstanceMountComponent::GetHorseMotionMode(weaponSubType);
     }
 
     // =========================================================================
@@ -172,6 +211,39 @@ namespace UserInterface::InstanceControllers
         m_y = 0.0f;
         m_z = 0.0f;
         m_rot = 0.0f;
+    }
+
+    uint32_t InstanceMountHorseController::GetMountLevel() const
+    {
+        if (!m_isMounted)
+            return 0;
+        return InstanceComponents::InstanceMountComponent::CalculateMountLevel(m_mountVnum);
+    }
+
+    bool InstanceMountHorseController::IsNewMount() const
+    {
+        if (!m_isMounted)
+            return false;
+        return InstanceComponents::InstanceMountComponent::IsNewMountRace(m_mountVnum);
+    }
+
+    bool InstanceMountHorseController::CanAttack() const
+    {
+        if (m_isMounted)
+            return GetMountLevel() > 1;
+        return true;
+    }
+
+    bool InstanceMountHorseController::CanUseSkill() const
+    {
+        if (m_isMounted)
+            return GetMountLevel() > 2;
+        return true;
+    }
+
+    int InstanceMountHorseController::GetHorseMotionMode(uint8_t weaponSubType) const
+    {
+        return InstanceComponents::InstanceMountComponent::GetHorseMotionMode(weaponSubType);
     }
 
     // =========================================================================

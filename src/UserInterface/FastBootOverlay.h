@@ -31,6 +31,7 @@ namespace UserInterface::FastBoot
         void OnLostDevice();
         void OnResetDevice();
 
+        void Update();
         void Render();
         bool ProcessWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -40,6 +41,11 @@ namespace UserInterface::FastBoot
 
         void ConnectCurrentProfile();
         void ConnectLocalDev();
+        bool IsConnecting() const noexcept { return m_bConnecting; }
+
+        bool SelectProfileByDriver(const std::string& driverName);
+        bool SelectProfileByName(const std::string& name);
+        void SetCustomServerProfile(const std::string& name, const std::string& driver, const std::string& ip, int authPort, int gamePort);
 
         void SetLoginFailure(const char* szStatus);
         void OnRemoteDisconnect();

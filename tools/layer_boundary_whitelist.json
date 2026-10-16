@@ -1,6 +1,6 @@
 {
   "description": "Whitelista znanych legacy couplingow (Faza 0 Baseline). Zadaniem kolejnych faz jest redukcja tych wpisow do 0.",
-  "baseline_count": 67,
+  "baseline_count": 69,
   "entries": [
     "src/Client/Actor/ActorDespawnCleaner.h:UserInterface/PlayerControllers/PlayerTargetController.h",
     "src/Client/Actor/ActorDespawnCleaner.h:UserInterface/TextTail/ITargetHpBarService.h",
@@ -68,6 +68,8 @@
     "src/GameLib/Terrain/TerrainEvents.h:../../UserInterface/Core/EventBus.h",
     "src/GameLib/Terrain/TerrainHeight_Prefetch.h:../../UserInterface/Core/EventBus.h",
     "src/GameLib/TerrainSlopeValidator.h:../UserInterface/Core/EventBus.h",
-    "src/GameLib/WaterHazardMap.h:UserInterface/Core/EventBus.h"
+    "src/GameLib/WaterHazardMap.h:UserInterface/Core/EventBus.h",
+    "src/EterLib/IME.cpp:Client/Input/IMECompositionManager.h",
+    "src/EterLib/IME.cpp:Client/Input/IMEClipboardBridge.h"
   ]
 }

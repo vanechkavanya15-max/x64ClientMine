@@ -137,6 +137,41 @@ bool CAccountConnector::__HandshakeState_Process()
 			return false;
 	}
 
+	// Uniwersalna konsumpcja pakietu HEADER_GC_HANDSHAKE (0xFF / 13B) - zabezpieczenie przed zakleszczeniem TCP
+	if (!peekBuffer.empty() && peekBuffer[0] == 0xFF)
+	{
+		if (nAvail < 13)
+			return true;
+
+		uint8_t hsBuf[13]{};
+		if (!Recv(sizeof(hsBuf), hsBuf))
+			return false;
+
+		uint32_t dwHandshake = 0;
+		uint32_t dwTime = 0;
+		int32_t lDelta = 0;
+		std::memcpy(&dwHandshake, &hsBuf[1], sizeof(uint32_t));
+		std::memcpy(&dwTime, &hsBuf[5], sizeof(uint32_t));
+		std::memcpy(&lDelta, &hsBuf[9], sizeof(int32_t));
+
+		uint8_t ackBuf[13]{};
+		ackBuf[0] = 0xFF;
+		uint32_t dwAckTime = dwTime + lDelta * 2;
+		int32_t lAckDelta = 0;
+		std::memcpy(&ackBuf[1], &dwHandshake, sizeof(uint32_t));
+		std::memcpy(&ackBuf[5], &dwAckTime, sizeof(uint32_t));
+		std::memcpy(&ackBuf[9], &lAckDelta, sizeof(int32_t));
+
+		if (!Send(sizeof(ackBuf), ackBuf))
+		{
+			TraceError("CAccountConnector - Failed to send Universal Handshake ACK 0xFF");
+			return false;
+		}
+
+		TraceError("[HANDSHAKE] Odeslano uniwersalny ACK 0xFF (time=%u, handshake=%u)", dwAckTime, dwHandshake);
+		return true;
+	}
+
 	return true;
 }
 

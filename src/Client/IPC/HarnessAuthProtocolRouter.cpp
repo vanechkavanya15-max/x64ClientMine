@@ -159,4 +159,10 @@ bool HarnessAuthProtocolRouter::ValidateCharacterName(std::string_view name) con
     });
 }
 
+void HarnessAuthProtocolRouter::Reset(AuthState state) noexcept {
+    m_state = state;
+    m_reconnectTimer = std::chrono::milliseconds(0);
+    m_reconnectAttempts = 0;
+}
+
 } // namespace Client::IPC

@@ -33,6 +33,25 @@ enum class CrashReason : uint8_t {
     FuzzerInduced
 };
 
+[[nodiscard]] constexpr std::string_view to_string(EngineState state) noexcept {
+    switch (state) {
+        case EngineState::Initializing: return "Initializing";
+        case EngineState::Running: return "Running";
+        case EngineState::Paused: return "Paused";
+        case EngineState::Crashed: return "Crashed";
+    }
+    return "UnknownState";
+}
+
+[[nodiscard]] constexpr std::string_view to_string(WindowMode mode) noexcept {
+    switch (mode) {
+        case WindowMode::Windowed: return "Windowed";
+        case WindowMode::Borderless: return "Borderless";
+        case WindowMode::Fullscreen: return "Fullscreen";
+    }
+    return "UnknownMode";
+}
+
 struct FuzzerConfig {
     bool enabled{false};
     float dropRate{0.0f};      // 0.0 to 1.0

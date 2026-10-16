@@ -71,12 +71,25 @@ struct SlotData {
     SlotCover cover{};
 };
 
+struct AttachedIconData {
+    uint32_t type{0};
+    uint32_t index{0};
+    uint32_t slotNumber{0};
+    uint8_t width{0};
+    uint8_t height{0};
+    bool attaching{false};
+    bool dragging{false};
+};
+
 class WindowManagerSlotApiBridge {
 public:
     WindowManagerSlotApiBridge() = default;
     ~WindowManagerSlotApiBridge() = default;
 
+    static WindowManagerSlotApiBridge& Instance() noexcept;
+
     Core::Result<void, SlotApiError> SetSlot(Core::SlotIndex slotIndex, Core::ItemVnum itemVnum, uint32_t count);
+    Core::Result<void, SlotApiError> SetSlotCount(Core::SlotIndex slotIndex, uint32_t count);
     Core::Result<void, SlotApiError> ClearSlot(Core::SlotIndex slotIndex);
     void ClearAllSlots();
     
@@ -104,11 +117,21 @@ public:
 
     Core::Result<void, SlotApiError> SwapSlots(Core::SlotIndex slotA, Core::SlotIndex slotB);
 
+    // Drag and drop / Attaching icon
+    void AttachIcon(uint32_t type, uint32_t index, uint32_t slotNumber, uint8_t width, uint8_t height);
+    void DeattachIcon();
+    void SetAttachingFlag(bool flag);
+    [[nodiscard]] bool IsAttaching() const noexcept;
+    [[nodiscard]] bool IsDragging() const noexcept;
+    void SetDragging(bool dragging) noexcept;
+    [[nodiscard]] const AttachedIconData& GetAttachedIcon() const noexcept;
+
     void Update(float deltaTime);
 
 private:
     std::unordered_map<Core::SlotIndex, SlotData> m_slots;
     std::unordered_map<std::string, SlotCoolTime> m_storedCoolTimes;
+    AttachedIconData m_attachedIcon{};
 };
 
 } // namespace Client::UI

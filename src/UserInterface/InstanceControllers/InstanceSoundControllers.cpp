@@ -163,6 +163,7 @@ namespace UserInterface::InstanceControllers
         }
 
         EterBase::ModernLogger::Debug("Playing footstep sound for surface: {}", static_cast<uint32_t>(surface));
+        SoundEngine::Instance().PlaySound2D(std::string(soundName));
         Core::EventBus::GetInstance().Publish(FootstepSoundPlayedEvent{surface, soundName});
 
         return {};
@@ -176,6 +177,7 @@ namespace UserInterface::InstanceControllers
     {
         EterBase::ModernLogger::Info("InstanceSoundHitImpactController::PlayDamageHit - Triggering hit sound for damageType: {}", damageType);
 
+        SoundEngine::Instance().PlaySound2D("sound/ui/hit.wav");
         SoundHitImpactEvent event(damageType);
         Core::EventBus::GetInstance().Publish(event);
     }

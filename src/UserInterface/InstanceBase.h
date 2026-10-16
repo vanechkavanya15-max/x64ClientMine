@@ -7,6 +7,8 @@
 #include "AffectFlagContainer.h"
 #include "InstanceControllers/IInstanceMountHorseController.h"
 #include "InstanceControllers/IInstanceAnimationController.h"
+#include "InstanceControllers/IInstanceSoundController.h"
+#include "InstanceControllers/IInstanceTitleRankController.h"
 #include "InstanceComponents/InstanceVisualComponent.h"
 #include "EterBase/Result.h"
 #include "Client/Gameplay/CombatError.h"
@@ -426,7 +428,7 @@ class CInstanceBase
 		bool __MainCanSeeHiddenThing();
 		float __GetBowRange();
 
-	protected:
+	public:
 		DWORD	__AttachEffect(UINT eEftType);
 		DWORD	__AttachEffect(char filename[128]);
 		void	__DetachEffect(DWORD dwEID);
@@ -1010,6 +1012,13 @@ class CInstanceBase
 		UserInterface::InstanceComponents::InstanceCombatComponent m_combatComponent;
 		UserInterface::InstanceComponents::InstanceMountComponent m_mountComponent;
 
+		// Decoupled C++23 Controllers
+		UserInterface::InstanceControllers::InstanceTitleRankController m_titleRankController;
+		UserInterface::InstanceControllers::InstanceSound_Footsteps m_soundFootstepsController;
+		UserInterface::InstanceControllers::InstanceSoundHitImpactController m_soundHitImpactController;
+		std::unique_ptr<UserInterface::InstanceControllers::IInstanceSoundController> m_soundDeathCryController;
+		std::unique_ptr<UserInterface::InstanceControllers::IInstanceMountHorseController> m_mountController;
+
 	public:
 		[[nodiscard]] UserInterface::InstanceComponents::InstanceVisualComponent& GetVisualComponent() noexcept { return m_visualComponent; }
 		[[nodiscard]] const UserInterface::InstanceComponents::InstanceVisualComponent& GetVisualComponent() const noexcept { return m_visualComponent; }
@@ -1025,6 +1034,23 @@ class CInstanceBase
 
 		[[nodiscard]] UserInterface::InstanceComponents::InstanceMountComponent& GetMountComponent() noexcept { return m_mountComponent; }
 		[[nodiscard]] const UserInterface::InstanceComponents::InstanceMountComponent& GetMountComponent() const noexcept { return m_mountComponent; }
+
+		[[nodiscard]] UserInterface::InstanceControllers::IInstanceMountHorseController* GetMountController() noexcept { return m_mountController.get(); }
+		[[nodiscard]] const UserInterface::InstanceControllers::IInstanceMountHorseController* GetMountController() const noexcept { return m_mountController.get(); }
+
+		[[nodiscard]] UserInterface::InstanceControllers::IInstanceTitleRankController& GetTitleRankController() noexcept { return m_titleRankController; }
+		[[nodiscard]] const UserInterface::InstanceControllers::IInstanceTitleRankController& GetTitleRankController() const noexcept { return m_titleRankController; }
+
+		[[nodiscard]] UserInterface::InstanceControllers::InstanceSound_Footsteps& GetSoundFootstepsController() noexcept { return m_soundFootstepsController; }
+		[[nodiscard]] const UserInterface::InstanceControllers::InstanceSound_Footsteps& GetSoundFootstepsController() const noexcept { return m_soundFootstepsController; }
+
+		[[nodiscard]] UserInterface::InstanceControllers::InstanceSoundHitImpactController& GetSoundHitImpactController() noexcept { return m_soundHitImpactController; }
+		[[nodiscard]] const UserInterface::InstanceControllers::InstanceSoundHitImpactController& GetSoundHitImpactController() const noexcept { return m_soundHitImpactController; }
+
+		void PlayFootstepSound(UserInterface::InstanceControllers::SurfaceType surface = UserInterface::InstanceControllers::SurfaceType::Grass);
+		void PlayAttackSwingSound(uint32_t rawWeaponType);
+		void PlayDamageHitSound(uint32_t damageType);
+		void PlayDeathCrySound();
 
 		// Generational Entity Handle (Use-After-Free / ABA guard C++23)
 		[[nodiscard]] Client::Actor::EntityHandle GetGenerationalHandle() const noexcept { return m_generationalHandle; }

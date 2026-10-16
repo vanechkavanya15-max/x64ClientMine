@@ -283,9 +283,6 @@ bool CGrannyModelInstance::__IsDeformableVertexBuffer()
 
 IDirect3DVertexBuffer9* CGrannyModelInstance::__GetDeformableD3DVertexBufferPtr()
 {
-	if (m_pModel && m_pModel->GetDeformD3DVertexBuffer())
-		return m_pModel->GetDeformD3DVertexBuffer();
-
 	return __GetDeformableVertexBufferRef().GetD3DVertexBuffer();
 }
 
@@ -300,11 +297,6 @@ CGraphicVertexBuffer& CGrannyModelInstance::__GetDeformableVertexBufferRef()
 void CGrannyModelInstance::__CreateDynamicVertexBuffer()
 {
 	assert(m_pModel != NULL);
-
-	// Jesli model posiada statyczny bufor wierzcholkow na GPU, nie alokujemy zbednego bufora dynamicznego
-	if (m_pModel->GetDeformD3DVertexBuffer())
-		return;
-
 	assert(m_kLocalDeformableVertexBuffer.IsEmpty());
 
 	int vtxCount = m_pModel->GetDeformVertexCount();

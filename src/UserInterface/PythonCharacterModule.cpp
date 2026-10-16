@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "PythonCharacterManager.h"
 #include "PythonNonPlayer.h"
+#include "PythonCharacterModule.h"
 
 PyObject * chrRaceToJob(PyObject * poSelf, PyObject * poArgs)
 {
@@ -50,142 +51,7 @@ PyObject * chrRenderCollision(PyObject * poSelf, PyObject * poArgs)
 	return Py_BuildNone();
 }
 
-// Functions For Python Test Code
-PyObject * chrCreateInstance(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVirtualID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVirtualID))
-		return Py_BuildException();
-
-	if (PyTuple_Size(poArgs)==2)
-	{
-		PyObject* poDict=PyTuple_GetItem(poArgs, 1);
-		if (!PyDict_Check(poDict))
-			return Py_BuildException();
-
-		CInstanceBase::SCreateData kCreateData;
-		kCreateData.m_bType=CActorInstance::TYPE_PC;
-		kCreateData.m_dwLevel = 0;
-		kCreateData.m_dwGuildID=0;
-		kCreateData.m_dwEmpireID=0;
-		kCreateData.m_dwVID=iVirtualID;
-		kCreateData.m_dwMountVnum=0;
-		kCreateData.m_dwRace=0;
-		kCreateData.m_fRot=CInstanceBase::DIR_NORTH;
- 		kCreateData.m_lPosX=0;
-		kCreateData.m_lPosY=0;
-		kCreateData.m_stName="NONAME";
-		kCreateData.m_dwStateFlags=0;
-		kCreateData.m_dwMovSpd=100;
-		kCreateData.m_dwAtkSpd=100;
-		kCreateData.m_sAlignment=0;
-		kCreateData.m_byPKMode=0;
-		kCreateData.m_kAffectFlags.Clear();
-		kCreateData.m_dwArmor=8;
-		kCreateData.m_dwWeapon=0;
-		kCreateData.m_dwHair=0;
-		kCreateData.m_isMain=false;
-
-		PyObject* poHorse=PyDict_GetItemString(poDict, "horse");
-		if (poHorse)
-			kCreateData.m_dwMountVnum=PyLong_AsLong(poHorse);
-
-		PyObject* poX=PyDict_GetItemString(poDict, "x");
-		if (poX)
-			kCreateData.m_lPosX=PyLong_AsLong(poX);
-
-		PyObject* poY=PyDict_GetItemString(poDict, "y");
-		if (poY)
-			kCreateData.m_lPosY=PyLong_AsLong(poY);
-
-		CPythonCharacterManager::Instance().CreateInstance(kCreateData);
-	}
-	else
-	{
-		CPythonCharacterManager::Instance().RegisterInstance(iVirtualID);
-	}
-
-	return Py_BuildNone();
-}
-
-PyObject * chrDeleteInstance(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVirtualID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVirtualID))
-		return Py_BuildException();
-
-	CPythonCharacterManager::Instance().DeleteInstance(iVirtualID);
-	return Py_BuildNone();
-}
-
-PyObject * chrDeleteInstanceByFade(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVirtualID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVirtualID))
-		return Py_BuildException();
-
-	CPythonCharacterManager::Instance().DeleteInstanceByFade(iVirtualID);
-	return Py_BuildNone();
-}
-
-PyObject * chrSelectInstance(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVirtualID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVirtualID))
-		return Py_BuildException();
-
-	CPythonCharacterManager::Instance().SelectInstance(iVirtualID);
-	return Py_BuildNone();
-}
-
-PyObject * chrHasInstance(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVirtualID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVirtualID))
-		return Py_BuildException();
-
-	bool bFlag = CPythonCharacterManager::Instance().GetInstancePtr(iVirtualID) ? TRUE : FALSE;
-	return Py_BuildValue("i", bFlag);
-}
-
-PyObject * chrIsEnemy(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVirtualID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVirtualID))
-		return Py_BuildException();
-
-	CInstanceBase * pInstance = CPythonCharacterManager::Instance().GetInstancePtr(iVirtualID);
-	if (!pInstance)
-		return Py_BuildValue("i", 0);
-
-	return Py_BuildValue("i", pInstance->IsEnemy());
-}
-
-PyObject * chrIsNPC(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVirtualID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVirtualID))
-		return Py_BuildException();
-
-	CInstanceBase * pInstance = CPythonCharacterManager::Instance().GetInstancePtr(iVirtualID);
-	if (!pInstance)
-		return Py_BuildValue("i", 0);
-
-	return Py_BuildValue("i", pInstance->IsNPC());
-}
-
-PyObject * chrIsGameMaster(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVirtualID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVirtualID))
-		return Py_BuildException();
-
-	CInstanceBase * pInstance = CPythonCharacterManager::Instance().GetInstancePtr(iVirtualID);
-	if (!pInstance)
-		return Py_BuildValue("i", 0);
-
-	return Py_BuildValue("i", pInstance->IsGameMaster());
-}
+// Funkcje zarzadzania instancjami przeniesione do PythonCharacterModule_Visual.cpp
 
 PyObject * chrIsPartyMember(PyObject* poSelf, PyObject* poArgs)
 {
@@ -338,87 +204,7 @@ PyObject * chrSetRace(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildNone();
 }
 
-PyObject * chrSetHair(PyObject* poSelf, PyObject* poArgs)
-{
-	int iRace;
-	if (!PyTuple_GetInteger(poArgs, 0, &iRace))
-		return Py_BuildException();
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		return Py_BuildNone();
-
-	pkInst->SetHair(iRace);
-
-	return Py_BuildNone();
-}
-
-PyObject * chrChangeHair(PyObject* poSelf, PyObject* poArgs)
-{
-	int iHair;
-
-	if (!PyTuple_GetInteger(poArgs, 0, &iHair))
-		return Py_BuildException();
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		return Py_BuildNone();
-	pkInst->ChangeHair(iHair);
-	return Py_BuildNone();
-}
-
-PyObject * chrSetArmor(PyObject* poSelf, PyObject * const * poArgs, Py_ssize_t nargs)
-{
-	if (nargs != 1)
-		return Py_BadArgument();
-
-	if (!PyLong_Check(poArgs[0]))
-		return Py_BadArgument();
-
-	int iForm = PyLong_AsLong(poArgs[0]);
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		Py_RETURN_NONE;
-
-	pkInst->SetArmor(iForm);
-	pkInst->RegisterBoundingSphere();
-
-	Py_RETURN_NONE;
-}
-
-PyObject * chrChangeShape(PyObject* poSelf, PyObject* poArgs)
-{
-	int iForm;
-	if (!PyTuple_GetInteger(poArgs, 0, &iForm))
-		return Py_BuildException();
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		return Py_BuildNone();
-
-	pkInst->ChangeArmor(iForm);
-
-	return Py_BuildNone();
-}
-
-PyObject * chrSetWeapon(PyObject* poSelf, PyObject * const * poArgs, Py_ssize_t nargs)
-{
-	if (nargs != 1)
-		return Py_BadArgument();
-
-	if (!PyLong_Check(poArgs[0]))
-		return Py_BadArgument();
-
-	int iForm = PyLong_AsLong(poArgs[0]);
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		Py_RETURN_NONE;
-
-	pkInst->SetWeapon(iForm);
-
-	Py_RETURN_NONE;
-}
+// Funkcje wygladu postaci (SetHair, ChangeHair, SetArmor, ChangeShape, SetWeapon) przeniesione do PythonCharacterModule_Visual.cpp
 
 PyObject * chrSetVirtualID(PyObject* poSelf, PyObject* poArgs)
 {
@@ -459,74 +245,7 @@ PyObject * chrSetInstanceType(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildNone();
 }
 
-PyObject * chrAttachEffectByName(PyObject* poSelf, PyObject* poArgs)
-{
-	int iParentPartIndex;
-	if (!PyTuple_GetInteger(poArgs, 0, &iParentPartIndex))
-		return Py_BuildException();
-
-	char * pszBoneName;
-	if (!PyTuple_GetString(poArgs, 1, &pszBoneName))
-	{
-		pszBoneName = NULL;
-		//return Py_BuildException();
-	}
-
-	char * pszEffectName;
-	if (!PyTuple_GetString(poArgs, 2, &pszEffectName))
-		return Py_BuildException();
-
-	int iLife = CActorInstance::EFFECT_LIFE_INFINITE;
-
-	if (PyTuple_Size(poArgs)==4)
-	{
-		if (!PyTuple_GetInteger(poArgs, 3, &iLife))
-			return Py_BuildException();
-	}
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-
-	if (!pkInst)
-		return Py_BuildNone();
-
-	//pkInst->AttachEffectByName(iParentPartIndex, pszBoneName, pszEffectName, iLife);
-	return Py_BuildNone();
-}
-
-PyObject * chrAttachEffectByID(PyObject* poSelf, PyObject* poArgs)
-{
-	int iParentPartIndex;
-	if (!PyTuple_GetInteger(poArgs, 0, &iParentPartIndex))
-		return Py_BuildException();
-
-	char * pszBoneName;
-	if (!PyTuple_GetString(poArgs, 1, &pszBoneName))
-	{
-		pszBoneName = NULL;
-	}
-	//	return Py_BuildException();
-	
-	// FIXME : bug or error on getting unsigned value
-	int iEffectID;
-	if (!PyTuple_GetInteger(poArgs, 2, &iEffectID))
-		return Py_BuildException();
-
-	int iLife = CActorInstance::EFFECT_LIFE_INFINITE;
-	
-	if (PyTuple_Size(poArgs)==4)
-	{
-		if (!PyTuple_GetInteger(poArgs, 3, &iLife))
-			return Py_BuildException();
-	}
-	
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	
-	if (!pkInst)
-		return Py_BuildNone();
-	
-	//pkInst->AttachEffectByID(iParentPartIndex, pszBoneName, iEffectID, iLife);
-	return Py_BuildNone();
-}
+// Funkcje efektow postaci (AttachEffectByName, AttachEffectByID) przeniesione do PythonCharacterModule_Visual.cpp
 
 PyObject * chrRefresh(PyObject* poSelf, PyObject* poArgs)
 {
@@ -593,134 +312,6 @@ PyObject * chrLookAt(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildNone();
 }
 
-PyObject * chrSetMotionMode(PyObject* poSelf, PyObject * const * poArgs, Py_ssize_t nargs)
-{
-	if (nargs != 1)
-		return Py_BadArgument();
-
-	if (!PyLong_Check(poArgs[0]))
-		return Py_BadArgument();
-
-	int iMotionMode = PyLong_AsLong(poArgs[0]);
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		Py_RETURN_NONE;
-
-	pkInst->SetMotionMode(iMotionMode);
-	Py_RETURN_NONE;
-}
-
-PyObject * chrSetLoopMotion(PyObject* poSelf, PyObject * const * poArgs, Py_ssize_t nargs)
-{
-	if (nargs != 1)
-		return Py_BadArgument();
-
-	if (!PyLong_Check(poArgs[0]))
-		return Py_BadArgument();
-
-	int iMotionIndex = PyLong_AsLong(poArgs[0]);
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		Py_RETURN_NONE;
-
-	pkInst->SetLoopMotion(WORD(iMotionIndex));
-	Py_RETURN_NONE;
-}
-
-PyObject * chrBlendLoopMotion(PyObject* poSelf, PyObject* poArgs)
-{
-	int iMotionIndex;
-	if (!PyTuple_GetInteger(poArgs, 0, &iMotionIndex))
-		return Py_BuildException();
-	float fBlendTime;
-	if (!PyTuple_GetFloat(poArgs, 1, &fBlendTime))
-		return Py_BuildException();
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		return Py_BuildNone();
-	pkInst->SetLoopMotion(WORD(iMotionIndex), fBlendTime);
-
-	return Py_BuildNone();
-}
-
-PyObject * chrPushOnceMotion(PyObject* poSelf, PyObject* poArgs)
-{
-	int iMotionIndex;
-	if (!PyTuple_GetInteger(poArgs, 0, &iMotionIndex))
-		return Py_BuildException();
-
-	float fBlendTime;
-	if (!PyTuple_GetFloat(poArgs, 1, &fBlendTime))
-	{
-		fBlendTime = 0.1f;
-	}
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		return Py_BuildNone();
-	pkInst->PushOnceMotion(WORD(iMotionIndex), fBlendTime);
-
-	return Py_BuildNone();
-}
-
-PyObject * chrPushLoopMotion(PyObject* poSelf, PyObject* poArgs)
-{
-	int iMotionIndex;
-	if (!PyTuple_GetInteger(poArgs, 0, &iMotionIndex))
-		return Py_BuildException();
-
-	float fBlendTime;
-	if (!PyTuple_GetFloat(poArgs, 1, &fBlendTime))
-	{
-		fBlendTime = 0.1f;
-	}
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		return Py_BuildNone();
-	pkInst->PushLoopMotion(WORD(iMotionIndex), fBlendTime);
-
-	return Py_BuildNone();
-}
-
-PyObject * chrSetPixelPosition(PyObject* poSelf, PyObject* poArgs)
-{
-	int iX;
-	if (!PyTuple_GetInteger(poArgs, 0, &iX))
-		return Py_BuildException();
-	int iY;
-	if (!PyTuple_GetInteger(poArgs, 1, &iY))
-		return Py_BuildException();
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		return Py_BuildNone();
-
-	int iZ;
-	if (PyTuple_GetInteger(poArgs, 2, &iZ))
-	{
-		pkInst->NEW_SetPixelPosition(TPixelPosition(iX, iY, iZ));
-	}
-	else
-	{
-		pkInst->SCRIPT_SetPixelPosition(iX, iY);
-	}
-	return Py_BuildNone();
-}
-
-PyObject * chrSetDirection(PyObject* poSelf, PyObject* poArgs)
-{
-	int iDirection;
-	if (!PyTuple_GetInteger(poArgs, 0, &iDirection))
-		return Py_BuildException();
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	pkInst->SetDirection(iDirection);
-	return Py_BuildNone();
-}
 
 PyObject * chrGetPixelPosition(PyObject* poSelf, PyObject* poArgs)
 {
@@ -739,75 +330,6 @@ PyObject * chrGetPixelPosition(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildValue("fff", PixelPosition.x, PixelPosition.y, PixelPosition.z);
 }
 
-PyObject * chrSetRotation(PyObject* poSelf, PyObject* poArgs)
-{
-	float fRotation;
-	if (!PyTuple_GetFloat(poArgs, 0, &fRotation))
-		return Py_BuildException();
-
-	CInstanceBase * pCharacterInstance = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-
-	if (!pCharacterInstance)
-		return Py_BuildNone();
-
-	fRotation = fmod(fRotation + 180.0f, 360.0f);
-
-	pCharacterInstance->SetRotation(fRotation);
-
-	return Py_BuildNone();
-}
-
-PyObject * chrSetRotationAll(PyObject* poSelf, PyObject* poArgs)
-{
-	float fRotX;
-	if (!PyTuple_GetFloat(poArgs, 0, &fRotX))
-		return Py_BuildException();
-	float fRotY;
-	if (!PyTuple_GetFloat(poArgs, 1, &fRotY))
-		return Py_BuildException();
-	float fRotZ;
-	if (!PyTuple_GetFloat(poArgs, 2, &fRotZ))
-		return Py_BuildException();
-
-	CInstanceBase * pCharacterInstance = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pCharacterInstance)
-		return Py_BuildNone();
-
-	pCharacterInstance->GetGraphicThingInstanceRef().SetXYRotation(fRotX, fRotY);
-	pCharacterInstance->GetGraphicThingInstanceRef().SetRotation(fRotZ);
-	return Py_BuildNone();
-}
-
-PyObject * chrBlendRotation(PyObject* poSelf, PyObject* poArgs)
-{
-	float fRotation;
-	if (!PyTuple_GetFloat(poArgs, 0, &fRotation))
-		return Py_BuildException();
-	float fBlendTime;
-	if (!PyTuple_GetFloat(poArgs, 1, &fBlendTime))
-		return Py_BuildException();
-
-	fRotation = fmod(720.0f - fRotation, 360.0f);
-
-	CInstanceBase * pCharacterInstance = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pCharacterInstance)
-		return Py_BuildNone();
-	pCharacterInstance->BlendRotation(fRotation, fBlendTime);
-
-	return Py_BuildNone();
-}
-
-PyObject * chrGetRotation(PyObject* poSelf, PyObject* poArgs)
-{
-	CInstanceBase * pCharacterInstance = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-
-	if (!pCharacterInstance)
-		return Py_BuildValue("f", 0.0f);
-
-	float fRotation = pCharacterInstance->GetRotation();
-
-	return Py_BuildValue("f", 360.0f - fRotation);
-}
 
 PyObject * chrGetRace(PyObject* poSelf, PyObject* poArgs)
 {
@@ -939,20 +461,6 @@ PyObject * chrtestGetPKData(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildValue("ii", pkInst->GetAlignment(), pkInst->GetAlignmentGrade());
 }
 
-PyObject * chrtestSetComboType(PyObject* poSelf, PyObject* poArgs)
-{
-	int iComboType;
-	if (!PyTuple_GetInteger(poArgs, 0, &iComboType))
-		return Py_BuildException();
-
-	CInstanceBase * pkInst = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (!pkInst)
-		return Py_BuildNone();
-
-	pkInst->GetGraphicThingInstanceRef().SetComboType(iComboType);
-
-	return Py_BuildNone();
-}
 
 PyObject * chrtestSetAddRenderMode(PyObject* poSelf, PyObject* poArgs)
 {
@@ -1099,58 +607,6 @@ PyObject * chrtestRestoreRenderMode(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildNone();
 }
 
-PyObject * chrFaintTest(PyObject* poSelf, PyObject* poArgs)
-{
-	CInstanceBase * pCharacterInstance = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-	if (pCharacterInstance)
-	{
-		if (pCharacterInstance->GetGraphicThingInstanceRef().IsFaint())
-		{
-			pCharacterInstance->GetGraphicThingInstanceRef().SetFaint(false);
-		}
-		else
-		{
-			pCharacterInstance->GetGraphicThingInstanceRef().InterceptOnceMotion(CRaceMotionData::NAME_DAMAGE_FLYING);
-			pCharacterInstance->GetGraphicThingInstanceRef().PushOnceMotion(CRaceMotionData::NAME_STAND_UP);
-			pCharacterInstance->GetGraphicThingInstanceRef().PushLoopMotion(CRaceMotionData::NAME_WAIT);
-			pCharacterInstance->GetGraphicThingInstanceRef().SetFaint(true);
-		}
-	}
-
-	return Py_BuildNone();
-}
-
-PyObject * chrSetMoveSpeed(PyObject* poSelf, PyObject* poArgs)
-{
-	//int iSpeed;
-	//if (!PyTuple_GetInteger(poArgs, 0, &iSpeed))
-	//	return Py_BadArgument();
-
-	//CInstanceBase * pCharacterInstance = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-
-	//if (!pCharacterInstance)
-	//	return Py_BuildValue("i", 0);
-
-	//pCharacterInstance->SetMoveSpeed(iSpeed);
-
-	return Py_BuildNone();
-}
-
-PyObject * chrSetAttackSpeed(PyObject* poSelf, PyObject* poArgs)
-{
-	//int iSpeed;
-	//if (!PyTuple_GetInteger(poArgs, 0, &iSpeed))
-	//	return Py_BadArgument();
-
-	//CInstanceBase * pCharacterInstance = CPythonCharacterManager::Instance().GetSelectedInstancePtr();
-
-	//if (!pCharacterInstance)
-	//	return Py_BuildValue("i", 0);
-
-	//pCharacterInstance->SetAttackSpeed(iSpeed);
-
-	return Py_BuildNone();
-}
 
 PyObject * chrWeaponTraceSetTexture(PyObject* poSelf, PyObject* poArgs)
 {
@@ -1186,27 +642,6 @@ PyObject * chrWeaponTraceUseAlpha(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildNone();
 }
 
-PyObject * chrMoveToDestPosition(PyObject* poSelf, PyObject* poArgs)
-{
-	int iVID;
-	if (!PyTuple_GetInteger(poArgs, 0, &iVID))
-		return Py_BadArgument();
-
-	int ix;
-	if (!PyTuple_GetInteger(poArgs, 1, &ix))
-		return Py_BadArgument();
-	int iy;
-	if (!PyTuple_GetInteger(poArgs, 2, &iy))
-		return Py_BadArgument();
-
-	CInstanceBase * pCharacterInstance = CPythonCharacterManager::Instance().GetInstancePtr(iVID);
-	if (!pCharacterInstance)
-		return Py_BuildNone();
-
-	pCharacterInstance->NEW_MoveToDestPixelPositionDirection(TPixelPosition(ix, iy, 0.0f));
-
-	return Py_BuildNone();
-}
 
 PyObject * chrtestSetRideMan(PyObject* poSelf, PyObject* poArgs)
 {
@@ -1277,6 +712,9 @@ void initchr()
 		{ "SetRace",					chrSetRace,							METH_VARARGS },
 		{ "SetHair",					chrSetHair,							METH_VARARGS },
 		{ "ChangeHair",					chrChangeHair,						METH_VARARGS },
+		{ "SetAcce",					chrSetAcce,							METH_VARARGS },
+		{ "ShowEffect",					chrShowEffect,						METH_VARARGS },
+		{ "ClearEffect",				chrClearEffect,						METH_VARARGS },
 		{ "SetVirtualID",				chrSetVirtualID,					METH_VARARGS },
 		{ "SetNameString",				chrSetNameString,					METH_VARARGS },
 		{ "SetInstanceType",			chrSetInstanceType,					METH_VARARGS },

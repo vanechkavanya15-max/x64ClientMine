@@ -56,9 +56,16 @@ void CGrannyModelInstance::UpdateTransform(D3DXMATRIX * pMatrix, float fSecondsE
 
 void CGrannyModelInstance::DeformPNTVerticesDirect3D()
 {
-	// Kosztowna deformacja CPU GrannyDeformVertices wylaczona.
-	// Wierzcholki modeli postaci pozostaja statyczne w buforze GPU ze stalymi wagami (bone_weights[4]) i indeksami kosci (bone_indices[4]).
-	return;
+	if (!m_pModel || !m_pModel->CanDeformPNTVertices())
+		return;
+
+	CGraphicVertexBuffer& rkDeformableVertexBuffer = __GetDeformableVertexBufferRef();
+	void* pvntVertices = nullptr;
+	if (rkDeformableVertexBuffer.LockRange(m_pModel->GetDeformVertexCount(), &pvntVertices))
+	{
+		DeformPNTVertices(pvntVertices);
+		rkDeformableVertexBuffer.Unlock();
+	}
 }
 
 void CGrannyModelInstance::Deform(const D3DXMATRIX * c_pWorldMatrix)
@@ -66,10 +73,11 @@ void CGrannyModelInstance::Deform(const D3DXMATRIX * c_pWorldMatrix)
 	if (IsEmpty())
 		return;
 
-	// 1. Obliczenia transformacji macierzy na CPU w pamieci RAM (bezpieczne dla watkow roboczych)
+	// 1. Obliczenia transformacji macierzy kosci (GrannyGetWorldPoseComposite4x4Array)
 	DeformNoSkin(c_pWorldMatrix);
 
-	// 2. Kosztowna deformacja CPU GrannyDeformVertices zostala wylaczona
+	// 2. Aktualizacja bufora PNT dla przebiegow kompatybilnosci D3D9 (specular 2-tex oraz shadow map)
+	DeformPNTVerticesDirect3D();
 }
 
 void CGrannyModelInstance::UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float /*fLocalTime*/, bool bSkipBoneSampling)
@@ -183,9 +191,18 @@ void CGrannyModelInstance::UpdateWorldMatrices(const D3DXMATRIX* c_pWorldMatrix)
 #endif
 }
 
-void CGrannyModelInstance::DeformPNTVertices(void * /*pvDest*/)
+void CGrannyModelInstance::DeformPNTVertices(void * pvDest)
 {
-	// Kosztowna deformacja CPU GrannyDeformVertices wylaczona.
-	// Wierzcholki modeli postaci pozostaja statyczne w buforze GPU ze stalymi wagami i indeksami kosci.
-	return;
+	if (!m_pModel || !pvDest)
+		return;
+
+	granny_world_pose* pWorldPose = __GetWorldPosePtr();
+	if (!pWorldPose)
+		return;
+
+	granny_matrix_4x4 * pgrnMatCompositeBuffer = GrannyGetWorldPoseComposite4x4Array(pWorldPose);
+	if (!pgrnMatCompositeBuffer)
+		return;
+
+	m_pModel->DeformPNTVertices(pvDest, (D3DXMATRIX *) pgrnMatCompositeBuffer, m_vct_pgrnMeshBinding);
 }

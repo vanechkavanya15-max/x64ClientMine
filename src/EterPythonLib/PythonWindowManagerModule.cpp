@@ -3,6 +3,59 @@
 #include "PythonSlotWindow.h"
 #include "PythonGridSlotWindow.h"
 #include "PythonInternedStrings.h"
+#include "Client/UI/WindowManagerButtonApiBridge.h"
+#include "Client/UI/WindowManagerLayoutApiBridge.h"
+#include "Client/UI/WindowManagerSlotApiBridge.h"
+
+namespace {
+	static std::unordered_map<const UI::CWindow*, uint32_t> s_winToId;
+	static std::unordered_map<uint32_t, UI::CWindow*> s_idToWin;
+	static uint32_t s_nextId = 1;
+
+	inline uint32_t WindowToId(const UI::CWindow* pWin)
+	{
+		if (!pWin)
+			return 0;
+		auto it = s_winToId.find(pWin);
+		if (it != s_winToId.end())
+			return it->second;
+		uint32_t id = s_nextId++;
+		s_winToId[pWin] = id;
+		s_idToWin[id] = const_cast<UI::CWindow*>(pWin);
+		return id;
+	}
+
+	inline UI::CWindow* IdToWindow(uint32_t id)
+	{
+		if (id == 0)
+			return nullptr;
+		auto it = s_idToWin.find(id);
+		if (it != s_idToWin.end())
+			return it->second;
+		return nullptr;
+	}
+
+	inline void UnregisterWindowId(const UI::CWindow* pWin)
+	{
+		if (!pWin)
+			return;
+		auto it = s_winToId.find(pWin);
+		if (it != s_winToId.end())
+		{
+			s_idToWin.erase(it->second);
+			s_winToId.erase(it);
+		}
+	}
+
+	inline void EnsureLayoutWindow(uint32_t winId)
+	{
+		if (winId == 0)
+			return;
+		auto& layoutBridge = Client::UI::WindowManagerLayoutApiBridge::Instance();
+		if (!layoutBridge.HasWindow(winId))
+			layoutBridge.CreateWindow(winId);
+	}
+}
 
 bool PyTuple_GetWindow(PyObject* poArgs, int pos, UI::CWindow ** ppRetWindow)
 {
@@ -49,6 +102,46 @@ bool PyFastCall_GetWindow(PyObject * const * poArgs, Py_ssize_t nargs, Py_ssize_
 		return false;
 
 	return PyFastCall_GetWindow(poArgs[pos], ppRetWindow);
+}
+
+bool PyTuple_GetWindowOrId(PyObject* poArgs, int pos, UI::CWindow ** ppRetWindow, uint32_t * pRetId)
+{
+	if (ppRetWindow)
+		*ppRetWindow = nullptr;
+	if (pRetId)
+		*pRetId = 0;
+
+	if (!poArgs)
+		return false;
+
+	if (PyTuple_GetWindow(poArgs, pos, ppRetWindow) && *ppRetWindow)
+	{
+		if (pRetId)
+			*pRetId = WindowToId(*ppRetWindow);
+		return true;
+	}
+
+	unsigned int uId = 0;
+	if (PyTuple_GetUnsignedInteger(poArgs, pos, &uId) && uId > 0)
+	{
+		if (pRetId)
+			*pRetId = uId;
+		if (ppRetWindow)
+			*ppRetWindow = IdToWindow(uId);
+		return true;
+	}
+
+	int iId = 0;
+	if (PyTuple_GetInteger(poArgs, pos, &iId) && iId > 0)
+	{
+		if (pRetId)
+			*pRetId = static_cast<uint32_t>(iId);
+		if (ppRetWindow)
+			*ppRetWindow = IdToWindow(static_cast<uint32_t>(iId));
+		return true;
+	}
+
+	return false;
 }
 
 PyObject * wndMgrGetAspect(PyObject * poSelf, PyObject * poArgs)
@@ -237,6 +330,13 @@ PyObject * wndMgrRegisterButton(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	UI::CWindow * pWindow = UI::CWindowManager::Instance().RegisterButton(po, szLayer);
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerButtonApiBridge::Instance().RegisterButton(
+			Client::UI::ButtonId(winId), Client::UI::ButtonType::Push);
+	}
 	return Py_BuildValue("K", pWindow);
 }
 
@@ -254,6 +354,13 @@ PyObject * wndMgrRegisterRadioButton(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	UI::CWindow * pWindow = UI::CWindowManager::Instance().RegisterRadioButton(po, szLayer);
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerButtonApiBridge::Instance().RegisterButton(
+			Client::UI::ButtonId(winId), Client::UI::ButtonType::Radio);
+	}
 	return Py_BuildValue("K", pWindow);
 }
 
@@ -271,6 +378,13 @@ PyObject * wndMgrRegisterToggleButton(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	UI::CWindow * pWindow = UI::CWindowManager::Instance().RegisterToggleButton(po, szLayer);
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerButtonApiBridge::Instance().RegisterButton(
+			Client::UI::ButtonId(winId), Client::UI::ButtonType::Toggle);
+	}
 	return Py_BuildValue("K", pWindow);
 }
 
@@ -288,6 +402,13 @@ PyObject * wndMgrRegisterDragButton(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	UI::CWindow * pWindow = UI::CWindowManager::Instance().RegisterDragButton(po, szLayer);
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerButtonApiBridge::Instance().RegisterButton(
+			Client::UI::ButtonId(winId), Client::UI::ButtonType::Push);
+	}
 	return Py_BuildValue("K", pWindow);
 }
 
@@ -387,6 +508,14 @@ PyObject * wndMgrDestroy(PyObject * poSelf, PyObject * poArgs)
 	if (!PyTuple_GetWindow(poArgs, 0, &pWin))
 		return Py_BuildException();
 
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		Client::UI::WindowManagerButtonApiBridge::Instance().UnregisterButton(Client::UI::ButtonId(winId));
+		Client::UI::WindowManagerLayoutApiBridge::Instance().DestroyWindow(winId);
+		UnregisterWindowId(pWin);
+	}
+
 	UI::CWindowManager::Instance().DestroyWindow(pWin);
 	return Py_BuildNone();
 }
@@ -485,6 +614,12 @@ PyObject * wndMgrSetTop(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	UI::CWindowManager::Instance().SetTop(pWin);
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerLayoutApiBridge::Instance().BringToFront(winId);
+	}
 	return Py_BuildNone();
 }
 
@@ -573,6 +708,22 @@ PyObject * wndMgrSetParent(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	UI::CWindowManager::Instance().SetParent(pWin, pParentWin);
+
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		EnsureLayoutWindow(winId);
+		if (pParentWin)
+		{
+			uint32_t parentId = WindowToId(pParentWin);
+			EnsureLayoutWindow(parentId);
+			Client::UI::WindowManagerLayoutApiBridge::Instance().AttachWindow(winId, parentId);
+		}
+		else
+		{
+			Client::UI::WindowManagerLayoutApiBridge::Instance().DetachWindow(winId);
+		}
+	}
 	return Py_BuildNone();
 }
 
@@ -608,6 +759,12 @@ PyObject * wndMgrSetWndSize(PyObject * poSelf, PyObject * const * poArgs, Py_ssi
 	int height = PyLong_AsLong(poArgs[2]);
 
 	pWin->SetSize(width, height);
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerLayoutApiBridge::Instance().SetWindowSize(winId, width, height);
+	}
 	Py_RETURN_NONE;
 }
 
@@ -630,6 +787,12 @@ PyObject * wndMgrSetWndPosition(PyObject * poSelf, PyObject * const * poArgs, Py
 	int y = PyLong_AsLong(poArgs[2]);
 
 	pWin->SetPosition(x, y);
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerLayoutApiBridge::Instance().SetWindowPosition(winId, x, y);
+	}
 	Py_RETURN_NONE;
 }
 
@@ -693,6 +856,19 @@ PyObject * wndMgrGetWndGlobalPosition(PyObject * poSelf, PyObject * poArgs)
 	if (!PyTuple_GetWindow(poArgs, 0, &pWindow))
 		return Py_BuildException();
 
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		EnsureLayoutWindow(winId);
+		long screenWidth = UI::CWindowManager::Instance().GetScreenWidth();
+		long screenHeight = UI::CWindowManager::Instance().GetScreenHeight();
+		auto globalRectRes = Client::UI::WindowManagerLayoutApiBridge::Instance().CalculateGlobalRect(winId, screenWidth, screenHeight);
+		if (globalRectRes.has_value())
+		{
+			return Py_BuildValue("ii", globalRectRes->left, globalRectRes->top);
+		}
+	}
+
 	RECT & rRect = pWindow->GetRect();
 	return Py_BuildValue("ii", rRect.left, rRect.top);
 }
@@ -705,6 +881,19 @@ PyObject * wndMgrGetWindowRect(PyObject * poSelf, PyObject * poArgs)
 	UI::CWindow * pWin;
 	if (!PyTuple_GetWindow(poArgs, 0, &pWin))
 		return Py_BuildException();
+
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		EnsureLayoutWindow(winId);
+		long screenWidth = UI::CWindowManager::Instance().GetScreenWidth();
+		long screenHeight = UI::CWindowManager::Instance().GetScreenHeight();
+		auto globalRectRes = Client::UI::WindowManagerLayoutApiBridge::Instance().CalculateGlobalRect(winId, screenWidth, screenHeight);
+		if (globalRectRes.has_value())
+		{
+			return Py_BuildValue("iiii", globalRectRes->left, globalRectRes->top, globalRectRes->Width(), globalRectRes->Height());
+		}
+	}
 
 	RECT & rRect = pWin->GetRect();
 	return Py_BuildValue("iiii", rRect.left, rRect.top, rRect.right - rRect.left, rRect.bottom - rRect.top);
@@ -723,6 +912,17 @@ PyObject * wndMgrSetWindowHorizontalAlign(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	pWin->SetHorizontalAlign(iAlign);
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		EnsureLayoutWindow(winId);
+		Client::UI::HorizontalAlign hAlign = Client::UI::HorizontalAlign::Left;
+		if (iAlign == UI::CWindow::HORIZONTAL_ALIGN_CENTER)
+			hAlign = Client::UI::HorizontalAlign::Center;
+		else if (iAlign == UI::CWindow::HORIZONTAL_ALIGN_RIGHT)
+			hAlign = Client::UI::HorizontalAlign::Right;
+		Client::UI::WindowManagerLayoutApiBridge::Instance().SetHorizontalAlign(winId, hAlign);
+	}
 
 	return Py_BuildNone();
 }
@@ -740,6 +940,17 @@ PyObject * wndMgrSetWindowVerticalAlign(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	pWin->SetVerticalAlign(iAlign);
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		EnsureLayoutWindow(winId);
+		Client::UI::VerticalAlign vAlign = Client::UI::VerticalAlign::Top;
+		if (iAlign == UI::CWindow::VERTICAL_ALIGN_CENTER)
+			vAlign = Client::UI::VerticalAlign::Center;
+		else if (iAlign == UI::CWindow::VERTICAL_ALIGN_BOTTOM)
+			vAlign = Client::UI::VerticalAlign::Bottom;
+		Client::UI::WindowManagerLayoutApiBridge::Instance().SetVerticalAlign(winId, vAlign);
+	}
 
 	return Py_BuildNone();
 }
@@ -825,6 +1036,9 @@ PyObject * wndMgrGetMousePosition(PyObject * poSelf, PyObject * const * poArgs, 
 
 PyObject * wndMgrIsDragging(PyObject * poSelf, PyObject * poArgs)
 {
+	if (Client::UI::WindowManagerSlotApiBridge::Instance().IsDragging())
+		return Py_BuildValue("i", 1);
+
 	if (!UI::CWindowManager::InstancePtr())
 		return Py_BuildValue("i", 0);
 
@@ -930,6 +1144,14 @@ PyObject * wndMgrUpdateRect(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	pWin->UpdateRect();
+	if (pWin)
+	{
+		uint32_t winId = WindowToId(pWin);
+		EnsureLayoutWindow(winId);
+		long screenWidth = UI::CWindowManager::InstancePtr() ? UI::CWindowManager::Instance().GetScreenWidth() : 800;
+		long screenHeight = UI::CWindowManager::InstancePtr() ? UI::CWindowManager::Instance().GetScreenHeight() : 600;
+		Client::UI::WindowManagerLayoutApiBridge::Instance().CalculateGlobalRect(winId, screenWidth, screenHeight);
+	}
 	return Py_BuildNone();
 }
 
@@ -1314,6 +1536,10 @@ PyObject * wndMgrClearSlot(PyObject * poSelf, PyObject * poArgs)
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
 
+	Client::UI::WindowManagerSlotApiBridge::Instance().ClearSlot(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex))
+	);
+
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->ClearSlot(iSlotIndex);
 
@@ -1328,6 +1554,8 @@ PyObject * wndMgrClearAllSlot(PyObject * poSelf, PyObject * poArgs)
 
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
+
+	Client::UI::WindowManagerSlotApiBridge::Instance().ClearAllSlots();
 
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->ClearAllSlot();
@@ -1404,6 +1632,12 @@ PyObject * wndMgrSetSlot(PyObject * poSelf, PyObject * poArgs)
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
 
+	Client::UI::WindowManagerSlotApiBridge::Instance().SetSlot(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex)),
+		Client::Core::ItemVnum(static_cast<uint32_t>(iItemIndex)),
+		1
+	);
+
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->SetSlot(iSlotIndex, iItemIndex, iWidth, iHeight, (CGraphicImage *)iImageHandle, diffuseColor);
 
@@ -1426,6 +1660,11 @@ PyObject * wndMgrSetSlotCount(PyObject * poSelf, PyObject * poArgs)
 
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
+
+	Client::UI::WindowManagerSlotApiBridge::Instance().SetSlotCount(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex)),
+		static_cast<uint32_t>(iCount)
+	);
 
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->SetSlotCount(iSlotIndex, iCount);
@@ -1454,6 +1693,11 @@ PyObject * wndMgrSetSlotCountNew(PyObject * poSelf, PyObject * poArgs)
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
 
+	Client::UI::WindowManagerSlotApiBridge::Instance().SetSlotCount(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex)),
+		static_cast<uint32_t>(iCount)
+	);
+
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->SetSlotCountNew(iSlotIndex, iGrade, iCount);
 
@@ -1479,6 +1723,13 @@ PyObject * wndMgrSetSlotCoolTime(PyObject * poSelf, PyObject * poArgs)
 
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
+
+	Client::UI::WindowManagerSlotApiBridge::Instance().SetSlotCoolTime(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex)),
+		0,
+		fCoolTime,
+		fElapsedTime
+	);
 
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->SetSlotCoolTime(iSlotIndex, fCoolTime, fElapsedTime);
@@ -1510,6 +1761,12 @@ PyObject* wndMgrStoreSlotCoolTime(PyObject* poSelf, PyObject* poArgs)
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
 
+	Client::UI::WindowManagerSlotApiBridge::Instance().StoreSlotCoolTime(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex)),
+		0,
+		std::to_string(iKey)
+	);
+
 	UI::CSlotWindow* pSlotWin = (UI::CSlotWindow*)pWin;
 	pSlotWin->StoreSlotCoolTime(iKey, iSlotIndex, fCoolTime, fElapsedTime);
 
@@ -1528,6 +1785,12 @@ PyObject* wndMgrRestoreSlotCoolTime(PyObject* poSelf, PyObject* poArgs)
 
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
+
+	Client::UI::WindowManagerSlotApiBridge::Instance().RestoreSlotCoolTime(
+		Client::Core::SlotIndex(0),
+		0,
+		std::to_string(iKey)
+	);
 
 	UI::CSlotWindow* pSlotWin = (UI::CSlotWindow*)pWin;
 	pSlotWin->RestoreSlotCoolTime(iKey);
@@ -1551,6 +1814,12 @@ PyObject* wndMgrTransferSlotCoolTime(PyObject* poSelf, PyObject* poArgs)
 
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
+
+	Client::UI::WindowManagerSlotApiBridge::Instance().TransferSlotCoolTime(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iIndex1)),
+		Client::Core::SlotIndex(static_cast<uint16_t>(iIndex2)),
+		0
+	);
 
 	UI::CSlotWindow* pSlotWin = (UI::CSlotWindow*)pWin;
 	pSlotWin->TransferSlotCoolTime(iIndex1, iIndex2);
@@ -1613,6 +1882,11 @@ PyObject * wndMgrEnableSlot(PyObject * poSelf, PyObject * poArgs)
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
 
+	Client::UI::WindowManagerSlotApiBridge::Instance().EnableSlot(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex)),
+		true
+	);
+
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->EnableSlot(iSlotIndex);
 	return Py_BuildNone();
@@ -1630,6 +1904,11 @@ PyObject * wndMgrDisableSlot(PyObject * poSelf, PyObject * poArgs)
 
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
+
+	Client::UI::WindowManagerSlotApiBridge::Instance().EnableSlot(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex)),
+		false
+	);
 
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->DisableSlot(iSlotIndex);
@@ -1814,6 +2093,10 @@ PyObject * wndMgrLockSlot(PyObject * poSelf, PyObject * poArgs)
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
 
+	Client::UI::WindowManagerSlotApiBridge::Instance().LockSlot(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex))
+	);
+
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->LockSlot(iSlotIndex);
 	return Py_BuildNone();
@@ -1830,6 +2113,10 @@ PyObject * wndMgrUnlockSlot(PyObject * poSelf, PyObject * poArgs)
 
 	if (!pWin->IsType(UI::CSlotWindow::Type()))
 		return Py_BuildException();
+
+	Client::UI::WindowManagerSlotApiBridge::Instance().UnlockSlot(
+		Client::Core::SlotIndex(static_cast<uint16_t>(iSlotIndex))
+	);
 
 	UI::CSlotWindow * pSlotWin = (UI::CSlotWindow *)pWin;
 	pSlotWin->UnlockSlot(iSlotIndex);
@@ -1867,9 +2154,6 @@ PyObject * wndBarSetColor(PyObject * poSelf, PyObject * poArgs)
 
 PyObject * wndMgrAttachIcon(PyObject * poSelf, PyObject * poArgs)
 {
-	if (!UI::CWindowManager::InstancePtr())
-		return Py_BuildNone();
-
 	int iType;
 	if (!PyTuple_GetInteger(poArgs, 0, &iType))
 		return Py_BuildException();
@@ -1886,12 +2170,25 @@ PyObject * wndMgrAttachIcon(PyObject * poSelf, PyObject * poArgs)
 	if (!PyTuple_GetInteger(poArgs, 4, &iHeight))
 		return Py_BuildException();
 
-	UI::CWindowManager::Instance().AttachIcon(iType, iIndex, iSlotNumber, iWidth, iHeight);
+	Client::UI::WindowManagerSlotApiBridge::Instance().AttachIcon(
+		static_cast<uint32_t>(iType),
+		static_cast<uint32_t>(iIndex),
+		static_cast<uint32_t>(iSlotNumber),
+		static_cast<uint8_t>(iWidth),
+		static_cast<uint8_t>(iHeight)
+	);
+
+	if (UI::CWindowManager::InstancePtr())
+	{
+		UI::CWindowManager::Instance().AttachIcon(iType, iIndex, iSlotNumber, iWidth, iHeight);
+	}
 	return Py_BuildNone();
 }
 
 PyObject * wndMgrDeattachIcon(PyObject * poSelf, PyObject * poArgs)
 {
+	Client::UI::WindowManagerSlotApiBridge::Instance().DeattachIcon();
+
 	if (!UI::CWindowManager::InstancePtr())
 		return Py_BuildNone();
 
@@ -1901,12 +2198,14 @@ PyObject * wndMgrDeattachIcon(PyObject * poSelf, PyObject * poArgs)
 
 PyObject * wndMgrSetAttachingFlag(PyObject * poSelf, PyObject * poArgs)
 {
-	if (!UI::CWindowManager::InstancePtr())
-		return Py_BuildNone();
-
 	BOOL bFlag;
 	if (!PyTuple_GetInteger(poArgs, 0, &bFlag))
 		return Py_BuildException();
+
+	Client::UI::WindowManagerSlotApiBridge::Instance().SetAttachingFlag(bFlag != 0);
+
+	if (!UI::CWindowManager::InstancePtr())
+		return Py_BuildNone();
 
 	UI::CWindowManager::Instance().SetAttachingFlag(bFlag);
 	return Py_BuildNone();
@@ -2567,6 +2866,11 @@ PyObject * wndButtonFlash(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	((UI::CButton*)pWindow)->Flash();
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		Client::UI::WindowManagerButtonApiBridge::Instance().SetButtonFlash(Client::UI::ButtonId(winId), true);
+	}
 
 	return Py_BuildNone();
 }
@@ -2577,6 +2881,11 @@ PyObject * wndButtonEnable(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	((UI::CButton*)pWindow)->Enable();
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		Client::UI::WindowManagerButtonApiBridge::Instance().SetButtonEnable(Client::UI::ButtonId(winId), true);
+	}
 
 	return Py_BuildNone();
 }
@@ -2587,6 +2896,11 @@ PyObject * wndButtonDisable(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	((UI::CButton*)pWindow)->Disable();
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		Client::UI::WindowManagerButtonApiBridge::Instance().SetButtonEnable(Client::UI::ButtonId(winId), false);
+	}
 
 	return Py_BuildNone();
 }
@@ -2597,6 +2911,11 @@ PyObject * wndButtonDown(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	((UI::CButton*)pWindow)->Down();
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		Client::UI::WindowManagerButtonApiBridge::Instance().SetButtonDown(Client::UI::ButtonId(winId), true);
+	}
 
 	return Py_BuildNone();
 }
@@ -2607,6 +2926,11 @@ PyObject * wndButtonSetUp(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildException();
 
 	((UI::CButton*)pWindow)->SetUp();
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		Client::UI::WindowManagerButtonApiBridge::Instance().SetButtonDown(Client::UI::ButtonId(winId), false);
+	}
 
 	return Py_BuildNone();
 }
@@ -2639,7 +2963,168 @@ PyObject * wndButtonIsDown(PyObject * poSelf, PyObject * poArgs)
 	if (!PyTuple_GetWindow(poArgs, 0, &pWindow))
 		return Py_BuildException();
 
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		auto res = Client::UI::WindowManagerButtonApiBridge::Instance().IsButtonDown(Client::UI::ButtonId(winId));
+		if (res.has_value())
+			return Py_BuildValue("i", res.value() ? 1 : 0);
+	}
+
 	return Py_BuildValue("i", ((UI::CButton*)pWindow)->IsPressed());
+}
+
+PyObject * wndButtonSetState(PyObject * poSelf, PyObject * poArgs)
+{
+	UI::CWindow * pWindow = nullptr;
+	uint32_t uButtonId = 0;
+	int iState = 0;
+
+	if (!PyTuple_GetWindowOrId(poArgs, 0, &pWindow, &uButtonId))
+		return Py_BuildException();
+
+	if (!PyTuple_GetInteger(poArgs, 1, &iState))
+		return Py_BuildException();
+
+	Client::UI::ButtonVisualState visualState = Client::UI::ButtonVisualState::Normal;
+	switch (iState)
+	{
+		case 0: visualState = Client::UI::ButtonVisualState::Normal; break;
+		case 1: visualState = Client::UI::ButtonVisualState::Over; break;
+		case 2: visualState = Client::UI::ButtonVisualState::Down; break;
+		case 3: visualState = Client::UI::ButtonVisualState::Disable; break;
+		default: break;
+	}
+
+	Client::UI::WindowManagerButtonApiBridge::Instance().SetButtonState(
+		Client::UI::ButtonId(uButtonId), visualState);
+
+	if (pWindow)
+	{
+		UI::CButton* pButton = static_cast<UI::CButton*>(pWindow);
+		switch (visualState)
+		{
+			case Client::UI::ButtonVisualState::Normal:
+				pButton->SetUp();
+				break;
+			case Client::UI::ButtonVisualState::Over:
+				pButton->Over();
+				break;
+			case Client::UI::ButtonVisualState::Down:
+				pButton->Down();
+				break;
+			case Client::UI::ButtonVisualState::Disable:
+				pButton->Disable();
+				break;
+		}
+	}
+
+	return Py_BuildNone();
+}
+
+PyObject * wndButtonHover(PyObject * poSelf, PyObject * poArgs)
+{
+	UI::CWindow * pWindow = nullptr;
+	uint32_t uButtonId = 0;
+	int isHover = 0;
+
+	if (!PyTuple_GetWindowOrId(poArgs, 0, &pWindow, &uButtonId))
+		return Py_BuildException();
+
+	if (!PyTuple_GetInteger(poArgs, 1, &isHover))
+		return Py_BuildException();
+
+	if (isHover)
+	{
+		Client::UI::WindowManagerButtonApiBridge::Instance().SimulateMouseEnter(
+			Client::UI::ButtonId(uButtonId));
+		if (pWindow)
+			static_cast<UI::CButton*>(pWindow)->Over();
+	}
+	else
+	{
+		Client::UI::WindowManagerButtonApiBridge::Instance().SimulateMouseLeave(
+			Client::UI::ButtonId(uButtonId));
+		if (pWindow)
+			static_cast<UI::CButton*>(pWindow)->SetUp();
+	}
+
+	return Py_BuildNone();
+}
+
+PyObject * wndButtonSimulateMouseEnter(PyObject * poSelf, PyObject * poArgs)
+{
+	UI::CWindow * pWindow = nullptr;
+	uint32_t uButtonId = 0;
+	if (!PyTuple_GetWindowOrId(poArgs, 0, &pWindow, &uButtonId))
+		return Py_BuildException();
+
+	Client::UI::WindowManagerButtonApiBridge::Instance().SimulateMouseEnter(
+		Client::UI::ButtonId(uButtonId));
+	if (pWindow)
+		static_cast<UI::CButton*>(pWindow)->Over();
+
+	return Py_BuildNone();
+}
+
+PyObject * wndButtonSimulateMouseLeave(PyObject * poSelf, PyObject * poArgs)
+{
+	UI::CWindow * pWindow = nullptr;
+	uint32_t uButtonId = 0;
+	if (!PyTuple_GetWindowOrId(poArgs, 0, &pWindow, &uButtonId))
+		return Py_BuildException();
+
+	Client::UI::WindowManagerButtonApiBridge::Instance().SimulateMouseLeave(
+		Client::UI::ButtonId(uButtonId));
+	if (pWindow)
+		static_cast<UI::CButton*>(pWindow)->SetUp();
+
+	return Py_BuildNone();
+}
+
+PyObject * wndButtonSimulateMousePress(PyObject * poSelf, PyObject * poArgs)
+{
+	UI::CWindow * pWindow = nullptr;
+	uint32_t uButtonId = 0;
+	if (!PyTuple_GetWindowOrId(poArgs, 0, &pWindow, &uButtonId))
+		return Py_BuildException();
+
+	Client::UI::WindowManagerButtonApiBridge::Instance().SimulateMousePress(
+		Client::UI::ButtonId(uButtonId));
+	if (pWindow)
+		static_cast<UI::CButton*>(pWindow)->Down();
+
+	return Py_BuildNone();
+}
+
+PyObject * wndButtonSimulateMouseRelease(PyObject * poSelf, PyObject * poArgs)
+{
+	UI::CWindow * pWindow = nullptr;
+	uint32_t uButtonId = 0;
+	if (!PyTuple_GetWindowOrId(poArgs, 0, &pWindow, &uButtonId))
+		return Py_BuildException();
+
+	Client::UI::WindowManagerButtonApiBridge::Instance().SimulateMouseRelease(
+		Client::UI::ButtonId(uButtonId));
+	if (pWindow)
+		static_cast<UI::CButton*>(pWindow)->SetUp();
+
+	return Py_BuildNone();
+}
+
+PyObject * wndButtonGetVisualState(PyObject * poSelf, PyObject * poArgs)
+{
+	UI::CWindow * pWindow = nullptr;
+	uint32_t uButtonId = 0;
+	if (!PyTuple_GetWindowOrId(poArgs, 0, &pWindow, &uButtonId))
+		return Py_BuildException();
+
+	auto res = Client::UI::WindowManagerButtonApiBridge::Instance().GetButtonVisualState(
+		Client::UI::ButtonId(uButtonId));
+	if (res.has_value())
+		return Py_BuildValue("i", static_cast<int>(res.value()));
+
+	return Py_BuildValue("i", 0);
 }
 
 extern BOOL g_bOutlineBoxEnable;
@@ -2674,6 +3159,12 @@ PyObject* wndMgrEnableScissorRect(PyObject* poSelf, PyObject* poArgs)
 		return Py_BuildException();
 
 	pWindow->EnableScissorRect();
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerLayoutApiBridge::Instance().EnableScissorRect(winId, true);
+	}
 	Py_RETURN_NONE;
 }
 
@@ -2684,6 +3175,12 @@ PyObject* wndMgrDisableScissorRect(PyObject* poSelf, PyObject* poArgs)
 		return Py_BuildException();
 
 	pWindow->DisableScissorRect();
+	if (pWindow)
+	{
+		uint32_t winId = WindowToId(pWindow);
+		EnsureLayoutWindow(winId);
+		Client::UI::WindowManagerLayoutApiBridge::Instance().EnableScissorRect(winId, false);
+	}
 	Py_RETURN_NONE;
 }
 
@@ -2894,6 +3391,17 @@ void initwndMgr()
 		{ "SetUp",						wndButtonSetUp,						METH_VARARGS },
 		{ "IsDown",						wndButtonIsDown,					METH_VARARGS },
 
+		// Button State & Simulation Bridges
+		{ "ButtonSetState",				wndButtonSetState,					METH_VARARGS },
+		{ "SetButtonState",				wndButtonSetState,					METH_VARARGS },
+		{ "ButtonHover",				wndButtonHover,						METH_VARARGS },
+		{ "ButtonOver",					wndButtonHover,						METH_VARARGS },
+		{ "SimulateMouseEnter",			wndButtonSimulateMouseEnter,		METH_VARARGS },
+		{ "SimulateMouseLeave",			wndButtonSimulateMouseLeave,		METH_VARARGS },
+		{ "SimulateMousePress",			wndButtonSimulateMousePress,		METH_VARARGS },
+		{ "SimulateMouseRelease",		wndButtonSimulateMouseRelease,		METH_VARARGS },
+		{ "GetButtonVisualState",		wndButtonGetVisualState,			METH_VARARGS },
+
 		// DragButton
 		{ "SetRestrictMovementArea",	wndButtonSetRestrictMovementArea,	METH_VARARGS },
 
@@ -2914,6 +3422,11 @@ void initwndMgr()
 //	PyObject * poMgrModule = Py_InitModule("wndMgr", s_methods);
 //	PyObject * poTextModule = Py_InitModule("wndText", s_methods);
 //	PyObject * poSlotModule = Py_InitModule("wndSlot", s_methods);
+
+	PyModule_AddIntConstant(poModule, "BUTTON_STATE_NORMAL",			0);
+	PyModule_AddIntConstant(poModule, "BUTTON_STATE_OVER",				1);
+	PyModule_AddIntConstant(poModule, "BUTTON_STATE_DOWN",				2);
+	PyModule_AddIntConstant(poModule, "BUTTON_STATE_DISABLE",			3);
 
 	PyModule_AddIntConstant(poModule, "SLOT_STYLE_NONE",				UI::SLOT_STYLE_NONE);
 	PyModule_AddIntConstant(poModule, "SLOT_STYLE_PICK_UP",				UI::SLOT_STYLE_PICK_UP);

@@ -3,12 +3,30 @@
 
 namespace Client::UI {
 
+WindowManagerSlotApiBridge& WindowManagerSlotApiBridge::Instance() noexcept {
+    static WindowManagerSlotApiBridge s_instance;
+    return s_instance;
+}
+
 Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::SetSlot(Core::SlotIndex slotIndex, Core::ItemVnum itemVnum, uint32_t count) {
     auto& slot = m_slots[slotIndex];
     slot.slotIndex = slotIndex;
     slot.itemVnum = itemVnum;
     slot.count = count;
     slot.enabled = true;
+    return {};
+}
+
+Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::SetSlotCount(Core::SlotIndex slotIndex, uint32_t count) {
+    auto it = m_slots.find(slotIndex);
+    if (it == m_slots.end()) {
+        auto& slot = m_slots[slotIndex];
+        slot.slotIndex = slotIndex;
+        slot.count = count;
+        slot.enabled = true;
+        return {};
+    }
+    it->second.count = count;
     return {};
 }
 
@@ -225,6 +243,49 @@ Core::Result<void, SlotApiError> WindowManagerSlotApiBridge::SwapSlots(Core::Slo
     }
     
     return {};
+}
+
+void WindowManagerSlotApiBridge::AttachIcon(uint32_t type, uint32_t index, uint32_t slotNumber, uint8_t width, uint8_t height) {
+    m_attachedIcon.type = type;
+    m_attachedIcon.index = index;
+    m_attachedIcon.slotNumber = slotNumber;
+    m_attachedIcon.width = width;
+    m_attachedIcon.height = height;
+    m_attachedIcon.attaching = true;
+    m_attachedIcon.dragging = true;
+}
+
+void WindowManagerSlotApiBridge::DeattachIcon() {
+    m_attachedIcon.attaching = false;
+    m_attachedIcon.dragging = false;
+    m_attachedIcon.type = 0;
+    m_attachedIcon.index = 0;
+    m_attachedIcon.slotNumber = 0;
+    m_attachedIcon.width = 0;
+    m_attachedIcon.height = 0;
+}
+
+void WindowManagerSlotApiBridge::SetAttachingFlag(bool flag) {
+    m_attachedIcon.attaching = flag;
+    if (!flag) {
+        m_attachedIcon.dragging = false;
+    }
+}
+
+bool WindowManagerSlotApiBridge::IsAttaching() const noexcept {
+    return m_attachedIcon.attaching;
+}
+
+bool WindowManagerSlotApiBridge::IsDragging() const noexcept {
+    return m_attachedIcon.dragging || m_attachedIcon.attaching;
+}
+
+void WindowManagerSlotApiBridge::SetDragging(bool dragging) noexcept {
+    m_attachedIcon.dragging = dragging;
+}
+
+const AttachedIconData& WindowManagerSlotApiBridge::GetAttachedIcon() const noexcept {
+    return m_attachedIcon;
 }
 
 void WindowManagerSlotApiBridge::Update(float deltaTime) {

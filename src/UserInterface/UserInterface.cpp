@@ -505,6 +505,21 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		if (!serverName.empty())
 		{
 			activateDriverWithFallback(serverName);
+			FastBootOverlay::Instance().SelectProfileByDriver(serverName);
+		}
+
+		// --server-ip=<ip>, --auth-port=<port>, --game-port=<port>
+		std::string srvIp = extractArgVal(lpCmdLine, "--server-ip");
+		std::string authPortStr = extractArgVal(lpCmdLine, "--auth-port");
+		std::string gamePortStr = extractArgVal(lpCmdLine, "--game-port");
+		if (!srvIp.empty())
+		{
+			int authPort = 11000;
+			int gamePort = 11011;
+			try { if (!authPortStr.empty()) authPort = std::stoi(authPortStr); } catch (...) {}
+			try { if (!gamePortStr.empty()) gamePort = std::stoi(gamePortStr); } catch (...) {}
+			std::string profDriver = !serverName.empty() ? serverName : "standard_x64";
+			FastBootOverlay::Instance().SetCustomServerProfile("Custom Server", profDriver, srvIp, authPort, gamePort);
 		}
 
 		// --profile=<path>

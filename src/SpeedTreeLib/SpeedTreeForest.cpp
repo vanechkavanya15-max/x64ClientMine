@@ -295,6 +295,13 @@ const float* CSpeedTreeForest::GetCachedWindMatrix(int nIndex) const
 
 void CSpeedTreeForest::SubmitTreePackets(unsigned long ulRenderBitVector)
 {
+	CRenderQueueManager& rqm = CRenderQueueManager::Instance();
+
+	const bool bWantBranchesOrFronds = (ulRenderBitVector & Forest_RenderBranches) || (ulRenderBitVector & Forest_RenderFronds);
+	const bool bWantLeavesOrBillboards = (ulRenderBitVector & Forest_RenderLeaves) || (ulRenderBitVector & Forest_RenderBillboards);
+	if (!bWantBranchesOrFronds && !bWantLeavesOrBillboards)
+		return;
+
 	for (const auto& tr : m_pMainTreeMap)
 	{
 		const DWORD dwCRC = tr.first;
@@ -307,70 +314,69 @@ void CSpeedTreeForest::SubmitTreePackets(unsigned long ulRenderBitVector)
 		if (ppInstances.empty())
 			continue;
 
-		// 1. Partia pni (siatki 3D: Branches + Fronds)
-		if ((ulRenderBitVector & Forest_RenderBranches) || (ulRenderBitVector & Forest_RenderFronds))
+		size_t visibleCount = 0;
+		for (const auto& pInst : ppInstances)
 		{
-			TSpeedTreePacket branchPacket;
-			branchPacket.dwTreeTypeID = dwCRC;
-			branchPacket.bRenderBranches = (ulRenderBitVector & Forest_RenderBranches) != 0;
-			branchPacket.bRenderFronds = (ulRenderBitVector & Forest_RenderFronds) != 0;
-			branchPacket.pMainTree = pMainTree.get();
-			branchPacket.instances.reserve(ppInstances.size());
+			if (pInst && pInst->isShow())
+				++visibleCount;
+		}
 
-			for (const auto& pInst : ppInstances)
+		if (visibleCount == 0)
+			continue;
+
+		TSpeedTreeInstanceData* pInstanceSlice = rqm.AllocateSpeedTreeInstanceData(visibleCount);
+		if (!pInstanceSlice)
+			continue;
+
+		size_t writeIdx = 0;
+		for (const auto& pInst : ppInstances)
+		{
+			if (pInst && pInst->isShow())
 			{
-				if (pInst && pInst->isShow())
+				TSpeedTreeInstanceData& instData = pInstanceSlice[writeIdx++];
+				instData.pTreeInstance = pInst.get();
+				instData.dwTreeCRC = dwCRC;
+				instData.fWindStrength = m_fWindStrength;
+				const float* pos = pInst->GetPosition();
+				if (pos)
 				{
-					TSpeedTreeInstanceData instData;
-					instData.pTreeInstance = pInst.get();
-					const float* pos = pInst->GetPosition();
-					if (pos)
-						D3DXMatrixTranslation(&instData.matWorld, pos[0], pos[1], pos[2]);
-					else
-						D3DXMatrixIdentity(&instData.matWorld);
-					branchPacket.instances.push_back(instData);
+					instData.v3Position = D3DXVECTOR3(pos[0], pos[1], pos[2]);
+					D3DXMatrixTranslation(&instData.matWorld, pos[0], pos[1], pos[2]);
 				}
-			}
-
-			if (!branchPacket.instances.empty())
-			{
-				branchPacket.dwInstanceCount = static_cast<uint32_t>(branchPacket.instances.size());
-				branchPacket.pInstances = branchPacket.instances.data();
-				CRenderQueueManager::Instance().SubmitSpeedTree(branchPacket);
+				else
+				{
+					instData.v3Position = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+					D3DXMatrixIdentity(&instData.matWorld);
+				}
 			}
 		}
 
-		// 2. Partia lisci (billboardy z testem alfa: Leaves + Billboards)
-		if ((ulRenderBitVector & Forest_RenderLeaves) || (ulRenderBitVector & Forest_RenderBillboards))
+		// 1. Partia pni (siatki 3D: Branches + Fronds)
+		if (bWantBranchesOrFronds)
 		{
-			TSpeedTreePacket leafPacket;
+			TSpeedTreePacket branchPacket{};
+			branchPacket.pMainTree = pMainTree.get();
+			branchPacket.dwTreeCRC = dwCRC;
+			branchPacket.dwTreeTypeID = dwCRC;
+			branchPacket.bRenderBranches = (ulRenderBitVector & Forest_RenderBranches) != 0;
+			branchPacket.bRenderFronds = (ulRenderBitVector & Forest_RenderFronds) != 0;
+			branchPacket.dwInstanceCount = static_cast<uint32_t>(visibleCount);
+			branchPacket.pInstances = pInstanceSlice;
+			rqm.SubmitSpeedTree(branchPacket);
+		}
+
+		// 2. Partia lisci (billboardy z testem alfa: Leaves + Billboards)
+		if (bWantLeavesOrBillboards)
+		{
+			TSpeedTreePacket leafPacket{};
+			leafPacket.pMainTree = pMainTree.get();
+			leafPacket.dwTreeCRC = dwCRC;
 			leafPacket.dwTreeTypeID = dwCRC;
 			leafPacket.bRenderLeaves = (ulRenderBitVector & Forest_RenderLeaves) != 0;
 			leafPacket.bRenderBillboards = (ulRenderBitVector & Forest_RenderBillboards) != 0;
-			leafPacket.pMainTree = pMainTree.get();
-			leafPacket.instances.reserve(ppInstances.size());
-
-			for (const auto& pInst : ppInstances)
-			{
-				if (pInst && pInst->isShow())
-				{
-					TSpeedTreeInstanceData instData;
-					instData.pTreeInstance = pInst.get();
-					const float* pos = pInst->GetPosition();
-					if (pos)
-						D3DXMatrixTranslation(&instData.matWorld, pos[0], pos[1], pos[2]);
-					else
-						D3DXMatrixIdentity(&instData.matWorld);
-					leafPacket.instances.push_back(instData);
-				}
-			}
-
-			if (!leafPacket.instances.empty())
-			{
-				leafPacket.dwInstanceCount = static_cast<uint32_t>(leafPacket.instances.size());
-				leafPacket.pInstances = leafPacket.instances.data();
-				CRenderQueueManager::Instance().SubmitSpeedTree(leafPacket);
-			}
+			leafPacket.dwInstanceCount = static_cast<uint32_t>(visibleCount);
+			leafPacket.pInstances = pInstanceSlice;
+			rqm.SubmitSpeedTree(leafPacket);
 		}
 	}
 }

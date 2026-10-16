@@ -60,3 +60,37 @@ TEST_CASE("SkillDescriptionParser: Conditional blocks") {
         CHECK(res.value() == "No");
     }
 }
+
+TEST_CASE("SkillDescriptionParser: FormatDescription and EvaluateFormula") {
+    SkillFormulaEvaluator::Context fctx;
+    fctx["k"] = 20.0;
+    fctx["STR"] = 90.0;
+    fctx["MinATK"] = 120.0;
+
+    SUBCASE("EvaluateFormula") {
+        auto res = SkillDescriptionParser::EvaluateFormula("(1.1*MinATK + (0.1*MinATK + 1.5*STR)*k) * 3", fctx);
+        REQUIRE(res.has_value());
+        CHECK(res.value() > 0.0);
+    }
+
+    SUBCASE("FormatDescription legacy format specifiers") {
+        std::string desc = "Total Attack Power %.0f-%.0f";
+        std::string formatted = SkillDescriptionParser::FormatDescription(desc, 150.0f, 300.0f);
+        CHECK(formatted == "Total Attack Power 150-300");
+    }
+
+    SUBCASE("FormatDescription percent unescape") {
+        std::string desc = "Faint Chance: %.0f%%";
+        std::string formatted = SkillDescriptionParser::FormatDescription(desc, 25.0f, 25.0f);
+        CHECK(formatted == "Faint Chance: 25%");
+    }
+
+    SUBCASE("FormatDescription modern template") {
+        SkillDescriptionContext ctx;
+        ctx.variables["bonus"] = 50.0;
+        std::string desc = "Bonus: {bonus:d} (Range: {min_val:d}-{max_val:d})";
+        std::string formatted = SkillDescriptionParser::FormatDescription(desc, 10.0f, 20.0f, &ctx);
+        CHECK(formatted == "Bonus: 50 (Range: 10-20)");
+    }
+}
+

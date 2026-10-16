@@ -79,17 +79,72 @@ namespace UserInterface::InstanceControllers
         EterBase::ModernLogger::Info("InstanceTitleRankController cleared.");
     }
 
-    std::string InstanceTitleRankController::CalculateRank(int32_t alignment) const
+    std::string InstanceTitleRankController::CalculateRank(int32_t alignment)
     {
         if (alignment >= 12000) return "Rycerski";
         if (alignment >= 8000) return "Szlachetny";
         if (alignment >= 4000) return "Dobry";
-        if (alignment >= 10) return "Przyjazny";
+        if (alignment >= 1000) return "Przyjazny";
         if (alignment >= 0) return "Neutralny";
         if (alignment >= -3999) return "Agresywny";
         if (alignment >= -7999) return "Zlosliwy";
         if (alignment >= -11999) return "Okrutny";
         return "Morderczy";
+    }
+
+    uint32_t InstanceTitleRankController::CalculateAlignmentGrade(int32_t alignment)
+    {
+        if (alignment >= 12000)
+            return 0;
+        else if (alignment >= 8000)
+            return 1;
+        else if (alignment >= 4000)
+            return 2;
+        else if (alignment >= 1000)
+            return 3;
+        else if (alignment >= 0)
+            return 4;
+        else if (alignment > -4000)
+            return 5;
+        else if (alignment > -8000)
+            return 6;
+        else if (alignment > -12000)
+            return 7;
+
+        return 8;
+    }
+
+    int32_t InstanceTitleRankController::CalculateAlignmentType(uint32_t grade)
+    {
+        switch (grade)
+        {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                return 0; // ALIGNMENT_TYPE_WHITE
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+                return 2; // ALIGNMENT_TYPE_DARK
+        }
+        return 1; // ALIGNMENT_TYPE_NORMAL
+    }
+
+    uint32_t InstanceTitleRankController::GetAlignmentGrade() const
+    {
+        return CalculateAlignmentGrade(m_alignment);
+    }
+
+    int32_t InstanceTitleRankController::GetAlignmentType() const
+    {
+        return CalculateAlignmentType(GetAlignmentGrade());
+    }
+
+    std::string InstanceTitleRankController::GetRankName() const
+    {
+        return CalculateRank(m_alignment);
     }
 
     // =========================================================================
@@ -176,6 +231,21 @@ namespace UserInterface::InstanceControllers
         m_empire = 0;
         m_customTitle.clear();
         m_customTitleColor = 0;
+    }
+
+    uint32_t InstanceRank_GuildMark::GetAlignmentGrade() const
+    {
+        return InstanceTitleRankController::CalculateAlignmentGrade(m_alignment);
+    }
+
+    int32_t InstanceRank_GuildMark::GetAlignmentType() const
+    {
+        return InstanceTitleRankController::CalculateAlignmentType(GetAlignmentGrade());
+    }
+
+    std::string InstanceRank_GuildMark::GetRankName() const
+    {
+        return InstanceTitleRankController::CalculateRank(m_alignment);
     }
 
     // =========================================================================

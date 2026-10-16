@@ -5,7 +5,21 @@
 #include "EterGrnLib/ModelInstance.h"
 #include "EterGrnLib/Thing.h"
 
-class CDungeonModelInstance;
+class CDungeonModelInstance : public CGrannyModelInstance
+{
+public:
+	CDungeonModelInstance() {}
+	virtual ~CDungeonModelInstance() {}
+
+	void RenderDungeonBlock();
+	void RenderDungeonBlockShadow();
+
+	CGrannyModel* GetModel() const { return m_pModel; }
+	CGrannyMaterialPalette& GetMaterialPalette() { return m_kMtrlPal; }
+	const CGrannyMaterialPalette& GetMaterialPalette() const { return m_kMtrlPal; }
+
+	friend class CDungeonBlockRenderExtractor;
+};
 
 class CDungeonBlock : public CGraphicObjectInstance
 {

@@ -1,9 +1,13 @@
 #include "StdAfx.h"
 #include "RenderQueueManager.h"
-#include "IRenderBackend.h"
+#include "D3D9RenderBackend.h"
 #include "StateManager.h"
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include <cstdio>
+#include <algorithm>
+
+static constexpr size_t DEFAULT_PARTICLE_POOL_CAPACITY = 65536;
+static constexpr size_t DEFAULT_SPEEDTREE_POOL_CAPACITY = 16384;
 
 CRenderQueueManager::CRenderQueueManager()
 {
@@ -13,6 +17,15 @@ CRenderQueueManager::CRenderQueueManager()
 	m_terrainPackets.reserve(64);
 	m_effectPackets.reserve(256);
 	m_waterPackets.reserve(32);
+	m_skyBoxPackets.reserve(8);
+	m_dungeonPackets.reserve(256);
+
+	m_particleDataPool.resize(DEFAULT_PARTICLE_POOL_CAPACITY);
+	m_particleDataOffset = 0;
+
+	m_speedTreeInstancePool.resize(DEFAULT_SPEEDTREE_POOL_CAPACITY);
+	m_speedTreeInstanceOffset = 0;
+
 	memset(&m_frameUniforms, 0, sizeof(TRenderFrameUniforms));
 }
 
@@ -29,11 +42,22 @@ void CRenderQueueManager::BeginFrame()
 	m_terrainPackets.clear();
 	m_effectPackets.clear();
 	m_waterPackets.clear();
-	m_particleDataPool.clear();
+	m_skyBoxPackets.clear();
+	m_dungeonPackets.clear();
+	m_flushedSpeedTreeOffset = 0;
+	m_flushedUIOffset = 0;
+	m_particleDataOffset = 0;
+	m_speedTreeInstanceOffset = 0;
 }
 
 void CRenderQueueManager::EndFrame()
 {
+	if (HasPendingFrameDump())
+	{
+		ExportFrameToBinary(GetPendingFrameDumpPath().c_str());
+		CaptureReferenceScreenshot("cpp_reference.png");
+		ClearPendingFrameDump();
+	}
 }
 
 void CRenderQueueManager::Clear()
@@ -44,7 +68,12 @@ void CRenderQueueManager::Clear()
 	m_terrainPackets.clear();
 	m_effectPackets.clear();
 	m_waterPackets.clear();
-	m_particleDataPool.clear();
+	m_skyBoxPackets.clear();
+	m_dungeonPackets.clear();
+	m_flushedSpeedTreeOffset = 0;
+	m_flushedUIOffset = 0;
+	m_particleDataOffset = 0;
+	m_speedTreeInstanceOffset = 0;
 }
 
 void CRenderQueueManager::SetFrameUniforms(const TRenderFrameUniforms& uniforms)
@@ -87,27 +116,45 @@ void CRenderQueueManager::SubmitWater(const TWaterPacket& packet)
 	m_waterPackets.push_back(packet);
 }
 
+void CRenderQueueManager::SubmitSkyBox(const TSkyBoxPacket& packet)
+{
+	m_skyBoxPackets.push_back(packet);
+}
+
+void CRenderQueueManager::SubmitDungeonBlock(const TDungeonBlockPacket& packet)
+{
+	m_dungeonPackets.push_back(packet);
+}
+
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
 	if (!pBackend)
+		pBackend = GetActiveBackend();
+	if (!pBackend)
 		return;
 
-	if (HasPendingFrameDump())
-	{
-		ExportFrameToBinary(GetPendingFrameDumpPath().c_str());
-		ClearPendingFrameDump();
-	}
-
 	pBackend->BeginFrame(m_frameUniforms);
+
+	if (!m_skyBoxPackets.empty())
+		pBackend->RenderSkyBox(m_skyBoxPackets.data(), static_cast<unsigned int>(m_skyBoxPackets.size()));
 
 	if (!m_terrainPackets.empty())
 		pBackend->RenderTerrain(m_terrainPackets.data(), static_cast<unsigned int>(m_terrainPackets.size()));
 
+	if (!m_dungeonPackets.empty())
+		pBackend->RenderDungeonBlocks(m_dungeonPackets.data(), static_cast<unsigned int>(m_dungeonPackets.size()));
+
 	if (!m_waterPackets.empty())
 		pBackend->RenderWater(m_waterPackets.data(), static_cast<unsigned int>(m_waterPackets.size()));
 
-	if (!m_speedTreePackets.empty())
-		pBackend->RenderSpeedTree(m_speedTreePackets.data(), static_cast<unsigned int>(m_speedTreePackets.size()));
+	if (m_flushedSpeedTreeOffset < m_speedTreePackets.size())
+	{
+		pBackend->RenderSpeedTree(
+			m_speedTreePackets.data() + m_flushedSpeedTreeOffset,
+			static_cast<unsigned int>(m_speedTreePackets.size() - m_flushedSpeedTreeOffset)
+		);
+		m_flushedSpeedTreeOffset = m_speedTreePackets.size();
+	}
 
 	if (!m_actorPackets.empty())
 		pBackend->RenderActors(m_actorPackets.data(), static_cast<unsigned int>(m_actorPackets.size()));
@@ -115,170 +162,48 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 	if (!m_effectPackets.empty())
 		pBackend->RenderEffects(m_effectPackets.data(), static_cast<unsigned int>(m_effectPackets.size()));
 
-	if (!m_uiPackets.empty())
-		pBackend->RenderUI(m_uiPackets.data(), static_cast<unsigned int>(m_uiPackets.size()));
+	if (m_flushedUIOffset < m_uiPackets.size())
+	{
+		pBackend->RenderUI(
+			m_uiPackets.data() + m_flushedUIOffset,
+			static_cast<unsigned int>(m_uiPackets.size() - m_flushedUIOffset)
+		);
+		m_flushedUIOffset = m_uiPackets.size();
+	}
 
 	pBackend->EndFrame();
-
-	Clear();
 }
 
 void CRenderQueueManager::FlushSpeedTree()
 {
-	for (const auto& packet : m_speedTreePackets)
+	if (m_flushedSpeedTreeOffset >= m_speedTreePackets.size())
+		return;
+
+	IRenderBackend* pBackend = GetActiveBackend();
+	if (pBackend)
 	{
-		if (!packet.pMainTree || packet.instances.empty())
-			continue;
-
-		if (packet.bRenderBranches)
-		{
-			packet.pMainTree->SetupBranchForTreeType();
-			for (const auto& inst : packet.instances)
-			{
-				if (inst.pTreeInstance)
-					const_cast<CSpeedTreeWrapper*>(inst.pTreeInstance)->RenderBranches();
-			}
-		}
-
-		if (packet.bRenderFronds)
-		{
-			packet.pMainTree->SetupFrondForTreeType();
-			for (const auto& inst : packet.instances)
-			{
-				if (inst.pTreeInstance)
-					const_cast<CSpeedTreeWrapper*>(inst.pTreeInstance)->RenderFronds();
-			}
-		}
-
-		if (packet.bRenderLeaves)
-		{
-			packet.pMainTree->SetupLeafForTreeType();
-			for (const auto& inst : packet.instances)
-			{
-				if (inst.pTreeInstance)
-					const_cast<CSpeedTreeWrapper*>(inst.pTreeInstance)->RenderLeaves();
-			}
-			const_cast<CSpeedTreeWrapper*>(packet.pMainTree)->EndLeafForTreeType();
-		}
-
-		if (packet.bRenderBillboards)
-		{
-			packet.pMainTree->SetupLeafForTreeType();
-			for (const auto& inst : packet.instances)
-			{
-				if (inst.pTreeInstance)
-					const_cast<CSpeedTreeWrapper*>(inst.pTreeInstance)->RenderBillboards();
-			}
-		}
+		pBackend->RenderSpeedTree(
+			m_speedTreePackets.data() + m_flushedSpeedTreeOffset,
+			static_cast<unsigned int>(m_speedTreePackets.size() - m_flushedSpeedTreeOffset)
+		);
 	}
+	m_flushedSpeedTreeOffset = m_speedTreePackets.size();
 }
 
 void CRenderQueueManager::FlushUI()
 {
-	if (m_uiPackets.empty())
+	if (m_flushedUIOffset >= m_uiPackets.size())
 		return;
 
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
+	IRenderBackend* pBackend = GetActiveBackend();
+	if (pBackend)
 	{
-		m_uiPackets.clear();
-		return;
+		pBackend->RenderUI(
+			m_uiPackets.data() + m_flushedUIOffset,
+			static_cast<unsigned int>(m_uiPackets.size() - m_flushedUIOffset)
+		);
 	}
-
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
-
-	static LPDIRECT3DVERTEXDECLARATION9 s_pUIVertexDecl = nullptr;
-	if (!s_pUIVertexDecl)
-	{
-		const D3DVERTEXELEMENT9 declElements[] = {
-			{ 0, 0,  D3DDECLTYPE_FLOAT4,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0 },
-			{ 0, 16, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR,     0 },
-			{ 0, 20, D3DDECLTYPE_FLOAT2,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  0 },
-			D3DDECL_END()
-		};
-		dev->CreateVertexDeclaration(declElements, &s_pUIVertexDecl);
-	}
-
-	if (s_pUIVertexDecl)
-		STATEMANAGER.SetVertexDeclaration(s_pUIVertexDecl);
-
-	for (const auto& packet : m_uiPackets)
-	{
-		const TUIVertex* pVtx = packet.pVertices ? packet.pVertices : (packet.vertices.empty() ? nullptr : packet.vertices.data());
-		size_t vtxCount = packet.dwVertexCount > 0 ? packet.dwVertexCount : packet.vertices.size();
-
-		if (!pVtx || vtxCount == 0)
-			continue;
-
-		if (packet.bScissorEnable || packet.bUseScissor)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
-			STATEMANAGER.SetScissorRect(packet.scissorRect);
-		}
-		else
-		{
-			STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-		}
-
-		uint32_t texId = packet.dwTextureId != 0 ? packet.dwTextureId : packet.dwTextureID;
-		if (texId != 0)
-		{
-			STATEMANAGER.SetTexture(0, reinterpret_cast<LPDIRECT3DBASETEXTURE9>(static_cast<uintptr_t>(texId)));
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-		}
-		else
-		{
-			STATEMANAGER.SetTexture(0, nullptr);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-		}
-
-		if (!packet.indices.empty())
-		{
-			STATEMANAGER.DrawIndexedPrimitiveUP(
-				D3DPT_TRIANGLELIST,
-				0,
-				static_cast<UINT>(vtxCount),
-				static_cast<UINT>(packet.indices.size() / 3),
-				packet.indices.data(),
-				D3DFMT_INDEX16,
-				pVtx,
-				static_cast<UINT>(sizeof(TUIVertex))
-			);
-		}
-		else
-		{
-			STATEMANAGER.DrawPrimitiveUP(
-				D3DPT_TRIANGLELIST,
-				static_cast<UINT>(vtxCount / 3),
-				pVtx,
-				static_cast<UINT>(sizeof(TUIVertex))
-			);
-		}
-	}
-
-	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
-	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-
-	m_uiPackets.clear();
+	m_flushedUIOffset = m_uiPackets.size();
 }
 
 const std::vector<TSpeedTreePacket>& CRenderQueueManager::GetSpeedTreePackets() const
@@ -311,10 +236,26 @@ const std::vector<TWaterPacket>& CRenderQueueManager::GetWaterPackets() const
 	return m_waterPackets;
 }
 
+const std::vector<TSkyBoxPacket>& CRenderQueueManager::GetSkyBoxPackets() const
+{
+	return m_skyBoxPackets;
+}
+
+const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonPackets() const
+{
+	return m_dungeonPackets;
+}
+
+const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonBlockPackets() const
+{
+	return m_dungeonPackets;
+}
+
 size_t CRenderQueueManager::GetTotalPacketCount() const
 {
 	return m_speedTreePackets.size() + m_uiPackets.size() + m_actorPackets.size() +
-		m_terrainPackets.size() + m_effectPackets.size() + m_waterPackets.size();
+		m_terrainPackets.size() + m_effectPackets.size() + m_waterPackets.size() +
+		m_skyBoxPackets.size() + m_dungeonPackets.size();
 }
 
 TParticleInstanceData* CRenderQueueManager::AllocateParticleData(size_t count)
@@ -322,14 +263,35 @@ TParticleInstanceData* CRenderQueueManager::AllocateParticleData(size_t count)
 	if (count == 0)
 		return nullptr;
 
-	size_t currentSize = m_particleDataPool.size();
-	m_particleDataPool.resize(currentSize + count);
-	return &m_particleDataPool[currentSize];
+	if (m_particleDataOffset + count > m_particleDataPool.size())
+		return nullptr;
+
+	TParticleInstanceData* pResult = &m_particleDataPool[m_particleDataOffset];
+	m_particleDataOffset += count;
+	return pResult;
 }
 
 void CRenderQueueManager::ClearParticleData()
 {
-	m_particleDataPool.clear();
+	m_particleDataOffset = 0;
+}
+
+TSpeedTreeInstanceData* CRenderQueueManager::AllocateSpeedTreeInstanceData(size_t count)
+{
+	if (count == 0)
+		return nullptr;
+
+	if (m_speedTreeInstanceOffset + count > m_speedTreeInstancePool.size())
+		return nullptr;
+
+	TSpeedTreeInstanceData* pResult = &m_speedTreeInstancePool[m_speedTreeInstanceOffset];
+	m_speedTreeInstanceOffset += count;
+	return pResult;
+}
+
+void CRenderQueueManager::ClearSpeedTreeInstanceData()
+{
+	m_speedTreeInstanceOffset = 0;
 }
 
 bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
@@ -355,6 +317,9 @@ bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
 	for (const auto& pkt : m_terrainPackets)
 	{
 		TTerrainSectorPacket sanitized = pkt;
+		sanitized.pSplatTexture = nullptr;
+		for (int l = 0; l < 4; ++l)
+			sanitized.pLayerTextures[l] = nullptr;
 		sanitized.pVertexData = nullptr;
 		sanitized.pSplatWeights = nullptr;
 		sanitized.pHeightMap = nullptr;
@@ -368,6 +333,7 @@ bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
 	for (const auto& pkt : m_waterPackets)
 	{
 		TWaterPacket sanitized = pkt;
+		sanitized.pWaterTexture = nullptr;
 		sanitized.pVertexBuffer = nullptr;
 		fwrite(&sanitized, sizeof(TWaterPacket), 1, fp);
 	}
@@ -386,11 +352,11 @@ bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
 		fwrite(&pkt.dwTrunkTextureID, sizeof(uint32_t), 1, fp);
 		fwrite(&pkt.dwLeafTextureID, sizeof(uint32_t), 1, fp);
 
-		uint32_t instCount = static_cast<uint32_t>(pkt.instances.size());
+		uint32_t instCount = (pkt.pInstances != nullptr) ? pkt.dwInstanceCount : 0;
 		fwrite(&instCount, sizeof(uint32_t), 1, fp);
-		for (const auto& inst : pkt.instances)
+		for (uint32_t idx = 0; idx < instCount; ++idx)
 		{
-			TSpeedTreeInstanceData sanitized = inst;
+			TSpeedTreeInstanceData sanitized = pkt.pInstances[idx];
 			sanitized.pTreeInstance = nullptr;
 			fwrite(&sanitized, sizeof(TSpeedTreeInstanceData), 1, fp);
 		}
@@ -410,7 +376,8 @@ bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
 	for (const auto& pkt : m_effectPackets)
 	{
 		fwrite(&pkt.dwEffectID, sizeof(uint32_t), 1, fp);
-		fwrite(&pkt.dwTextureID, sizeof(uint32_t), 1, fp);
+		uint32_t texId32 = static_cast<uint32_t>(pkt.dwTextureID & 0xFFFFFFFF);
+		fwrite(&texId32, sizeof(uint32_t), 1, fp);
 		fwrite(&pkt.dwBlendMode, sizeof(uint32_t), 1, fp);
 		fwrite(&pkt.dwParticleCount, sizeof(uint32_t), 1, fp);
 		if (pkt.dwParticleCount > 0 && pkt.pParticles)
@@ -423,27 +390,23 @@ bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
 	fwrite(&uiCount, sizeof(uint32_t), 1, fp);
 	for (const auto& pkt : m_uiPackets)
 	{
-		uint32_t texId = pkt.dwTextureId != 0 ? pkt.dwTextureId : pkt.dwTextureID;
+		uint32_t texId = static_cast<uint32_t>(pkt.dwTextureID & 0xFFFFFFFF);
 		fwrite(&texId, sizeof(uint32_t), 1, fp);
-		uint32_t scissor = (pkt.bScissorEnable || pkt.bUseScissor) ? 1 : 0;
+		uint32_t scissor = pkt.bUseScissor ? 1 : 0;
 		fwrite(&scissor, sizeof(uint32_t), 1, fp);
 		fwrite(&pkt.scissorRect, sizeof(RECT), 1, fp);
 		fwrite(&pkt.dwBlendMode, sizeof(uint32_t), 1, fp);
 
-		uint32_t vtxCount = pkt.dwVertexCount > 0 ? pkt.dwVertexCount : static_cast<uint32_t>(pkt.vertices.size());
-		const TUIVertex* pVtx = pkt.pVertices ? pkt.pVertices : (pkt.vertices.empty() ? nullptr : pkt.vertices.data());
+		uint32_t vtxCount = pkt.dwVertexCount;
+		const TUIVertex* pVtx = pkt.pVertices;
 		fwrite(&vtxCount, sizeof(uint32_t), 1, fp);
 		if (vtxCount > 0 && pVtx)
 		{
 			fwrite(pVtx, sizeof(TUIVertex), vtxCount, fp);
 		}
 
-		uint32_t idxCount = static_cast<uint32_t>(pkt.indices.size());
+		uint32_t idxCount = 0;
 		fwrite(&idxCount, sizeof(uint32_t), 1, fp);
-		if (idxCount > 0)
-		{
-			fwrite(pkt.indices.data(), sizeof(uint16_t), idxCount, fp);
-		}
 	}
 
 	fclose(fp);
@@ -471,3 +434,32 @@ void CRenderQueueManager::ClearPendingFrameDump()
 	m_bPendingDump = false;
 	m_strPendingDumpPath.clear();
 }
+
+bool CRenderQueueManager::CaptureReferenceScreenshot(const char* c_pszFileName) const
+{
+	if (!c_pszFileName)
+		return false;
+
+	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
+	if (!dev)
+		return false;
+
+	LPDIRECT3DSURFACE9 pBackBuffer = nullptr;
+	if (FAILED(dev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer)) || !pBackBuffer)
+		return false;
+
+	HRESULT hr = D3DXSaveSurfaceToFileA(c_pszFileName, D3DXIFF_PNG, pBackBuffer, nullptr, nullptr);
+	pBackBuffer->Release();
+	return SUCCEEDED(hr);
+}
+
+void CRenderQueueManager::SetActiveBackend(IRenderBackend* pBackend)
+{
+	m_pActiveBackend = pBackend;
+}
+
+IRenderBackend* CRenderQueueManager::GetActiveBackend() const
+{
+	return m_pActiveBackend ? m_pActiveBackend : &CD3D9RenderBackend::Instance();
+}
+

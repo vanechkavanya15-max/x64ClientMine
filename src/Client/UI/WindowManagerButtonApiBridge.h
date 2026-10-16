@@ -50,6 +50,10 @@ public:
     WindowManagerButtonApiBridge() = default;
     ~WindowManagerButtonApiBridge() = default;
 
+    static WindowManagerButtonApiBridge& Instance();
+    [[nodiscard]] bool HasButton(ButtonId buttonId) const noexcept { return m_buttons.contains(buttonId); }
+    void Clear() { m_buttons.clear(); }
+
     EterBase::Result<void, ButtonError> RegisterButton(ButtonId buttonId, ButtonType type = ButtonType::Push, uint32_t group = 0);
     EterBase::Result<void, ButtonError> UnregisterButton(ButtonId buttonId);
     

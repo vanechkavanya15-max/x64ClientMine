@@ -47,7 +47,7 @@ bool ActorRenderExtractor::Extract(CActorInstance& actor, TActorRenderPacket& ou
 		}
 		outPacket.dwBoneCount = 1;
 	}
-	outPacket.pBoneMatrices = outPacket.boneMatrices;
+	outPacket.pBoneMatrices = nullptr; // Bezpieczny: GetBoneMatrices() uzywa wewnetrznej tablicy boneMatrices w kolejce
 
 	// 7. Ekstrakcja macierzy socketow (bron, helm, fryzura, aury)
 	ExtractSockets(actor, outPacket);

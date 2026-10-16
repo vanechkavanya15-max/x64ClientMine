@@ -9,6 +9,11 @@
 #include <vector>
 #include <string>
 
+namespace Client::Input {
+	class IMECompositionManager;
+	class IMEClipboardBridge;
+}
+
 class IIMEEventSink
 {
 	public:
@@ -95,6 +100,9 @@ class CIME
 		static int GetSelBegin();
 		static int GetSelEnd();
 		static void ClearSelection();
+
+		static Client::Input::IMECompositionManager& GetCompositionManager();
+		static Client::Input::IMEClipboardBridge& GetClipboardBridge();
 
 		static void CloseCandidateList();
 		static void CloseReadingInformation();

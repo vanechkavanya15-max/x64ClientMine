@@ -5,6 +5,7 @@
 #include <expected>
 #include <string_view>
 #include <format>
+#include <utility>
 #include "Client/Core/Result.h"
 
 namespace Client::Input {
@@ -76,6 +77,13 @@ public:
     [[nodiscard]] static Client::Core::Result<size_t, IMEError> GetCodepointLength(char leadByte) noexcept;
     [[nodiscard]] Client::Core::Result<size_t, IMEError> CodepointOffsetToByteOffset(size_t codepointOffset) const noexcept;
     [[nodiscard]] Client::Core::Result<size_t, IMEError> ByteOffsetToCodepointOffset(size_t byteOffset) const noexcept;
+
+    // Wide string and IMM32 interop
+    void SetCompositionWide(std::wstring_view wstr, int32_t caretPos);
+    [[nodiscard]] std::wstring GetWideString() const;
+    [[nodiscard]] size_t GetLength() const noexcept;
+    void SetRawAttributes(const uint8_t* pAttr, size_t count);
+    [[nodiscard]] std::pair<int, int> GetTargetClauseRange() const noexcept;
 
 private:
     std::string m_composition{};

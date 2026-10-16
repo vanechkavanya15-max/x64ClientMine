@@ -12,6 +12,8 @@
 #include "GameLib/ItemManager.h"
 #include "Core/EventBus.h"
 #include "InstanceControllers/IInstanceMountHorseController.h"
+#include "InstanceControllers/IInstanceSoundController.h"
+#include "InstanceControllers/IInstanceTitleRankController.h"
 #include "Client/Bridge/StranglerInstanceFacade.h"
 #include "ECS/ECSWorldRegistry.h"
 
@@ -246,60 +248,22 @@ DWORD CInstanceBase::GetGuildID()
 
 int CInstanceBase::GetAlignment()
 {
-	return m_sAlignment;
+	return m_titleRankController.GetAlignment();
 }
 
 UINT CInstanceBase::GetAlignmentGrade()
 {
-	if (m_sAlignment >= 12000)
-		return 0;
-	else if (m_sAlignment >= 8000)
-		return 1;
-	else if (m_sAlignment >= 4000)
-		return 2;
-	else if (m_sAlignment >= 1000)
-		return 3;
-	else if (m_sAlignment >= 0)
-		return 4;
-	else if (m_sAlignment > -4000)
-		return 5;
-	else if (m_sAlignment > -8000)
-		return 6;
-	else if (m_sAlignment > -12000)
-		return 7;
-
-	return 8;
+	return m_titleRankController.GetAlignmentGrade();
 }
 
 int CInstanceBase::GetAlignmentType()
 {
-	switch (GetAlignmentGrade())
-	{
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-		{
-			return ALIGNMENT_TYPE_WHITE;
-			break;
-		}
-
-		case 5:
-		case 6:
-		case 7:
-		case 8:
-		{
-			return ALIGNMENT_TYPE_DARK;
-			break;
-		}
-	}
-
-	return ALIGNMENT_TYPE_NORMAL;
+	return m_titleRankController.GetAlignmentType();
 }
 
 BYTE CInstanceBase::GetPKMode()
 {
-	return m_byPKMode;
+	return m_titleRankController.GetPKMode();
 }
 
 bool CInstanceBase::IsKiller()
@@ -525,6 +489,8 @@ bool CInstanceBase::Create(const SCreateData& c_rkCreateData)
 	m_dwLevel = c_rkCreateData.m_dwLevel;
 	m_dwGuildID = c_rkCreateData.m_dwGuildID;
 	m_dwEmpireID = c_rkCreateData.m_dwEmpireID;
+	m_titleRankController.SetEmpire(c_rkCreateData.m_dwEmpireID);
+	m_titleRankController.SetGuild(c_rkCreateData.m_dwGuildID, "");
 
 	SetVirtualNumber(c_rkCreateData.m_dwRace);
 	SetRotation(c_rkCreateData.m_fRot);
@@ -576,7 +542,10 @@ bool CInstanceBase::Create(const SCreateData& c_rkCreateData)
 	RegisterBoundingSphere();
 
 	if (c_rkCreateData.m_dwStateFlags & ADD_CHARACTER_STATE_DEAD)
+	{
 		m_GraphicThingInstance.DieEnd();
+		PlayDeathCrySound();
+	}
 
 	SetStateFlags(c_rkCreateData.m_dwStateFlags);
 
@@ -773,11 +742,13 @@ void CInstanceBase::OnWaiting()
 void CInstanceBase::OnMoving()
 {
 	m_GraphicThingInstance.__OnMoving();
+	PlayFootstepSound(UserInterface::InstanceControllers::SurfaceType::Grass);
 }
 
 void CInstanceBase::ChangeGuild(DWORD dwGuildID)
 {
 	m_dwGuildID=dwGuildID;
+	m_titleRankController.SetGuild(dwGuildID, "");
 
 	DetachTextTail();
 	AttachTextTail();
@@ -805,6 +776,9 @@ bool CInstanceBase::CanUseSkill()
 	if (IsHoldingPickAxe())
 		return false;
 
+	if (m_mountController && !m_mountController->CanUseSkill())
+		return false;
+
 	if (!m_mountComponent.CanUseSkill())
 		return false;
 
@@ -816,6 +790,9 @@ bool CInstanceBase::CanUseSkill()
 
 bool CInstanceBase::CanAttack()
 {
+	if (m_mountController && !m_mountController->CanAttack())
+		return false;
+
 	if (!m_mountComponent.CanAttack())
 		return false;
 
@@ -1282,6 +1259,11 @@ void CInstanceBase::MovementProcess()
 	TPixelPosition kPPosCur;
 	NEW_GetPixelPosition(&kPPosCur);
 
+	if (IsMountingHorse() && m_mountController)
+	{
+		m_mountController->UpdateMountTransform(kPPosCur.x, kPPosCur.y, kPPosCur.z, GetRotation());
+	}
+
 	// 렌더링 좌표계이므로 y를 -화해서 더한다.
 
 	TPixelPosition kPPosNext;
@@ -1508,7 +1490,7 @@ void CInstanceBase::MovementProcess()
 				if (fDustDistance > ms_fHorseDustGap)
 				{
 					NEW_GetPixelPosition(&m_kPPosDust);
-					__AttachEffect(EFFECT_HORSE_DUST);
+					ProcessHorseDust();
 				}
 			}
 			else
@@ -1809,15 +1791,17 @@ void CInstanceBase::SetInstanceType(int iInstanceType)
 void CInstanceBase::SetAlignment(short sAlignment)
 {
 	m_sAlignment = sAlignment;
+	m_titleRankController.SetAlignment(sAlignment);
 	RefreshTextTailTitle();
 }
 
 void CInstanceBase::SetPKMode(BYTE byPKMode)
 {
-	if (m_byPKMode == byPKMode)
+	if (m_titleRankController.GetPKMode() == byPKMode)
 		return;
 
 	m_byPKMode = byPKMode;
+	m_titleRankController.SetPKMode(byPKMode);
 
 	if (__IsMainInstance())
 	{
@@ -2312,7 +2296,7 @@ void CInstanceBase::RefreshState(DWORD dwMotIndex, bool isLoop)
 	}
 	else if (IsHoldingPickAxe())
 	{
-		if (m_mountComponent.IsMounting())
+		if (IsMountingHorse())
 		{
 			SetMotionMode(CRaceMotionData::MODE_HORSE);
 		}
@@ -2323,7 +2307,7 @@ void CInstanceBase::RefreshState(DWORD dwMotIndex, bool isLoop)
 	}
 	else if (CItemData::ITEM_TYPE_ROD == byItemType)
 	{
-		if (m_mountComponent.IsMounting())
+		if (IsMountingHorse())
 		{
 			SetMotionMode(CRaceMotionData::MODE_HORSE);
 		}
@@ -2332,7 +2316,7 @@ void CInstanceBase::RefreshState(DWORD dwMotIndex, bool isLoop)
 			SetMotionMode(CRaceMotionData::MODE_FISHING);
 		}
 	}
-	else if (m_mountComponent.IsMounting())
+	else if (IsMountingHorse())
 	{
 		SetMotionMode(GetHorseMotionMode(bySubType));
 	}
@@ -2437,7 +2421,11 @@ void CInstanceBase::Destroy()
 	m_visualComponent.Clear();
 	m_physicsComponent.Clear();
 	m_combatComponent.Clear();
+	if (m_mountController)
+		m_mountController->Clear();
 	m_mountComponent.Clear();
+	m_titleRankController.Clear();
+	m_soundDeathCryController.reset();
 	
 	__Initialize();
 }
@@ -2512,6 +2500,8 @@ void CInstanceBase::__Initialize()
 	m_byPKMode = 0;
 	m_isKiller = false;
 	m_isPartyMember = false;
+	m_titleRankController.Clear();
+	m_soundDeathCryController.reset();
 
 	m_bEnableTCPState = TRUE;
 
@@ -2532,6 +2522,11 @@ CInstanceBase::CInstanceBase()
 	, m_physicsComponent(m_GraphicThingInstance)
 	, m_combatComponent()
 	, m_mountComponent()
+	, m_titleRankController()
+	, m_soundFootstepsController()
+	, m_soundHitImpactController()
+	, m_soundDeathCryController(nullptr)
+	, m_mountController(UserInterface::InstanceControllers::CreateMountBoardController())
 {
 	__Initialize();
 }
@@ -2563,3 +2558,38 @@ void CInstanceBase::ClearSkillTarget()
 	m_dwSkillTargetVID = 0;
 }
 // END OF celine skill fix
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Decoupled C++23 Sound Controller Facade
+
+void CInstanceBase::PlayFootstepSound(UserInterface::InstanceControllers::SurfaceType surface)
+{
+	m_soundFootstepsController.PlayFootstep(surface);
+}
+
+void CInstanceBase::PlayAttackSwingSound(uint32_t rawWeaponType)
+{
+	(void)UserInterface::InstanceControllers::InstanceSound_AttackSwing::PlayAttackSwing(m_soundHitImpactController, rawWeaponType);
+}
+
+void CInstanceBase::PlayDamageHitSound(uint32_t damageType)
+{
+	m_soundHitImpactController.PlayDamageHit(damageType);
+}
+
+void CInstanceBase::PlayDeathCrySound()
+{
+	if (!m_soundDeathCryController)
+	{
+		auto controllerExpected = UserInterface::InstanceControllers::CreateDeathCryController(this);
+		if (controllerExpected.has_value())
+		{
+			m_soundDeathCryController = std::move(controllerExpected.value());
+		}
+	}
+
+	if (m_soundDeathCryController)
+	{
+		m_soundDeathCryController->PlayDeathCry();
+	}
+}

@@ -1037,12 +1037,7 @@ bool CActorInstance::Render()
 	if (!m_pkCurRaceData)
 		return false;
 
-	TActorRenderPacket packet;
-	if (ActorRenderExtractor::Extract(*this, packet))
-	{
-		CRenderQueueManager::Instance().SubmitActor(packet);
-	}
-
+	OnRender();
 	return true;
 }
 

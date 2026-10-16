@@ -256,6 +256,7 @@ public:
 	void	GetRenderState(D3DRENDERSTATETYPE Type, DWORD* pdwValue);
 
 	// Textures
+	static bool IsValidTexturePointer(LPDIRECT3DBASETEXTURE9 pTexture);
 	void	SaveTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9 pTexture);
 	void	RestoreTexture(DWORD dwStage);
 	void	SetTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9 pTexture);

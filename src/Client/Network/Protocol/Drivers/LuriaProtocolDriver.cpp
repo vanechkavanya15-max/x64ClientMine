@@ -271,8 +271,12 @@ namespace Network::Protocol::Drivers
     bool LuriaProtocolDriver::IsHandshakeOpcode(uint16_t opcode) const noexcept
     {
         uint8_t bHeader = static_cast<uint8_t>(opcode & 0xFF);
-        return bHeader == Luria::GC::HANDSHAKE          // 0x5B (91)
-            || bHeader == Luria::GC::KEY_AGREEMENT      // 0xFC (252)
+        return bHeader == Luria::GC::HANDSHAKE          // 0xFF (255)
+            || bHeader == 0xFF
+            || bHeader == 0x5B
+            || bHeader == Luria::GC::KEY_AGREEMENT      // 0xFC (252) lub 0xFB (251)
+            || bHeader == 0xFC
+            || bHeader == 0xFB
             || bHeader == Luria::GC::KEY_AGREEMENT_ACK; // 0xFA (250)
     }
 
@@ -284,7 +288,8 @@ namespace Network::Protocol::Drivers
         uint8_t bHeader = static_cast<uint8_t>(header & 0xFF);
         switch (bHeader)
         {
-        case Luria::GC::HANDSHAKE: // 0x5B (13B)
+        case Luria::GC::HANDSHAKE: // 0xFF (13B)
+        case 0x5B:
         {
             if (payload.size() < sizeof(Luria::TPacketCGHandshakeLuria))
                 return false;

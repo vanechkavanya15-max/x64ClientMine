@@ -2,6 +2,11 @@
 
 namespace Client::UI {
 
+WindowManagerButtonApiBridge& WindowManagerButtonApiBridge::Instance() {
+    static WindowManagerButtonApiBridge s_instance;
+    return s_instance;
+}
+
 void WindowManagerButtonApiBridge::UpdateVisualState(ButtonData& btn) {
     if (!btn.isEnabled) {
         btn.state = ButtonVisualState::Disable;

@@ -16,4 +16,5 @@ target_include_directories(GameLib PUBLIC
 	${CMAKE_SOURCE_DIR}/extern/include
 )
 
+# Includes DungeonBlockRenderExtractor
 GroupSourcesByFolder(GameLib)

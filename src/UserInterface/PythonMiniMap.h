@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PythonBackground.h"
+#include "MiniMap/MiniMapWaypointTracker.h"
 
 class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
 {
@@ -75,7 +76,12 @@ class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
 
 		// SignalPoint
 		void AddSignalPoint(float fX, float fY);
+		void ClearSignalPoint();
 		void ClearAllSignalPoint();
+
+		// Waypoint & Observer Tracker
+		Client::UI::MiniMap::MiniMapWaypointTracker& GetWaypointTracker() { return m_waypointTracker; }
+		const Client::UI::MiniMap::MiniMapWaypointTracker& GetWaypointTracker() const { return m_waypointTracker; }
 
 		void RegisterAtlasWindow(PyObject* poHandler);
 		void UnregisterAtlasWindow();
@@ -114,21 +120,10 @@ class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
 		void ComputeAtlasCenteringOffsets();
 		float GetAtlasUniformScale() const;
 
-	protected:
-		// Atlas
-		typedef struct 
-		{
-			BYTE m_byType;
-			DWORD m_dwID; // For WayPoint
-			float m_fX;
-			float m_fY;
-			float m_fScreenX;
-			float m_fScreenY;
-			float m_fMiniMapX;
-			float m_fMiniMapY;
-			DWORD m_dwChrVID;
-			std::string m_strText;
-		} TAtlasMarkInfo;
+		// Types from MiniMapWaypointTracker
+		typedef Client::UI::MiniMap::SWayPointInfo TAtlasMarkInfo;
+		typedef Client::UI::MiniMap::SObserver SObserver;
+		typedef Client::UI::MiniMap::TSignalPoint TSignalPoint;
 
 		// GuildArea
 		typedef struct
@@ -140,19 +135,6 @@ class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
 			float fsxRender, fsyRender;
 			float fexRender, feyRender;
 		} TGuildAreaInfo;
-
-		struct SObserver
-		{
-			float fCurX;
-			float fCurY;
-			float fSrcX;
-			float fSrcY;
-			float fDstX;
-			float fDstY;
-
-			DWORD dwSrcTime;
-			DWORD dwDstTime;
-		};
 
 		// 캐릭터 리스트
 		typedef struct 
@@ -202,7 +184,6 @@ class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
 		TInstanceMarkPositionVector		m_NPCPositionVector;
 		TInstanceMarkPositionVector		m_MonsterPositionVector;
 		TInstanceMarkPositionVector		m_WarpPositionVector;
-		std::map<DWORD, SObserver>		m_kMap_dwVID_kObserver;
 
 		bool							m_bAtlas;
 		bool							m_bShow;
@@ -247,16 +228,10 @@ class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
 		CGraphicExpandedImageInstance			m_WayPointGraphicImageInstances[WAYPOINT_IMAGE_COUNT];
 		CGraphicExpandedImageInstance			m_TargetMarkGraphicImageInstances[TARGET_MARK_IMAGE_COUNT];
 		CGraphicImageInstance					m_GuildAreaFlagImageInstance;
-		TAtlasMarkInfoVector					m_AtlasWayPointInfoVector;
 		TGuildAreaInfoVector					m_GuildAreaInfoVector;
 
-		// SignalPoint
-		struct TSignalPoint
-		{
-			D3DXVECTOR2 v2Pos;
-			unsigned int id;
-		};
-		std::vector<TSignalPoint>				m_SignalPointVector;
+		// Waypoint & Observer Tracker
+		Client::UI::MiniMap::MiniMapWaypointTracker m_waypointTracker;
 
 		PyObject*							m_poHandler;
 };

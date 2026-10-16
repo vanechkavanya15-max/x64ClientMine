@@ -9,6 +9,7 @@
 #include "AccountConnector.h"
 #include "PythonNetworkStream.h"
 #include "Client/Network/Protocol/ProtocolDriverRegistry.h"
+#include "EterLib/StateManager.h"
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -87,8 +88,15 @@ namespace UserInterface::FastBoot
         if (m_bInitialized)
             return true;
 
-        if (!hWnd || !pDevice)
+        if (!hWnd || !IsWindow(hWnd) || !pDevice)
             return false;
+
+        HRESULT hr = pDevice->TestCooperativeLevel();
+        if (hr != D3D_OK && hr != D3DERR_DEVICENOTRESET)
+        {
+            TraceError("[FAST_BOOT] Initialize: Urzadzenie D3D9 w stanie bledu (0x%08X)", hr);
+            return false;
+        }
 
         m_hWnd = hWnd;
         m_pDevice = pDevice;
@@ -103,11 +111,15 @@ namespace UserInterface::FastBoot
         ApplyStyle();
 
         if (!ImGui_ImplWin32_Init(hWnd))
+        {
+            ImGui::DestroyContext();
             return false;
+        }
 
         if (!ImGui_ImplDX9_Init(pDevice))
         {
             ImGui_ImplWin32_Shutdown();
+            ImGui::DestroyContext();
             return false;
         }
 
@@ -122,7 +134,7 @@ namespace UserInterface::FastBoot
 
         extern bool g_bFastBootAutoConnect;
         extern bool g_bHeadlessMode;
-        if (g_bFastBootAutoConnect && !g_bHeadlessMode)
+        if (g_bFastBootAutoConnect && !g_bHeadlessMode && !m_bConnecting)
         {
             ConnectCurrentProfile();
         }
@@ -135,9 +147,12 @@ namespace UserInterface::FastBoot
         if (!m_bInitialized)
             return;
 
-        ImGui_ImplDX9_Shutdown();
-        ImGui_ImplWin32_Shutdown();
-        ImGui::DestroyContext();
+        if (ImGui::GetCurrentContext() != nullptr)
+        {
+            ImGui_ImplDX9_Shutdown();
+            ImGui_ImplWin32_Shutdown();
+            ImGui::DestroyContext();
+        }
 
         m_bInitialized = false;
         m_hWnd = nullptr;
@@ -146,13 +161,13 @@ namespace UserInterface::FastBoot
 
     void FastBootOverlay::OnLostDevice()
     {
-        if (m_bInitialized)
+        if (m_bInitialized && ImGui::GetCurrentContext() != nullptr)
             ImGui_ImplDX9_InvalidateDeviceObjects();
     }
 
     void FastBootOverlay::OnResetDevice()
     {
-        if (m_bInitialized)
+        if (m_bInitialized && ImGui::GetCurrentContext() != nullptr)
             ImGui_ImplDX9_CreateDeviceObjects();
     }
 
@@ -164,17 +179,20 @@ namespace UserInterface::FastBoot
             return true;
         }
 
-        if (m_bInitialized && m_bVisible)
-        {
-            if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
-                return true;
+        if (!m_bInitialized || !m_bVisible || !m_hWnd || hWnd != m_hWnd)
+            return false;
 
-            ImGuiIO& io = ImGui::GetIO();
-            if ((io.WantCaptureMouse && (uMsg >= WM_MOUSEFIRST && uMsg <= WM_MOUSELAST)) ||
-                (io.WantCaptureKeyboard && (uMsg >= WM_KEYFIRST && uMsg <= WM_KEYLAST)))
-            {
-                return true;
-            }
+        if (ImGui::GetCurrentContext() == nullptr)
+            return false;
+
+        if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+            return true;
+
+        ImGuiIO& io = ImGui::GetIO();
+        if ((io.WantCaptureMouse && (uMsg >= WM_MOUSEFIRST && uMsg <= WM_MOUSELAST)) ||
+            (io.WantCaptureKeyboard && (uMsg >= WM_KEYFIRST && uMsg <= WM_KEYLAST)))
+        {
+            return true;
         }
 
         return false;
@@ -513,8 +531,77 @@ namespace UserInterface::FastBoot
         );
     }
 
+    void FastBootOverlay::Update()
+    {
+        UpdateNetworkStatus();
+    }
+
+    bool FastBootOverlay::SelectProfileByDriver(const std::string& driverName)
+    {
+        for (size_t i = 0; i < m_profiles.size(); ++i)
+        {
+            if (m_profiles[i].driverName == driverName)
+            {
+                m_selectedProfileIdx = static_cast<int>(i);
+                Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(m_profiles[i].driverName);
+                TraceError("[FAST_BOOT] Wybrano profil wedlug sterownika: '%s' (idx=%d, driver='%s')",
+                    m_profiles[i].name.c_str(), m_selectedProfileIdx, driverName.c_str());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool FastBootOverlay::SelectProfileByName(const std::string& name)
+    {
+        for (size_t i = 0; i < m_profiles.size(); ++i)
+        {
+            if (m_profiles[i].name == name)
+            {
+                m_selectedProfileIdx = static_cast<int>(i);
+                Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(m_profiles[i].driverName);
+                TraceError("[FAST_BOOT] Wybrano profil wedlug nazwy: '%s' (idx=%d)", name.c_str(), m_selectedProfileIdx);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void FastBootOverlay::SetCustomServerProfile(const std::string& name, const std::string& driver, const std::string& ip, int authPort, int gamePort)
+    {
+        ServerProfile prof;
+        prof.name = name;
+        prof.driverName = driver;
+        prof.serverIp = ip;
+        prof.authPort = authPort;
+        prof.gamePort = gamePort;
+
+        for (size_t i = 0; i < m_profiles.size(); ++i)
+        {
+            if (m_profiles[i].name == name)
+            {
+                m_profiles[i] = prof;
+                m_selectedProfileIdx = static_cast<int>(i);
+                Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(driver);
+                return;
+            }
+        }
+
+        m_profiles.insert(m_profiles.begin(), prof);
+        m_selectedProfileIdx = 0;
+        Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(driver);
+        TraceError("[FAST_BOOT] Dodano wlasny profil serwera: '%s' (%s:%d/%d, driver='%s')",
+            name.c_str(), ip.c_str(), authPort, gamePort, driver.c_str());
+    }
+
     void FastBootOverlay::ConnectCurrentProfile()
     {
+        if (m_bConnecting)
+        {
+            TraceError("[FAST_BOOT] ConnectCurrentProfile: Polaczenie juz w toku, ignorowanie zduplikowanego wywolania.");
+            return;
+        }
+
         if (m_selectedProfileIdx < 0 || m_selectedProfileIdx >= static_cast<int>(m_profiles.size()))
             return;
 
@@ -555,6 +642,9 @@ namespace UserInterface::FastBoot
 
     void FastBootOverlay::ConnectLocalDev()
     {
+        if (m_bConnecting)
+            return;
+
         Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver("standard_x64");
         CAccountConnector& rkAccountConnector = CAccountConnector::Instance();
         CPythonNetworkStream& rkNetStream = CPythonNetworkStream::Instance();
@@ -577,6 +667,27 @@ namespace UserInterface::FastBoot
     {
         if (!m_bInitialized || !m_bVisible)
             return;
+
+        if (!m_pDevice || !m_hWnd || !IsWindow(m_hWnd))
+            return;
+
+        if (IsIconic(m_hWnd))
+            return; // Okno zminimalizowane - pominiecie renderu
+
+        if (ImGui::GetCurrentContext() == nullptr)
+            return;
+
+        // Sprawdzenie stanu urzadzenia Direct3D 9
+        HRESULT hr = m_pDevice->TestCooperativeLevel();
+        if (hr != D3D_OK)
+            return;
+
+        RECT rc{};
+        if (GetClientRect(m_hWnd, &rc))
+        {
+            if (rc.right - rc.left <= 0 || rc.bottom - rc.top <= 0)
+                return;
+        }
 
         UpdateNetworkStatus();
 
@@ -736,7 +847,22 @@ namespace UserInterface::FastBoot
         ImGui::End();
 
         ImGui::Render();
-        ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+        ImDrawData* pDrawData = ImGui::GetDrawData();
+        if (pDrawData && pDrawData->CmdListsCount > 0 && pDrawData->TotalVtxCount > 0)
+        {
+            ImGui_ImplDX9_RenderDrawData(pDrawData);
+        }
+
+        // Przywrocenie stanu sprzetowego urzadzenia D3D9 i synchronizacja cache STATEMANAGER
+        if (m_pDevice)
+        {
+            m_pDevice->SetStreamSource(0, nullptr, 0, 0);
+            m_pDevice->SetIndices(nullptr);
+        }
+        if (::CStateManager::InstancePtr())
+        {
+            ::CStateManager::Instance().SetDefaultState();
+        }
     }
 
     void FastBootOverlay::LoadConfig()

@@ -24,6 +24,17 @@ set(DEBUG_RENDER_MODULE_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/PythonDebugRenderModule.cpp
 )
 list(APPEND FILE_SOURCES ${DEBUG_RENDER_MODULE_SOURCES})
+set(PYTHON_NETWORK_STREAM_DOMAIN_SOURCES
+	${CMAKE_CURRENT_SOURCE_DIR}/PythonNetworkStreamModule_TradeShop.h
+	${CMAKE_CURRENT_SOURCE_DIR}/PythonNetworkStreamModule_TradeShop.cpp
+)
+list(APPEND FILE_SOURCES ${PYTHON_NETWORK_STREAM_DOMAIN_SOURCES})
+set(PYTHON_CHARACTER_DOMAIN_SOURCES
+	${CMAKE_CURRENT_SOURCE_DIR}/PythonCharacterModule.h
+	${CMAKE_CURRENT_SOURCE_DIR}/PythonCharacterModule_Motion.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/PythonCharacterModule_Visual.cpp
+)
+list(APPEND FILE_SOURCES ${PYTHON_CHARACTER_DOMAIN_SOURCES})
 list(REMOVE_DUPLICATES FILE_SOURCES)
 
 add_executable(UserInterface WIN32 ${FILE_SOURCES} ${CMAKE_SOURCE_DIR}/src/UserInterface/UserInterface.rc)
@@ -97,6 +108,7 @@ target_include_directories(UserInterface PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/GroundDrop
 	${CMAKE_CURRENT_SOURCE_DIR}/PlayerControllers
 	${CMAKE_CURRENT_SOURCE_DIR}/TestHarness
+	${CMAKE_CURRENT_SOURCE_DIR}/MiniMap
 )
 
 GroupSourcesByFolder(UserInterface)

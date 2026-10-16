@@ -30,8 +30,8 @@ void CGameThreadPool::Initialize(int iWorkerCount)
 			iWorkerCount = 4; // Fallback to 4 workers
 	}
 
-	// Clamp worker count to reasonable range
-	iWorkerCount = std::max(2, std::min(16, iWorkerCount));
+	// Clamp worker count to reasonable range (2-8 workers is optimal for asset/terrain loading without thrashing)
+	iWorkerCount = std::clamp(iWorkerCount, 2, 8);
 
 	Tracef("CGameThreadPool::Initialize - Creating %d worker threads\n", iWorkerCount);
 
@@ -62,27 +62,31 @@ void CGameThreadPool::Initialize(int iWorkerCount)
 
 void CGameThreadPool::Destroy()
 {
-	std::lock_guard<std::mutex> lock(m_lifecycleMutex);
-	
-	if (!m_bInitialized.load(std::memory_order_acquire))
-		return;
-
-	Tracef("CGameThreadPool::Destroy - Shutting down %d worker threads\n", GetWorkerCount());
-
-	// Signal shutdown first
-	m_bShutdown.store(true, std::memory_order_release);
-	
-	// Mark as not initialized to prevent new enqueues
-	m_bInitialized.store(false, std::memory_order_release);
-
-	// Join all worker threads
-	for (auto& pWorker : m_workers)
+	std::vector<std::unique_ptr<TWorkerThread>> workersToJoin;
 	{
-		if (pWorker->thread.joinable())
-			pWorker->thread.join();
+		std::lock_guard<std::mutex> lock(m_lifecycleMutex);
+		
+		if (!m_bInitialized.load(std::memory_order_acquire))
+			return;
+
+		Tracef("CGameThreadPool::Destroy - Shutting down %d worker threads\n", GetWorkerCount());
+
+		// Signal shutdown first
+		m_bShutdown.store(true, std::memory_order_release);
+		
+		// Mark as not initialized to prevent new enqueues
+		m_bInitialized.store(false, std::memory_order_release);
+
+		// Move workers out of m_workers while holding lock, but join outside lock to prevent deadlocks
+		workersToJoin = std::move(m_workers);
 	}
 
-	m_workers.clear();
+	// Join all worker threads OUTSIDE of m_lifecycleMutex to eliminate deadlocks!
+	for (auto& pWorker : workersToJoin)
+	{
+		if (pWorker && pWorker->thread.joinable())
+			pWorker->thread.join();
+	}
 }
 
 void CGameThreadPool::WorkerThreadProc(TWorkerThread* pWorker)
@@ -122,26 +126,25 @@ void CGameThreadPool::WorkerThreadProc(TWorkerThread* pWorker)
 		}
 		else
 		{
-			// No work available - idle strategy
+			// No work available - progressive idle strategy
 			++iIdleCount;
 
-			if (iIdleCount < 100)
+			if (iIdleCount < 20)
 			{
 				// Spin briefly for immediate work
 				std::this_thread::yield();
 			}
-			else if (iIdleCount < 1000)
+			else if (iIdleCount < 100)
 			{
-				// Short sleep for moderate idle
-				std::this_thread::sleep_for(std::chrono::microseconds(10));
+				// Short sleep
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			}
 			else
 			{
-				// Longer sleep for extended idle
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				// Reset idle count to prevent overflow
-				if (iIdleCount > 10000)
-					iIdleCount = 1000;
+				// Extended idle sleep
+				std::this_thread::sleep_for(std::chrono::milliseconds(10));
+				if (iIdleCount > 1000)
+					iIdleCount = 100;
 			}
 		}
 	}

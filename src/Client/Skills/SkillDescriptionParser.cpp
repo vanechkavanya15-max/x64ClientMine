@@ -4,6 +4,8 @@
 #include <charconv>
 #include <vector>
 #include <algorithm>
+#include <cstdio>
+#include <cstring>
 
 namespace Client::Skills {
 
@@ -174,6 +176,90 @@ std::string SkillDescriptionParser::FormatFormula(const std::string& rawDesc, fl
     ctx.variables["VAL"] = static_cast<double>(skillLevel * 10.0f + playerInt * 1.5f);
     auto res = Parse(rawDesc, ctx);
     return res.has_value() ? res.value() : rawDesc;
+}
+
+std::expected<double, EvaluationError> SkillDescriptionParser::EvaluateFormula(
+    std::string_view formula, const SkillFormulaEvaluator::Context& context)
+{
+    SkillFormulaEvaluator evaluator;
+    return evaluator.Evaluate(formula, context);
+}
+
+namespace {
+    static const char* FORMAT_SPECIFIERS[] = {
+        "%.0f",  // Integer (no decimals)
+        "%.1f",  // 1 decimal place
+        "%.2f",  // 2 decimal places
+        "%d",    // Integer (alternative)
+    };
+    static const size_t FORMAT_SPECIFIER_COUNT = sizeof(FORMAT_SPECIFIERS) / sizeof(FORMAT_SPECIFIERS[0]);
+}
+
+bool SkillDescriptionParser::ReplaceNextFormatSpecifier(std::string& s, float value)
+{
+    size_t bestPos = std::string::npos;
+    size_t bestLen = 0;
+    const char* bestSpec = nullptr;
+
+    for (size_t i = 0; i < FORMAT_SPECIFIER_COUNT; ++i)
+    {
+        size_t pos = s.find(FORMAT_SPECIFIERS[i]);
+        if (pos != std::string::npos && (bestPos == std::string::npos || pos < bestPos))
+        {
+            bestPos = pos;
+            bestLen = strlen(FORMAT_SPECIFIERS[i]);
+            bestSpec = FORMAT_SPECIFIERS[i];
+        }
+    }
+
+    if (bestPos == std::string::npos)
+        return false;
+
+    char szValue[64];
+    if (strcmp(bestSpec, "%.0f") == 0 || strcmp(bestSpec, "%d") == 0)
+        std::snprintf(szValue, sizeof(szValue), "%.0f", std::floor(value));
+    else if (strcmp(bestSpec, "%.1f") == 0)
+        std::snprintf(szValue, sizeof(szValue), "%.1f", value);
+    else
+        std::snprintf(szValue, sizeof(szValue), "%.2f", value);
+
+    s.replace(bestPos, bestLen, szValue);
+    return true;
+}
+
+void SkillDescriptionParser::UnescapePercent(std::string& s)
+{
+    size_t pos = 0;
+    while ((pos = s.find("%%", pos)) != std::string::npos)
+    {
+        s.replace(pos, 2, "%");
+        ++pos;
+    }
+}
+
+std::string SkillDescriptionParser::FormatDescription(
+    std::string_view descTemplate, float minValue, float maxValue, const SkillDescriptionContext* context)
+{
+    std::string out(descTemplate);
+
+    if (context != nullptr && (descTemplate.find('{') != std::string_view::npos || descTemplate.find('[') != std::string_view::npos))
+    {
+        SkillDescriptionContext ctxCopy = *context;
+        ctxCopy.variables.try_emplace("min_val", minValue);
+        ctxCopy.variables.try_emplace("max_val", maxValue);
+        ctxCopy.variables.try_emplace("val", minValue);
+        auto parsed = Parse(descTemplate, ctxCopy);
+        if (parsed.has_value())
+        {
+            out = std::move(parsed.value());
+        }
+    }
+
+    ReplaceNextFormatSpecifier(out, minValue);
+    ReplaceNextFormatSpecifier(out, maxValue);
+    UnescapePercent(out);
+
+    return out;
 }
 
 } // namespace Client::Skills

@@ -405,7 +405,7 @@ void CInstanceBase::NEW_Attack(float fDirRot)
 	}
 	else
 	{
-		if (m_mountComponent.IsMounting())
+		if (IsMountingHorse())
 		{
 			InputComboAttack(fDirRot);
 		}
@@ -478,11 +478,13 @@ void CInstanceBase::AttackProcess()
 
 void CInstanceBase::InputNormalAttack(float fAtkDirRot)
 {
+	PlayAttackSwingSound(GetPart(CRaceData::PART_WEAPON));
 	m_GraphicThingInstance.InputNormalAttackCommand(fAtkDirRot);
 }
 
 void CInstanceBase::InputComboAttack(float fAtkDirRot)
 {
+	PlayAttackSwingSound(GetPart(CRaceData::PART_WEAPON));
 	m_GraphicThingInstance.InputComboAttackCommand(fAtkDirRot);
 	__ComboProcess();
 }
@@ -752,6 +754,8 @@ void CInstanceBase::Die()
 
 	OnUnselected();
 	OnUntargeted();
+
+	PlayDeathCrySound();
 
 	m_GraphicThingInstance.Die();
 
