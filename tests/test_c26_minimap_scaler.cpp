@@ -159,3 +159,12 @@ TEST_CASE("MiniMapAtlasScaler - to_string formats") {
     CHECK(std::string_view(to_string(ScalerError::None)) == "ScalerError::None");
     CHECK(std::string_view(to_string(ScalerError::InvalidDimensions)).find("Wymiary atlasu") != std::string_view::npos);
 }
+
+namespace doctest {
+template <>
+struct StringMaker<Client::MiniMap::ScalerError> {
+    static String convert(const Client::MiniMap::ScalerError& value) {
+        return String(std::string(Client::MiniMap::to_string(value)).c_str());
+    }
+};
+}
