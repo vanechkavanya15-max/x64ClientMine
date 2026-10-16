@@ -37,21 +37,26 @@ enum class SkillValidationError : uint8_t {
 template <typename T = void>
 using SkillResult = std::expected<T, SkillValidationError>;
 
+struct ManaPointsTag {}; using ManaPoints = Client::Core::StrongType<ManaPointsTag, uint32_t, 0>;
+struct HealthPointsTag {}; using HealthPoints = Client::Core::StrongType<HealthPointsTag, uint32_t, 0>;
+struct LevelTag {}; using Level = Client::Core::StrongType<LevelTag, uint32_t, 1>;
+struct WeaponSubtypeTag {}; using WeaponSubtype = Client::Core::StrongType<WeaponSubtypeTag, uint32_t, 0>;
+
 struct SkillCastContext {
-    uint32_t currentSP{0};
-    uint32_t currentHP{0};
-    uint32_t actorLevel{1};
+    ManaPoints currentSP{0};
+    HealthPoints currentHP{0};
+    Level actorLevel{1};
     bool isOnCooldown{false};
-    std::optional<uint32_t> equippedWeaponSubtype{std::nullopt};
+    std::optional<WeaponSubtype> equippedWeaponSubtype{std::nullopt};
     bool hasTarget{false};
     bool isSkillLearned{false};
 };
 
 struct SkillRequirements {
-    uint32_t requiredSP{0};
-    uint32_t requiredHP{0};
-    uint32_t minLevel{1};
-    std::optional<uint32_t> requiredWeaponSubtype{std::nullopt};
+    ManaPoints requiredSP{0};
+    HealthPoints requiredHP{0};
+    Level minLevel{1};
+    std::optional<WeaponSubtype> requiredWeaponSubtype{std::nullopt};
     bool requiresTarget{false};
 };
 

@@ -6,17 +6,17 @@ using namespace Client::Skills;
 
 TEST_CASE("SkillRequirementValidator - Basic Validations") {
     SkillRequirements reqs{
-        .requiredSP = 50,
-        .requiredHP = 0,
-        .minLevel = 10,
+        .requiredSP = ManaPoints(50),
+        .requiredHP = HealthPoints(0),
+        .minLevel = Level(10),
         .requiredWeaponSubtype = std::nullopt,
         .requiresTarget = false
     };
 
     SkillCastContext ctx{
-        .currentSP = 100,
-        .currentHP = 1000,
-        .actorLevel = 15,
+        .currentSP = ManaPoints(100),
+        .currentHP = HealthPoints(1000),
+        .actorLevel = Level(15),
         .isOnCooldown = false,
         .equippedWeaponSubtype = std::nullopt,
         .hasTarget = false,
@@ -43,22 +43,22 @@ TEST_CASE("SkillRequirementValidator - Basic Validations") {
     }
 
     SUBCASE("Level too low") {
-        ctx.actorLevel = 5;
+        ctx.actorLevel = Level(5);
         auto result = SkillRequirementValidator::Validate(ctx, reqs);
         CHECK_FALSE(result.has_value());
         CHECK(result.error() == SkillValidationError::LevelTooLow);
     }
 
     SUBCASE("Not enough SP") {
-        ctx.currentSP = 40;
+        ctx.currentSP = ManaPoints(40);
         auto result = SkillRequirementValidator::Validate(ctx, reqs);
         CHECK_FALSE(result.has_value());
         CHECK(result.error() == SkillValidationError::NotEnoughSP);
     }
 
     SUBCASE("Not enough HP") {
-        reqs.requiredHP = 200;
-        ctx.currentHP = 100;
+        reqs.requiredHP = HealthPoints(200);
+        ctx.currentHP = HealthPoints(100);
         auto result = SkillRequirementValidator::Validate(ctx, reqs);
         CHECK_FALSE(result.has_value());
         CHECK(result.error() == SkillValidationError::NotEnoughHP);
@@ -67,19 +67,19 @@ TEST_CASE("SkillRequirementValidator - Basic Validations") {
 
 TEST_CASE("SkillRequirementValidator - Weapon and Target Validations") {
     SkillRequirements reqs{
-        .requiredSP = 10,
-        .requiredHP = 0,
-        .minLevel = 1,
-        .requiredWeaponSubtype = 3, // e.g., Bow
+        .requiredSP = ManaPoints(10),
+        .requiredHP = HealthPoints(0),
+        .minLevel = Level(1),
+        .requiredWeaponSubtype = WeaponSubtype(3), // e.g., Bow
         .requiresTarget = true
     };
 
     SkillCastContext ctx{
-        .currentSP = 100,
-        .currentHP = 100,
-        .actorLevel = 10,
+        .currentSP = ManaPoints(100),
+        .currentHP = HealthPoints(100),
+        .actorLevel = Level(10),
         .isOnCooldown = false,
-        .equippedWeaponSubtype = 3,
+        .equippedWeaponSubtype = WeaponSubtype(3),
         .hasTarget = true,
         .isSkillLearned = true
     };
@@ -97,7 +97,7 @@ TEST_CASE("SkillRequirementValidator - Weapon and Target Validations") {
     }
 
     SUBCASE("Invalid weapon subtype") {
-        ctx.equippedWeaponSubtype = 1; // e.g., Sword
+        ctx.equippedWeaponSubtype = WeaponSubtype(1); // e.g., Sword
         auto result = SkillRequirementValidator::Validate(ctx, reqs);
         CHECK_FALSE(result.has_value());
         CHECK(result.error() == SkillValidationError::InvalidWeapon);
