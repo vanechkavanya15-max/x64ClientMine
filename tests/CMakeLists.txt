@@ -7344,3 +7344,25 @@ target_link_libraries(test_c26_text_glyph_metrics PRIVATE
 )
 add_test(NAME test_c26_text_glyph_metrics COMMAND test_c26_text_glyph_metrics)
 
+# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
+add_executable(test_c26_text_linebreak test_c26_text_linebreak.cpp)
+target_include_directories(test_c26_text_linebreak PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_text_linebreak PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c26_text_linebreak COMMAND test_c26_text_linebreak)
+
