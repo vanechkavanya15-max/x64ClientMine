@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
 #include "../src/Client/World/AreaCollisionMeshIndex.h"
@@ -127,4 +128,4 @@ TEST_SUITE("AreaCollisionMeshIndex") {
             REQUIRE(result.size() == 3);
         }
     }
-}
+}

@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "../src/Client/Actors/ActorMountComponent.h"
 #include "../src/Client/Core/StrongTypes.h"

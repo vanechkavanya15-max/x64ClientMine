@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 #include "../src/Client/Terrain/TerrainFrustumCuller.h"
 
@@ -77,4 +78,4 @@ TEST_CASE("TerrainFrustumCuller: Visibility tests") {
         REQUIRE(cullRes.has_value());
         CHECK(visibleIds.size() == 144);
     }
-}
+}

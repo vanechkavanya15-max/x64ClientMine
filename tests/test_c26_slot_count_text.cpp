@@ -1,9 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include "src/Client/UI/SlotCountTextRenderer.h"
-#include "src/Client/UI/UIRenderBatcher.h"
-#include "src/Client/UI/UITooltipRenderer.h"
+#include "Client/UI/SlotCountTextRenderer.h"
+#include "Client/UI/UIRenderBatcher.h"
+#include "Client/UI/UITooltipRenderer.h"
 
 using namespace Client::UI;
 

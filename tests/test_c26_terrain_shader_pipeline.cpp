@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #define _D3D9_H_ 
 #define __D3DX9_H__ // mock d3dx9 too
 

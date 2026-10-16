@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
 // Prevent real d3d9.h from loading on MSVC to avoid COM boilerplate

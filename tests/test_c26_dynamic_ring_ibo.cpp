@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #define TEST_MODE_DISABLE_STDAFX 1
 #include "doctest.h"
 #include "../src/EterLib/Render/DynamicRingIndexBuffer.h"

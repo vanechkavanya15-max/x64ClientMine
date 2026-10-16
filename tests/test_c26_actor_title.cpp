@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "../src/Client/Actors/ActorTitleComponent.h"
 #include "../src/EterBase/EventBus.h"

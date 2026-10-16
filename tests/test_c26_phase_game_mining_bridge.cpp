@@ -13,15 +13,7 @@
 // ============================================================================
 
 
-#pragma pack(push, 1)
-struct TPacketGCDigMotion {
-    uint16_t header;
-    uint16_t length;
-    uint32_t vid;
-    uint32_t target_vid;
-    uint8_t count;
-};
-#pragma pack(pop)
+#include "Client/Network/Protocol/Protocol_Item.h"
 
 struct CRaceMotionData {
     static constexpr uint16_t NAME_DIG = 999;

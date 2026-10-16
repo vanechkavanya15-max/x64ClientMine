@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "vendor/doctest/doctest.h"
-#include "src/Client/Skills/SkillTableLoader.h"
-#include "src/Client/Core/IVfsProvider.h"
+#include "doctest.h"
+#include "Client/Skills/SkillTableLoader.h"
+#include "Client/Core/IVfsProvider.h"
 #include <string>
 
 using namespace Client::Skills;

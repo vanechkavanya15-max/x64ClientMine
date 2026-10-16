@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "Client/Actors/ActorEmotionController.h"
 #include "Client/Events/ActorEvents.h"
 #include "EterBase/EventBus.h"

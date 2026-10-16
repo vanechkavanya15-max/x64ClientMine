@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 #include "Client/Skills/SkillMotionManager.h"
 #include "Client/Core/Result.h"

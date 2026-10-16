@@ -19,7 +19,6 @@ public:
 };
 
 inline void InitGoogleTest(int* = nullptr, char** = nullptr) {}
-inline void InitGoogleTest(int* = nullptr, char*[] = nullptr) {}
 inline void InitGoogleTest(int* = nullptr, wchar_t** = nullptr) {}
 
 namespace internal {

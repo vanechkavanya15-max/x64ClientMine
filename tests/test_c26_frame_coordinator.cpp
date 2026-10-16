@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 // In Metin2 C++ tests, Doctest is included via tests/test_main.cpp as an executable.
 #include "doctest.h"
 

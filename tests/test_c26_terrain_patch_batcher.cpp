@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #define __CSTATEMANAGER_H
 #include "doctest.h"
 

@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
 // Do not define D3D here, let the mock header do it since we updated mock_includes/d3d9.h

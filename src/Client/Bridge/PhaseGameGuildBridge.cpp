@@ -12,6 +12,7 @@ template <typename T>
 class CSingleton {
 public:
 	static T& Instance() { static T inst; return inst; }
+	static T* InstancePtr() { return &Instance(); }
 };
 
 class CPythonMessenger : public CSingleton<CPythonMessenger> {
@@ -59,35 +60,11 @@ public:
 	TGuildInfo& GetGuildInfoRef() { return mock_info; }
 };
 
-#pragma pack(push, 1)
-struct TPacketGCGuild {
-	uint8_t header;
-	uint16_t size;
-	uint8_t subheader;
-};
-
-struct TPacketGCGuildInfo {
-	uint8_t header;
-	uint16_t size;
-	uint8_t subheader;
-	uint32_t guild_id;
-	uint32_t master_pid;
-	uint32_t level;
-	uint32_t exp;
-	uint32_t member_count;
-	uint32_t max_member_count;
-	uint32_t gold;
-	uint8_t hasLand;
-	char name[12+1];
-};
-#pragma pack(pop)
-#endif
-
 bool PhaseGameGuildBridge::HandleGuild(void* pStream, const uint8_t* pData, size_t size) {
     if (size < sizeof(TPacketGCGuild)) return false;
     const TPacketGCGuild* pack = reinterpret_cast<const TPacketGCGuild*>(pData);
-    if (pack->subheader == 1) return Impl_HandleGuildSub_Login(pack);
-    if (pack->subheader == 2) return Impl_HandleGuildSub_Logout(pack);
+    if (pack->subheader == GuildSub::GC::LOGIN) return Impl_HandleGuildSub_Login(pack);
+    if (pack->subheader == GuildSub::GC::LOGOUT) return Impl_HandleGuildSub_Logout(pack);
     return false;
 }
 

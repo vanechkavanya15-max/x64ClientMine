@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "Client/Vegetation/SpeedTreeInstanceBufferManager.h"
 #include <memory>
@@ -173,4 +174,4 @@ TEST_SUITE("SpeedTreeInstanceBufferManager")
             CHECK_THROWS_AS(SpeedTreeInstanceBufferManager(std::move(buffer)), std::invalid_argument);
         }
     }
-}
+}
