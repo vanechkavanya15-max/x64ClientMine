@@ -2,14 +2,31 @@
 
 namespace Client::Skills {
 
-bool SkillTableRegistry::RegisterSkill(uint32_t vnum, const std::string& name, uint8_t type, uint32_t spCost) {
-    m_skills[vnum] = SkillInfo{vnum, name, type, 40, spCost};
-    return true;
+void SkillTableRegistry::Initialize(std::span<const SkillTableRecord> records) {
+    m_skills.clear();
+    m_skills.reserve(records.size());
+    for (const auto& record : records) {
+        m_skills[record.dwVnum] = record;
+    }
 }
 
-std::optional<SkillInfo> SkillTableRegistry::GetSkill(uint32_t vnum) const {
+std::optional<SkillTableRecord> SkillTableRegistry::GetSkill(Client::Core::SkillId vnum) const {
     auto it = m_skills.find(vnum);
-    if (it != m_skills.end()) return it->second;
+    if (it != m_skills.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
+std::optional<SkillType> SkillTableRegistry::GetSkillType(Client::Core::SkillId vnum) const {
+    auto it = m_skills.find(vnum);
+    if (it != m_skills.end()) {
+        if (it->second.bType >= static_cast<uint8_t>(SkillType::Active) && 
+            it->second.bType <= static_cast<uint8_t>(SkillType::Horse)) {
+            return static_cast<SkillType>(it->second.bType);
+        }
+        return SkillType::None;
+    }
     return std::nullopt;
 }
 
