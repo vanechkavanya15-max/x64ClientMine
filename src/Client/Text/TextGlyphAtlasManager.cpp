@@ -57,6 +57,7 @@ Client::Core::ExpectedResult<GlyphRect, GlyphAtlasError> TextGlyphAtlasManager::
 
     // Advance X for the next glyph
     currentX_ += width;
+    glyphCount_++;
 
     return Client::Core::ExpectedResult<GlyphRect, GlyphAtlasError>(rect);
 }
@@ -66,6 +67,26 @@ void TextGlyphAtlasManager::Clear() noexcept {
     currentX_ = 0;
     currentY_ = 0;
     currentShelfHeight_ = 0;
+    glyphCount_ = 0;
+}
+
+Client::Core::ExpectedResult<void, GlyphAtlasError> TextGlyphAtlasManager::ResizeAtlas(uint32_t newWidth, uint32_t newHeight) noexcept {
+    if (newWidth < width_ || newHeight < height_) {
+        return Client::Core::MakeUnexpected(GlyphAtlasError::InvalidDimensions);
+    }
+
+    std::vector<uint8_t> newBuffer(newWidth * newHeight, 0);
+
+    // Copy old texture row by row
+    for (uint32_t row = 0; row < height_; ++row) {
+        std::memcpy(&newBuffer[row * newWidth], &pixelBuffer_[row * width_], width_);
+    }
+
+    pixelBuffer_ = std::move(newBuffer);
+    width_ = newWidth;
+    height_ = newHeight;
+
+    return {};
 }
 
 std::span<const uint8_t> TextGlyphAtlasManager::GetAtlasPixelData() const noexcept {
@@ -78,6 +99,10 @@ uint32_t TextGlyphAtlasManager::GetAtlasWidth() const noexcept {
 
 uint32_t TextGlyphAtlasManager::GetAtlasHeight() const noexcept {
     return height_;
+}
+
+uint32_t TextGlyphAtlasManager::GetGlyphCount() const noexcept {
+    return glyphCount_;
 }
 
 } // namespace Client::Text

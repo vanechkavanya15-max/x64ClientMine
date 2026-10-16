@@ -129,3 +129,63 @@ TEST_CASE("TextGlyphAtlasManager - Clear") {
     // Ensure memory after the first glyph is zeroed out by Clear
     CHECK(atlasData[16] == 0); // Past the first 16 pixels
 }
+
+TEST_CASE("TextGlyphAtlasManager - GetGlyphCount") {
+    TextGlyphAtlasManager manager(32, 32);
+    std::vector<uint8_t> glyphData(16 * 16, 255);
+    
+    CHECK(manager.GetGlyphCount() == 0);
+    
+    auto res1 = manager.AddGlyph(16, 16, glyphData);
+    REQUIRE(res1.has_value());
+    CHECK(manager.GetGlyphCount() == 1);
+    
+    auto res2 = manager.AddGlyph(16, 16, glyphData);
+    REQUIRE(res2.has_value());
+    CHECK(manager.GetGlyphCount() == 2);
+    
+    // Fail to add
+    std::vector<uint8_t> tooLargeData(64 * 64, 255);
+    auto res3 = manager.AddGlyph(64, 64, tooLargeData);
+    CHECK_FALSE(res3.has_value());
+    CHECK(manager.GetGlyphCount() == 2);
+    
+    manager.Clear();
+    CHECK(manager.GetGlyphCount() == 0);
+}
+
+TEST_CASE("TextGlyphAtlasManager - ResizeAtlas") {
+    TextGlyphAtlasManager manager(32, 32);
+    std::vector<uint8_t> glyphData(16 * 16, 255);
+    
+    auto res1 = manager.AddGlyph(16, 16, glyphData);
+    REQUIRE(res1.has_value());
+    
+    SUBCASE("Valid Expand") {
+        auto resizeRes = manager.ResizeAtlas(64, 64);
+        REQUIRE(resizeRes.has_value());
+        
+        CHECK(manager.GetAtlasWidth() == 64);
+        CHECK(manager.GetAtlasHeight() == 64);
+        CHECK(manager.GetGlyphCount() == 1);
+        
+        auto atlasData = manager.GetAtlasPixelData();
+        CHECK(atlasData.size() == 64 * 64);
+        
+        // Original pixel should be at the same coordinate
+        // (0,0) mapped to new width 64
+        CHECK(atlasData[0] == 255);
+        CHECK(atlasData[15] == 255);
+        CHECK(atlasData[16] == 0);
+    }
+    
+    SUBCASE("Invalid Shrink") {
+        auto resizeRes = manager.ResizeAtlas(16, 16);
+        CHECK_FALSE(resizeRes.has_value());
+        CHECK(resizeRes.error() == GlyphAtlasError::InvalidDimensions);
+        
+        CHECK(manager.GetAtlasWidth() == 32);
+        CHECK(manager.GetAtlasHeight() == 32);
+        CHECK(manager.GetGlyphCount() == 1);
+    }
+}

@@ -43,9 +43,12 @@ public:
 
     void Clear() noexcept;
 
+    Client::Core::ExpectedResult<void, GlyphAtlasError> ResizeAtlas(uint32_t newWidth, uint32_t newHeight) noexcept;
+
     [[nodiscard]] std::span<const uint8_t> GetAtlasPixelData() const noexcept;
     [[nodiscard]] uint32_t GetAtlasWidth() const noexcept;
     [[nodiscard]] uint32_t GetAtlasHeight() const noexcept;
+    [[nodiscard]] uint32_t GetGlyphCount() const noexcept;
 
 private:
     uint32_t width_;
@@ -58,6 +61,7 @@ private:
     uint32_t currentX_;
     uint32_t currentY_;
     uint32_t currentShelfHeight_;
+    uint32_t glyphCount_{0};
 };
 
 } // namespace Client::Text
