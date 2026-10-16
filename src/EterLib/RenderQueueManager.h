@@ -2,7 +2,10 @@
 
 #include "RenderPacketTypes.h"
 #include <vector>
+#include <string>
 #include <cstddef>
+
+class IRenderBackend;
 
 class CRenderQueueManager
 {
@@ -30,6 +33,7 @@ public:
 	void SubmitEffect(const TEffectInstancePacket& packet);
 	void SubmitWater(const TWaterPacket& packet);
 
+	void Flush(IRenderBackend* pBackend);
 	void FlushSpeedTree();
 	void FlushUI();
 
@@ -45,6 +49,13 @@ public:
 	TParticleInstanceData* AllocateParticleData(size_t count);
 	void ClearParticleData();
 
+	// Golden Master Frame Dumper (T036)
+	bool ExportFrameToBinary(const char* c_pszFileName) const;
+	void RequestFrameDump(const std::string& filename = "frame_dump.bin");
+	bool HasPendingFrameDump() const;
+	const std::string& GetPendingFrameDumpPath() const;
+	void ClearPendingFrameDump();
+
 private:
 	CRenderQueueManager(const CRenderQueueManager&) = delete;
 	CRenderQueueManager& operator=(const CRenderQueueManager&) = delete;
@@ -57,4 +68,7 @@ private:
 	std::vector<TEffectInstancePacket> m_effectPackets;
 	std::vector<TWaterPacket> m_waterPackets;
 	std::vector<TParticleInstanceData> m_particleDataPool;
+
+	bool m_bPendingDump{ false };
+	std::string m_strPendingDumpPath;
 };

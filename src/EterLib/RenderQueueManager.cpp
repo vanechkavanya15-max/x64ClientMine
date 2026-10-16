@@ -1,7 +1,9 @@
 #include "StdAfx.h"
 #include "RenderQueueManager.h"
+#include "IRenderBackend.h"
 #include "StateManager.h"
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
+#include <cstdio>
 
 CRenderQueueManager::CRenderQueueManager()
 {
@@ -83,6 +85,42 @@ void CRenderQueueManager::SubmitEffect(const TEffectInstancePacket& packet)
 void CRenderQueueManager::SubmitWater(const TWaterPacket& packet)
 {
 	m_waterPackets.push_back(packet);
+}
+
+void CRenderQueueManager::Flush(IRenderBackend* pBackend)
+{
+	if (!pBackend)
+		return;
+
+	if (HasPendingFrameDump())
+	{
+		ExportFrameToBinary(GetPendingFrameDumpPath().c_str());
+		ClearPendingFrameDump();
+	}
+
+	pBackend->BeginFrame(m_frameUniforms);
+
+	if (!m_terrainPackets.empty())
+		pBackend->RenderTerrain(m_terrainPackets.data(), static_cast<unsigned int>(m_terrainPackets.size()));
+
+	if (!m_waterPackets.empty())
+		pBackend->RenderWater(m_waterPackets.data(), static_cast<unsigned int>(m_waterPackets.size()));
+
+	if (!m_speedTreePackets.empty())
+		pBackend->RenderSpeedTree(m_speedTreePackets.data(), static_cast<unsigned int>(m_speedTreePackets.size()));
+
+	if (!m_actorPackets.empty())
+		pBackend->RenderActors(m_actorPackets.data(), static_cast<unsigned int>(m_actorPackets.size()));
+
+	if (!m_effectPackets.empty())
+		pBackend->RenderEffects(m_effectPackets.data(), static_cast<unsigned int>(m_effectPackets.size()));
+
+	if (!m_uiPackets.empty())
+		pBackend->RenderUI(m_uiPackets.data(), static_cast<unsigned int>(m_uiPackets.size()));
+
+	pBackend->EndFrame();
+
+	Clear();
 }
 
 void CRenderQueueManager::FlushSpeedTree()
@@ -172,10 +210,13 @@ void CRenderQueueManager::FlushUI()
 
 	for (const auto& packet : m_uiPackets)
 	{
-		if (packet.vertices.empty())
+		const TUIVertex* pVtx = packet.pVertices ? packet.pVertices : (packet.vertices.empty() ? nullptr : packet.vertices.data());
+		size_t vtxCount = packet.dwVertexCount > 0 ? packet.dwVertexCount : packet.vertices.size();
+
+		if (!pVtx || vtxCount == 0)
 			continue;
 
-		if (packet.bScissorEnable)
+		if (packet.bScissorEnable || packet.bUseScissor)
 		{
 			STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
 			STATEMANAGER.SetScissorRect(packet.scissorRect);
@@ -185,9 +226,10 @@ void CRenderQueueManager::FlushUI()
 			STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 		}
 
-		if (packet.dwTextureId != 0)
+		uint32_t texId = packet.dwTextureId != 0 ? packet.dwTextureId : packet.dwTextureID;
+		if (texId != 0)
 		{
-			STATEMANAGER.SetTexture(0, reinterpret_cast<LPDIRECT3DBASETEXTURE9>(static_cast<uintptr_t>(packet.dwTextureId)));
+			STATEMANAGER.SetTexture(0, reinterpret_cast<LPDIRECT3DBASETEXTURE9>(static_cast<uintptr_t>(texId)));
 			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
@@ -209,11 +251,11 @@ void CRenderQueueManager::FlushUI()
 			STATEMANAGER.DrawIndexedPrimitiveUP(
 				D3DPT_TRIANGLELIST,
 				0,
-				static_cast<UINT>(packet.vertices.size()),
+				static_cast<UINT>(vtxCount),
 				static_cast<UINT>(packet.indices.size() / 3),
 				packet.indices.data(),
 				D3DFMT_INDEX16,
-				packet.vertices.data(),
+				pVtx,
 				static_cast<UINT>(sizeof(TUIVertex))
 			);
 		}
@@ -221,8 +263,8 @@ void CRenderQueueManager::FlushUI()
 		{
 			STATEMANAGER.DrawPrimitiveUP(
 				D3DPT_TRIANGLELIST,
-				static_cast<UINT>(packet.vertices.size() / 3),
-				packet.vertices.data(),
+				static_cast<UINT>(vtxCount / 3),
+				pVtx,
 				static_cast<UINT>(sizeof(TUIVertex))
 			);
 		}
@@ -288,4 +330,144 @@ TParticleInstanceData* CRenderQueueManager::AllocateParticleData(size_t count)
 void CRenderQueueManager::ClearParticleData()
 {
 	m_particleDataPool.clear();
+}
+
+bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
+{
+	if (!c_pszFileName)
+		return false;
+
+	FILE* fp = nullptr;
+	if (fopen_s(&fp, c_pszFileName, "wb") != 0 || !fp)
+		return false;
+
+	uint32_t magic = 0x5246324D; // "M2FR"
+	uint32_t version = 1;
+	uint32_t reserved[2] = { 0, 0 };
+	fwrite(&magic, sizeof(uint32_t), 1, fp);
+	fwrite(&version, sizeof(uint32_t), 1, fp);
+	fwrite(reserved, sizeof(uint32_t), 2, fp);
+
+	fwrite(&m_frameUniforms, sizeof(TRenderFrameUniforms), 1, fp);
+
+	uint32_t terrainCount = static_cast<uint32_t>(m_terrainPackets.size());
+	fwrite(&terrainCount, sizeof(uint32_t), 1, fp);
+	for (const auto& pkt : m_terrainPackets)
+	{
+		TTerrainSectorPacket sanitized = pkt;
+		sanitized.pVertexData = nullptr;
+		sanitized.pSplatWeights = nullptr;
+		sanitized.pHeightMap = nullptr;
+		sanitized.pTileMap = nullptr;
+		sanitized.pNormalMap = nullptr;
+		fwrite(&sanitized, sizeof(TTerrainSectorPacket), 1, fp);
+	}
+
+	uint32_t waterCount = static_cast<uint32_t>(m_waterPackets.size());
+	fwrite(&waterCount, sizeof(uint32_t), 1, fp);
+	for (const auto& pkt : m_waterPackets)
+	{
+		TWaterPacket sanitized = pkt;
+		sanitized.pVertexBuffer = nullptr;
+		fwrite(&sanitized, sizeof(TWaterPacket), 1, fp);
+	}
+
+	uint32_t treeCount = static_cast<uint32_t>(m_speedTreePackets.size());
+	fwrite(&treeCount, sizeof(uint32_t), 1, fp);
+	for (const auto& pkt : m_speedTreePackets)
+	{
+		fwrite(&pkt.dwTreeCRC, sizeof(uint32_t), 1, fp);
+		uint32_t flags = (pkt.bRenderBranches ? 1 : 0) |
+			((pkt.bRenderFronds ? 1 : 0) << 1) |
+			((pkt.bRenderLeaves ? 1 : 0) << 2) |
+			((pkt.bRenderBillboards ? 1 : 0) << 3);
+		fwrite(&flags, sizeof(uint32_t), 1, fp);
+		fwrite(&pkt.dwTreeTypeID, sizeof(uint32_t), 1, fp);
+		fwrite(&pkt.dwTrunkTextureID, sizeof(uint32_t), 1, fp);
+		fwrite(&pkt.dwLeafTextureID, sizeof(uint32_t), 1, fp);
+
+		uint32_t instCount = static_cast<uint32_t>(pkt.instances.size());
+		fwrite(&instCount, sizeof(uint32_t), 1, fp);
+		for (const auto& inst : pkt.instances)
+		{
+			TSpeedTreeInstanceData sanitized = inst;
+			sanitized.pTreeInstance = nullptr;
+			fwrite(&sanitized, sizeof(TSpeedTreeInstanceData), 1, fp);
+		}
+	}
+
+	uint32_t actorCount = static_cast<uint32_t>(m_actorPackets.size());
+	fwrite(&actorCount, sizeof(uint32_t), 1, fp);
+	for (const auto& pkt : m_actorPackets)
+	{
+		TActorRenderPacket sanitized = pkt;
+		sanitized.pBoneMatrices = nullptr;
+		fwrite(&sanitized, sizeof(TActorRenderPacket), 1, fp);
+	}
+
+	uint32_t effectCount = static_cast<uint32_t>(m_effectPackets.size());
+	fwrite(&effectCount, sizeof(uint32_t), 1, fp);
+	for (const auto& pkt : m_effectPackets)
+	{
+		fwrite(&pkt.dwEffectID, sizeof(uint32_t), 1, fp);
+		fwrite(&pkt.dwTextureID, sizeof(uint32_t), 1, fp);
+		fwrite(&pkt.dwBlendMode, sizeof(uint32_t), 1, fp);
+		fwrite(&pkt.dwParticleCount, sizeof(uint32_t), 1, fp);
+		if (pkt.dwParticleCount > 0 && pkt.pParticles)
+		{
+			fwrite(pkt.pParticles, sizeof(TParticleInstanceData), pkt.dwParticleCount, fp);
+		}
+	}
+
+	uint32_t uiCount = static_cast<uint32_t>(m_uiPackets.size());
+	fwrite(&uiCount, sizeof(uint32_t), 1, fp);
+	for (const auto& pkt : m_uiPackets)
+	{
+		uint32_t texId = pkt.dwTextureId != 0 ? pkt.dwTextureId : pkt.dwTextureID;
+		fwrite(&texId, sizeof(uint32_t), 1, fp);
+		uint32_t scissor = (pkt.bScissorEnable || pkt.bUseScissor) ? 1 : 0;
+		fwrite(&scissor, sizeof(uint32_t), 1, fp);
+		fwrite(&pkt.scissorRect, sizeof(RECT), 1, fp);
+		fwrite(&pkt.dwBlendMode, sizeof(uint32_t), 1, fp);
+
+		uint32_t vtxCount = pkt.dwVertexCount > 0 ? pkt.dwVertexCount : static_cast<uint32_t>(pkt.vertices.size());
+		const TUIVertex* pVtx = pkt.pVertices ? pkt.pVertices : (pkt.vertices.empty() ? nullptr : pkt.vertices.data());
+		fwrite(&vtxCount, sizeof(uint32_t), 1, fp);
+		if (vtxCount > 0 && pVtx)
+		{
+			fwrite(pVtx, sizeof(TUIVertex), vtxCount, fp);
+		}
+
+		uint32_t idxCount = static_cast<uint32_t>(pkt.indices.size());
+		fwrite(&idxCount, sizeof(uint32_t), 1, fp);
+		if (idxCount > 0)
+		{
+			fwrite(pkt.indices.data(), sizeof(uint16_t), idxCount, fp);
+		}
+	}
+
+	fclose(fp);
+	return true;
+}
+
+void CRenderQueueManager::RequestFrameDump(const std::string& filename)
+{
+	m_bPendingDump = true;
+	m_strPendingDumpPath = filename;
+}
+
+bool CRenderQueueManager::HasPendingFrameDump() const
+{
+	return m_bPendingDump;
+}
+
+const std::string& CRenderQueueManager::GetPendingFrameDumpPath() const
+{
+	return m_strPendingDumpPath;
+}
+
+void CRenderQueueManager::ClearPendingFrameDump()
+{
+	m_bPendingDump = false;
+	m_strPendingDumpPath.clear();
 }

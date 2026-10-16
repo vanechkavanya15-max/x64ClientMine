@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "PythonApplication.h"
 #include "EterLib/Camera.h"
+#include "EterLib/RenderQueueManager.h"
+#include "EterPythonLib/PythonGraphic.h"
 
 void CPythonApplication::OnCameraUpdate()
 {
@@ -22,6 +24,7 @@ void CPythonApplication::OnUIRender()
 {
 	UI::CWindowManager& rkUIMgr=UI::CWindowManager::Instance();
 	rkUIMgr.Render();
+	CRenderQueueManager::Instance().FlushUI();
 }
 
 void CPythonApplication::OnSizeChange(int width, int height)
@@ -133,6 +136,11 @@ void CPythonApplication::OnKeyDown(int iIndex)
 	if (DIK_ESCAPE == iIndex)
 	{
 		rkWndMgr.RunPressEscapeKey();
+	}
+	else if (DIK_F11 == iIndex)
+	{
+		CRenderQueueManager::Instance().RequestFrameDump("frame_dump.bin");
+		CPythonGraphic::Instance().SaveScreenShot("cpp_reference.png");
 	}
 
 	rkWndMgr.RunKeyDown(iIndex);

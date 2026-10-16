@@ -11,6 +11,8 @@
 #include "PythonCharacterManager.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/StateManagerGuards.h"
+#include "EterLib/RenderQueueManager.h"
+#include "EterLib/D3D9RenderBackend.h"
 #include "Client/Graphics/Debug/DebugRenderer.h"
 #include "TestHarness/TestHarnessServer.h"
 #include "TestHarness/DeterministicTickController.h"
@@ -276,6 +278,9 @@ void CPythonApplication::RenderGame()
 	m_pyBackground.EndEnvironment();
 
 	m_pyBackground.RenderAfterLensFlare();
+
+	// Strangler Fig: Zrenderuj pakiety zebrane w kolejce renderowania przez backend D3D9
+	CRenderQueueManager::Instance().Flush(&CD3D9RenderBackend::Instance());
 
 	// Bezpieczne renderowanie geometrii diagnostycznej i linii debugowania w potoku gry
 	{
