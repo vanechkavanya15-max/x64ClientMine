@@ -12,6 +12,7 @@
 #include "PackLib/PackManager.h"
 #include "TextTail/TextTailService.h"
 #include "EterLib/StateManager.h"
+#include "EterLib/Render/DynamicQuadBatcher.h"
 
 #include <utf8.h>
 // EPlaceDir and TextTailBiDi() template are defined in utf8.h
@@ -432,21 +433,17 @@ void CPythonTextTail::RenderTextTailBox(TTextTail * pTextTail)
 	else if (pTextTail->fDistanceFromPlayer > 2500.0f)
 		fAlpha = 1.0f - (pTextTail->fDistanceFromPlayer - 2500.0f) / 1000.0f;
 
-	// 검은색 테두리
-	CPythonGraphic::Instance().SetDiffuseColor(0.0f, 0.0f, 0.0f, 1.0f * fAlpha);
-	CPythonGraphic::Instance().RenderBox2d(pTextTail->x + pTextTail->xStart,
-										   pTextTail->y + pTextTail->yStart,
-										   pTextTail->x + pTextTail->xEnd,
-										   pTextTail->y + pTextTail->yEnd,
-										   pTextTail->z);
+	float sx = pTextTail->x + pTextTail->xStart;
+	float sy = pTextTail->y + pTextTail->yStart;
+	float ex = pTextTail->x + pTextTail->xEnd;
+	float ey = pTextTail->y + pTextTail->yEnd;
 
-	// 검은색 투명박스
-	CPythonGraphic::Instance().SetDiffuseColor(0.0f, 0.0f, 0.0f, 0.3f * fAlpha);
-	CPythonGraphic::Instance().RenderBar2d(pTextTail->x + pTextTail->xStart,
-										   pTextTail->y + pTextTail->yStart,
-										   pTextTail->x + pTextTail->xEnd,
-										   pTextTail->y + pTextTail->yEnd,
-										   pTextTail->z);
+	uint32_t dwBoxColor = D3DCOLOR_COLORVALUE(0.0f, 0.0f, 0.0f, 1.0f * fAlpha);
+	uint32_t dwBarColor = D3DCOLOR_COLORVALUE(0.0f, 0.0f, 0.0f, 0.3f * fAlpha);
+
+	auto& batcher = EterLib::Render::DynamicQuadBatcher::Instance();
+	batcher.AddBox2d(sx, sy, ex, ey, dwBoxColor, 1.0f);
+	batcher.AddBar2d(sx, sy, ex, ey, dwBarColor);
 }
 
 void CPythonTextTail::RenderTextTailName(TTextTail * pTextTail)

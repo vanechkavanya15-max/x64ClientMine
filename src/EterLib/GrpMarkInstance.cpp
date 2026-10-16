@@ -2,6 +2,7 @@
 #include "GrpMarkInstance.h"
 #include "StateManager.h"
 #include "ResourceManager.h"
+#include "Render/DynamicQuadBatcher.h"
 
 #include "EterBase/CRC32.h"
 
@@ -102,16 +103,18 @@ void CGraphicMarkInstance::OnRender()
 	vertices[3].texCoord	= TTextureCoordinate(eu, ev);	
 	vertices[3].diffuse		= m_DiffuseColor;
 
-	if (CGraphicBase::SetPDTStream(vertices, 4))
+	TUIVertex uiVertices[4];
+	for (int i = 0; i < 4; ++i)
 	{
-		CGraphicBase::SetDefaultIndexBuffer(CGraphicBase::DEFAULT_IB_FILL_RECT);
-	
-		STATEMANAGER.SetTexture(0, pTexture->GetD3DTexture());
-		STATEMANAGER.SetTexture(1, NULL);
-		STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);
-		STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 4, 0, 2);
-		//OLD: STATEMANAGER.DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, c_FillRectIndices, D3DFMT_INDEX16, vertices, sizeof(TPDTVertex));
+		uiVertices[i].position = D3DXVECTOR3(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z);
+		uiVertices[i].color = D3DXCOLOR(vertices[i].diffuse);
+		uiVertices[i].texCoord = vertices[i].texCoord;
 	}
+	EterLib::Render::DynamicQuadBatcher::Instance().AddQuadVertices(
+		uiVertices,
+		static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture())),
+		0
+	);
 }
 
 const CGraphicTexture & CGraphicMarkInstance::GetTextureReference() const

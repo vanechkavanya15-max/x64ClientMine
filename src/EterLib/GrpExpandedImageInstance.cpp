@@ -2,6 +2,7 @@
 #include "EterBase/CRC32.h"
 #include "GrpExpandedImageInstance.h"
 #include "StateManager.h"
+#include "Render/DynamicQuadBatcher.h"
 
 CDynamicPool<CGraphicExpandedImageInstance>		CGraphicExpandedImageInstance::ms_kPool;
 
@@ -103,42 +104,19 @@ void CGraphicExpandedImageInstance::OnRender()
 		vertices[3].position.y += (+fimgHalfWidth*sinf(fRadian)) + (+fimgHalfHeight*cosf(fRadian));
 	}
 
-	switch (m_iRenderingMode)
+	TUIVertex uiVertices[4];
+	for (int i = 0; i < 4; ++i)
 	{
-		case RENDERING_MODE_SCREEN:
-		case RENDERING_MODE_COLOR_DODGE:
-			STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_INVDESTCOLOR);
-			STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
-			break;
-		case RENDERING_MODE_MODULATE:
-			STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
-			STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
-			break;
+		uiVertices[i].position = D3DXVECTOR3(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z);
+		uiVertices[i].color = D3DXCOLOR(vertices[i].diffuse);
+		uiVertices[i].texCoord = vertices[i].texCoord;
 	}
-
-	// 2004.11.18.myevan.ctrl+alt+del 반복 사용시 튕기는 문제 	
-	if (CGraphicBase::SetPDTStream(vertices, 4))
-	{
-		CGraphicBase::SetDefaultIndexBuffer(CGraphicBase::DEFAULT_IB_FILL_RECT);
-
-		STATEMANAGER.SetTexture(0, pTexture->GetD3DTexture());
-		STATEMANAGER.SetTexture(1, NULL);
-		STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);
-		STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 4, 0, 2);	
-	}
-	//STATEMANAGER.DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, c_FillRectIndices, D3DFMT_INDEX16, vertices, sizeof(TPDTVertex));
-	/////////////////////////////////////////////////////////////
-
-	switch (m_iRenderingMode)
-	{
-		case RENDERING_MODE_SCREEN:
-		case RENDERING_MODE_COLOR_DODGE:
-		case RENDERING_MODE_MODULATE:
-			STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-			STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-			break;
-	}
-	STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+	uint32_t blendMode = (m_iRenderingMode == RENDERING_MODE_SCREEN || m_iRenderingMode == RENDERING_MODE_COLOR_DODGE) ? 1 : 0;
+	EterLib::Render::DynamicQuadBatcher::Instance().AddQuadVertices(
+		uiVertices,
+		static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture())),
+		blendMode
+	);
 }
 
 void CGraphicExpandedImageInstance::SetDepth(float fDepth)
