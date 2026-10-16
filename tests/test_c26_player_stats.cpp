@@ -110,3 +110,13 @@ TEST_CASE("PlayerStatsController: Combat and Consumables") {
         CHECK(ctrl.GetSP() == 200); // Still 200
     }
 }
+
+TEST_CASE("PlayerStatsController: Error to_string and formatting") {
+    CHECK(to_string(PlayerStatError::None) == "PlayerStatError::None");
+    CHECK(to_string(PlayerStatError::NotEnoughPoints) == "PlayerStatError::NotEnoughPoints - Brak punktów do rozdania");
+    CHECK(to_string(PlayerStatError::StatMaxedOut) == "PlayerStatError::StatMaxedOut - Statystyka osiągnęła maksymalny poziom");
+    CHECK(to_string(PlayerStatError::NotEnoughSP) == "PlayerStatError::NotEnoughSP - Niewystarczająca ilość punktów magii (SP)");
+    CHECK(to_string(static_cast<PlayerStatError>(99)) == "PlayerStatError::Unknown");
+    
+    CHECK(std::format("{}", PlayerStatError::None) == "PlayerStatError::None");
+}
