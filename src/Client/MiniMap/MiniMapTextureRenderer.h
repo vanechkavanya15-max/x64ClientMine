@@ -1,47 +1,45 @@
 #pragma once
 
 #include <vector>
-#include <optional>
-#include <span>
+#include <array>
+#include <string>
 #include <expected>
-#include "EterBase/Result.h"
 
 namespace Client::MiniMap {
 
+// Uchwyt tekstury, bez zaleznosci od Windows/DirectX
 using TextureHandle = void*;
 
-struct MiniMapRenderContext {
-    float screenX;
-    float screenY;
-    float mapCenterX;
-    float mapCenterY;
-    float scale;
-    float cellScale;
-    
-    // 9 obszarow, tak samo jak w klasycznym Metin2 (AROUND_AREA_NUM = 9)
-    TextureHandle textures[9];
-};
-
+// Struktura wierzcholka renderowania UI dla minimapy (brak wspolrzednej z, poniewaz to 2D UI)
 struct MiniMapVertex {
-    float x, y, z;
-    float u, v;
-    
-    constexpr bool operator==(const MiniMapVertex&) const noexcept = default;
+    float x;
+    float y;
+    float u;
+    float v;
 };
 
-struct MiniMapDrawBatch {
+// Paczka z wierzcholkami quada dla danej tekstury
+struct MiniMapRenderBatch {
     TextureHandle texture;
-    std::vector<MiniMapVertex> vertices;
+    std::array<MiniMapVertex, 6> vertices;
 };
 
+// Kontekst renderowania minimapy (z parametrami skali i offsetu)
+struct MiniMapRenderContext {
+    float scale = 1.0f;
+    float cellScale = 256.0f;
+    float screenX = 0.0f;
+    float screenY = 0.0f;
+    float mapCenterX = 0.0f;
+    float mapCenterY = 0.0f;
+    std::array<TextureHandle, 9> textures{};
+};
+
+// Klasa izolowanego modulu C++23 do obliczania geometrii (quadow) minimapy
 class MiniMapTextureRenderer {
 public:
-    MiniMapTextureRenderer() = default;
-    ~MiniMapTextureRenderer() = default;
-
-    // Zero-copy span jako input kafelkow.
-    // Metoda kalkuluje geometrię dla widocznych kafelkow mapy bez zaleznosci od bezposredniego DirectX.
-    [[nodiscard]] EterBase::Result<std::vector<MiniMapDrawBatch>> GenerateQuads(const MiniMapRenderContext& context) const;
+    // Zwraca wektor paczek renderowania (batchy) lub string z bledem w przypadku zlych parametrow wejsciowych
+    std::expected<std::vector<MiniMapRenderBatch>, std::string> GenerateQuads(const MiniMapRenderContext& ctx) const;
 };
 
 } // namespace Client::MiniMap
