@@ -20,6 +20,8 @@ class CGraphicImageInstance
 		void Render();
 
 		void SetDiffuseColor(float fr, float fg, float fb, float fa);
+		const D3DXCOLOR& GetDiffuseColor() const { return m_DiffuseColor; }
+		DWORD GetDiffuseColorDWORD() const { return static_cast<DWORD>(m_DiffuseColor); }
 		void SetPosition(float fx, float fy);
 
 		void SetImagePointer(CGraphicImage* pImage);

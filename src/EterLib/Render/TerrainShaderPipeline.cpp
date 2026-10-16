@@ -26,7 +26,7 @@ VS_OUTPUT VS_Main(VS_INPUT input) {
     VS_OUTPUT output;
     float4 worldPos = mul(input.Pos, World);
     output.Pos = mul(worldPos, ViewProj);
-    output.Tex = input.Tex;
+    output.Tex = (input.Tex.x != 0.0f || input.Tex.y != 0.0f) ? input.Tex : float2(input.Pos.x / 25600.0f, -input.Pos.y / 25600.0f);
 
     // Transform normal to world space and pass to PS for per-pixel lighting
     output.NormalWorld = mul(input.Normal, (float3x3)World);
@@ -78,6 +78,19 @@ TerrainShaderPipeline::~TerrainShaderPipeline() {
 
 bool TerrainShaderPipeline::Initialize(LPDIRECT3DDEVICE9 dev) {
     if (!dev) return false;
+
+    if (m_vertexShader && m_pixelShader) {
+        return true;
+    }
+
+    if (m_vertexShader) {
+        m_vertexShader->Release();
+        m_vertexShader = nullptr;
+    }
+    if (m_pixelShader) {
+        m_pixelShader->Release();
+        m_pixelShader = nullptr;
+    }
 
     ID3DXBuffer* vsCode = nullptr;
     ID3DXBuffer* psCode = nullptr;

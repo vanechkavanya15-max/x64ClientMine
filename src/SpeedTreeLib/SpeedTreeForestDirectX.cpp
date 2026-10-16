@@ -144,6 +144,9 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 	if (m_pMainTreeMap.empty())
 		return;
 
+	// Przekazuj partie drzew do CRenderQueueManager
+	SubmitTreePackets(ulRenderBitVector);
+
 	// Gwarancja RAII: wyczyszczenie deklaracji wierzcholkow po zakonczeniu renderowania drzew SpeedTree
 	ScopedD3DVertexDeclGuard speedTreeDeclGuard(nullptr, false);
 

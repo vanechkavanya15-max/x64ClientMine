@@ -4,6 +4,7 @@
 #include "PythonWindow.h"
 #include "PythonSlotWindow.h"
 #include "PythonInternedStrings.h"
+#include "EterLib/Render/UIQuadBatcher.h"
 
 #include "UserInterface/PythonSkill.h"
 #include "UserInterface/PythonPlayer.h"
@@ -1136,17 +1137,22 @@ void CSlotWindow::OnRender()
 	// 모든 슬롯 상자 그리기
 	//////////////////////////////////////////////////////////////////////////
 #ifdef __RENDER_SLOT_AREA__
-	CPythonGraphic::Instance().SetDiffuseColor(0.5f, 0.5f, 0.5f);
 	for (itor = m_SlotList.begin(); itor != m_SlotList.end(); ++itor)
 	{
 		TSlot & rSlot = *itor;
-		CPythonGraphic::Instance().RenderBox2d(m_rect.left + rSlot.ixPosition,
-											   m_rect.top + rSlot.iyPosition,
-											   m_rect.left + rSlot.ixPosition + rSlot.ixCellSize,
-											   m_rect.top + rSlot.iyPosition + rSlot.iyCellSize);
+		EterLib::Render::UIQuadBatcher::Instance().AddBox(
+			static_cast<float>(m_rect.left + rSlot.ixPosition),
+			static_cast<float>(m_rect.top + rSlot.iyPosition),
+			static_cast<float>(rSlot.ixCellSize),
+			static_cast<float>(rSlot.iyCellSize),
+			0xFF808080);
 	}
-	CPythonGraphic::Instance().SetDiffuseColor(1.0f, 0.0f, 0.0f, 1.0f);
-	CPythonGraphic::Instance().RenderBox2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom);
+	EterLib::Render::UIQuadBatcher::Instance().AddBox(
+		static_cast<float>(m_rect.left),
+		static_cast<float>(m_rect.top),
+		static_cast<float>(m_rect.right - m_rect.left),
+		static_cast<float>(m_rect.bottom - m_rect.top),
+		0xFFFF0000);
 #endif
 	//////////////////////////////////////////////////////////////////////////
 
@@ -1166,7 +1172,10 @@ void CSlotWindow::OnRender()
 		if (rSlot.pInstance)
 		{
 			rSlot.pInstance->SetPosition(m_rect.left + rSlot.ixPosition, m_rect.top + rSlot.iyPosition);
-			rSlot.pInstance->Render();
+			EterLib::Render::UIQuadBatcher::Instance().AddImageInstance(
+				rSlot.pInstance,
+				static_cast<float>(m_rect.left + rSlot.ixPosition),
+				static_cast<float>(m_rect.top + rSlot.iyPosition));
 		}
 
 		if (!rSlot.isItem)
@@ -1186,11 +1195,12 @@ void CSlotWindow::OnRender()
 
 		if (IS_SET(rSlot.dwState, SLOT_STATE_DISABLE))
 		{
-			CPythonGraphic::Instance().SetDiffuseColor(1.0f, 0.0f, 0.0f, 0.3f);
-			CPythonGraphic::Instance().RenderBar2d(m_rect.left + rSlot.ixPosition,
-				m_rect.top + rSlot.iyPosition,
-				m_rect.left + rSlot.ixPosition + rSlot.ixCellSize,
-				m_rect.top + rSlot.iyPosition + rSlot.iyCellSize);
+			EterLib::Render::UIQuadBatcher::Instance().AddBar(
+				static_cast<float>(m_rect.left + rSlot.ixPosition),
+				static_cast<float>(m_rect.top + rSlot.iyPosition),
+				static_cast<float>(rSlot.ixCellSize),
+				static_cast<float>(rSlot.iyCellSize),
+				0x4DFF0000);
 		}
 
 		if (rSlot.fCoolTime != 0.0f)
@@ -1243,6 +1253,9 @@ void CSlotWindow::OnRender()
 	}
 
 	RenderLockedSlot();
+
+	// Flush UI batcher quads (base slot images, item icons, selection bars, locked bars)
+	EterLib::Render::UIQuadBatcher::Instance().Flush();
 }
 
 void CSlotWindow::RenderSlotBaseImage()
@@ -1258,7 +1271,10 @@ void CSlotWindow::RenderSlotBaseImage()
 			continue;
 
 		m_pBaseImageInstance->SetPosition(m_rect.left + rSlot.ixPosition, m_rect.top + rSlot.iyPosition);
-		m_pBaseImageInstance->Render();
+		EterLib::Render::UIQuadBatcher::Instance().AddImageInstance(
+			m_pBaseImageInstance,
+			static_cast<float>(m_rect.left + rSlot.ixPosition),
+			static_cast<float>(m_rect.top + rSlot.iyPosition));
 	}
 }
 
@@ -1271,11 +1287,12 @@ void CSlotWindow::OnRenderPickingSlot()
 	if (!GetSelectedSlotPointer(&pSlot))
 		return;
 
-	CPythonGraphic::Instance().SetDiffuseColor(1.0f, 1.0f, 1.0f, 0.5f);
-	CPythonGraphic::Instance().RenderBar2d(m_rect.left + pSlot->ixPosition,
-											m_rect.top + pSlot->iyPosition,
-											m_rect.left + pSlot->ixPosition + pSlot->ixCellSize,
-											m_rect.top + pSlot->iyPosition + pSlot->iyCellSize);
+	EterLib::Render::UIQuadBatcher::Instance().AddBar(
+		static_cast<float>(m_rect.left + pSlot->ixPosition),
+		static_cast<float>(m_rect.top + pSlot->iyPosition),
+		static_cast<float>(pSlot->ixCellSize),
+		static_cast<float>(pSlot->iyCellSize),
+		0x80FFFFFF);
 }
 
 void CSlotWindow::OnRenderSelectedSlot()
@@ -1287,17 +1304,17 @@ void CSlotWindow::OnRenderSelectedSlot()
 		if (!GetSlotPointer(*itor, &pSlot))
 			continue;
 
-		CPythonGraphic::Instance().SetDiffuseColor(1.0f, 1.0f, 1.0f, 0.5f);
-		CPythonGraphic::Instance().RenderBar2d(m_rect.left + pSlot->ixPosition,
-												m_rect.top + pSlot->iyPosition,
-												m_rect.left + pSlot->ixPosition + pSlot->ixCellSize,
-												m_rect.top + pSlot->iyPosition + pSlot->iyCellSize);
+		EterLib::Render::UIQuadBatcher::Instance().AddBar(
+			static_cast<float>(m_rect.left + pSlot->ixPosition),
+			static_cast<float>(m_rect.top + pSlot->iyPosition),
+			static_cast<float>(pSlot->ixCellSize),
+			static_cast<float>(pSlot->iyCellSize),
+			0x80FFFFFF);
 	}
 }
 
 void CSlotWindow::RenderLockedSlot()
 {
-	CPythonGraphic::Instance().SetDiffuseColor(0.0f, 0.0f, 0.0f, 0.5f);
 	for (TSlotListIterator itor = m_SlotList.begin(); itor != m_SlotList.end(); ++itor)
 	{
 		TSlot & rSlot = *itor;
@@ -1307,10 +1324,12 @@ void CSlotWindow::RenderLockedSlot()
 
 		if (rSlot.dwState & SLOT_STATE_LOCK)
 		{
-			CPythonGraphic::Instance().RenderBar2d(m_rect.left + rSlot.ixPosition,
-												   m_rect.top  + rSlot.iyPosition,
-												   m_rect.left + rSlot.ixPosition + rSlot.ixCellSize,
-												   m_rect.top  + rSlot.iyPosition + rSlot.iyCellSize);
+			EterLib::Render::UIQuadBatcher::Instance().AddBar(
+				static_cast<float>(m_rect.left + rSlot.ixPosition),
+				static_cast<float>(m_rect.top  + rSlot.iyPosition),
+				static_cast<float>(rSlot.ixCellSize),
+				static_cast<float>(rSlot.iyCellSize),
+				0x80000000);
 		}
 	}
 }

@@ -2,6 +2,8 @@
 #include "EterLib/StateManager.h"
 
 #include "ActorInstance.h"
+#include "ActorRenderExtractor.h"
+#include "EterLib/RenderQueueManager.h"
 
 bool CActorInstance::ms_isDirLine=false;
 
@@ -35,6 +37,13 @@ void CActorInstance::OnRender()
 	// Early out if race data is not loaded yet (async loading)
 	if (!m_pkCurRaceData)
 		return;
+
+	// Nowy potok klatki: ekstrakcja stanu aktora i emisja do CRenderQueueManager
+	TActorRenderPacket packet;
+	if (ActorRenderExtractor::Extract(*this, packet))
+	{
+		CRenderQueueManager::Instance().SubmitActor(packet);
+	}
 
 	// Gwarancja RAII: wyczyszczenie deklaracji wierzcholkow po zakonczeniu renderowania aktora
 	ScopedD3DVertexDeclGuard actorDeclGuard(nullptr, false);

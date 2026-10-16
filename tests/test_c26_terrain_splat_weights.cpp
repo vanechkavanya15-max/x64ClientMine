@@ -101,3 +101,46 @@ TEST_CASE("TerrainSplatWeightMap Overflow Prevention and Integer Distribution") 
     CHECK(w0 + w1 + w2 + w3 == 255);
 }
 
+TEST_CASE("TerrainSplatWeightMap GenerateFromTileMap with 1-pixel border") {
+    TerrainSplatWeightMap weightMap;
+
+    // Simulate 258x258 tilemap for 256x256 output, filled with layer 0 and top-left with layer 1
+    constexpr uint32_t rawW = 4;
+    constexpr uint32_t rawH = 4;
+    constexpr uint32_t outW = 2;
+    constexpr uint32_t outH = 2;
+    uint8_t tileMap[rawW * rawH] = {
+        0, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 2, 0,
+        0, 0, 0, 0
+    };
+
+    bool ok = weightMap.GenerateFromTileMap(tileMap, rawW, rawH, outW, outH);
+    REQUIRE(ok);
+    CHECK(weightMap.GetWidth() == outW);
+    CHECK(weightMap.GetHeight() == outH);
+
+    for (uint32_t y = 0; y < outH; ++y) {
+        for (uint32_t x = 0; x < outW; ++x) {
+            uint32_t packed = weightMap.GetPackedWeight(x, y);
+            uint8_t w0 = packed & 0xFF;
+            uint8_t w1 = (packed >> 8) & 0xFF;
+            uint8_t w2 = (packed >> 16) & 0xFF;
+            uint8_t w3 = (packed >> 24) & 0xFF;
+            CHECK(w0 + w1 + w2 + w3 == 255);
+        }
+    }
+
+    // Top-left output pixel (1,1 in raw) has tile 1 blended with surrounding tile 0
+    uint32_t packedTL = weightMap.GetPackedWeight(0, 0);
+    uint8_t tl_w0 = packedTL & 0xFF;
+    uint8_t tl_w1 = (packedTL >> 8) & 0xFF;
+    CHECK(tl_w1 > 0);
+    CHECK(tl_w0 > 0);
+    uint8_t tl_w2 = (packedTL >> 16) & 0xFF;
+    uint8_t tl_w3 = (packedTL >> 24) & 0xFF;
+    CHECK(tl_w0 + tl_w1 + tl_w2 + tl_w3 == 255);
+}
+
+

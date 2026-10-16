@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "EterBase/CRC32.h"
 #include "PythonGridSlotWindow.h"
+#include "EterLib/Render/UIQuadBatcher.h"
 
 using namespace UI;
 
@@ -27,24 +28,19 @@ void CGridSlotWindow::OnRenderPickingSlot()
 			if (GetSlotPointer(pSlot->dwCenterSlotNumber, &pCenterSlot))
 			if (pCenterSlot->isItem)
 			{
-				if (m_isUsableItem)
-					CPythonGraphic::Instance().SetDiffuseColor(1.0f, 1.0f, 0.0f, 0.5f);
-				else
-					CPythonGraphic::Instance().SetDiffuseColor(1.0f, 0.0f, 0.0f, 0.5f);
-
-				CPythonGraphic::Instance().RenderBar2d(	m_rect.left + pCenterSlot->ixPosition,
-														m_rect.top + pCenterSlot->iyPosition,
-														m_rect.left + pCenterSlot->ixPosition + pCenterSlot->byxPlacedItemSize * ITEM_WIDTH,
-														m_rect.top + pCenterSlot->iyPosition + pCenterSlot->byyPlacedItemSize * ITEM_HEIGHT);
+				const uint32_t color = m_isUsableItem ? 0x80FFFF00 : 0x80FF0000;
+				EterLib::Render::UIQuadBatcher::Instance().AddBar(
+					static_cast<float>(m_rect.left + pCenterSlot->ixPosition),
+					static_cast<float>(m_rect.top + pCenterSlot->iyPosition),
+					static_cast<float>(pCenterSlot->byxPlacedItemSize * ITEM_WIDTH),
+					static_cast<float>(pCenterSlot->byyPlacedItemSize * ITEM_HEIGHT),
+					color);
 				return;
 			}
 		}
 
 		// 아니면 그냥 옮기기
-		if (CheckMoving(dwSlotNumber, dwItemIndex, SlotList))
-			CPythonGraphic::Instance().SetDiffuseColor(1.0f, 1.0f, 1.0f, 0.5f);
-		else
-			CPythonGraphic::Instance().SetDiffuseColor(1.0f, 0.0f, 0.0f, 0.5f);
+		const uint32_t color = CheckMoving(dwSlotNumber, dwItemIndex, SlotList) ? 0x80FFFFFF : 0x80FF0000;
 
 		RECT Rect;
 		Rect.left = m_rect.right;
@@ -61,7 +57,12 @@ void CGridSlotWindow::OnRenderPickingSlot()
 			Rect.bottom = std::max(Rect.bottom, m_rect.top + pSlot->iyPosition + pSlot->byxPlacedItemSize*ITEM_HEIGHT);
 		}
 
-		CPythonGraphic::Instance().RenderBar2d(Rect.left, Rect.top, Rect.right, Rect.bottom);
+		EterLib::Render::UIQuadBatcher::Instance().AddBar(
+			static_cast<float>(Rect.left),
+			static_cast<float>(Rect.top),
+			static_cast<float>(Rect.right - Rect.left),
+			static_cast<float>(Rect.bottom - Rect.top),
+			color);
 	}
 }
 

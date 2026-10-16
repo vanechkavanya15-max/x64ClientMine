@@ -102,23 +102,21 @@ void CTerrainPatch::BuildTerrainVertexBuffer(HardwareTransformPatch_SSourceVerte
 
 void CTerrainPatch::__BuildSoftwareTerrainVertexBuffer(HardwareTransformPatch_SSourceVertex* akSrcVertex)
 {
-	//DWORD dwVBSize=sizeof(HardwareTransformPatch_SSourceVertex)*TERRAIN_VERTEX_COUNT;
-
 	m_kST.Create();
 
 	SoftwareTransformPatch_SSourceVertex* akDstVertex=SoftwareTransformPatch_GetTerrainVertexDataPtr();
 	for (UINT uIndex=0; uIndex!=TERRAIN_VERTEX_COUNT; ++uIndex)
 	{
-		*((HardwareTransformPatch_SSourceVertex*)(akDstVertex+uIndex))=*(akSrcVertex+uIndex);
-		akDstVertex[uIndex].dwDiffuse=0xFFFFFFFF;
+		akDstVertex[uIndex].kPosition = akSrcVertex[uIndex].kPosition;
+		akDstVertex[uIndex].kNormal = akSrcVertex[uIndex].kNormal;
+		akDstVertex[uIndex].dwDiffuse = 0xFFFFFFFF;
 	}
 }
 
 void CTerrainPatch::__BuildHardwareTerrainVertexBuffer(HardwareTransformPatch_SSourceVertex* akSrcVertex)
 {
-	
 	CGraphicVertexBuffer& rkVB=m_kHT.m_kVB;
-	if (!rkVB.Create(TERRAIN_VERTEX_COUNT, D3DFVF_XYZ | D3DFVF_NORMAL, D3DUSAGE_DYNAMIC, D3DPOOL_DEFAULT)) 
+	if (!rkVB.Create(TERRAIN_VERTEX_COUNT, D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1, D3DUSAGE_DYNAMIC, D3DPOOL_DEFAULT)) 
 		return;
 	
 	HardwareTransformPatch_SSourceVertex* akDstVertex;

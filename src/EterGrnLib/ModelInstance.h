@@ -5,6 +5,7 @@
 #include <cstdint>
 #include "Eterlib/GrpImage.h"
 #include "Eterlib/GrpCollisionObject.h"
+#include "EterLib/RenderPacketTypes.h"
 
 #include "Model.h"
 #include "Motion.h"
@@ -137,12 +138,24 @@ class CGrannyModelInstance : public CGraphicCollisionObject
 		// Bone & Attaching
 		const float *	GetBoneMatrixPointer(int iBone) const;
 		const float *	GetCompositeBoneMatrixPointer(int iBone) const;
+		const D3DXMATRIX * GetCompositeBoneMatrices() const;
+		int				GetBoneCount() const;
+		bool			FillBonePalette(EterLib::Render::TActorBonePalette& outPalette) const;
 		const D3DXMATRIX * GetActiveMeshMatrices() const;
 		bool			GetMeshMatrixPointer(int iMesh, const D3DXMATRIX ** c_ppMatrix) const;
 		bool			GetBoneIndexByName(const char * c_szBoneName, int * pBoneIndex) const;
 		void			SetParentModelInstance(const CGrannyModelInstance* c_pParentModelInstance, const char * c_szBoneName);
 		void			SetParentModelInstance(const CGrannyModelInstance* c_pParentModelInstance, int iBone);
 		void			SetCustomParentBoneMatrix(const float * pMatrix) { m_pCustomParentBoneMatrix = pMatrix; }
+
+		// Bezpieczne wspoldzielenie szkieletu dla czesci ciala (zbroje, kostiumy)
+		void			LinkSkeleton(CGrannyModelInstance** ppkSkeletonInst);
+		void			UnlinkSkeleton();
+		bool			IsLinkedSkeleton() const;
+		CGrannyModelInstance* GetSkeletonInstance() const;
+		const CGrannyModelInstance* GetRootSkeletonInstance() const;
+		void			CheckSkeletonLink();
+		void			ReserveMeshMatrices(int capacity);
 
 		void			DeformPNTVerticesDirect3D();
 
@@ -208,7 +221,10 @@ class CGrannyModelInstance : public CGraphicCollisionObject
 		granny_animation *				m_pgrnAni;
 
 		// Meshes' Transform Data (CPU Double-Buffering)
-		enum { TRANSFORM_BUFFER_COUNT = 2 };
+		enum {
+			TRANSFORM_BUFFER_COUNT = 2,
+			DEFAULT_MESH_MATRIX_CAPACITY = 32
+		};
 		D3DXMATRIX *					m_meshMatrices[TRANSFORM_BUFFER_COUNT];
 		int								m_meshMatrixCapacity;
 		int								m_meshMatrixCount;

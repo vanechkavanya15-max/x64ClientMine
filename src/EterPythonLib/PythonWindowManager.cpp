@@ -4,6 +4,8 @@
 #include "PythonGridSlotWindow.h"
 #include "PythonWindowManager.h"
 #include "PythonInternedStrings.h"
+#include "EterLib/Render/DynamicQuadBatcher.h"
+#include "EterLib/RenderQueueManager.h"
 
 //#define __WINDOW_LEAK_CHECK__
 
@@ -759,6 +761,7 @@ namespace UI
 	void CWindowManager::Render()
 	{
 		m_pRootWindow->Render();
+		EterLib::Render::DynamicQuadBatcher::Instance().FlushToQueue(CRenderQueueManager::Instance());
 	}
 
 	CWindow * CWindowManager::__PickWindow(long x, long y)

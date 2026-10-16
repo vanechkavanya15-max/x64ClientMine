@@ -57,6 +57,101 @@ void CGrannyModelInstance::SetParentModelInstance(const CGrannyModelInstance* c_
 	m_iParentBoneIndex = iBone;
 }
 
+const D3DXMATRIX * CGrannyModelInstance::GetCompositeBoneMatrices() const
+{
+	granny_world_pose* pWorldPose = __GetWorldPosePtr();
+	if (!pWorldPose)
+		return NULL;
+
+	return reinterpret_cast<const D3DXMATRIX*>(GrannyGetWorldPoseComposite4x4Array(pWorldPose));
+}
+
+int CGrannyModelInstance::GetBoneCount() const
+{
+	if (!m_pgrnModelInstance)
+		return 0;
+
+	granny_skeleton* pSkeleton = GrannyGetSourceSkeleton(m_pgrnModelInstance);
+	return pSkeleton ? pSkeleton->BoneCount : 0;
+}
+
+bool CGrannyModelInstance::FillBonePalette(EterLib::Render::TActorBonePalette& outPalette) const
+{
+	outPalette.pBoneMatrices = GetCompositeBoneMatrices();
+	outPalette.boneCount = static_cast<uint32_t>(GetBoneCount());
+	return outPalette.pBoneMatrices != NULL && outPalette.boneCount > 0;
+}
+
+void CGrannyModelInstance::LinkSkeleton(CGrannyModelInstance** ppkSkeletonInst)
+{
+	if (ppkSkeletonInst == m_ppkSkeletonInst)
+		return;
+
+	m_ppkSkeletonInst = ppkSkeletonInst;
+	if (ppkSkeletonInst && *ppkSkeletonInst && *ppkSkeletonInst != this)
+	{
+		if (m_pgrnWorldPoseReal)
+		{
+			GrannyFreeWorldPose(m_pgrnWorldPoseReal);
+			m_pgrnWorldPoseReal = NULL;
+		}
+		__DestroyMeshBindingVector();
+		__CreateMeshBindingVector(*ppkSkeletonInst);
+	}
+}
+
+void CGrannyModelInstance::UnlinkSkeleton()
+{
+	m_ppkSkeletonInst = NULL;
+	if (!m_pgrnWorldPoseReal && m_pgrnModelInstance)
+	{
+		granny_skeleton* pgrnSkeleton = GrannyGetSourceSkeleton(m_pgrnModelInstance);
+		if (pgrnSkeleton)
+			m_pgrnWorldPoseReal = GrannyNewWorldPose(pgrnSkeleton->BoneCount);
+		__DestroyMeshBindingVector();
+		__CreateMeshBindingVector(NULL);
+	}
+}
+
+bool CGrannyModelInstance::IsLinkedSkeleton() const
+{
+	return m_ppkSkeletonInst != NULL && *m_ppkSkeletonInst != NULL && *m_ppkSkeletonInst != this;
+}
+
+CGrannyModelInstance* CGrannyModelInstance::GetSkeletonInstance() const
+{
+	if (m_ppkSkeletonInst && *m_ppkSkeletonInst != this)
+		return *m_ppkSkeletonInst;
+	return NULL;
+}
+
+const CGrannyModelInstance* CGrannyModelInstance::GetRootSkeletonInstance() const
+{
+	const CGrannyModelInstance* pCurrent = this;
+	int depth = 0;
+	while (pCurrent && pCurrent->m_ppkSkeletonInst && *pCurrent->m_ppkSkeletonInst && 
+	       *pCurrent->m_ppkSkeletonInst != pCurrent && depth < 8)
+	{
+		pCurrent = *pCurrent->m_ppkSkeletonInst;
+		++depth;
+	}
+	return pCurrent;
+}
+
+void CGrannyModelInstance::CheckSkeletonLink()
+{
+	if (!m_ppkSkeletonInst || !*m_ppkSkeletonInst || *m_ppkSkeletonInst == this)
+		return;
+
+	if (m_pgrnWorldPoseReal)
+	{
+		GrannyFreeWorldPose(m_pgrnWorldPoseReal);
+		m_pgrnWorldPoseReal = NULL;
+		__DestroyMeshBindingVector();
+		__CreateMeshBindingVector(*m_ppkSkeletonInst);
+	}
+}
+
 const D3DXMATRIX * CGrannyModelInstance::GetActiveMeshMatrices() const
 {
 	uint8_t frontIndex = m_activeTransformBuffer.load(std::memory_order_acquire);
@@ -137,6 +232,7 @@ CGrannyModelInstance::CGrannyModelInstance()
 		m_meshMatrices[b] = NULL;
 	m_meshMatrixCapacity = 0;
 	m_meshMatrixCount = 0;
+	ReserveMeshMatrices(DEFAULT_MESH_MATRIX_CAPACITY);
 	__Initialize();
 }
 

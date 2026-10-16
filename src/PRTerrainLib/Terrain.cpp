@@ -43,7 +43,6 @@ void CTerrainImpl::Initialize()
 
 	m_byNumWater = 0;
 	memset(&m_awShadowMap, 0xFFFF, sizeof(m_awShadowMap));
-	memset(&m_lpAlphaTexture, NULL, sizeof(m_lpAlphaTexture));
 	
 	m_lViewRadius = 0;
 
@@ -59,14 +58,6 @@ void CTerrainImpl::Initialize()
 
 void CTerrainImpl::Clear()
 {
-	for (DWORD i = 0; i < GetTextureSet()->GetTextureCount(); ++i)
-	{
-		if (m_lpAlphaTexture[i])
-		{
-			SAFE_RELEASE(m_lpAlphaTexture[i]);
-		}
-	}
-	
 	Initialize();
 }
 

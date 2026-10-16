@@ -4,6 +4,8 @@
 #include "ParticleSystemData.h"
 #include "ParticleSystemInstance.h"
 #include "ParticleInstance.h"
+#include "EffectParticleBatcher.h"
+#include <algorithm>
 
 CDynamicPool<CParticleSystemInstance>	CParticleSystemInstance::ms_kPool;
 
@@ -329,112 +331,91 @@ bool CParticleSystemInstance::OnUpdate(float fElapsedTime)
 	return true;
 }
 
-namespace NParticleRenderer
-{
-	struct TwoSideRenderer
-	{
-		const D3DXMATRIX * pmat;
-		TwoSideRenderer(const D3DXMATRIX * pmat=NULL)
-			: pmat(pmat)
-		{
-		}
-		
-		inline void operator () (CParticleInstance * pInstance)
-		{
-			pInstance->Transform(pmat,D3DXToRadian(-30.0f));
-			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, pInstance->GetParticleMeshPointer(), sizeof(TPTVertex));
-
-			pInstance->Transform(pmat,D3DXToRadian(+30.0f));
-			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, pInstance->GetParticleMeshPointer(), sizeof(TPTVertex));
-		}
-	};
-	
-	struct ThreeSideRenderer
-	{
-		const D3DXMATRIX * pmat;
-		ThreeSideRenderer(const D3DXMATRIX * pmat=NULL)
-			: pmat(pmat)
-		{
-		}
-		
-		inline void operator () (CParticleInstance * pInstance)
-		{
-			pInstance->Transform(pmat);
-			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, pInstance->GetParticleMeshPointer(), sizeof(TPTVertex));
-			pInstance->Transform(pmat,D3DXToRadian(-60.0f));
-			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, pInstance->GetParticleMeshPointer(), sizeof(TPTVertex));
-			pInstance->Transform(pmat,D3DXToRadian(+60.0f));
-			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, pInstance->GetParticleMeshPointer(), sizeof(TPTVertex));
-		}
-	};
-	
-	struct NormalRenderer
-	{
-		inline void operator () (CParticleInstance * pInstance)
-		{
-			pInstance->Transform();
-			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, pInstance->GetParticleMeshPointer(), sizeof(TPTVertex));
-		}
-	};
-	struct AttachRenderer
-	{
-		const D3DXMATRIX* pmat;
-		AttachRenderer(const D3DXMATRIX * pmat)
-			: pmat(pmat)
-		{
-		}
-		
-		inline void operator () (CParticleInstance * pInstance)
-		{
-			pInstance->Transform(pmat);
-			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, pInstance->GetParticleMeshPointer(), sizeof(TPTVertex));
-		}
-	};
-}
-
 void CParticleSystemInstance::OnRender()
 {
-	CScreen::Identity();
-	STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, m_pParticleProperty->m_bySrcBlendType);
-	STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, m_pParticleProperty->m_byDestBlendType);
-	STATEMANAGER.SetTextureStageState(0,D3DTSS_COLOROP,m_pParticleProperty->m_byColorOperationType);
-	if (m_pParticleProperty->m_byBillboardType < BILLBOARD_TYPE_2FACE)
+	if (!m_pParticleProperty)
+		return;
+
+	// Okresl tryb mieszania: Additive vs AlphaBlend
+	uint32_t dwBlendMode = EFFECT_BLEND_ALPHABLEND;
+	if (m_pParticleProperty->m_byDestBlendType == D3DBLEND_ONE ||
+		m_pParticleProperty->m_bySrcBlendType == D3DBLEND_ONE)
 	{
-		if (!m_pParticleProperty->m_bAttachFlag)
-		{
-			auto obj = NParticleRenderer::NormalRenderer();
-			ForEachParticleRendering(obj);
-		}
-		else
-		{
-			auto obj = NParticleRenderer::AttachRenderer(mc_pmatLocal);
-			ForEachParticleRendering(obj);
-		}
+		dwBlendMode = EFFECT_BLEND_ADDITIVE;
 	}
-	else if (m_pParticleProperty->m_byBillboardType == BILLBOARD_TYPE_2FACE)
+
+	const uint32_t dwEffectID = 0;
+	CEffectParticleBatcher& batcher = CEffectParticleBatcher::Instance();
+
+	const DWORD frameCount = static_cast<DWORD>(m_kVct_pkImgInst.size());
+	for (DWORD dwFrameIndex = 0; dwFrameIndex < frameCount; ++dwFrameIndex)
 	{
-		if (!m_pParticleProperty->m_bAttachFlag)
+		uint32_t dwTextureID = 0;
+		if (m_kVct_pkImgInst[dwFrameIndex])
 		{
-			auto obj = NParticleRenderer::TwoSideRenderer();
-			ForEachParticleRendering(obj);
+			LPDIRECT3DTEXTURE9 pD3DTexture = m_kVct_pkImgInst[dwFrameIndex]->GetTextureReference().GetD3DTexture();
+			if (pD3DTexture)
+			{
+				dwTextureID = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pD3DTexture) & 0xFFFFFFFF);
+			}
 		}
-		else
+
+		auto& rParticleList = m_ParticleInstanceListVector[dwFrameIndex];
+		for (auto* pInstance : rParticleList)
 		{
-			auto obj = NParticleRenderer::TwoSideRenderer(mc_pmatLocal);
-			ForEachParticleRendering(obj);
-		}
-	}
-	else if (m_pParticleProperty->m_byBillboardType == BILLBOARD_TYPE_3FACE)
-	{
-		if (!m_pParticleProperty->m_bAttachFlag)
-		{
-			auto obj = NParticleRenderer::ThreeSideRenderer();
-			ForEachParticleRendering(obj);
-		}
-		else
-		{
-			auto obj = NParticleRenderer::ThreeSideRenderer(mc_pmatLocal);
-			ForEachParticleRendering(obj);
+			if (!pInstance || !InFrustum(pInstance))
+				continue;
+
+			D3DXVECTOR3 v3Pos;
+			if (m_pParticleProperty->m_bAttachFlag && mc_pmatLocal)
+			{
+				D3DXVec3TransformCoord(&v3Pos, &pInstance->m_v3Position, mc_pmatLocal);
+			}
+			else
+			{
+				v3Pos = pInstance->m_v3Position;
+			}
+
+			float fScaleX = pInstance->m_v2HalfSize.x * pInstance->m_v2Scale.x;
+			float fScaleY = pInstance->m_v2HalfSize.y * pInstance->m_v2Scale.y;
+			float fScaleAvg = (fScaleX + fScaleY) * 0.5f;
+
+			float fLifeRatio = (pInstance->m_fLifeTime > 0.0f)
+				? std::clamp((pInstance->m_fLifeTime - pInstance->m_fLastLifeTime) / pInstance->m_fLifeTime, 0.0f, 1.0f)
+				: 0.0f;
+
+			TParticleInstanceData data{};
+			data.vWorldPos = D3DXVECTOR4(v3Pos.x, v3Pos.y, v3Pos.z, fScaleAvg);
+			data.vColor = pInstance->m_Color;
+			data.vTexCoordRect = D3DXVECTOR4(0.0f, 0.0f, 1.0f, 1.0f);
+			data.fRotation = pInstance->m_fRotation;
+			data.fLifeRatio = fLifeRatio;
+			data.fPad[0] = fScaleX;
+			data.fPad[1] = fScaleY;
+
+			if (m_pParticleProperty->m_byBillboardType == BILLBOARD_TYPE_2FACE)
+			{
+				data.fRotation = pInstance->m_fRotation - 30.0f;
+				batcher.AddParticle(dwEffectID, dwTextureID, dwBlendMode, data);
+
+				data.fRotation = pInstance->m_fRotation + 30.0f;
+				batcher.AddParticle(dwEffectID, dwTextureID, dwBlendMode, data);
+			}
+			else if (m_pParticleProperty->m_byBillboardType == BILLBOARD_TYPE_3FACE)
+			{
+				data.fRotation = pInstance->m_fRotation;
+				batcher.AddParticle(dwEffectID, dwTextureID, dwBlendMode, data);
+
+				data.fRotation = pInstance->m_fRotation - 60.0f;
+				batcher.AddParticle(dwEffectID, dwTextureID, dwBlendMode, data);
+
+				data.fRotation = pInstance->m_fRotation + 60.0f;
+				batcher.AddParticle(dwEffectID, dwTextureID, dwBlendMode, data);
+			}
+			else
+			{
+				batcher.AddParticle(dwEffectID, dwTextureID, dwBlendMode, data);
+			}
 		}
 	}
 }

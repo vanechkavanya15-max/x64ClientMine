@@ -19,6 +19,7 @@ struct HardwareTransformPatch_SSourceVertex
 {
 	D3DXVECTOR3 kPosition;
 	D3DXVECTOR3 kNormal;
+	D3DXVECTOR2 kTexCoord;
 };
 
 struct SoftwareTransformPatch_SSourceVertex

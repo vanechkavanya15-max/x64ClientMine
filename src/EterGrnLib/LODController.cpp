@@ -304,6 +304,7 @@ void CGrannyLODController::Clear()
 				{
 					pChildInst->SetParentModelInstance(NULL, 0);
 					pChildInst->SetCustomParentBoneMatrix(NULL);
+					pChildInst->UnlinkSkeleton();
 				}
 			}
 		}
@@ -499,6 +500,7 @@ void CGrannyLODController::DetachModelInstance(CGrannyLODController * pSrcLODCon
 		{
 			pInst->SetParentModelInstance(NULL, 0);
 			pInst->SetCustomParentBoneMatrix(NULL);
+			pInst->UnlinkSkeleton();
 		}
 	}
 
@@ -507,6 +509,7 @@ void CGrannyLODController::DetachModelInstance(CGrannyLODController * pSrcLODCon
 	{
 		pSrcInstance->SetParentModelInstance(NULL, 0);
 		pSrcInstance->SetCustomParentBoneMatrix(NULL);
+		pSrcInstance->UnlinkSkeleton();
 	}
 
 	// Unlink Child Data

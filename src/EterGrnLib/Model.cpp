@@ -82,6 +82,11 @@ LPDIRECT3DVERTEXBUFFER9 CGrannyModel::GetPNTD3DVertexBuffer() const
 	return m_pntVtxBuf.GetD3DVertexBuffer();
 }
 
+LPDIRECT3DVERTEXBUFFER9 CGrannyModel::GetDeformD3DVertexBuffer() const
+{
+	return m_deformVtxBuf.GetD3DVertexBuffer();
+}
+
 bool CGrannyModel::LockVertices(void** indicies, void** vertices) const
 {
 	if (!m_idxBuf.Lock(indicies))
@@ -287,6 +292,9 @@ bool CGrannyModel::CreateFromGrannyModelPointer(granny_model* pgrnModel)
 	if (!__LoadVertices())
 		return false;
 
+	if (!LoadDeformVertices())
+		return false;
+
 	if (!LoadIndices())
 		return false;
 
@@ -304,6 +312,10 @@ bool CGrannyModel::CreateDeviceObjects()
 {
 	if (m_rigidVtxCount > 0)
 		if (!m_pntVtxBuf.CreateDeviceObjects())
+			return false;
+
+	if (m_deformVtxCount > 0)
+		if (!m_deformVtxBuf.CreateDeviceObjects())
 			return false;
 
 	if (m_idxCount > 0)
@@ -324,6 +336,7 @@ bool CGrannyModel::CreateDeviceObjects()
 void CGrannyModel::DestroyDeviceObjects()
 {
 	m_pntVtxBuf.DestroyDeviceObjects();
+	m_deformVtxBuf.DestroyDeviceObjects();
 	m_idxBuf.DestroyDeviceObjects();
 }
 
@@ -346,6 +359,7 @@ void CGrannyModel::Destroy()
 		delete [] m_meshs;
 
 	m_pntVtxBuf.Destroy();
+	m_deformVtxBuf.Destroy();
 	m_idxBuf.Destroy();
 
 	Initialize();
@@ -375,6 +389,32 @@ bool CGrannyModel::__LoadVertices()
 	}
 	
 	m_pntVtxBuf.Unlock();
+	return true;
+}
+
+bool CGrannyModel::LoadDeformVertices()
+{
+	if (m_deformVtxCount <= 0)
+		return true;
+
+	assert(m_meshs != NULL);
+
+	// Statyczny bufor GPU dla wierzcholkow ze stalymi wagami (bone_weights[4]) i indeksami kosci (bone_indices[4])
+	// Alokowany w DEFAULT pool z flaga WRITEONLY (brak kosztownego CPU lock/unlock per frame)
+	if (!m_deformVtxBuf.Create(m_deformVtxCount, 0, D3DUSAGE_WRITEONLY, D3DPOOL_DEFAULT, sizeof(granny_pwnt3432_vertex)))
+		return false;
+
+	void* vertices = NULL;
+	if (!m_deformVtxBuf.Lock(&vertices))
+		return false;
+
+	for (int m = 0; m < m_pgrnModel->MeshBindingCount; ++m)
+	{
+		CGrannyMesh& rMesh = m_meshs[m];
+		rMesh.LoadDeformVertices(vertices);
+	}
+
+	m_deformVtxBuf.Unlock();
 	return true;
 }
 

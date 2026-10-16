@@ -39,6 +39,7 @@ class CGrannyModel : public CReferenceObject
 		const CGrannyMesh* GetMeshPointer(int iMesh) const;
 
 		LPDIRECT3DVERTEXBUFFER9 GetPNTD3DVertexBuffer() const;
+		LPDIRECT3DVERTEXBUFFER9 GetDeformD3DVertexBuffer() const;
 		LPDIRECT3DINDEXBUFFER9 GetD3DIndexBuffer() const;
 
 		const CGrannyModel::TMeshNode*  GetMeshNodeList(CGrannyMesh::EType eMeshType, CGrannyMaterial::EType eMtrlType) const;
@@ -51,6 +52,7 @@ class CGrannyModel : public CReferenceObject
 	protected:
 		bool LoadMeshs();		
 		bool LoadPNTVertices();
+		bool LoadDeformVertices();
 		bool LoadIndices();
 		void Initialize();
 
@@ -65,6 +67,7 @@ class CGrannyModel : public CReferenceObject
 		CGrannyMesh *			m_meshs;
 
 		CGraphicVertexBuffer	m_pntVtxBuf;	// for rigid mesh
+		CGraphicVertexBuffer	m_deformVtxBuf;	// for deformable mesh (static GPU buffer)
 		CGraphicIndexBuffer		m_idxBuf;
 
 		TMeshNode *				m_meshNodes;

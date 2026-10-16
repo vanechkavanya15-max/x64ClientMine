@@ -383,6 +383,10 @@ private:
 	int					m_iLastDrawCallCount;
 	uint32_t			m_dwPrimitiveCount;
 	uint32_t			m_dwLastPrimitiveCount;
+
+	// Scissor Rect Cache
+	RECT				m_CurrentScissorRect{ 0, 0, 0, 0 };
+	bool				m_bScissorRectValid{ false };
 };
 
 #define STATEMANAGER (CStateManager::Instance())

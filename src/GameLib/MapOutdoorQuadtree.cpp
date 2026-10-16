@@ -16,6 +16,9 @@ void CMapOutdoor::BuildQuadTree()
 		return;
 	}
 
+	m_visibleQuadtreeNodeList.clear();
+	m_visibleQuadtreeNodeList.reserve(1024);
+
 	m_pRootNode = AllocQuadTreeNode(0, 0, m_wPatchCount - 1, m_wPatchCount - 1);
 	if (!m_pRootNode)
 		TraceError("CMapOutdoor::BuildQuadTree() RootNode is NULL");
@@ -113,5 +116,68 @@ void CMapOutdoor::FreeQuadTree()
 
 	delete m_pRootNode;
 	m_pRootNode = NULL;
+	m_visibleQuadtreeNodeList.clear();
+}
+
+CTerrainPatchProxy* CMapOutdoor::GetTerrainPatchProxy(uint32_t patchNum)
+{
+	if (!m_pTerrainPatchProxyList)
+		return nullptr;
+
+	const uint32_t maxPatches = static_cast<uint32_t>(m_wPatchCount * m_wPatchCount);
+	if (patchNum >= maxPatches)
+		return nullptr;
+
+	return &m_pTerrainPatchProxyList[patchNum];
+}
+
+std::span<const uint32_t> CMapOutdoor::GetVisibleQuadtreeNodes() const noexcept
+{
+	return std::span<const uint32_t>(m_visibleQuadtreeNodeList.data(), m_visibleQuadtreeNodeList.size());
+}
+
+void CMapOutdoor::CollectVisibleQuadtreeNodes()
+{
+	m_visibleQuadtreeNodeList.clear();
+	if (!m_pRootNode)
+		return;
+
+	__CollectVisibleQuadtreeNodes_Recurse(m_pRootNode, true);
+}
+
+void CMapOutdoor::__CollectVisibleQuadtreeNodes_Recurse(CTerrainQuadtreeNode *Node, bool bCullCheckNeed)
+{
+	if (!Node)
+		return;
+
+	if (bCullCheckNeed)
+	{
+		switch (__RenderTerrain_RecurseRenderQuadTree_CheckBoundingCircle(Node->center, Node->radius))
+		{
+			case VIEW_ALL:
+				bCullCheckNeed = false;
+				break;
+			case VIEW_PART:
+				break;
+			case VIEW_NONE:
+				return;
+		}
+	}
+
+	if (Node->Size == 1)
+	{
+		m_visibleQuadtreeNodeList.push_back(static_cast<uint32_t>(Node->PatchNum));
+	}
+	else
+	{
+		if (Node->NW_Node)
+			__CollectVisibleQuadtreeNodes_Recurse(reinterpret_cast<CTerrainQuadtreeNode*>(Node->NW_Node), bCullCheckNeed);
+		if (Node->NE_Node)
+			__CollectVisibleQuadtreeNodes_Recurse(reinterpret_cast<CTerrainQuadtreeNode*>(Node->NE_Node), bCullCheckNeed);
+		if (Node->SW_Node)
+			__CollectVisibleQuadtreeNodes_Recurse(reinterpret_cast<CTerrainQuadtreeNode*>(Node->SW_Node), bCullCheckNeed);
+		if (Node->SE_Node)
+			__CollectVisibleQuadtreeNodes_Recurse(reinterpret_cast<CTerrainQuadtreeNode*>(Node->SE_Node), bCullCheckNeed);
+	}
 }
 

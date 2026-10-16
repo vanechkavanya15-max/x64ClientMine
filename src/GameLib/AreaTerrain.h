@@ -4,6 +4,7 @@ class CMapOutdoor;
 
 #include "PRTerrainLib/Terrain.h"
 #include "TerrainPatch.h"
+#include "EterLib/Render/TerrainSplatWeightMap.h"
 
 class CTerrain : public CTerrainImpl, public CGraphicBase
 {
@@ -80,6 +81,12 @@ class CTerrain : public CTerrainImpl, public CGraphicBase
 		void						LoadMiniMapTexture(const char * c_pszFileName);
 		inline LPDIRECT3DTEXTURE9	GetMiniMapTexture() { return m_lpMiniMapTexture; }
 
+		// Splat Texture (4-channel weight map)
+		LPDIRECT3DTEXTURE9			GetSplatTexture() const { return m_lpSplatTexture; }
+		const EterLib::Render::TerrainSplatWeightMap & GetSplatWeightMap() const { return m_SplatWeightMap; }
+		bool						CreateSplatTexture();
+		void						ReleaseSplatTexture();
+
 		// Marked Area
 		BOOL						IsMarked() { return m_bMarked; }
 		void						AllocateMarkedSplats(BYTE * pbyAlphaMap);
@@ -131,6 +138,10 @@ class CTerrain : public CTerrainImpl, public CGraphicBase
 
 		// Owner COutdoorMap poineter
 		CMapOutdoor *			m_pOwnerOutdoorMap;
+
+		// Splat weight map & texture
+		EterLib::Render::TerrainSplatWeightMap m_SplatWeightMap;
+		LPDIRECT3DTEXTURE9		m_lpSplatTexture;
 
 		// Picking
 		D3DXVECTOR3				m_v3Pick;

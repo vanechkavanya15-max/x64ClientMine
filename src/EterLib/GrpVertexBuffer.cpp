@@ -5,6 +5,8 @@
 
 int	CGraphicVertexBuffer::GetVertexStride() const
 {
+	if (m_iExplicitStride > 0)
+		return m_iExplicitStride;
 	int retSize = D3DXGetFVFVertexSize(m_dwFVF);
 	return retSize;
 }
@@ -194,7 +196,7 @@ void CGraphicVertexBuffer::DestroyDeviceObjects()
 	safe_release(m_lpd3dVB);
 }
 
-bool CGraphicVertexBuffer::Create(int vtxCount, DWORD fvf, DWORD usage, D3DPOOL d3dPool)
+bool CGraphicVertexBuffer::Create(int vtxCount, DWORD fvf, DWORD usage, D3DPOOL d3dPool, int explicitStride)
 {
 	assert(ms_lpd3dDevice != NULL);
 	assert(vtxCount > 0);
@@ -202,7 +204,9 @@ bool CGraphicVertexBuffer::Create(int vtxCount, DWORD fvf, DWORD usage, D3DPOOL 
 	Destroy();
 
 	m_vtxCount = vtxCount;
-	m_dwBufferSize = D3DXGetFVFVertexSize(fvf) * m_vtxCount;
+	m_iExplicitStride = explicitStride;
+	int stride = (explicitStride > 0) ? explicitStride : D3DXGetFVFVertexSize(fvf);
+	m_dwBufferSize = stride * m_vtxCount;
 	m_d3dPool = d3dPool;
 	m_dwUsage = usage;
 	m_dwFVF = fvf;
@@ -227,6 +231,7 @@ void CGraphicVertexBuffer::Initialize()
 	m_lpd3dVB = NULL;
 	m_vtxCount = 0;
 	m_dwBufferSize = 0;
+	m_iExplicitStride = 0;
 }
 
 CGraphicVertexBuffer::CGraphicVertexBuffer()

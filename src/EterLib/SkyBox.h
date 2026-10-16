@@ -13,6 +13,7 @@
 #include "GrpScreen.h"
 #include "GrpImageInstance.h"
 #include "ColorTransitionHelper.h"
+#include "RenderPacketTypes.h"
 
 #include <map>
 #include <string>
@@ -173,6 +174,13 @@ public:
 	void SetSkyColor(const TVectorGradientColor & c_rColorVector, const TVectorGradientColor & c_rNextColorVector, long lTransitionTime);
 	void StartTransition();
 
+	// Atmosphere uniforms centralization
+	void SetAtmosphereUniforms(const TRenderFrameUniforms& uniforms);
+	const TRenderFrameUniforms& GetAtmosphereUniforms() const;
+	void SetSunLight(const D3DXVECTOR4& v4Direction, const D3DXVECTOR4& v4Color);
+	void SetAmbientColor(const D3DXVECTOR4& v4Ambient);
+	void SetFogParams(float fFogNear, float fFogFar, float fLinearScale, bool bEnable);
+
 protected:
 	void SetSkyObjectQuadVertical(TSkyObjectQuadVector * pSkyObjectQuadVector, const D3DXVECTOR2 * c_pv2QuadPoints);
 	void SetSkyObjectQuadHorizon(TSkyObjectQuadVector * pSkyObjectQuadVector, const D3DXVECTOR3 * c_pv3QuadPoints);
@@ -183,6 +191,7 @@ protected:
 	unsigned char m_ucVirticalGradientLevelUpper;
 	unsigned char m_ucVirticalGradientLevelLower;
 	TSkyObjectFace m_Faces[6];
+	TRenderFrameUniforms m_atmosphereUniforms{};
 };
 
 #endif // !defined(AFX_SKYBOX_H__AB5049E1_8F1C_4C35_9406_45EC7EF4AD1B__INCLUDED_)

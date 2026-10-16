@@ -56,22 +56,9 @@ void CGrannyModelInstance::UpdateTransform(D3DXMATRIX * pMatrix, float fSecondsE
 
 void CGrannyModelInstance::DeformPNTVerticesDirect3D()
 {
-	if (IsEmpty() || !m_pModel || !m_pModel->CanDeformPNTVertices())
-		return;
-
-	// WORK - Operacje Direct3D Lock/Unlock wywolywane wylacznie na watku glownym renderujacym
-	CGraphicVertexBuffer& rkDeformableVertexBuffer = __GetDeformableVertexBufferRef();
-	TPNTVertex* pntVertices;
-	if (rkDeformableVertexBuffer.LockRange(m_pModel->GetDeformVertexCount(), (void **)&pntVertices))
-	{
-		DeformPNTVertices(pntVertices);
-		rkDeformableVertexBuffer.Unlock();
-	}
-	else
-	{
-		TraceError("GRANNY DEFORM DYNAMIC BUFFER LOCK ERROR");
-	}
-	// END_OF_WORK
+	// Kosztowna deformacja CPU GrannyDeformVertices wylaczona.
+	// Wierzcholki modeli postaci pozostaja statyczne w buforze GPU ze stalymi wagami (bone_weights[4]) i indeksami kosci (bone_indices[4]).
+	return;
 }
 
 void CGrannyModelInstance::Deform(const D3DXMATRIX * c_pWorldMatrix)
@@ -82,15 +69,13 @@ void CGrannyModelInstance::Deform(const D3DXMATRIX * c_pWorldMatrix)
 	// 1. Obliczenia transformacji macierzy na CPU w pamieci RAM (bezpieczne dla watkow roboczych)
 	DeformNoSkin(c_pWorldMatrix);
 
-	// 2. Direct3D Lock/Unlock na watku renderujacym
-	DeformPNTVerticesDirect3D();
+	// 2. Kosztowna deformacja CPU GrannyDeformVertices zostala wylaczona
 }
 
 void CGrannyModelInstance::UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float /*fLocalTime*/, bool bSkipBoneSampling)
 {	
-	// DELETED
-	//m_pgrnWorldPose = m_pgrnWorldPoseReal;
-	///////////////////////////////////////////
+	CheckSkeletonLink();
+
 	if (!bSkipBoneSampling)
 		UpdateWorldPose();
 	UpdateWorldMatrices(c_pWorldMatrix);
@@ -101,6 +86,8 @@ void CGrannyModelInstance::UpdateWorldPose()
 	// WEP	= m_iParentBoneIndex != 0 -> UpdateWorldPose(O)
 	// LOD	= UpdateWorldPose(O)
 	// Hair	= UpdateWorldPose(X)
+
+	CheckSkeletonLink();
 
 	if (m_ppkSkeletonInst)
 		if (*m_ppkSkeletonInst!=this)
@@ -196,20 +183,9 @@ void CGrannyModelInstance::UpdateWorldMatrices(const D3DXMATRIX* c_pWorldMatrix)
 #endif
 }
 
-void CGrannyModelInstance::DeformPNTVertices(void * pvDest)
+void CGrannyModelInstance::DeformPNTVertices(void * /*pvDest*/)
 {
-	assert(m_pModel != NULL);
-	assert(m_pModel->CanDeformPNTVertices());
-
-	granny_world_pose* pWorldPose = __GetWorldPosePtr();
-	if (!pWorldPose)
-		return;
-
-	granny_matrix_4x4 * pComposite = GrannyGetWorldPoseComposite4x4Array(pWorldPose);
-	if (!pComposite)
-		return;
-
-	// WORK
-	m_pModel->DeformPNTVertices(pvDest, (D3DXMATRIX *) pComposite, m_vct_pgrnMeshBinding);
-	// END_OF_WORK
+	// Kosztowna deformacja CPU GrannyDeformVertices wylaczona.
+	// Wierzcholki modeli postaci pozostaja statyczne w buforze GPU ze stalymi wagami i indeksami kosci.
+	return;
 }

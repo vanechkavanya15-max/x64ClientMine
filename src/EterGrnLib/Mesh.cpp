@@ -43,6 +43,17 @@ void CGrannyMesh::NEW_LoadVertices(void * dstBaseVertices)
 	GrannyCopyMeshVertices(pgrnMesh, m_pgrnMeshType, dstVertices);
 }
 
+void CGrannyMesh::LoadDeformVertices(void * dstBaseVertices)
+{
+	const granny_mesh * pgrnMesh = GetGrannyMeshPointer();
+	if (!pgrnMesh || GrannyMeshIsRigid(pgrnMesh))
+		return;
+
+	granny_data_type_definition * pgrnVertexType = GrannyGetMeshVertexType(pgrnMesh);
+	granny_pwnt3432_vertex * dstVertices = ((granny_pwnt3432_vertex *)dstBaseVertices) + m_vtxBasePos;
+	GrannyCopyMeshVertices(pgrnMesh, pgrnVertexType, dstVertices);
+}
+
 void CGrannyMesh::DeformPNTVertices(void* dstBaseVertices, D3DXMATRIX* boneMatrices, granny_mesh_binding* pgrnMeshBinding) const
 {
 	assert(dstBaseVertices != NULL);

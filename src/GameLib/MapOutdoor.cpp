@@ -180,6 +180,8 @@ bool CMapOutdoor::Initialize()
 	__XMasTree_Initialize();
 	SpecialEffect_Destroy();
 
+	m_OutdoorSky.Initialize(&m_SkyBox);
+
 	m_bEnableTerrainOnlyForHeight = FALSE;
 	m_bEnablePortal = FALSE;
 
@@ -239,15 +241,7 @@ void CMapOutdoor::OnBeginEnvironment()
 	if (!mc_pEnvironmentData)
 		return;
 
-	CSpeedTreeForestDirectX& rkForest=CSpeedTreeForestDirectX::Instance();
-
-	const D3DLIGHT9& c_rkLight = mc_pEnvironmentData->DirLights[ENV_DIRLIGHT_CHARACTER];
-	rkForest.SetLight(
-		(const float *)&c_rkLight.Direction,
-		(const float *)&c_rkLight.Ambient, 
-		(const float *)&c_rkLight.Diffuse);
-	
-	rkForest.SetWindStrength(mc_pEnvironmentData->fWindStrength);
+	m_OutdoorSky.UpdateAtmosphere(mc_pEnvironmentData);
 }
 
 void CMapOutdoor::OnSetEnvironmentDataPtr()
@@ -259,7 +253,7 @@ void CMapOutdoor::OnSetEnvironmentDataPtr()
 
 void CMapOutdoor::OnResetEnvironmentDataPtr()
 {
-	m_SkyBox.Unload();
+	m_OutdoorSky.Reset();
 	SetEnvironmentScreenFilter();
 	SetEnvironmentSkyBox();
 	SetEnvironmentLensFlare();
@@ -280,33 +274,7 @@ void CMapOutdoor::SetEnvironmentSkyBox()
 	if (!mc_pEnvironmentData)
 		return;
 
-	m_SkyBox.SetSkyBoxScale(mc_pEnvironmentData->v3SkyBoxScale);
-	m_SkyBox.SetGradientLevel(mc_pEnvironmentData->bySkyBoxGradientLevelUpper, mc_pEnvironmentData->bySkyBoxGradientLevelLower);
-	m_SkyBox.SetRenderMode( (mc_pEnvironmentData->bSkyBoxTextureRenderMode == TRUE) ? CSkyObject::SKY_RENDER_MODE_TEXTURE : CSkyObject::SKY_RENDER_MODE_DIFFUSE);
-
-	for( int i = 0; i < 6; ++i )
-	{
-		if (!mc_pEnvironmentData->strSkyBoxFaceFileName[i].empty())
-			m_SkyBox.SetFaceTexture( mc_pEnvironmentData->strSkyBoxFaceFileName[i].c_str(), i );
-	}
-
-	if (!mc_pEnvironmentData->strCloudTextureFileName.empty())
-		m_SkyBox.SetCloudTexture(mc_pEnvironmentData->strCloudTextureFileName.c_str());
-
-	m_SkyBox.SetCloudScale(mc_pEnvironmentData->v2CloudScale);
-	m_SkyBox.SetCloudHeight(mc_pEnvironmentData->fCloudHeight);
-	m_SkyBox.SetCloudTextureScale(mc_pEnvironmentData->v2CloudTextureScale);
-	m_SkyBox.SetCloudScrollSpeed(mc_pEnvironmentData->v2CloudSpeed);
-	m_SkyBox.Refresh();
-
-	// Temporary
-	m_SkyBox.SetCloudColor(mc_pEnvironmentData->CloudGradientColor, mc_pEnvironmentData->CloudGradientColor, 1);
-
-	if (!mc_pEnvironmentData->SkyBoxGradientColorVector.empty())
-		m_SkyBox.SetSkyColor(mc_pEnvironmentData->SkyBoxGradientColorVector, mc_pEnvironmentData->SkyBoxGradientColorVector, 1);
-	// Temporary
-
-	m_SkyBox.StartTransition();
+	m_OutdoorSky.ConfigureSkyBox(mc_pEnvironmentData);
 }
 
 void CMapOutdoor::SetEnvironmentLensFlare()

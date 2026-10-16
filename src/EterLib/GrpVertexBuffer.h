@@ -9,7 +9,7 @@ class CGraphicVertexBuffer : public CGraphicBase
 		virtual ~CGraphicVertexBuffer();
 
 		void	Destroy();
-		virtual bool	Create(int vtxCount, DWORD fvf, DWORD usage, D3DPOOL d3dPool);
+		virtual bool	Create(int vtxCount, DWORD fvf, DWORD usage, D3DPOOL d3dPool, int explicitStride = 0);
 
 		bool	CreateDeviceObjects();
 		void	DestroyDeviceObjects();
@@ -47,5 +47,6 @@ class CGraphicVertexBuffer : public CGraphicBase
 		DWORD					m_dwUsage;
 		D3DPOOL					m_d3dPool;
 		int						m_vtxCount;
+		int						m_iExplicitStride;
 		DWORD					m_dwLockFlag;
 };

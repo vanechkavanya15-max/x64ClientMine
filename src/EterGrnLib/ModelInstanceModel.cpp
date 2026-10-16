@@ -41,11 +41,19 @@ void CGrannyModelInstance::SetLinkedModelPointer(CGrannyModel* pkModel, CGraphic
 	__CreateModelInstance();
 	
 	// WORK
-	if (ppkSkeletonInst && *ppkSkeletonInst)
+	if (ppkSkeletonInst)
 	{
 		m_ppkSkeletonInst = ppkSkeletonInst;
-		__CreateWorldPose(*ppkSkeletonInst);			
-		__CreateMeshBindingVector(*ppkSkeletonInst);
+		if (*ppkSkeletonInst && *ppkSkeletonInst != this)
+		{
+			__CreateWorldPose(*ppkSkeletonInst);			
+			__CreateMeshBindingVector(*ppkSkeletonInst);
+		}
+		else
+		{
+			__CreateWorldPose(NULL);			
+			__CreateMeshBindingVector(NULL);
+		}
 	}
 	else
 	{
@@ -69,7 +77,7 @@ granny_world_pose* CGrannyModelInstance::__GetWorldPosePtr() const
 		return m_pgrnWorldPoseReal;
 	
 	if (m_ppkSkeletonInst && *m_ppkSkeletonInst && *m_ppkSkeletonInst != this)
-		return (*m_ppkSkeletonInst)->m_pgrnWorldPoseReal;
+		return (*m_ppkSkeletonInst)->__GetWorldPosePtr();
 
 	return NULL;	
 }
@@ -92,8 +100,12 @@ bool CGrannyModelInstance::__CreateMeshBindingVector(CGrannyModelInstance* pkDst
 		return false;
 
 	granny_skeleton* pgrnDstSkeleton = pgrnModel->Skeleton;
-	if (pkDstModelInst && pkDstModelInst->m_pModel && pkDstModelInst->m_pModel->GetGrannyModelPointer())
-		pgrnDstSkeleton = pkDstModelInst->m_pModel->GetGrannyModelPointer()->Skeleton;
+	if (pkDstModelInst)
+	{
+		const CGrannyModelInstance* pkRoot = pkDstModelInst->GetRootSkeletonInstance();
+		if (pkRoot && pkRoot->m_pModel && pkRoot->m_pModel->GetGrannyModelPointer())
+			pgrnDstSkeleton = pkRoot->m_pModel->GetGrannyModelPointer()->Skeleton;
+	}
 	
 	m_vct_pgrnMeshBinding.reserve(pgrnModel->MeshBindingCount);
 
@@ -165,6 +177,30 @@ void CGrannyModelInstance::__DestroyModelInstance()
 	m_pgrnModelInstance = NULL;
 }
 
+void CGrannyModelInstance::ReserveMeshMatrices(int capacity)
+{
+	if (capacity <= m_meshMatrixCapacity)
+		return;
+
+	for (int b = 0; b < TRANSFORM_BUFFER_COUNT; ++b)
+	{
+		D3DXMATRIX* pOld = m_meshMatrices[b];
+		D3DXMATRIX* pNew = (D3DXMATRIX*)_aligned_malloc(sizeof(D3DXMATRIX) * capacity, 16);
+		if (pOld)
+		{
+			if (m_meshMatrixCount > 0)
+				memcpy(pNew, pOld, sizeof(D3DXMATRIX) * m_meshMatrixCount);
+			_aligned_free(pOld);
+		}
+		else
+		{
+			memset(pNew, 0, sizeof(D3DXMATRIX) * capacity);
+		}
+		m_meshMatrices[b] = pNew;
+	}
+	m_meshMatrixCapacity = capacity;
+}
+
 void CGrannyModelInstance::__CreateMeshMatrices()
 {
 	assert(m_pModel != NULL);
@@ -178,28 +214,20 @@ void CGrannyModelInstance::__CreateMeshMatrices()
 	int meshCount = m_pModel->GetMeshCount();
 	m_meshMatrixCount = meshCount;
 
-	for (int b = 0; b < TRANSFORM_BUFFER_COUNT; ++b)
+	if (meshCount > m_meshMatrixCapacity)
 	{
-		// Zabezpieczenie buforowania: ponowne uzycie zaalokowanego bufora,
-		// jesli miesci zadana liczbe meshy - unikamy niepotrzebnych alokacji na stercie w klatce renderujacej
-		if (m_meshMatrices[b] && m_meshMatrixCapacity >= meshCount)
-		{
-			memset(m_meshMatrices[b], 0, sizeof(D3DXMATRIX) * meshCount);
-			continue;
-		}
-
-		if (m_meshMatrices[b])
-		{
-			delete [] m_meshMatrices[b];
-			m_meshMatrices[b] = NULL;
-		}
-
-		m_meshMatrices[b] = new D3DXMATRIX[meshCount];
-		memset(m_meshMatrices[b], 0, sizeof(D3DXMATRIX) * meshCount);
+		int newCapacity = std::max(meshCount, m_meshMatrixCapacity * 2);
+		ReserveMeshMatrices(newCapacity);
 	}
-
-	if (m_meshMatrixCapacity < meshCount)
-		m_meshMatrixCapacity = meshCount;
+	else
+	{
+		// Pelne ponowne uzycie zaalokowanego bufora: brak alokacji na stercie w klatce renderujacej
+		for (int b = 0; b < TRANSFORM_BUFFER_COUNT; ++b)
+		{
+			if (m_meshMatrices[b])
+				memset(m_meshMatrices[b], 0, sizeof(D3DXMATRIX) * meshCount);
+		}
+	}
 
 	m_activeTransformBuffer.store(0, std::memory_order_relaxed);
 }
@@ -212,7 +240,7 @@ void CGrannyModelInstance::__DestroyMeshMatrices(bool bForce)
 		{
 			if (m_meshMatrices[b])
 			{
-				delete [] m_meshMatrices[b];
+				_aligned_free(m_meshMatrices[b]);
 				m_meshMatrices[b] = NULL;
 			}
 		}
@@ -255,6 +283,9 @@ bool CGrannyModelInstance::__IsDeformableVertexBuffer()
 
 IDirect3DVertexBuffer9* CGrannyModelInstance::__GetDeformableD3DVertexBufferPtr()
 {
+	if (m_pModel && m_pModel->GetDeformD3DVertexBuffer())
+		return m_pModel->GetDeformD3DVertexBuffer();
+
 	return __GetDeformableVertexBufferRef().GetD3DVertexBuffer();
 }
 
@@ -269,6 +300,11 @@ CGraphicVertexBuffer& CGrannyModelInstance::__GetDeformableVertexBufferRef()
 void CGrannyModelInstance::__CreateDynamicVertexBuffer()
 {
 	assert(m_pModel != NULL);
+
+	// Jesli model posiada statyczny bufor wierzcholkow na GPU, nie alokujemy zbednego bufora dynamicznego
+	if (m_pModel->GetDeformD3DVertexBuffer())
+		return;
+
 	assert(m_kLocalDeformableVertexBuffer.IsEmpty());
 
 	int vtxCount = m_pModel->GetDeformVertexCount();

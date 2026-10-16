@@ -90,6 +90,10 @@ class CSpeedTreeForest
 		float						GetWindStrength(void) const					{ return m_fWindStrength; }
 		void						SetWindStrength(float fStrength);
 		void						SetupWindMatrices(float fTimeInSecs);
+		const float*				GetCachedWindMatrix(int nIndex) const;
+
+		// packet extraction and submission
+		void						SubmitTreePackets(unsigned long ulRenderBitVector = Forest_RenderAll);
 		
 		// overridden by specific graphics API
 		virtual	void				UploadWindMatrix(unsigned int uiLocation, const float* pMatrix) const = 0;
@@ -108,4 +112,8 @@ class CSpeedTreeForest
 		float						m_fWindStrength;		// 0.0 = no wind, 1.0 = full strength
 
 		float						m_fAccumTime;
+		float						m_afCachedWindMatrices[4][16];
+		float						m_fLastWindComputedTime;
+		float						m_fLastWindStrength;
+		bool						m_bWindMatricesCached;
 };

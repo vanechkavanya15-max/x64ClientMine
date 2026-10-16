@@ -45,6 +45,7 @@ void CMapOutdoor::RenderTerrain()
 	// Push
 	m_PatchVector.clear();
 	m_PatchVector.reserve(256);  // Pre-allocate to avoid reallocations
+	m_visibleQuadtreeNodeList.clear();
 
 	__RenderTerrain_RecurseRenderQuadTree(m_pRootNode);
 	
@@ -80,6 +81,7 @@ void CMapOutdoor::__RenderTerrain_RecurseRenderQuadTree(CTerrainQuadtreeNode *No
 	
 	if (Node->Size == 1)
 	{
+		m_visibleQuadtreeNodeList.push_back(static_cast<uint32_t>(Node->PatchNum));
 		D3DXVECTOR3 v3Center = Node->center;
 		float fDistance = fMAX(fabs(v3Center.x + m_fXforDistanceCaculation), fabs(-v3Center.y + m_fYforDistanceCaculation));
 		__RenderTerrain_AppendPatch(v3Center, fDistance, Node->PatchNum);
@@ -230,13 +232,13 @@ void CMapOutdoor::RenderScreenFiltering()
 void CMapOutdoor::RenderSky()
 {
 	if (IsVisiblePart(PART_SKY))
-		m_SkyBox.Render();
+		m_OutdoorSky.RenderSkyBox();
 }
 
 void CMapOutdoor::RenderCloud()
 {
 	if (IsVisiblePart(PART_CLOUD))
-		m_SkyBox.RenderCloud();
+		m_OutdoorSky.RenderCloud();
 }
 
 void CMapOutdoor::RenderTree()

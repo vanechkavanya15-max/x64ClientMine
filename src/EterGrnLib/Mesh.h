@@ -39,6 +39,7 @@ class CGrannyMesh
 		void					LoadIndices(void* dstBaseIndices);
  		void					LoadPNTVertices(void* dstBaseVertices);
 		void					NEW_LoadVertices(void* dstBaseVertices);
+		void					LoadDeformVertices(void* dstBaseVertices);
 		void					Destroy();
 
 		void					SetPNT2Mesh();

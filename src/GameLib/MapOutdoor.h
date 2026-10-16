@@ -1,8 +1,12 @@
 #pragma once
 
+#include <span>
+#include <vector>
+#include <cstdint>
 #include "EterLib/SkyBox.h"
 #include "EterLib/LensFlare.h"
 #include "EterLib/ScreenFilter.h"
+#include "MapOutdoorSky.h"
 
 #include "PRTerrainLib/TerrainType.h"
 #include "PRTerrainLib/TextureSet.h"
@@ -35,6 +39,7 @@ typedef std::map<const std::string, TOutdoorMapCoordinate> TOutdoorMapCoordinate
 
 class CTerrainPatchProxy;
 class CTerrainQuadtreeNode;
+class CTerrainRenderExtractor;
 
 class CMapOutdoor : public CMapBase
 {
@@ -127,6 +132,7 @@ class CMapOutdoor : public CMapBase
 		void			RenderBeforeLensFlare();
 		void			RenderAfterLensFlare();
 		void			RenderScreenFiltering();
+		CMapOutdoorSky&	GetOutdoorSky() { return m_OutdoorSky; }
 
 		void			SetWireframe(bool bWireFrame);
 		bool			IsWireframe();
@@ -250,6 +256,16 @@ class CMapOutdoor : public CMapBase
 		const TOutdoorMapCoordinate & GetCurCoordinate() { return m_CurCoordinate; }
 		const TOutdoorMapCoordinate & GetPrevCoordinate() { return m_PrevCoordinate; }
 
+		// Terrain extraction & Quadtree span interface
+		CTerrainPatchProxy *	GetTerrainPatchProxy(uint32_t patchNum);
+		WORD					GetPatchCount() const noexcept { return m_wPatchCount; }
+		int						GetPatchTerrainVertexCount() const noexcept { return m_iPatchTerrainVertexCount; }
+		int						GetPatchTerrainVertexSize() const noexcept { return m_iPatchTerrainVertexSize; }
+		std::span<const uint32_t> GetVisibleQuadtreeNodes() const noexcept;
+		void					CollectVisibleQuadtreeNodes();
+		void					SubmitWaterPackets();
+		void					SubmitWaterPacket(long patchnum, float fWaterHeight, float fWaveTime);
+
 	//////////////////////////////////////////////////////////////////////////
 	// Area
 	//////////////////////////////////////////////////////////////////////////
@@ -318,6 +334,9 @@ class CMapOutdoor : public CMapBase
 
 
 		void					FreeQuadTree();
+		void					__CollectVisibleQuadtreeNodes_Recurse(CTerrainQuadtreeNode *Node, bool bCullCheckNeed = true);
+		std::vector<uint32_t>	m_visibleQuadtreeNodeList;
+		friend class			CTerrainRenderExtractor;
 
 		struct TPatchDrawStruct
 		{
@@ -434,6 +453,7 @@ class CMapOutdoor : public CMapBase
 
 	protected:
 		CSkyBox						m_SkyBox;
+		CMapOutdoorSky				m_OutdoorSky;
 		CLensFlare					m_LensFlare;
 		CScreenFilter				m_ScreenFilter;
 

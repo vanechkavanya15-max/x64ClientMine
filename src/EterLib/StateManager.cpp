@@ -28,12 +28,35 @@ void CStateManager::GetLight(DWORD index, D3DLIGHT9* pLight)
 
 void CStateManager::SetScissorRect(const RECT& c_rRect)
 {
+	if (m_bScissorRectValid &&
+		m_CurrentScissorRect.left == c_rRect.left &&
+		m_CurrentScissorRect.top == c_rRect.top &&
+		m_CurrentScissorRect.right == c_rRect.right &&
+		m_CurrentScissorRect.bottom == c_rRect.bottom)
+	{
+		return;
+	}
+
 	m_lpD3DDev->SetScissorRect(&c_rRect);
+	m_CurrentScissorRect = c_rRect;
+	m_bScissorRectValid = true;
 }
 
 void CStateManager::GetScissorRect(RECT* pRect)
 {
-	m_lpD3DDev->GetScissorRect(pRect);
+	if (!pRect)
+		return;
+
+	if (m_bScissorRectValid)
+	{
+		*pRect = m_CurrentScissorRect;
+	}
+	else
+	{
+		m_lpD3DDev->GetScissorRect(pRect);
+		m_CurrentScissorRect = *pRect;
+		m_bScissorRectValid = true;
+	}
 }
 
 bool CStateManager::BeginScene()

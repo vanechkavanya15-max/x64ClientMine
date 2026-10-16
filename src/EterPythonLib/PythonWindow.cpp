@@ -6,6 +6,7 @@
 #include "PythonInternedStrings.h"
 
 #include "EterLib/StateManager.h"
+#include "EterLib/Render/DynamicQuadBatcher.h"
 #include "UserInterface/Locale_Interface.h"
 
 BOOL g_bOutlineBoxEnable = FALSE;
@@ -16,24 +17,56 @@ namespace UI
 	{
 		DWORD __OldState = 0;
 		RECT __OldRect = { 0 };
-
-		bool __Enable;
-		RECT __Rect;
+		bool __bStateChanged = false;
+		bool __bRectChanged = false;
 
 		ScopedScissorRect(const RECT& rect, bool enable)
-			: __Rect(rect), __Enable(enable)
 		{
 			__OldState = STATEMANAGER.GetRenderState(D3DRS_SCISSORTESTENABLE);
 			STATEMANAGER.GetScissorRect(&__OldRect);
 
-			STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, enable);
-			STATEMANAGER.SetScissorRect(rect);
+			const DWORD targetState = enable ? 1 : 0;
+			if (__OldState != targetState)
+			{
+				STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, targetState);
+				__bStateChanged = true;
+			}
+
+			if (enable)
+			{
+				if (!__bStateChanged)
+				{
+					if (__OldRect.left != rect.left ||
+						__OldRect.top != rect.top ||
+						__OldRect.right != rect.right ||
+						__OldRect.bottom != rect.bottom)
+					{
+						STATEMANAGER.SetScissorRect(rect);
+						__bRectChanged = true;
+					}
+				}
+				else
+				{
+					STATEMANAGER.SetScissorRect(rect);
+					__bRectChanged = true;
+				}
+			}
+
+			EterLib::Render::DynamicQuadBatcher::Instance().SetScissorRect(rect, enable);
 		}
 
 		~ScopedScissorRect()
 		{
-			STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, __OldState);
-			STATEMANAGER.SetScissorRect(__OldRect);
+			EterLib::Render::DynamicQuadBatcher::Instance().SetScissorRect(__OldRect, __OldState != 0);
+
+			if (__bStateChanged)
+			{
+				STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, __OldState);
+			}
+			if (__bRectChanged)
+			{
+				STATEMANAGER.SetScissorRect(__OldRect);
+			}
 		}
 	};
 
@@ -234,8 +267,7 @@ namespace UI
 
 			if (g_bOutlineBoxEnable)
 			{
-				CPythonGraphic::Instance().SetDiffuseColor(1.0f, 1.0f, 1.0f);
-				CPythonGraphic::Instance().RenderBox2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom);
+				EterLib::Render::DynamicQuadBatcher::Instance().AddBox2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom, 0xFFFFFFFF);
 			}
 
 			std::for_each(m_pChildList.begin(), m_pChildList.end(), std::mem_fn(&CWindow::Render));
@@ -246,8 +278,7 @@ namespace UI
 
 			if (g_bOutlineBoxEnable)
 			{
-				CPythonGraphic::Instance().SetDiffuseColor(1.0f, 1.0f, 1.0f);
-				CPythonGraphic::Instance().RenderBox2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom);
+				EterLib::Render::DynamicQuadBatcher::Instance().AddBox2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom, 0xFFFFFFFF);
 			}
 
 			std::for_each(m_pChildList.begin(), m_pChildList.end(), std::mem_fn(&CWindow::Render));
@@ -939,8 +970,12 @@ namespace UI
 
 	void CBox::OnRender()
 	{
-		CPythonGraphic::Instance().SetDiffuseColor(m_dwColor);
-		CPythonGraphic::Instance().RenderBox2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom);
+		EterLib::Render::DynamicQuadBatcher::Instance().AddBox2d(
+			static_cast<float>(m_rect.left),
+			static_cast<float>(m_rect.top),
+			static_cast<float>(m_rect.right),
+			static_cast<float>(m_rect.bottom),
+			m_dwColor);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -961,8 +996,12 @@ namespace UI
 
 	void CBar::OnRender()
 	{
-		CPythonGraphic::Instance().SetDiffuseColor(m_dwColor);
-		CPythonGraphic::Instance().RenderBar2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom);
+		EterLib::Render::DynamicQuadBatcher::Instance().AddBar2d(
+			static_cast<float>(m_rect.left),
+			static_cast<float>(m_rect.top),
+			static_cast<float>(m_rect.right),
+			static_cast<float>(m_rect.bottom),
+			m_dwColor);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -983,9 +1022,12 @@ namespace UI
 
 	void CLine::OnRender()
 	{
-		CPythonGraphic & rkpyGraphic = CPythonGraphic::Instance();
-		rkpyGraphic.SetDiffuseColor(m_dwColor);
-		rkpyGraphic.RenderLine2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom);
+		EterLib::Render::DynamicQuadBatcher::Instance().AddLine2d(
+			static_cast<float>(m_rect.left),
+			static_cast<float>(m_rect.top),
+			static_cast<float>(m_rect.right),
+			static_cast<float>(m_rect.bottom),
+			m_dwColor);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1017,18 +1059,42 @@ namespace UI
 
 	void CBar3D::OnRender()
 	{
-		CPythonGraphic & rkpyGraphic = CPythonGraphic::Instance();
+		auto& batcher = EterLib::Render::DynamicQuadBatcher::Instance();
 
-		rkpyGraphic.SetDiffuseColor(m_dwCenterColor);
-		rkpyGraphic.RenderBar2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom);
+		batcher.AddBar2d(
+			static_cast<float>(m_rect.left),
+			static_cast<float>(m_rect.top),
+			static_cast<float>(m_rect.right),
+			static_cast<float>(m_rect.bottom),
+			static_cast<uint32_t>(m_dwCenterColor));
 
-		rkpyGraphic.SetDiffuseColor(m_dwLeftColor);
-		rkpyGraphic.RenderLine2d(m_rect.left, m_rect.top, m_rect.right, m_rect.top);
-		rkpyGraphic.RenderLine2d(m_rect.left, m_rect.top, m_rect.left, m_rect.bottom);
+		batcher.AddLine2d(
+			static_cast<float>(m_rect.left),
+			static_cast<float>(m_rect.top),
+			static_cast<float>(m_rect.right),
+			static_cast<float>(m_rect.top),
+			static_cast<uint32_t>(m_dwLeftColor));
 
-		rkpyGraphic.SetDiffuseColor(m_dwRightColor);
-		rkpyGraphic.RenderLine2d(m_rect.left, m_rect.bottom, m_rect.right, m_rect.bottom);
-		rkpyGraphic.RenderLine2d(m_rect.right, m_rect.top, m_rect.right, m_rect.bottom);
+		batcher.AddLine2d(
+			static_cast<float>(m_rect.left),
+			static_cast<float>(m_rect.top),
+			static_cast<float>(m_rect.left),
+			static_cast<float>(m_rect.bottom),
+			static_cast<uint32_t>(m_dwLeftColor));
+
+		batcher.AddLine2d(
+			static_cast<float>(m_rect.left),
+			static_cast<float>(m_rect.bottom),
+			static_cast<float>(m_rect.right),
+			static_cast<float>(m_rect.bottom),
+			static_cast<uint32_t>(m_dwRightColor));
+
+		batcher.AddLine2d(
+			static_cast<float>(m_rect.right),
+			static_cast<float>(m_rect.top),
+			static_cast<float>(m_rect.right),
+			static_cast<float>(m_rect.bottom),
+			static_cast<uint32_t>(m_dwRightColor));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1433,7 +1499,15 @@ namespace UI
 			return;
 
 		if (IsShow())
-			m_pImageInstance->Render();
+		{
+			EterLib::Render::DynamicQuadBatcher::Instance().AddImageInstance(
+				m_pImageInstance,
+				static_cast<float>(m_rect.left),
+				static_cast<float>(m_rect.top),
+				static_cast<float>(GetWidth()),
+				static_cast<float>(GetHeight())
+			);
+		}
 	}
 	void CImageBox::OnChangePosition()
 	{

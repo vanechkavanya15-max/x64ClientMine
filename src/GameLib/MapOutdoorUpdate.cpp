@@ -158,7 +158,7 @@ bool CMapOutdoor::Update(float fX, float fY, float fZ)
 
 void CMapOutdoor::UpdateSky()
 {
-	m_SkyBox.Update();
+	m_OutdoorSky.Update();
 }
 
 struct FGetShadowReceiverFromCollisionData

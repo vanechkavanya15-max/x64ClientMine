@@ -17,6 +17,7 @@ public:
     bool Initialize(LPDIRECT3DDEVICE9 dev);
     void Bind(LPDIRECT3DDEVICE9 dev, const D3DMATRIX& viewProj, const D3DMATRIX& world, const D3DVECTOR& lightDir);
     void Unbind(LPDIRECT3DDEVICE9 dev) noexcept;
+    bool IsReady() const noexcept { return m_vertexShader != nullptr && m_pixelShader != nullptr; }
 
 private:
     IDirect3DVertexShader9* m_vertexShader = nullptr;

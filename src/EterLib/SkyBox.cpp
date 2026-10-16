@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "StateManager.h"
 #include "ResourceManager.h"
+#include "RenderQueueManager.h"
 
 #include "EterBase/Timer.h"
 
@@ -228,6 +229,39 @@ CSkyBox::~CSkyBox()
 void CSkyBox::Destroy()
 {
 	Unload();
+}
+
+void CSkyBox::SetAtmosphereUniforms(const TRenderFrameUniforms& uniforms)
+{
+	m_atmosphereUniforms = uniforms;
+	CRenderQueueManager::Instance().SetFrameUniforms(m_atmosphereUniforms);
+}
+
+const TRenderFrameUniforms& CSkyBox::GetAtmosphereUniforms() const
+{
+	return m_atmosphereUniforms;
+}
+
+void CSkyBox::SetSunLight(const D3DXVECTOR4& v4Direction, const D3DXVECTOR4& v4Color)
+{
+	m_atmosphereUniforms.v4SunDirection = v4Direction;
+	m_atmosphereUniforms.v4SunColor = v4Color;
+	CRenderQueueManager::Instance().SetFrameUniforms(m_atmosphereUniforms);
+}
+
+void CSkyBox::SetAmbientColor(const D3DXVECTOR4& v4Ambient)
+{
+	m_atmosphereUniforms.v4AmbientColor = v4Ambient;
+	CRenderQueueManager::Instance().SetFrameUniforms(m_atmosphereUniforms);
+}
+
+void CSkyBox::SetFogParams(float fFogNear, float fFogFar, float fLinearScale, bool bEnable)
+{
+	m_atmosphereUniforms.v4FogParams.x = fFogNear;
+	m_atmosphereUniforms.v4FogParams.y = fFogFar;
+	m_atmosphereUniforms.v4FogParams.z = fLinearScale;
+	m_atmosphereUniforms.v4FogParams.w = bEnable ? 1.0f : 0.0f;
+	CRenderQueueManager::Instance().SetFrameUniforms(m_atmosphereUniforms);
 }
 
 void CSkyBox::SetSkyBoxScale(const D3DXVECTOR3 & c_rv3Scale)

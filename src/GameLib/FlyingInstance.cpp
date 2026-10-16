@@ -1,6 +1,7 @@
 #include "Stdafx.h"
 #include "EterLib/GrpMath.h"
 #include "EffectLib/EffectManager.h"
+#include "EterBase/MathSIMD.h"
 
 #include "MapManager.h"
 
@@ -143,17 +144,23 @@ void CFlyingInstance::SetFlyTarget(const CFlyTarget & cr_Target)
 
 void CFlyingInstance::AdjustDirectionForHoming(const D3DXVECTOR3 & v3TargetPosition)
 {
-	D3DXVECTOR3 vTargetDir(v3TargetPosition);
-	vTargetDir -= m_v3Position;
-	D3DXVec3Normalize(&vTargetDir,&vTargetDir);
-	D3DXVECTOR3 vVel;
-	D3DXVec3Normalize(&vVel, &m_v3Velocity);
+	const DirectX::XMVECTOR vCurrentPos = MathSIMD::Load3(&m_v3Position.x);
+	const DirectX::XMVECTOR vTargetPos = MathSIMD::Load3(&v3TargetPosition.x);
+	DirectX::XMVECTOR vTargetDir = DirectX::XMVectorSubtract(vTargetPos, vCurrentPos);
+	vTargetDir = DirectX::XMVector3Normalize(vTargetDir);
 
-	const auto vv1 = (vVel - vTargetDir);
-	if (D3DXVec3LengthSq(&vv1) < 0.001f)
+	DirectX::XMVECTOR vVel = MathSIMD::Load3(&m_v3Velocity.x);
+	vVel = DirectX::XMVector3Normalize(vVel);
+
+	const DirectX::XMVECTOR vDiff = DirectX::XMVectorSubtract(vVel, vTargetDir);
+	if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(vDiff)) < 0.001f)
 		return;
-	
-	D3DXQUATERNION q = SafeRotationNormalizedArc(vVel,vTargetDir);
+
+	D3DXVECTOR3 vVel3, vTargetDir3;
+	MathSIMD::Store3(&vVel3.x, vVel);
+	MathSIMD::Store3(&vTargetDir3.x, vTargetDir);
+
+	D3DXQUATERNION q = SafeRotationNormalizedArc(vVel3, vTargetDir3);
 
 	if (m_pData->m_fHomingMaxAngle > 180)
 	{
@@ -358,13 +365,28 @@ bool CFlyingInstance::Update()
 
 	D3DXVECTOR3 v3LastPosition = m_v3Position;
 
-	m_v3Velocity += m_v3Accel*CTimer::Instance().GetElapsedSecond();
-	m_v3Velocity.z+=m_pData->m_fGravity * CTimer::Instance().GetElapsedSecond();
-	D3DXVECTOR3 v3Movement = m_v3Velocity * CTimer::Instance().GetElapsedSecond();
-	float _fMoveDistance = D3DXVec3Length(&v3Movement);
-	float fCollisionSphereRadius = std::max(_fMoveDistance*2, m_pData->m_fCollisionSphereRadius);
+	const float fElapsedTime = CTimer::Instance().GetElapsedSecond();
+	const DirectX::XMVECTOR vDt = DirectX::XMVectorReplicate(fElapsedTime);
+	const DirectX::XMVECTOR vPos = MathSIMD::Load3(&m_v3Position.x);
+	DirectX::XMVECTOR vVel = MathSIMD::Load3(&m_v3Velocity.x);
+	const DirectX::XMVECTOR vAcc = MathSIMD::Load3(&m_v3Accel.x);
+	const DirectX::XMVECTOR vGravity = DirectX::XMVectorSet(0.0f, 0.0f, m_pData->m_fGravity, 0.0f);
+
+	// Wektorowa integracja FMA trajektorii pocisku
+	vVel = DirectX::XMVectorMultiplyAdd(vAcc, vDt, vVel);
+	vVel = DirectX::XMVectorMultiplyAdd(vGravity, vDt, vVel);
+	MathSIMD::Store3(&m_v3Velocity.x, vVel);
+
+	const DirectX::XMVECTOR vMovement = DirectX::XMVectorMultiply(vVel, vDt);
+	const DirectX::XMVECTOR vNewPos = DirectX::XMVectorAdd(vPos, vMovement);
+	MathSIMD::Store3(&m_v3Position.x, vNewPos);
+
+	D3DXVECTOR3 v3Movement;
+	MathSIMD::Store3(&v3Movement.x, vMovement);
+
+	float _fMoveDistance = DirectX::XMVectorGetX(DirectX::XMVector3Length(vMovement));
+	float fCollisionSphereRadius = std::max(_fMoveDistance * 2.0f, m_pData->m_fCollisionSphereRadius);
 	m_fRemainRange -= _fMoveDistance;
-	m_v3Position += v3Movement;
 
 	UpdateAttachInstance();
 

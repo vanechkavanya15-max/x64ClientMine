@@ -4,6 +4,8 @@
 #include "RaceData.h"
 #include "SpeedTreeLib/SpeedTreeForestDirectX.h"
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
+#include "ActorRenderExtractor.h"
+#include "EterLib/RenderQueueManager.h"
 
 enum
 {
@@ -1026,3 +1028,21 @@ CActorInstance::~CActorInstance()
 {
 	Destroy();
 }
+
+bool CActorInstance::Render()
+{
+	if (!isShow())
+		return false;
+
+	if (!m_pkCurRaceData)
+		return false;
+
+	TActorRenderPacket packet;
+	if (ActorRenderExtractor::Extract(*this, packet))
+	{
+		CRenderQueueManager::Instance().SubmitActor(packet);
+	}
+
+	return true;
+}
+

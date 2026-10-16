@@ -289,6 +289,15 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 		DWORD GetRace();
 		DWORD GetVirtualID();
 
+		DWORD GetShape() const { return m_eShape; }
+		DWORD GetHair() const { return m_eHair; }
+		int GetRenderMode() const { return m_iRenderMode; }
+		DWORD GetMaterialColor() const { return m_dwMtrlColor; }
+		const std::list<TAttachingEffect>& GetAttachingEffectList() const { return m_AttachingEffectList; }
+
+		bool Render();
+		friend class ActorRenderExtractor;
+
 		UINT GetActorType() const;
 		void SetActorType(UINT eType);
 
