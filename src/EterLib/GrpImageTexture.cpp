@@ -3,6 +3,7 @@
 #include "GrpImageTexture.h"
 #include "EterImageLib/DDSTextureLoader9.h"
 #include "TextureUploadBridge.h"
+#include "RenderResourceRegistry.h"
 
 #include <stb_image.h>
 
@@ -61,6 +62,8 @@ bool CGraphicImageTexture::CreateDeviceObjects()
 		// 폰트 텍스쳐
 		if (FAILED(ms_lpd3dDevice->CreateTexture(m_width, m_height, 1, D3DUSAGE_DYNAMIC, m_d3dFmt, D3DPOOL_DEFAULT, &m_lpd3dTexture, nullptr)))
 			return false;
+
+		CRenderResourceRegistry::SafeRegisterTexture(m_lpd3dTexture, "FontTexture");
 	}
 	else
 	{
@@ -269,14 +272,69 @@ bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize, const void * c_pvB
 	}
 
 	const uintptr_t dwTextureID = reinterpret_cast<uintptr_t>(m_lpd3dTexture ? (void*)m_lpd3dTexture : (void*)this);
-	CTextureUploadBridge::Instance().RegisterTexture(
-		dwTextureID,
-		static_cast<uint32_t>(m_width),
-		static_cast<uint32_t>(m_height),
-		texFormat,
-		reinterpret_cast<const uint8_t*>(c_pvBuf),
-		static_cast<size_t>(bufSize)
-	);
+
+	if (m_lpd3dTexture)
+	{
+		CRenderResourceRegistry::SafeRegisterTexture(m_lpd3dTexture, m_stFileName.c_str());
+	}
+
+	TRenderTextureHandle hRegistryTex = kInvalidTextureHandle;
+	if (CRenderResourceRegistry::InstancePtr() && m_lpd3dTexture)
+	{
+		hRegistryTex = CRenderResourceRegistry::Instance().FindTextureHandle(m_lpd3dTexture);
+		if (hRegistryTex != kInvalidTextureHandle && !CRenderResourceRegistry::Instance().HasTextureCpuCopy(hRegistryTex))
+		{
+			D3DLOCKED_RECT lr;
+			if (SUCCEEDED(m_lpd3dTexture->LockRect(0, &lr, nullptr, D3DLOCK_READONLY)))
+			{
+				if (lr.pBits && m_width > 0 && m_height > 0)
+				{
+					size_t rowBytes = std::min<size_t>(static_cast<size_t>(lr.Pitch), static_cast<size_t>(m_width) * 4);
+					std::vector<uint8_t> exactData(m_height * rowBytes);
+					const uint8_t* pRow = static_cast<const uint8_t*>(lr.pBits);
+					for (UINT y = 0; y < m_height; ++y)
+					{
+						memcpy(exactData.data() + y * rowBytes, pRow, rowBytes);
+						pRow += lr.Pitch;
+					}
+					CRenderResourceRegistry::Instance().AttachTexturePixelCopy(
+						hRegistryTex,
+						0,
+						m_width,
+						m_height,
+						static_cast<uint32_t>(rowBytes),
+						exactData.data(),
+						exactData.size()
+					);
+				}
+				m_lpd3dTexture->UnlockRect(0);
+			}
+		}
+	}
+
+	std::vector<uint8_t> decodedPixels;
+	if (hRegistryTex != kInvalidTextureHandle && CRenderResourceRegistry::SafeGetTextureMip0Pixels(hRegistryTex, decodedPixels))
+	{
+		CTextureUploadBridge::Instance().RegisterTexture(
+			dwTextureID,
+			static_cast<uint32_t>(m_width),
+			static_cast<uint32_t>(m_height),
+			texFormat,
+			decodedPixels.data(),
+			decodedPixels.size()
+		);
+	}
+	else
+	{
+		CTextureUploadBridge::Instance().RegisterTexture(
+			dwTextureID,
+			static_cast<uint32_t>(m_width),
+			static_cast<uint32_t>(m_height),
+			texFormat,
+			reinterpret_cast<const uint8_t*>(c_pvBuf),
+			static_cast<size_t>(bufSize)
+		);
+	}
 
 	return true;
 }

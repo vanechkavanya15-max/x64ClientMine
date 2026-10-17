@@ -1,6 +1,8 @@
 #pragma once
 
 #include "GrpBase.h"
+#include <vector>
+#include <cstdint>
 
 class CGraphicIndexBuffer : public CGraphicBase
 {
@@ -32,6 +34,11 @@ public:
 	int GetIndexCount() const { return m_iidxCount; }
 	DWORD GetBufferSize() const { return m_dwBufferSize; }
 
+	// Bezpieczny dostep do kopii CPU geometrii (szczegolnie dla statycznych buforow D3DUSAGE_WRITEONLY)
+	bool	GetCpuCopy(std::vector<uint8_t>& outData) const;
+	bool	HasCpuCopy() const;
+	uint32_t GetCpuCopyCrc32() const;
+
 protected:
 	void Initialize();
 
@@ -43,4 +50,5 @@ protected:
 	DWORD					m_dwUsage;
 	D3DPOOL					m_d3dPool;
 	DWORD					m_dwLockFlag;
+	std::vector<uint8_t>	m_cpuCopy;
 };

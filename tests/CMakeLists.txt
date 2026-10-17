@@ -6959,3 +6959,21 @@ target_link_libraries(test_c26_naming_conventions PRIVATE
 )
 add_test(NAME test_c26_naming_conventions COMMAND test_c26_naming_conventions)
 
+# --- S7.3 Zero CPU copies test ---
+add_executable(test_c26_cpu_copies test_c26_cpu_copies.cpp)
+target_include_directories(test_c26_cpu_copies PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_cpu_copies PRIVATE
+    EterLib
+    EterImageLib
+    EterBase
+    DirectX
+    doctest
+)
+add_test(NAME test_c26_cpu_copies COMMAND test_c26_cpu_copies)
+add_test(NAME CpuCopiesTest COMMAND test_c26_cpu_copies)
+
+

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "GrpBase.h"
+#include <vector>
+#include <cstdint>
 
 class CGraphicVertexBuffer : public CGraphicBase
 {
@@ -36,6 +38,11 @@ class CGraphicVertexBuffer : public CGraphicBase
 
 		bool	IsEmpty() const;
 
+		// Bezpieczny dostep do kopii CPU geometrii (szczegolnie dla statycznych buforow D3DUSAGE_WRITEONLY)
+		bool	GetCpuCopy(std::vector<uint8_t>& outData) const;
+		bool	HasCpuCopy() const;
+		uint32_t GetCpuCopyCrc32() const;
+
 	protected:
 		void	Initialize();
 
@@ -49,4 +56,5 @@ class CGraphicVertexBuffer : public CGraphicBase
 		int						m_vtxCount;
 		int						m_iExplicitStride;
 		DWORD					m_dwLockFlag;
+		std::vector<uint8_t>	m_cpuCopy;
 };

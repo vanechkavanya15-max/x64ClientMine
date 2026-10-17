@@ -98,6 +98,14 @@ bool CreateTextureFromRGBA(
 
 	SwizzleRgbaToBgra(rect.pBits, static_cast<size_t>(rect.Pitch), pSrcRGBA, width, height, srcPitch);
 
+	std::vector<uint8_t> stagingPixels(width * height * 4);
+	const uint8_t* pStagedRow = static_cast<const uint8_t*>(rect.pBits);
+	for (size_t y = 0; y < height; ++y)
+	{
+		memcpy(stagingPixels.data() + y * width * 4, pStagedRow, width * 4);
+		pStagedRow += rect.Pitch;
+	}
+
 	pStagingTexture->UnlockRect(0);
 
 	hr = pDevice->UpdateTexture(pStagingTexture, pDestTexture);
@@ -108,6 +116,17 @@ bool CreateTextureFromRGBA(
 		TraceError("UpdateTexture failed: 0x%08x", hr);
 		return false;
 	}
+
+	CRenderResourceRegistry::SafeRegisterTexture(pDestTexture, "RGBA_Texture");
+	CRenderResourceRegistry::SafeAttachTexturePixelCopy(
+		pDestTexture,
+		0,
+		width,
+		height,
+		width * 4,
+		stagingPixels.data(),
+		stagingPixels.size()
+	);
 
 	*ppDestTexture = pDestTexture;
 	return true;
