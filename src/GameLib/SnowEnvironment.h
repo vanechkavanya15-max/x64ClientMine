@@ -4,6 +4,7 @@
 #include <vector>
 
 class CSnowParticle;
+class CGraphicImageInstance;
 
 class CSnowEnvironment : public CScreen
 {
@@ -21,6 +22,9 @@ class CSnowEnvironment : public CScreen
 		void Deform();
 		void Render();
 
+		DWORD GetLastTime() const noexcept { return m_dwLastTime; }
+		void SetLastTime(DWORD dwLastTime) noexcept { m_dwLastTime = dwLastTime; }
+
 	protected:
 		void __Initialize();
 
@@ -32,4 +36,5 @@ class CSnowEnvironment : public CScreen
 
 		DWORD m_dwParticleMaxNum;
 		BOOL m_bSnowEnable;
+		DWORD m_dwLastTime;
 };

@@ -15,6 +15,7 @@ void CSnowEnvironment::Enable()
 	}
 
 	m_bSnowEnable = TRUE;
+	m_dwLastTime = CTimer::Instance().GetCurrentMillisecond();
 }
 
 void CSnowEnvironment::Disable()
@@ -43,10 +44,18 @@ void CSnowEnvironment::Deform()
 
 	const D3DXVECTOR3 & c_rv3Pos = m_v3Center;
 
-	static long s_lLastTime = CTimer::Instance().GetCurrentMillisecond();
-	const long lcurTime = CTimer::Instance().GetCurrentMillisecond();
-	const float fElapsedTime = static_cast<float>(lcurTime - s_lLastTime) / 1000.0f;
-	s_lLastTime = lcurTime;
+	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
+	if (m_dwLastTime == 0)
+	{
+		m_dwLastTime = dwCurTime;
+	}
+	float fElapsedTime = static_cast<float>(dwCurTime - m_dwLastTime) / 1000.0f;
+	m_dwLastTime = dwCurTime;
+
+	if (fElapsedTime > 0.1f)
+	{
+		fElapsedTime = 0.1f;
+	}
 
 	CCamera * pCamera = CCameraManager::Instance().GetCurrentCamera();
 	if (!pCamera)
@@ -196,6 +205,7 @@ void CSnowEnvironment::__Initialize()
 	m_pImageInstance = nullptr;
 	m_kVct_pkParticleSnow.clear();
 	m_kVct_pkParticleSnow.reserve(m_dwParticleMaxNum);
+	m_dwLastTime = 0;
 }
 
 CSnowEnvironment::CSnowEnvironment()
@@ -203,6 +213,7 @@ CSnowEnvironment::CSnowEnvironment()
 	, m_pImageInstance(nullptr)
 	, m_dwParticleMaxNum(3000)
 	, m_bSnowEnable(FALSE)
+	, m_dwLastTime(0)
 {
 	__Initialize();
 }
