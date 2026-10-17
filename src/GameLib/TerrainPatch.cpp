@@ -116,7 +116,7 @@ void CTerrainPatch::__BuildSoftwareTerrainVertexBuffer(HardwareTransformPatch_SS
 void CTerrainPatch::__BuildHardwareTerrainVertexBuffer(HardwareTransformPatch_SSourceVertex* akSrcVertex)
 {
 	CGraphicVertexBuffer& rkVB=m_kHT.m_kVB;
-	if (!rkVB.Create(TERRAIN_VERTEX_COUNT, D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1, D3DUSAGE_DYNAMIC, D3DPOOL_DEFAULT)) 
+	if (!rkVB.Create(TERRAIN_VERTEX_COUNT, D3DFVF_XYZ | D3DFVF_NORMAL, D3DUSAGE_DYNAMIC, D3DPOOL_DEFAULT)) 
 		return;
 	
 	HardwareTransformPatch_SSourceVertex* akDstVertex;

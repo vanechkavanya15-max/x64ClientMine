@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <algorithm>
 #include <cstdint>
+#include <cstddef>
+#include <GameLib/TerrainPatch.h>
 
 // S2.8 / T064: Unit tests for GameLib small fixes (DungeonBlock bbox, Area::Find, terrain bounds, fog clamp, mipmap loop)
 
@@ -299,5 +301,13 @@ TEST_SUITE("WorldSmallFixes")
         CHECK(submittedPackets[0].pWeights == reinterpret_cast<const void*>(0x1000));
         CHECK(submittedPackets[1].pWeights == nullptr); // Ensure dirty pointer didn't leak
         CHECK(submittedPackets[2].pWeights == nullptr);
+    }
+
+    // 7. TerrainPatch HTP vertex stride 24 bytes (S2.9 / T065)
+    TEST_CASE("TerrainPatch_HTPVertexStride_24Bytes")
+    {
+        CHECK(sizeof(HardwareTransformPatch_SSourceVertex) == 24);
+        CHECK(offsetof(HardwareTransformPatch_SSourceVertex, kPosition) == 0);
+        CHECK(offsetof(HardwareTransformPatch_SSourceVertex, kNormal) == 12);
     }
 }
