@@ -129,11 +129,69 @@ namespace FrameDumpV2
 	bool ParseFrameDumpV2(const char* c_pszFileName, TDumpParsedFrame& outFrame);
 }
 
+struct SFrameBuffer
+{
+	TRenderFrameUniforms frameUniforms{};
+	std::vector<TSpeedTreePacket> speedTreePackets;
+	std::vector<TUIBatchPacket> uiPackets;
+	std::vector<TActorRenderPacket> actorPackets;
+	std::vector<TTerrainSectorPacket> terrainPackets;
+	std::vector<TEffectInstancePacket> effectPackets;
+	std::vector<TWaterPacket> waterPackets;
+	std::vector<TSkyBoxPacket> skyBoxPackets;
+	std::vector<TDungeonBlockPacket> dungeonPackets;
+	std::vector<TWeaponTracePacket> weaponTracePackets;
+	std::vector<TEffectMeshPacket> effectMeshPackets;
+	std::unique_ptr<SSkyDescription> pSkyDescription;
+	std::vector<TDebugLinePacket> debugLinePackets;
+
+	size_t flushedSpeedTreeOffset{ 0 };
+	size_t flushedUIOffset{ 0 };
+
+	// Monotoniczne pule danych klatki (zero alokacji w trakcie klatki)
+	std::vector<TParticleInstanceData> particleDataPool;
+	size_t particleDataOffset{ 0 };
+
+	std::vector<TSpeedTreeInstanceData> speedTreeInstancePool;
+	size_t speedTreeInstanceOffset{ 0 };
+
+	std::vector<TPDTVertex> weaponTraceVertexPool;
+	size_t weaponTraceVertexOffset{ 0 };
+
+	std::vector<TPTVertex> effectMeshVertexPool;
+	size_t effectMeshVertexOffset{ 0 };
+
+	std::vector<D3DXMATRIX> boneMatrixPool;
+	size_t boneMatrixOffset{ 0 };
+
+	// Dynamiczna pula klatki pod dane wskazywane (np. splatting passes, wagi)
+	std::vector<uint8_t> frameDataPool;
+	size_t frameDataOffset{ 0 };
+
+	size_t droppedParticles{ 0 };
+	size_t droppedSpeedTree{ 0 };
+	size_t droppedWeaponTrace{ 0 };
+	size_t droppedEffectMesh{ 0 };
+	size_t droppedBones{ 0 };
+	size_t droppedFrameData{ 0 };
+
+	void Clear();
+	size_t GetTotalPacketCount() const;
+
+	TParticleInstanceData* AllocateParticleData(size_t count);
+	TSpeedTreeInstanceData* AllocateSpeedTreeInstanceData(size_t count);
+	TPDTVertex* AllocateWeaponTraceVertexData(size_t count);
+	TPTVertex* AllocateEffectMeshVertexData(size_t count);
+	D3DXMATRIX* AllocateBoneMatrices(size_t count);
+	void* AllocateFrameData(size_t sizeInBytes, size_t alignment = 16);
+};
+
 class CRenderQueueManager
 {
 public:
 	static constexpr uint32_t ABI_VERSION = M2_RENDER_ABI_VERSION;
 	static uint32_t GetABIVersion() { return M2_RENDER_ABI_VERSION; }
+	static constexpr size_t FRAME_BUFFER_COUNT = 2;
 
 	static std::vector<std::pair<std::string, size_t>> GetPacketSizes();
 	static std::map<std::string, size_t> GetPacketSizeMap();
@@ -149,9 +207,26 @@ public:
 
 	void BeginFrame();
 	void EndFrame();
+	void SwapFrameBuffers();
+
+	size_t GetActiveFrameIndex() const noexcept { return m_activeFrameIndex; }
+	size_t GetWorkFrameIndex() const noexcept { return m_activeFrameIndex ^ 1; }
+	size_t GetRenderFrameIndex() const noexcept { return m_activeFrameIndex; }
+	size_t GetProducerFrameIndex() const noexcept { return m_activeFrameIndex ^ 1; }
+
+	const SFrameBuffer& GetActiveFrame() const noexcept { return m_frameBuffers[m_activeFrameIndex]; }
+	SFrameBuffer& GetActiveFrame() noexcept { return m_frameBuffers[m_activeFrameIndex]; }
+	const SFrameBuffer& GetWorkFrame() const noexcept { return m_frameBuffers[GetWorkFrameIndex()]; }
+	SFrameBuffer& GetWorkFrame() noexcept { return m_frameBuffers[GetWorkFrameIndex()]; }
+	const SFrameBuffer& GetRenderFrame() const noexcept { return m_frameBuffers[m_activeFrameIndex]; }
+	SFrameBuffer& GetRenderFrame() noexcept { return m_frameBuffers[m_activeFrameIndex]; }
+	const SFrameBuffer& GetFrame(size_t index) const { return m_frameBuffers[index % FRAME_BUFFER_COUNT]; }
+	SFrameBuffer& GetFrame(size_t index) { return m_frameBuffers[index % FRAME_BUFFER_COUNT]; }
 
 	void SetFrameUniforms(const TRenderFrameUniforms& uniforms);
 	const TRenderFrameUniforms& GetFrameUniforms() const;
+	const TRenderFrameUniforms& GetActiveFrameUniforms() const { return m_frameBuffers[m_activeFrameIndex].frameUniforms; }
+	const TRenderFrameUniforms& GetWorkFrameUniforms() const { return m_frameBuffers[GetWorkFrameIndex()].frameUniforms; }
 
 	void SubmitSpeedTree(const TSpeedTreePacket& packet);
 	void SubmitUI(const TUIBatchPacket& packet);
@@ -184,6 +259,30 @@ public:
 	const std::vector<TWeaponTracePacket>& GetWeaponTracePackets() const;
 	const std::vector<TDebugLinePacket>& GetDebugLinePackets() const;
 
+	const std::vector<TSpeedTreePacket>& GetActiveSpeedTreePackets() const { return m_frameBuffers[m_activeFrameIndex].speedTreePackets; }
+	const std::vector<TUIBatchPacket>& GetActiveUIPackets() const { return m_frameBuffers[m_activeFrameIndex].uiPackets; }
+	const std::vector<TActorRenderPacket>& GetActiveActorPackets() const { return m_frameBuffers[m_activeFrameIndex].actorPackets; }
+	const std::vector<TTerrainSectorPacket>& GetActiveTerrainPackets() const { return m_frameBuffers[m_activeFrameIndex].terrainPackets; }
+	const std::vector<TEffectInstancePacket>& GetActiveEffectPackets() const { return m_frameBuffers[m_activeFrameIndex].effectPackets; }
+	const std::vector<TEffectMeshPacket>& GetActiveEffectMeshPackets() const { return m_frameBuffers[m_activeFrameIndex].effectMeshPackets; }
+	const std::vector<TWaterPacket>& GetActiveWaterPackets() const { return m_frameBuffers[m_activeFrameIndex].waterPackets; }
+	const std::vector<TSkyBoxPacket>& GetActiveSkyBoxPackets() const { return m_frameBuffers[m_activeFrameIndex].skyBoxPackets; }
+	const std::vector<TDungeonBlockPacket>& GetActiveDungeonPackets() const { return m_frameBuffers[m_activeFrameIndex].dungeonPackets; }
+	const std::vector<TWeaponTracePacket>& GetActiveWeaponTracePackets() const { return m_frameBuffers[m_activeFrameIndex].weaponTracePackets; }
+	const std::vector<TDebugLinePacket>& GetActiveDebugLinePackets() const { return m_frameBuffers[m_activeFrameIndex].debugLinePackets; }
+
+	const std::vector<TSpeedTreePacket>& GetWorkSpeedTreePackets() const { return m_frameBuffers[GetWorkFrameIndex()].speedTreePackets; }
+	const std::vector<TUIBatchPacket>& GetWorkUIPackets() const { return m_frameBuffers[GetWorkFrameIndex()].uiPackets; }
+	const std::vector<TActorRenderPacket>& GetWorkActorPackets() const { return m_frameBuffers[GetWorkFrameIndex()].actorPackets; }
+	const std::vector<TTerrainSectorPacket>& GetWorkTerrainPackets() const { return m_frameBuffers[GetWorkFrameIndex()].terrainPackets; }
+	const std::vector<TEffectInstancePacket>& GetWorkEffectPackets() const { return m_frameBuffers[GetWorkFrameIndex()].effectPackets; }
+	const std::vector<TEffectMeshPacket>& GetWorkEffectMeshPackets() const { return m_frameBuffers[GetWorkFrameIndex()].effectMeshPackets; }
+	const std::vector<TWaterPacket>& GetWorkWaterPackets() const { return m_frameBuffers[GetWorkFrameIndex()].waterPackets; }
+	const std::vector<TSkyBoxPacket>& GetWorkSkyBoxPackets() const { return m_frameBuffers[GetWorkFrameIndex()].skyBoxPackets; }
+	const std::vector<TDungeonBlockPacket>& GetWorkDungeonPackets() const { return m_frameBuffers[GetWorkFrameIndex()].dungeonPackets; }
+	const std::vector<TWeaponTracePacket>& GetWorkWeaponTracePackets() const { return m_frameBuffers[GetWorkFrameIndex()].weaponTracePackets; }
+	const std::vector<TDebugLinePacket>& GetWorkDebugLinePackets() const { return m_frameBuffers[GetWorkFrameIndex()].debugLinePackets; }
+
 	size_t GetTotalPacketCount() const;
 
 	TParticleInstanceData* AllocateParticleData(size_t count);
@@ -195,23 +294,37 @@ public:
 	D3DXMATRIX* AllocateBoneMatrices(size_t count);
 	const D3DXMATRIX* GetBoneMatrixData() const;
 
-	size_t GetDroppedParticles() const { return m_droppedParticles; }
-	size_t GetDroppedSpeedTree() const { return m_droppedSpeedTree; }
-	size_t GetDroppedWeaponTrace() const { return m_droppedWeaponTrace; }
-	size_t GetDroppedEffectMesh() const { return m_droppedEffectMesh; }
-	size_t GetDroppedBones() const { return m_droppedBones; }
-	void ResetDroppedCounters() { m_droppedParticles = 0; m_droppedSpeedTree = 0; m_droppedWeaponTrace = 0; m_droppedEffectMesh = 0; m_droppedBones = 0; }
+	void* AllocateFrameData(size_t sizeInBytes, size_t alignment = 16);
+	template<typename T>
+	T* AllocateFrameData(size_t count = 1)
+	{
+		return static_cast<T*>(AllocateFrameData(sizeof(T) * count, alignof(T)));
+	}
 
-	size_t GetParticlePoolCapacity() const { return m_particleDataPool.size(); }
-	size_t GetSpeedTreePoolCapacity() const { return m_speedTreeInstancePool.size(); }
-	size_t GetWeaponTracePoolCapacity() const { return m_weaponTraceVertexPool.size(); }
-	size_t GetEffectMeshPoolCapacity() const { return m_effectMeshVertexPool.size(); }
-	size_t GetBoneMatrixPoolCapacity() const { return m_boneMatrixPool.size(); }
-	size_t GetParticleDataOffset() const { return m_particleDataOffset; }
-	size_t GetSpeedTreeInstanceOffset() const { return m_speedTreeInstanceOffset; }
-	size_t GetWeaponTraceVertexOffset() const { return m_weaponTraceVertexOffset; }
-	size_t GetEffectMeshVertexOffset() const { return m_effectMeshVertexOffset; }
-	size_t GetBoneMatrixOffset() const { return m_boneMatrixOffset; }
+	const void* GetActiveFrameData() const;
+	const void* GetWorkFrameData() const;
+
+	size_t GetDroppedParticles() const;
+	size_t GetDroppedSpeedTree() const;
+	size_t GetDroppedWeaponTrace() const;
+	size_t GetDroppedEffectMesh() const;
+	size_t GetDroppedBones() const;
+	size_t GetDroppedFrameData() const;
+	void ResetDroppedCounters();
+
+	size_t GetParticlePoolCapacity() const;
+	size_t GetSpeedTreePoolCapacity() const;
+	size_t GetWeaponTracePoolCapacity() const;
+	size_t GetEffectMeshPoolCapacity() const;
+	size_t GetBoneMatrixPoolCapacity() const;
+	size_t GetFrameDataPoolCapacity() const;
+
+	size_t GetParticleDataOffset() const;
+	size_t GetSpeedTreeInstanceOffset() const;
+	size_t GetWeaponTraceVertexOffset() const;
+	size_t GetEffectMeshVertexOffset() const;
+	size_t GetBoneMatrixOffset() const;
+	size_t GetFrameDataOffset() const;
 
 	// Golden Master Frame Dumper (Faza 6) & Backend Switcher (Faza 8)
 	bool ExportFrameToBinary(const char* c_pszFileName) const;
@@ -229,44 +342,9 @@ private:
 	CRenderQueueManager(const CRenderQueueManager&) = delete;
 	CRenderQueueManager& operator=(const CRenderQueueManager&) = delete;
 
-	TRenderFrameUniforms m_frameUniforms{};
-	std::vector<TSpeedTreePacket> m_speedTreePackets;
-	std::vector<TUIBatchPacket> m_uiPackets;
-	std::vector<TActorRenderPacket> m_actorPackets;
-	std::vector<TTerrainSectorPacket> m_terrainPackets;
-	std::vector<TEffectInstancePacket> m_effectPackets;
-	std::vector<TWaterPacket> m_waterPackets;
-	std::vector<TSkyBoxPacket> m_skyBoxPackets;
-	std::vector<TDungeonBlockPacket> m_dungeonPackets;
-	std::vector<TWeaponTracePacket> m_weaponTracePackets;
-	std::vector<TEffectMeshPacket> m_effectMeshPackets;
-	std::unique_ptr<SSkyDescription> m_pSkyDescription;
-	std::vector<TDebugLinePacket> m_debugLinePackets;
-
-	size_t m_flushedSpeedTreeOffset{ 0 };
-	size_t m_flushedUIOffset{ 0 };
-
-	// Monotoniczne pule danych klatki (zero alokacji i brak inwalidacji wskaznikow w trakcie klatki)
-	std::vector<TParticleInstanceData> m_particleDataPool;
-	size_t m_particleDataOffset{ 0 };
-
-	std::vector<TSpeedTreeInstanceData> m_speedTreeInstancePool;
-	size_t m_speedTreeInstanceOffset{ 0 };
-
-	std::vector<TPDTVertex> m_weaponTraceVertexPool;
-	size_t m_weaponTraceVertexOffset{ 0 };
-
-	std::vector<TPTVertex> m_effectMeshVertexPool;
-	size_t m_effectMeshVertexOffset{ 0 };
-
-	std::vector<D3DXMATRIX> m_boneMatrixPool;
-	size_t m_boneMatrixOffset{ 0 };
-
-	size_t m_droppedParticles{ 0 };
-	size_t m_droppedSpeedTree{ 0 };
-	size_t m_droppedWeaponTrace{ 0 };
-	size_t m_droppedEffectMesh{ 0 };
-	size_t m_droppedBones{ 0 };
+	SFrameBuffer m_frameBuffers[FRAME_BUFFER_COUNT];
+	size_t m_activeFrameIndex{ 0 };
+	bool m_bHasSwappedFrame{ false };
 
 	IRenderBackend* m_pActiveBackend{ nullptr };
 	bool m_bPendingDump{ false };
