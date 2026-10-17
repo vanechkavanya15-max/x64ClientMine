@@ -93,7 +93,8 @@ class CGraphicTextInstance
 		void SetOutLineColor(DWORD color);
 		void SetOutLineColor(float r, float g, float b, float a = 1.0f);
 
-		void SetHorizonalAlign(int hAlign);
+		void SetHorizontalAlign(int iType);
+		inline void SetHorizonalAlign(int hAlign) { SetHorizontalAlign(hAlign); }
 		void SetVerticalAlign(int vAlign);
 		void SetMax(int iMax);
 		void SetTextPointer(CGraphicText* pText);
