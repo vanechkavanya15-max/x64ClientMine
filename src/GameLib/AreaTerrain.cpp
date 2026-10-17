@@ -445,7 +445,8 @@ bool CTerrain::CreateSplatTexture()
 	if (!m_SplatWeightMap.GenerateFromTileMap(m_abyTileMap, TILEMAP_RAW_XSIZE, TILEMAP_RAW_YSIZE, 256, 256))
 		return false;
 
-	if (ms_lpd3dDevice && m_SplatWeightMap.UploadToGPU(ms_lpd3dDevice))
+	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
+	if (lpDevice && m_SplatWeightMap.UploadToGPU(lpDevice))
 	{
 		m_lpSplatTexture = m_SplatWeightMap.GetD3DTexture();
 		return true;
@@ -680,7 +681,10 @@ LPDIRECT3DTEXTURE9 CTerrain::AddTexture32(BYTE byImageNum, BYTE * pbyImage, long
 
 	UINT uiNewWidth = 256;
 	UINT uiNewHeight = 256;
-	hr = ms_lpd3dDevice->CreateTexture(
+	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
+	if (!lpDevice)
+		return NULL;
+	hr = lpDevice->CreateTexture(
 		uiNewWidth, uiNewHeight, 5, D3DUSAGE_DYNAMIC,
 		format, D3DPOOL_DEFAULT, &pkTex, nullptr);
 	if (FAILED(hr))
@@ -1050,9 +1054,13 @@ void CTerrain::AllocateMarkedSplats(BYTE * pbyAlphaMap)
 		} while(ulRef > 0);
 	}
 
+	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
+	if (!lpDevice)
+		return;
+
 	do
 	{
-		hr = ms_lpd3dDevice->CreateTexture(ATTRMAP_XSIZE, ATTRMAP_YSIZE, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_lpMarkedTexture, nullptr);
+		hr = lpDevice->CreateTexture(ATTRMAP_XSIZE, ATTRMAP_YSIZE, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_lpMarkedTexture, nullptr);
 	} while(FAILED(hr));
 
 	D3DLOCKED_RECT d3dlr;

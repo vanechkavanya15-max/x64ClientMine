@@ -149,10 +149,16 @@ void CLight::SetDeviceLight(BOOL bActive)
 {
 	if (bActive && m_isEdited)
 	{
-		if (ms_lpd3dDevice)
+		if (CStateManager::InstancePtr())
+			STATEMANAGER.SetLight(m_LightID, &m_d3dLight);
+		else if (ms_lpd3dDevice)
 			ms_lpd3dDevice->SetLight(m_LightID, &m_d3dLight);
 	}
-	if (ms_lpd3dDevice)
+	if (CStateManager::InstancePtr())
+	{
+		STATEMANAGER.LightEnable(m_LightID, bActive);
+	}
+	else if (ms_lpd3dDevice)
 	{
 		ms_lpd3dDevice->LightEnable(m_LightID, bActive);
 	}

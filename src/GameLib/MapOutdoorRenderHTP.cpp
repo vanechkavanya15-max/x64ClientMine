@@ -3,6 +3,7 @@
 
 #include "EterLib/StateManager.h"
 #include "EterLib/RenderOwnership.h"
+#include "EterLib/RenderQueueManager.h"
 
 void CMapOutdoor::__RenderTerrain_RenderHardwareTransformPatch()
 {
@@ -13,10 +14,17 @@ void CMapOutdoor::__RenderTerrain_RenderHardwareTransformPatch()
 	if (bLegacyDraws)
 		htpFFPGuard = std::make_unique<ScopedD3DFFPGuard>(D3DFVF_XYZ | D3DFVF_NORMAL, false);
 
+	const TRenderFrameUniforms& uniforms = CRenderQueueManager::Instance().GetFrameUniforms();
 	DWORD dwFogColor;
 	float fFogFarDistance;
 	float fFogNearDistance;
-	if (mc_pEnvironmentData)
+	if (uniforms.fFogFar > uniforms.fFogNear && uniforms.fFogFar > 0.0f)
+	{
+		dwFogColor = D3DCOLOR_COLORVALUE(uniforms.vFogColor.r, uniforms.vFogColor.g, uniforms.vFogColor.b, uniforms.vFogColor.a);
+		fFogNearDistance = uniforms.fFogNear;
+		fFogFarDistance = uniforms.fFogFar;
+	}
+	else if (mc_pEnvironmentData)
 	{
 		dwFogColor = mc_pEnvironmentData->FogColor;
 		fFogNearDistance = mc_pEnvironmentData->GetFogNearDistance();

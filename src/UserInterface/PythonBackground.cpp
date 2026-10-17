@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "EterLib/CullingManager.h"
 #include "EterLib/Camera.h"
+#include "EterLib/CFrameSnapshot.h"
 #include "PackLib/PackManager.h"
 #include "GameLib/MapOutDoor.h"
 #include "GameLib/PropertyLoader.h"
@@ -688,6 +689,12 @@ void CPythonBackground::SetCharacterDirLight()
 		return;
 
 	STATEMANAGER.SetLight(0, &mc_pcurEnvironmentData->DirLights[ENV_DIRLIGHT_CHARACTER]);
+	STATEMANAGER.SetLight(1, &mc_pcurEnvironmentData->DirLights[ENV_DIRLIGHT_CHARACTER]);
+	STATEMANAGER.LightEnable(1, TRUE);
+
+	TFrameSnapshot snap = CFrameSnapshot::Current();
+	snap.lights[1] = mc_pcurEnvironmentData->DirLights[ENV_DIRLIGHT_CHARACTER];
+	CFrameSnapshot::SetCurrent(snap);
 }
 
 void CPythonBackground::SetBackgroundDirLight()
@@ -698,6 +705,10 @@ void CPythonBackground::SetBackgroundDirLight()
 		return;
 
 	STATEMANAGER.SetLight(0, &mc_pcurEnvironmentData->DirLights[ENV_DIRLIGHT_BACKGROUND]);
+
+	TFrameSnapshot snap = CFrameSnapshot::Current();
+	snap.lights[0] = mc_pcurEnvironmentData->DirLights[ENV_DIRLIGHT_BACKGROUND];
+	CFrameSnapshot::SetCurrent(snap);
 }
 
 void CPythonBackground::GlobalPositionToLocalPosition(int32_t& rGlobalX, int32_t& rGlobalY)

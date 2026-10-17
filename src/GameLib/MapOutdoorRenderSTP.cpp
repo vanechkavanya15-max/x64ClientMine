@@ -660,8 +660,6 @@ bool CMapOutdoor::__SoftwareTransformPatch_SetShadowStream(SoftwareTransformPatc
 	}	
 	pkVB->Unlock();
 
-
-	//ms_lpd3dDevice->SetStreamSource(0, pkVB, sizeof(SoftwareTransformPatch_SSplatVertex));
 	return true;
 }
 
@@ -683,7 +681,8 @@ void CMapOutdoor::__SoftwareTransformPatch_Initialize()
 
 bool CMapOutdoor::__SoftwareTransformPatch_Create()
 {
-	if (!ms_lpd3dDevice)
+	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
+	if (!lpDevice)
 		return true;
 
 	{
@@ -691,7 +690,7 @@ bool CMapOutdoor::__SoftwareTransformPatch_Create()
 		{
 			assert(NULL==m_kSTPD.m_pkVBSplat[uIndex]);
 			if (FAILED(
-				ms_lpd3dDevice->CreateVertexBuffer(
+				lpDevice->CreateVertexBuffer(
 					sizeof(SoftwareTransformPatch_SSplatVertex)*CTerrainPatch::TERRAIN_VERTEX_COUNT,
 					D3DUSAGE_DYNAMIC|D3DUSAGE_WRITEONLY,
 					D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_SPECULAR|D3DFVF_TEX2,
@@ -708,7 +707,7 @@ bool CMapOutdoor::__SoftwareTransformPatch_Create()
 		{
 			assert(NULL==m_kSTPD.m_pkVBNone[uIndex]);
 			if (FAILED(
-				ms_lpd3dDevice->CreateVertexBuffer(
+				lpDevice->CreateVertexBuffer(
 					sizeof(SoftwareTransformPatch_STVertex)*CTerrainPatch::TERRAIN_VERTEX_COUNT,
 					D3DUSAGE_DYNAMIC|D3DUSAGE_WRITEONLY,
 					D3DFVF_XYZRHW,
