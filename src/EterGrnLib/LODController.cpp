@@ -6,6 +6,7 @@
 #include "Eterlib/GrpImage.h"
 #include "Eterlib/StateManager.h"
 #include "EterLib/RenderOwnership.h"
+#include "EterLib/Render/ActorSkinningPipeline.h"
 #include "Eterbase/Filename.h"
 #include <algorithm>
 #include <cctype>
@@ -31,6 +32,7 @@ void CGrannyLODController::ReleaseGltfVertexDeclaration()
 		s_pGltfVertexDecl->Release();
 		s_pGltfVertexDecl = NULL;
 	}
+	EterLib::Render::ActorSkinningPipeline::Instance().Shutdown();
 }
 
 static CGraphicVertexBuffer* __AllocDeformVertexBuffer(unsigned deformableVertexCount)
@@ -149,7 +151,11 @@ CGrannyLODController::CGrannyLODController() :
 	m_fLODDistance(0.0f),
 	m_dwLODAniFPS(CGrannyModelInstance::ANIFPS_MAX),
 	m_pkSharedDeformableVertexBuffer(NULL),
-	m_pGltfModelInstance(NULL)
+	m_pGltfModelInstance(NULL),
+	m_pGltfStaticVB(NULL),
+	m_pGltfStaticIB(NULL),
+	m_dwGltfStaticVertexCount(0),
+	m_dwGltfStaticIndexCount(0)
 	/////////////////////////////////////////////////////
 {
 	D3DXMatrixIdentity(&m_matWorld);
@@ -170,6 +176,7 @@ CGrannyLODController::~CGrannyLODController()
 
 void CGrannyLODController::Clear()
 {
+	ReleaseGltfStaticGpuBuffers();
 	m_gltfMaterials.clear();
 	m_dwSampleFrameCounter = 0;
 
@@ -456,6 +463,8 @@ void CGrannyLODController::CreateDeviceObjects()
 
 void CGrannyLODController::DestroyDeviceObjects()
 {
+	ReleaseGltfStaticGpuBuffers();
+
 	if (s_pGltfVertexDecl)
 	{
 		s_pGltfVertexDecl->Release();
@@ -633,7 +642,7 @@ void CGrannyLODController::UpdateTime(float fElapsedTime)
 	if (m_pGltfModelInstance)
 	{
 		m_pGltfModelInstance->Update(fElapsedTime);
-		m_pGltfModelInstance->DeformVertices();
+		// Zero CPU Vertex Deformation: skeleton & skinning matrices updated in Update()
 		RefreshAttachedModelInstance();
 	}
 
@@ -734,7 +743,7 @@ void CGrannyLODController::DeformAll(const D3DXMATRIX * c_pWorldMatrix)
 		m_matWorld = *c_pWorldMatrix;
 
 	if (m_pGltfModelInstance)
-		m_pGltfModelInstance->DeformVertices();
+		m_pGltfModelInstance->Update(0.0f);
 
 	std::deque<CGrannyModelInstance *>::iterator i;
 	for (i=m_que_pkModelInst.begin(); i!=m_que_pkModelInst.end(); ++i)
@@ -750,7 +759,7 @@ void CGrannyLODController::DeformNoSkin(const D3DXMATRIX * c_pWorldMatrix)
 		m_matWorld = *c_pWorldMatrix;
 
 	if (m_pGltfModelInstance)
-		m_pGltfModelInstance->DeformVertices();
+		m_pGltfModelInstance->Update(0.0f);
 
 	if (m_pCurrentModelInstance)
 		m_pCurrentModelInstance->DeformNoSkin(c_pWorldMatrix);
@@ -762,7 +771,7 @@ void CGrannyLODController::Deform(const D3DXMATRIX * c_pWorldMatrix)
 		m_matWorld = *c_pWorldMatrix;
 
 	if (m_pGltfModelInstance)
-		m_pGltfModelInstance->DeformVertices();
+		m_pGltfModelInstance->Update(0.0f);
 
 	if (m_pCurrentModelInstance)
 		m_pCurrentModelInstance->Deform(c_pWorldMatrix);
@@ -806,9 +815,9 @@ void CGrannyLODController::ReloadTexture()
 
 void CGrannyLODController::GetBoundBox(D3DXVECTOR3 * vtMin, D3DXVECTOR3 * vtMax)
 {
-	if (m_pGltfModelInstance)
+	if (m_pGltfModelInstance && m_pGltfModelInstance->GetModel())
 	{
-		const std::vector<GltfVertex>& vertices = m_pGltfModelInstance->GetDeformedVertices();
+		const std::vector<GltfVertex>& vertices = m_pGltfModelInstance->GetModel()->GetModelData().vertices;
 		if (!vertices.empty())
 		{
 			vtMin->x = vtMax->x = vertices[0].position.x;
@@ -1142,6 +1151,104 @@ void CGrannyLODController::InitGltfMaterials()
 	}
 }
 
+void CGrannyLODController::ReleaseGltfStaticGpuBuffers()
+{
+	if (m_pGltfStaticVB)
+	{
+		m_pGltfStaticVB->Release();
+		m_pGltfStaticVB = NULL;
+	}
+	if (m_pGltfStaticIB)
+	{
+		m_pGltfStaticIB->Release();
+		m_pGltfStaticIB = NULL;
+	}
+	m_dwGltfStaticVertexCount = 0;
+	m_dwGltfStaticIndexCount = 0;
+}
+
+bool CGrannyLODController::EnsureGltfStaticGpuBuffers()
+{
+	if (m_pGltfStaticVB && m_pGltfStaticIB)
+		return true;
+
+	if (!ms_lpd3dDevice || !m_pGltfModelInstance)
+		return false;
+
+	const EterModelLib::CGltfModel* pModel = m_pGltfModelInstance->GetModel();
+	if (!pModel || !pModel->IsLoaded())
+		return false;
+
+	const GltfModelData& modelData = pModel->GetModelData();
+	if (modelData.vertices.empty() || modelData.indices.empty())
+		return false;
+
+	ReleaseGltfStaticGpuBuffers();
+
+	const UINT vertexCount = (UINT)modelData.vertices.size();
+	const UINT indexCount  = (UINT)modelData.indices.size();
+	const UINT vbByteSize  = vertexCount * sizeof(EterLib::Render::GpuSkinnedVertex);
+	const UINT ibByteSize  = indexCount * sizeof(unsigned int);
+
+	if (FAILED(ms_lpd3dDevice->CreateVertexBuffer(
+		vbByteSize, D3DUSAGE_WRITEONLY, 0, D3DPOOL_MANAGED, &m_pGltfStaticVB, NULL)))
+	{
+		return false;
+	}
+
+	EterLib::Render::GpuSkinnedVertex* pLockedVertices = nullptr;
+	if (FAILED(m_pGltfStaticVB->Lock(0, vbByteSize, (void**)&pLockedVertices, 0)))
+	{
+		ReleaseGltfStaticGpuBuffers();
+		return false;
+	}
+
+	for (UINT i = 0; i < vertexCount; ++i)
+	{
+		const GltfVertex& src = modelData.vertices[i];
+		EterLib::Render::GpuSkinnedVertex& dst = pLockedVertices[i];
+		dst.position[0] = src.position.x;
+		dst.position[1] = src.position.y;
+		dst.position[2] = src.position.z;
+		dst.normal[0]   = src.normal.x;
+		dst.normal[1]   = src.normal.y;
+		dst.normal[2]   = src.normal.z;
+		dst.uv0[0]      = src.uv0.x;
+		dst.uv0[1]      = src.uv0.y;
+		dst.uv1[0]      = src.uv1.x;
+		dst.uv1[1]      = src.uv1.y;
+		dst.jointIndices[0] = (float)src.jointIndices.x;
+		dst.jointIndices[1] = (float)src.jointIndices.y;
+		dst.jointIndices[2] = (float)src.jointIndices.z;
+		dst.jointIndices[3] = (float)src.jointIndices.w;
+		dst.jointWeights[0] = src.jointWeights.x;
+		dst.jointWeights[1] = src.jointWeights.y;
+		dst.jointWeights[2] = src.jointWeights.z;
+		dst.jointWeights[3] = src.jointWeights.w;
+	}
+	m_pGltfStaticVB->Unlock();
+
+	if (FAILED(ms_lpd3dDevice->CreateIndexBuffer(
+		ibByteSize, D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_MANAGED, &m_pGltfStaticIB, NULL)))
+	{
+		ReleaseGltfStaticGpuBuffers();
+		return false;
+	}
+
+	void* pLockedIndices = nullptr;
+	if (FAILED(m_pGltfStaticIB->Lock(0, ibByteSize, &pLockedIndices, 0)))
+	{
+		ReleaseGltfStaticGpuBuffers();
+		return false;
+	}
+	std::memcpy(pLockedIndices, modelData.indices.data(), ibByteSize);
+	m_pGltfStaticIB->Unlock();
+
+	m_dwGltfStaticVertexCount = vertexCount;
+	m_dwGltfStaticIndexCount  = indexCount;
+	return true;
+}
+
 void CGrannyLODController::RenderGltfModel()
 {
 	if (!m_pGltfModelInstance)
@@ -1151,12 +1258,11 @@ void CGrannyLODController::RenderGltfModel()
 	if (!pModel || !pModel->IsLoaded())
 		return;
 
-	const std::vector<GltfVertex>& deformedVertices = m_pGltfModelInstance->GetDeformedVertices();
-	if (deformedVertices.empty())
+	const GltfModelData& modelData = pModel->GetModelData();
+	if (modelData.vertices.empty() || modelData.indices.empty())
 		return;
 
-	const GltfModelData& modelData = pModel->GetModelData();
-	if (modelData.indices.empty())
+	if (!EnsureGltfStaticGpuBuffers())
 		return;
 
 	if (m_gltfMaterials.empty() && !modelData.materials.empty())
@@ -1164,22 +1270,32 @@ void CGrannyLODController::RenderGltfModel()
 		InitGltfMaterials();
 	}
 
-	if (!s_pGltfVertexDecl && ms_lpd3dDevice)
+	auto& pipeline = EterLib::Render::ActorSkinningPipeline::Instance();
+	if (!pipeline.IsInitialized() && ms_lpd3dDevice)
 	{
-		D3DVERTEXELEMENT9 elements[] =
-		{
-			{ 0, 0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-			{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,   0 },
-			{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-			{ 0, 32, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
-			D3DDECL_END()
-		};
-		ms_lpd3dDevice->CreateVertexDeclaration(elements, &s_pGltfVertexDecl);
+		pipeline.Initialize(ms_lpd3dDevice);
 	}
 
-	ScopedD3DVertexDeclGuard gltfDeclGuard(s_pGltfVertexDecl, false);
+	D3DXMATRIX matView, matProj, matViewProj;
+	STATEMANAGER.GetTransform(D3DTS_VIEW, &matView);
+	STATEMANAGER.GetTransform(D3DTS_PROJECTION, &matProj);
+	D3DXMatrixMultiply(&matViewProj, &matView, &matProj);
 
-	STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorld);
+	const bool bUsingShader = pipeline.Begin(m_matWorld, matViewProj, nullptr);
+	if (bUsingShader)
+	{
+		const auto& skinMatrices = m_pGltfModelInstance->GetSkinningMatrices();
+		pipeline.UploadBonePalette(
+			skinMatrices.empty() ? nullptr : skinMatrices.data(),
+			(UINT)skinMatrices.size());
+	}
+	else
+	{
+		STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorld);
+	}
+
+	STATEMANAGER.SetStreamSource(0, m_pGltfStaticVB, sizeof(EterLib::Render::GpuSkinnedVertex));
+	STATEMANAGER.SetIndices(m_pGltfStaticIB, 0);
 
 	for (size_t s = 0; s < modelData.submeshes.size(); ++s)
 	{
@@ -1246,18 +1362,20 @@ void CGrannyLODController::RenderGltfModel()
 		STATEMANAGER.SetTexture(1, NULL);
 
 		UINT minVertexIndex = submesh.vertexOffset;
-		UINT numVertices = submesh.vertexCount > 0 ? submesh.vertexCount : (UINT)deformedVertices.size();
+		UINT numVertices = submesh.vertexCount > 0 ? submesh.vertexCount : (UINT)m_dwGltfStaticVertexCount;
 
-		STATEMANAGER.DrawIndexedPrimitiveUP(
+		STATEMANAGER.DrawIndexedPrimitive(
 			D3DPT_TRIANGLELIST,
 			minVertexIndex,
 			numVertices,
-			primitiveCount,
-			&modelData.indices[submesh.indexOffset],
-			D3DFMT_INDEX32,
-			deformedVertices.data(),
-			sizeof(GltfVertex)
+			submesh.indexOffset,
+			primitiveCount
 		);
+	}
+
+	if (bUsingShader)
+	{
+		pipeline.End();
 	}
 
 	// Przywrocenie domyslnych stanow D3D9 po zakonczeniu renderowania glTF
@@ -1266,5 +1384,4 @@ void CGrannyLODController::RenderGltfModel()
 	STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 	STATEMANAGER.SetTexture(0, NULL);
 	STATEMANAGER.SetTexture(1, NULL);
-	STATEMANAGER.SetVertexDeclaration(NULL);
 }

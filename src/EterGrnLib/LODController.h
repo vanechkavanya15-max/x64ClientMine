@@ -279,6 +279,8 @@ class CGrannyLODController : public CGraphicCollisionObject
 	protected:
 		void	RenderGltfModel();
 		void	InitGltfMaterials();
+		bool	EnsureGltfStaticGpuBuffers();
+		void	ReleaseGltfStaticGpuBuffers();
 		void	SetCurrentModelInstance(CGrannyModelInstance * pgrnModelInstance);
 		void	RefreshAttachedModelInstance();
 
@@ -312,6 +314,10 @@ class CGrannyLODController : public CGraphicCollisionObject
 
 		EterModelLib::CGltfModelInstance *	m_pGltfModelInstance;
 		D3DXMATRIX							m_matWorld;
+		LPDIRECT3DVERTEXBUFFER9				m_pGltfStaticVB;
+		LPDIRECT3DINDEXBUFFER9				m_pGltfStaticIB;
+		DWORD								m_dwGltfStaticVertexCount;
+		DWORD								m_dwGltfStaticIndexCount;
 
 		struct SGltfMaterialState
 		{
