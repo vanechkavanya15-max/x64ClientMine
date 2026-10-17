@@ -95,8 +95,32 @@ typedef enum EUIBlendMode
 {
     UI_BLEND_NORMAL = 0,
     UI_BLEND_SCREEN = 1,
-    UI_BLEND_ADDITIVE = 2
+    UI_BLEND_ADDITIVE = 2,
+    UI_BLEND_MODULATE = 3,
+    UI_BLEND_LCD_PASS1 = 4,
+    UI_BLEND_LCD_PASS2 = 5
 } EUIBlendMode;
+
+typedef struct TPipelineStateKey
+{
+    uint8_t srcBlend;
+    uint8_t destBlend;
+    uint8_t cullMode;
+    uint8_t zTest;
+    uint8_t zWrite;
+    uint8_t alphaRef;
+    uint8_t fogEnable;
+    uint8_t colorWrite;
+} TPipelineStateKey;
+
+typedef enum EMaterialType
+{
+    MATERIAL_DIFFUSE = 0,
+    MATERIAL_LIGHTMAP_MODULATE = 1,
+    MATERIAL_LIGHTMAP_MODULATE2X = 2,
+    MATERIAL_ADDITIVE = 3,
+    MATERIAL_SUBTRACTIVE = 4
+} EMaterialType;
 
 #if !defined(RENDER_MATRIX_TYPE)
     #define RENDER_MATRIX_TYPE TRenderMatrix4x4
@@ -489,7 +513,7 @@ typedef struct RENDER_ABI_ALIGN(16) TDungeonBlockPacket
 #endif
 } TDungeonBlockPacket;
 
-/* 14. TRenderFramePacket: 400 bajtow, wyrownanie 16B */
+/* 14. TRenderFramePacket: 416 bajtow, wyrownanie 16B (ABI v2 z sekcja lochow) */
 typedef struct RENDER_ABI_ALIGN(16) TRenderFramePacket
 {
     TRenderFrameUniforms uniforms;
@@ -514,6 +538,9 @@ typedef struct RENDER_ABI_ALIGN(16) TRenderFramePacket
     const TSkyBoxPacket* pSkyBoxPackets;
     uint32_t dwSkyBoxCount;
     uint32_t dwPad6;
+    const TDungeonBlockPacket* pDungeonPackets;
+    uint32_t dwDungeonCount;
+    uint32_t dwPad7;
 
 #ifdef __cplusplus
     TRenderFramePacket()
@@ -523,12 +550,87 @@ typedef struct RENDER_ABI_ALIGN(16) TRenderFramePacket
 #endif
 } TRenderFramePacket;
 
+/* 15. TTerrainPassPacket: 96 bajtow */
+typedef struct TTerrainPassPacket
+{
+    uint32_t layerIndex;
+    uint32_t alphaSplatHandle;
+    uint32_t lodLevel;
+    uint32_t indexBufferHandle;
+    TRenderMatrix4x4 matLayer;
+    float nearDistance;
+    float fogDistance;
+    float farDistance;
+    uint32_t shadowTextureHandle;
+} TTerrainPassPacket;
+
+/* 16. TEffectMeshPacket: 88 bajtow */
+typedef struct TEffectMeshPacket
+{
+    TRenderMatrix4x4 matWorld;
+    uint32_t textureHandle;
+    uint32_t textureFactorColor;
+    uint32_t colorOp;
+    uint8_t srcBlend;
+    uint8_t destBlend;
+    uint8_t bPad[2];
+    uint32_t vertexOffset;
+    uint32_t vertexCount;
+} TEffectMeshPacket;
+
+/* 17. TModelDrawItem: 96 bajtow */
+typedef struct TModelDrawItem
+{
+    uint32_t modelId;
+    uint32_t subMeshIndex;
+    uint32_t materialHandle;
+    uint32_t passType;
+    TRenderMatrix4x4 matWorld;
+    float fAlpha;
+    uint32_t addColor;
+    uint32_t materialColor;
+    uint32_t dwPad;
+} TModelDrawItem;
+
+/* 18. TWeaponTracePacket: 24 bajty */
+typedef struct TWeaponTracePacket
+{
+    uint32_t textureHandle;
+    TPipelineStateKey stateKey;
+    uint32_t vertexOffset;
+    uint32_t vertexCount;
+    uint32_t dwPad;
+} TWeaponTracePacket;
+
+/* 19. TDebugLinePacket: 32 bajty */
+typedef struct TDebugLinePacket
+{
+    TRenderVec3 v3Start;
+    TRenderVec3 v3End;
+    uint32_t dwColor;
+    uint8_t bXRay;
+    uint8_t bPad[3];
+} TDebugLinePacket;
+
+/* 20. TRenderPassDesc: 144 bajty */
+typedef struct TRenderPassDesc
+{
+    uint32_t passType;
+    uint32_t targetHandle;
+    uint32_t clearColor;
+    uint8_t bClearTarget;
+    uint8_t bPad[3];
+    TRenderMatrix4x4 matView;
+    TRenderMatrix4x4 matProj;
+} TRenderPassDesc;
+
 /* Statyczne asercje rozmiarow i wyrownan struktur pakietowych C-ABI */
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderMatrix4x4) == 64, "ABI: TRenderMatrix4x4 == 64B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderVec2) == 8, "ABI: TRenderVec2 == 8B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderVec3) == 12, "ABI: TRenderVec3 == 12B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderVec4) == 16, "ABI: TRenderVec4 == 16B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRect32) == 16, "ABI: TRect32 == 16B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TPipelineStateKey) == 8, "ABI: TPipelineStateKey == 8B");
 
 RENDER_ABI_STATIC_ASSERT(sizeof(TUIVertex) == 24, "ABI: TUIVertex == 24B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TPNT2Vertex) == 40, "ABI: TPNT2Vertex == 40B");
@@ -543,7 +645,13 @@ RENDER_ABI_STATIC_ASSERT(sizeof(TEffectInstancePacket) == 48, "ABI: TEffectInsta
 RENDER_ABI_STATIC_ASSERT(sizeof(TUIBatchPacket) == 64, "ABI: TUIBatchPacket == 64B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TSkyBoxPacket) == 112, "ABI: TSkyBoxPacket == 112B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TDungeonBlockPacket) == 160, "ABI: TDungeonBlockPacket == 160B");
-RENDER_ABI_STATIC_ASSERT(sizeof(TRenderFramePacket) == 400, "ABI: TRenderFramePacket == 400B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TRenderFramePacket) == 416, "ABI: TRenderFramePacket == 416B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TTerrainPassPacket) == 96, "ABI: TTerrainPassPacket == 96B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TEffectMeshPacket) == 88, "ABI: TEffectMeshPacket == 88B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TModelDrawItem) == 96, "ABI: TModelDrawItem == 96B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TWeaponTracePacket) == 24, "ABI: TWeaponTracePacket == 24B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TDebugLinePacket) == 32, "ABI: TDebugLinePacket == 32B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TRenderPassDesc) == 144, "ABI: TRenderPassDesc == 144B");
 
 #ifdef __cplusplus
 }

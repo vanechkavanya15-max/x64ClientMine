@@ -10,7 +10,7 @@
 
 class IRenderBackend;
 
-constexpr uint32_t M2_RENDER_ABI_VERSION = 1;
+constexpr uint32_t M2_RENDER_ABI_VERSION = 2;
 
 namespace FrameDumpV2
 {

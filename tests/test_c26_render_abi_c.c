@@ -40,7 +40,14 @@ C_STATIC_ASSERT(sizeof(TEffectInstancePacket) == 48, "Size: TEffectInstancePacke
 C_STATIC_ASSERT(sizeof(TUIBatchPacket) == 64, "Size: TUIBatchPacket");
 C_STATIC_ASSERT(sizeof(TSkyBoxPacket) == 112, "Size: TSkyBoxPacket");
 C_STATIC_ASSERT(sizeof(TDungeonBlockPacket) == 160, "Size: TDungeonBlockPacket");
-C_STATIC_ASSERT(sizeof(TRenderFramePacket) == 400, "Size: TRenderFramePacket");
+C_STATIC_ASSERT(sizeof(TRenderFramePacket) == 416, "Size: TRenderFramePacket");
+C_STATIC_ASSERT(sizeof(TPipelineStateKey) == 8, "Size: TPipelineStateKey");
+C_STATIC_ASSERT(sizeof(TTerrainPassPacket) == 96, "Size: TTerrainPassPacket");
+C_STATIC_ASSERT(sizeof(TEffectMeshPacket) == 88, "Size: TEffectMeshPacket");
+C_STATIC_ASSERT(sizeof(TModelDrawItem) == 96, "Size: TModelDrawItem");
+C_STATIC_ASSERT(sizeof(TWeaponTracePacket) == 24, "Size: TWeaponTracePacket");
+C_STATIC_ASSERT(sizeof(TDebugLinePacket) == 32, "Size: TDebugLinePacket");
+C_STATIC_ASSERT(sizeof(TRenderPassDesc) == 144, "Size: TRenderPassDesc");
 
 /* === 1. TUIVertex === */
 C_STATIC_ASSERT(offsetof(TUIVertex, position) == 0, "TUIVertex::position");
@@ -485,6 +492,9 @@ int main(void)
     assert(offsetof(TRenderFramePacket, pSkyBoxPackets) == 384);
     assert(offsetof(TRenderFramePacket, dwSkyBoxCount) == 392);
     assert(offsetof(TRenderFramePacket, dwPad6) == 396);
+    assert(offsetof(TRenderFramePacket, pDungeonPackets) == 400);
+    assert(offsetof(TRenderFramePacket, dwDungeonCount) == 408);
+    assert(offsetof(TRenderFramePacket, dwPad7) == 412);
 
     printf("[PASS] All RenderAbi C offsets and sizes verified successfully.\n");
     return 0;

@@ -44,8 +44,16 @@ static_assert(sizeof(TPNT2Vertex) == 40, "ABI size: TPNT2Vertex");
 static_assert(sizeof(TDungeonBlockPacket) == 160, "ABI size: TDungeonBlockPacket");
 static_assert(alignof(TDungeonBlockPacket) == 16, "ABI align: TDungeonBlockPacket");
 
-static_assert(sizeof(TRenderFramePacket) == 400, "ABI size: TRenderFramePacket");
+static_assert(sizeof(TRenderFramePacket) == 416, "ABI size: TRenderFramePacket");
 static_assert(alignof(TRenderFramePacket) == 16, "ABI align: TRenderFramePacket");
+
+static_assert(sizeof(TPipelineStateKey) == 8, "ABI size: TPipelineStateKey");
+static_assert(sizeof(TTerrainPassPacket) == 96, "ABI size: TTerrainPassPacket");
+static_assert(sizeof(TEffectMeshPacket) == 88, "ABI size: TEffectMeshPacket");
+static_assert(sizeof(TModelDrawItem) == 96, "ABI size: TModelDrawItem");
+static_assert(sizeof(TWeaponTracePacket) == 24, "ABI size: TWeaponTracePacket");
+static_assert(sizeof(TDebugLinePacket) == 32, "ABI size: TDebugLinePacket");
+static_assert(sizeof(TRenderPassDesc) == 144, "ABI size: TRenderPassDesc");
 
 // Weryfikacja offsetow pol
 static_assert(offsetof(TRenderFrameUniforms, matView) == 0, "Offset: matView");

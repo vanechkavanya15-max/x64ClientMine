@@ -67,8 +67,9 @@ static_assert(sizeof(TParticleInstanceData) == 64, "ABI: TParticleInstanceData !
 static_assert(sizeof(TEffectInstancePacket) == 48, "ABI: TEffectInstancePacket != packets.rs");
 static_assert(sizeof(TUIVertex) == 24, "ABI: TUIVertex != packets.rs");
 static_assert(sizeof(TUIBatchPacket) == 64, "ABI: TUIBatchPacket != packets.rs");
-static_assert(sizeof(TRenderFramePacket) == 400, "ABI: TRenderFramePacket != packets.rs");
+static_assert(sizeof(TRenderFramePacket) == 416, "ABI: TRenderFramePacket == 416");
 static_assert(offsetof(TRenderFramePacket, pSkyBoxPackets) == 384, "ABI: frame skybox ptr");
+static_assert(offsetof(TRenderFramePacket, pDungeonPackets) == 400, "ABI: frame dungeon ptr");
 static_assert(sizeof(TSkyBoxPacket) == 112, "ABI: TSkyBoxPacket != packets.rs");
 static_assert(alignof(TSkyBoxPacket) == 16, "ABI: TSkyBoxPacket align != 16");
 static_assert(offsetof(TSkyBoxPacket, matWorld) == 0, "ABI: skybox matWorld");
