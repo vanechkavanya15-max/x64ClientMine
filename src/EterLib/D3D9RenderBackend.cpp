@@ -6,6 +6,8 @@
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include "Render/TerrainShaderPipeline.h"
 #include "CFrameSnapshot.h"
+#include "Camera.h"
+#include "ParticleQuad.h"
 
 CD3D9RenderBackend::CD3D9RenderBackend()
 {
@@ -314,6 +316,11 @@ static void EnsureSharedQuadIndices(std::vector<uint16_t>& indices, uint32_t req
 
 void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, unsigned int count)
 {
+	RenderParticles(pPackets, count);
+}
+
+void CD3D9RenderBackend::RenderParticles(const TEffectInstancePacket* pPackets, unsigned int count)
+{
 	if (RenderOwnership::Owner(ERenderCategory::Effect) != ERenderOwner::D3D9Backend)
 		return;
 
@@ -325,8 +332,17 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 	const D3DXMATRIX& matView = (m_currentUniforms.matView._11 != 0.0f || m_currentUniforms.matView._44 != 0.0f)
 		? m_currentUniforms.matView
 		: CFrameSnapshot::Current().matView;
-	const D3DXVECTOR3 vRight(matView._11, matView._21, matView._31);
-	const D3DXVECTOR3 vUp(matView._12, matView._22, matView._32);
+	D3DXVECTOR3 vCross(matView._11, matView._21, matView._31);
+	D3DXVECTOR3 vUp(matView._12, matView._22, matView._32);
+	D3DXVECTOR3 vView(matView._13, matView._23, matView._33);
+
+	CCamera* pCamera = CCameraManager::Instance().GetCurrentCamera();
+	if (pCamera)
+	{
+		vUp = pCamera->GetUp();
+		vCross = pCamera->GetCross();
+		vView = pCamera->GetView();
+	}
 
 	D3DXMATRIX matIdentity;
 	D3DXMatrixIdentity(&matIdentity);
@@ -346,7 +362,12 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 		if (!pkt.pParticles || pkt.dwParticleCount == 0)
 			continue;
 
-		if (pkt.dwBlendMode == EFFECT_BLEND_ADDITIVE)
+		if (pkt.srcBlend != 0 && pkt.destBlend != 0)
+		{
+			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, pkt.srcBlend);
+			STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, pkt.destBlend);
+		}
+		else if (pkt.dwBlendMode == EFFECT_BLEND_ADDITIVE)
 		{
 			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 			STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
@@ -396,35 +417,41 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 				const float sx = (p.fHalfWidth > 0.0f) ? p.fHalfWidth : p.vWorldPos.w;
 				const float sy = (p.fHalfHeight > 0.0f) ? p.fHalfHeight : p.vWorldPos.w;
 
-				D3DXVECTOR3 axisX = vRight * sx;
-				D3DXVECTOR3 axisY = vUp * sy;
-				if (p.fRotation != 0.0f)
-				{
-					const float rad = D3DXToRadian(p.fRotation);
-					const float c = cosf(rad);
-					const float s = sinf(rad);
-					axisX = (vRight * c + vUp * s) * sx;
-					axisY = (-vRight * s + vUp * c) * sy;
-				}
+				D3DXVECTOR3 quadPositions[4];
+				const D3DXVECTOR3 velocity(0.0f, 0.0f, 0.0f);
+
+				BuildParticleQuad(
+					pkt.billboardMode,
+					pkt.bStretch != 0,
+					center,
+					sx,
+					sy,
+					p.fRotation,
+					vUp,
+					vCross,
+					vView,
+					velocity,
+					quadPositions
+				);
 
 				const uint32_t packedColor = static_cast<DWORD>(p.vColor);
 				TUIVertex* v = &m_particleVertices[pIdx * 4];
 
-				v[0].position = center - axisX + axisY;
+				v[0].position = quadPositions[0];
 				v[0].color = packedColor;
-				v[0].texCoord = D3DXVECTOR2(p.vTexCoordRect.x, p.vTexCoordRect.y);
+				v[0].texCoord = D3DXVECTOR2(p.vTexCoordRect.x, p.vTexCoordRect.w);
 
-				v[1].position = center + axisX + axisY;
+				v[1].position = quadPositions[1];
 				v[1].color = packedColor;
-				v[1].texCoord = D3DXVECTOR2(p.vTexCoordRect.z, p.vTexCoordRect.y);
+				v[1].texCoord = D3DXVECTOR2(p.vTexCoordRect.x, p.vTexCoordRect.y);
 
-				v[2].position = center - axisX - axisY;
+				v[2].position = quadPositions[2];
 				v[2].color = packedColor;
-				v[2].texCoord = D3DXVECTOR2(p.vTexCoordRect.x, p.vTexCoordRect.w);
+				v[2].texCoord = D3DXVECTOR2(p.vTexCoordRect.z, p.vTexCoordRect.w);
 
-				v[3].position = center + axisX - axisY;
+				v[3].position = quadPositions[3];
 				v[3].color = packedColor;
-				v[3].texCoord = D3DXVECTOR2(p.vTexCoordRect.z, p.vTexCoordRect.w);
+				v[3].texCoord = D3DXVECTOR2(p.vTexCoordRect.z, p.vTexCoordRect.y);
 			}
 
 			STATEMANAGER.DrawIndexedPrimitiveUP(
@@ -440,6 +467,141 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 
 			particleOffset += numQuads;
 		}
+	}
+
+	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
+}
+
+void CD3D9RenderBackend::RenderParticles(const TParticlePacket* pPackets, unsigned int count)
+{
+	if (RenderOwnership::Owner(ERenderCategory::Effect) != ERenderOwner::D3D9Backend)
+		return;
+
+	if (!pPackets || count == 0)
+		return;
+	if (!m_pUIVertexDecl)
+		InitVertexDeclarations();
+
+	const D3DXMATRIX& matView = (m_currentUniforms.matView._11 != 0.0f || m_currentUniforms.matView._44 != 0.0f)
+		? m_currentUniforms.matView
+		: CFrameSnapshot::Current().matView;
+	D3DXVECTOR3 vCross(matView._11, matView._21, matView._31);
+	D3DXVECTOR3 vUp(matView._12, matView._22, matView._32);
+	D3DXVECTOR3 vView(matView._13, matView._23, matView._33);
+
+	CCamera* pCamera = CCameraManager::Instance().GetCurrentCamera();
+	if (pCamera)
+	{
+		vUp = pCamera->GetUp();
+		vCross = pCamera->GetCross();
+		vView = pCamera->GetView();
+	}
+
+	D3DXMATRIX matIdentity;
+	D3DXMatrixIdentity(&matIdentity);
+	STATEMANAGER.SaveTransform(D3DTS_WORLD, &matIdentity);
+
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+
+	if (m_pUIVertexDecl)
+		STATEMANAGER.SetVertexDeclaration(m_pUIVertexDecl);
+
+	for (unsigned int i = 0; i < count; ++i)
+	{
+		const TParticlePacket& pkt = pPackets[i];
+
+		if (pkt.srcBlend != 0 && pkt.destBlend != 0)
+		{
+			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, pkt.srcBlend);
+			STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, pkt.destBlend);
+		}
+		else
+		{
+			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+			STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		}
+
+		LPDIRECT3DBASETEXTURE9 pEffectTexture = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwTextureID);
+		bool bValidEffectTex = (pkt.dwTextureID != 0) && CStateManager::IsValidTexturePointer(pEffectTexture);
+
+		if (bValidEffectTex)
+		{
+			STATEMANAGER.SetTexture(0, pEffectTexture);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+		}
+		else
+		{
+			STATEMANAGER.SetTexture(0, nullptr);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+		}
+
+		if (m_particleVertices.size() < 4)
+			m_particleVertices.resize(4);
+
+		EnsureSharedQuadIndices(m_sharedEffectIndices, 1);
+
+		D3DXVECTOR3 quadPositions[4];
+		const D3DXVECTOR3 center(pkt.vPosition.x, pkt.vPosition.y, pkt.vPosition.z);
+		const D3DXVECTOR3 velocity(pkt.vVelocity.x, pkt.vVelocity.y, pkt.vVelocity.z);
+
+		BuildParticleQuad(
+			pkt.billboardMode,
+			pkt.bStretch != 0,
+			center,
+			pkt.fHalfWidth,
+			pkt.fHalfHeight,
+			pkt.fRotation,
+			vUp,
+			vCross,
+			vView,
+			velocity,
+			quadPositions
+		);
+
+		const uint32_t packedColor = static_cast<DWORD>(pkt.vColor);
+		TUIVertex* v = m_particleVertices.data();
+
+		v[0].position = quadPositions[0];
+		v[0].color = packedColor;
+		v[0].texCoord = D3DXVECTOR2(pkt.vTexCoordRect.x, pkt.vTexCoordRect.w);
+
+		v[1].position = quadPositions[1];
+		v[1].color = packedColor;
+		v[1].texCoord = D3DXVECTOR2(pkt.vTexCoordRect.x, pkt.vTexCoordRect.y);
+
+		v[2].position = quadPositions[2];
+		v[2].color = packedColor;
+		v[2].texCoord = D3DXVECTOR2(pkt.vTexCoordRect.z, pkt.vTexCoordRect.w);
+
+		v[3].position = quadPositions[3];
+		v[3].color = packedColor;
+		v[3].texCoord = D3DXVECTOR2(pkt.vTexCoordRect.z, pkt.vTexCoordRect.y);
+
+		STATEMANAGER.DrawIndexedPrimitiveUP(
+			D3DPT_TRIANGLELIST,
+			0,
+			4,
+			2,
+			m_sharedEffectIndices.data(),
+			D3DFMT_INDEX16,
+			m_particleVertices.data(),
+			static_cast<UINT>(sizeof(TUIVertex))
+		);
 	}
 
 	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);

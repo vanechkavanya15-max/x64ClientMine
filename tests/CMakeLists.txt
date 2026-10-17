@@ -6580,3 +6580,12 @@ target_link_libraries(test_c26_frame_snapshot PRIVATE
 )
 add_test(NAME FrameSnapshotTest COMMAND test_c26_frame_snapshot)
 
+add_executable(test_c26_particle_quad test_c26_particle_quad.cpp)
+target_include_directories(test_c26_particle_quad PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_particle_quad PRIVATE EterLib EterBase DirectX doctest)
+add_test(NAME test_c26_particle_quad COMMAND test_c26_particle_quad)
+

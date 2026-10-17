@@ -39,6 +39,8 @@ public:
 	virtual void RenderWater(const TWaterPacket* pPackets, unsigned int count) override;
 	virtual void RenderSpeedTree(const TSpeedTreePacket* pPackets, unsigned int count) override;
 	virtual void RenderEffects(const TEffectInstancePacket* pPackets, unsigned int count) override;
+	void RenderParticles(const TEffectInstancePacket* pPackets, unsigned int count);
+	void RenderParticles(const TParticlePacket* pPackets, unsigned int count);
 	virtual void RenderUI(const TUIBatchPacket* pPackets, unsigned int count) override;
 	virtual void RenderDungeonBlocks(const TDungeonBlockPacket* pPackets, unsigned int count) override;
 

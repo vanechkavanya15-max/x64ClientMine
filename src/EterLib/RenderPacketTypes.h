@@ -110,4 +110,19 @@ static_assert(offsetof(TDungeonBlockPacket, fAlpha) == 148, "ABI: dungeon fAlpha
 static_assert(offsetof(TDungeonBlockPacket, bAlphaBlend) == 152, "ABI: dungeon bAlphaBlend");
 static_assert(offsetof(TDungeonBlockPacket, bPadDungeon) == 153, "ABI: dungeon bPadDungeon");
 static_assert(offsetof(TDungeonBlockPacket, fPad) == 156, "ABI: dungeon fPad");
+static_assert(sizeof(TParticlePacket) == 96, "ABI: TParticlePacket == 96");
+static_assert(alignof(TParticlePacket) == 16, "ABI: TParticlePacket align == 16");
+static_assert(offsetof(TParticlePacket, vPosition) == 0, "ABI: particle vPosition");
+static_assert(offsetof(TParticlePacket, fHalfWidth) == 12, "ABI: particle fHalfWidth");
+static_assert(offsetof(TParticlePacket, vVelocity) == 16, "ABI: particle vVelocity");
+static_assert(offsetof(TParticlePacket, fHalfHeight) == 28, "ABI: particle fHalfHeight");
+static_assert(offsetof(TParticlePacket, vColor) == 32, "ABI: particle vColor");
+static_assert(offsetof(TParticlePacket, vTexCoordRect) == 48, "ABI: particle vTexCoordRect");
+static_assert(offsetof(TParticlePacket, fRotation) == 64, "ABI: particle fRotation");
+static_assert(offsetof(TParticlePacket, srcBlend) == 68, "ABI: particle srcBlend");
+static_assert(offsetof(TParticlePacket, destBlend) == 69, "ABI: particle destBlend");
+static_assert(offsetof(TParticlePacket, billboardMode) == 70, "ABI: particle billboardMode");
+static_assert(offsetof(TParticlePacket, bStretch) == 71, "ABI: particle bStretch");
+static_assert(offsetof(TParticlePacket, dwEffectID) == 72, "ABI: particle dwEffectID");
+static_assert(offsetof(TParticlePacket, dwTextureID) == 80, "ABI: particle dwTextureID");
 #endif

@@ -336,12 +336,25 @@ void CParticleSystemInstance::OnRender()
 	if (!m_pParticleProperty)
 		return;
 
-	// Okresl tryb mieszania: Additive vs AlphaBlend
-	uint32_t dwBlendMode = EFFECT_BLEND_ALPHABLEND;
-	if (m_pParticleProperty->m_byDestBlendType == D3DBLEND_ONE ||
-		m_pParticleProperty->m_bySrcBlendType == D3DBLEND_ONE)
+	// Wiernosc pakietu czasteczek: kodujemy parametry mieszania oraz billboardu w unii TEffectInstancePacket
+	const uint8_t bySrcBlend = m_pParticleProperty->m_bySrcBlendType;
+	const uint8_t byDestBlend = m_pParticleProperty->m_byDestBlendType;
+	const uint8_t byBillboard = m_pParticleProperty->m_byBillboardType;
+	const uint8_t bStretch = m_pParticleProperty->m_bStretchFlag ? 1 : 0;
+
+	uint32_t dwBlendMode = static_cast<uint32_t>(bySrcBlend) |
+		(static_cast<uint32_t>(byDestBlend) << 8) |
+		(static_cast<uint32_t>(byBillboard) << 16) |
+		(static_cast<uint32_t>(bStretch) << 24);
+
+	if (bySrcBlend == 0 && byDestBlend == 0)
 	{
-		dwBlendMode = EFFECT_BLEND_ADDITIVE;
+		dwBlendMode = EFFECT_BLEND_ALPHABLEND;
+		if (m_pParticleProperty->m_byDestBlendType == D3DBLEND_ONE ||
+			m_pParticleProperty->m_bySrcBlendType == D3DBLEND_ONE)
+		{
+			dwBlendMode = EFFECT_BLEND_ADDITIVE;
+		}
 	}
 
 	const uint32_t dwEffectID = 0;
