@@ -6465,7 +6465,23 @@ target_include_directories(test_c26_frame_dump PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/include
 )
-target_link_libraries(test_c26_frame_dump PRIVATE EterLib EterBase doctest)
+target_link_libraries(test_c26_frame_dump PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
 add_test(NAME FrameDumpTest COMMAND test_c26_frame_dump)
 
 add_executable(test_c26_render_packet_abi test_c26_render_packet_abi.cpp)
@@ -6474,7 +6490,23 @@ target_include_directories(test_c26_render_packet_abi PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/include
 )
-target_link_libraries(test_c26_render_packet_abi PRIVATE EterLib EterBase doctest)
+target_link_libraries(test_c26_render_packet_abi PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
 add_test(NAME RenderPacketAbiTest COMMAND test_c26_render_packet_abi)
 
 add_executable(test_c26_render_abi_c test_c26_render_abi_c.c)

@@ -277,7 +277,7 @@ int main(void)
     assert(sizeof(TRenderFrameUniforms) == 288);
     assert(sizeof(TTerrainSectorPacket) == 176);
     assert(sizeof(TActorRenderPacket) == 5008);
-    assert(sizeof(TWaterPacket) == 112);
+    assert(sizeof(TWaterPacket) == 176);
     assert(sizeof(TSpeedTreeInstanceData) == 112);
     assert(sizeof(TSpeedTreePacket) == 48);
     assert(sizeof(TParticleInstanceData) == 64);
@@ -285,7 +285,7 @@ int main(void)
     assert(sizeof(TUIBatchPacket) == 64);
     assert(sizeof(TSkyBoxPacket) == 112);
     assert(sizeof(TDungeonBlockPacket) == 160);
-    assert(sizeof(TRenderFramePacket) == 400);
+    assert(sizeof(TRenderFramePacket) == 416);
 
     /* 1. TUIVertex */
     assert(offsetof(TUIVertex, position) == 0);

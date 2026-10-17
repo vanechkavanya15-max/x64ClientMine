@@ -141,8 +141,17 @@ bool CFrameReplayPlayer::ReplayToQueue(CRenderQueueManager& queueManager)
 		pkt.scissorRect.left = batch.header.scissorRect.left;
 		pkt.scissorRect.top = batch.header.scissorRect.top;
 		pkt.scissorRect.right = batch.header.scissorRect.right;
-		pkt.scissorRect.bottom = batch.header.scissorRect.bottom;
-		pkt.pVertices = batch.vertices.empty() ? nullptr : batch.vertices.data();
+		TUIVertex* pUIVerts = nullptr;
+		if (!batch.vertices.empty())
+		{
+			size_t sz = batch.vertices.size() * sizeof(TUIVertex);
+			pUIVerts = static_cast<TUIVertex*>(queueManager.AllocateFrameData(sz));
+			if (pUIVerts)
+			{
+				memcpy(pUIVerts, batch.vertices.data(), sz);
+			}
+		}
+		pkt.pVertices = pUIVerts;
 		queueManager.SubmitUI(pkt);
 	}
 

@@ -887,8 +887,9 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 		                quad.u0, quad.v0, quad.u1, quad.v1);
 	}
 
-	// 2. Bezposrednie draw calle zabezpieczone bramka LegacyDraws(RenderOwnership::UI)
-	if (RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI))
+	// 2. Bezposrednie draw calle zabezpieczone bramka LegacyDraws(RenderOwnership::Text/UI)
+	if (RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI) &&
+	    RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::Text))
 	{
 		for (auto& pair : m_outlineBatches)
 			pair.second.clear();

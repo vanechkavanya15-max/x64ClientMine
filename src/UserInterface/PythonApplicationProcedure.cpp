@@ -4,6 +4,7 @@
 #include "Eterlib/Camera.h"
 #include "EterLib/RenderQueueManager.h"
 #include "EterLib/WgpuRenderBackend.h"
+#include "EterLib/D3D9RenderBackend.h"
 
 #include <winuser.h>
 
@@ -220,6 +221,7 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 						{
 							m_grpDevice.ResizeBackBuffer(uWidth, uHeight);
 							CWgpuRenderBackend::Instance().Resize(uWidth, uHeight);
+							CD3D9RenderBackend::Instance().Resize(uWidth, uHeight);
 						}
 					}
 					break;
@@ -245,6 +247,7 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 				{
 					m_grpDevice.ResizeBackBuffer(uWidth, uHeight);
 					CWgpuRenderBackend::Instance().Resize(uWidth, uHeight);
+					CD3D9RenderBackend::Instance().Resize(uWidth, uHeight);
 				}
 				OnSizeChange(short(LOWORD(lParam)), short(HIWORD(lParam)));
 			}

@@ -75,9 +75,6 @@ public:
 	// Pobranie podsumowania zaladowanego zrzutu
 	FrameReplay::SDumpSummary GetSummary() const;
 
-	// Odtworzenie stanu rejestru zasobow (CRenderResourceRegistry)
-	bool ReconstructResourceRegistry(CRenderResourceRegistry* pRegistry = nullptr);
-
 	// Rekonstrukcja pakietow i zgloszenie ich do CRenderQueueManager
 	bool ReplayToQueue(CRenderQueueManager& queueManager);
 
@@ -94,12 +91,7 @@ public:
 	// Czyszczenie stanu
 	void Clear();
 
-	// Eksport do starszego formatu v1 (uzyteczne w testach wstecznej kompatybilnosci)
-	static bool ExportFrameDumpV1(const char* c_pszFileName, const CRenderQueueManager& queue);
-
 private:
-	bool LoadDumpV1(FILE* fp);
-	bool LoadDumpV2(FILE* fp, const FrameDumpV2::THeader& hdr);
 
 	uint32_t m_dwDumpVersion{ 0 };
 	FrameDumpV2::TDumpParsedFrame m_parsedFrame{};
