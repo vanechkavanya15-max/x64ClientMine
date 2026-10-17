@@ -489,6 +489,7 @@ target_include_directories(test_c26_gltf_model PRIVATE
 )
 target_link_libraries(test_c26_gltf_model PRIVATE
     EterModelLib
+    EterBase
 )
 add_test(NAME test_c26_gltf_model COMMAND test_c26_gltf_model)
 
@@ -499,6 +500,7 @@ target_include_directories(test_c26_gltf_skinning PRIVATE
 )
 target_link_libraries(test_c26_gltf_skinning PRIVATE
     EterModelLib
+    EterBase
 )
 add_test(NAME GltfSkinningTest COMMAND test_c26_gltf_skinning)
 
@@ -509,6 +511,7 @@ target_include_directories(test_c27_gltf_pipeline PRIVATE
 )
 target_link_libraries(test_c27_gltf_pipeline PRIVATE
     EterModelLib
+    EterBase
 )
 add_test(NAME test_c27_gltf_pipeline COMMAND test_c27_gltf_pipeline)
 
@@ -519,6 +522,7 @@ target_include_directories(test_c28_real_simulation PRIVATE
 )
 target_link_libraries(test_c28_real_simulation PRIVATE
     EterModelLib
+    EterBase
 )
 add_test(NAME test_c28_real_simulation COMMAND test_c28_real_simulation)
 
