@@ -42,6 +42,8 @@ public:
 	void				PlayIntro();
 	BOOL                PlayTutorial(LONG nIdx);
 
+	static bool			CanPlayMovieDirectly();
+
 private:
 	bool				m_usingRGB32;
 	int  				m_movieWidth;

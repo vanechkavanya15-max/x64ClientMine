@@ -9,6 +9,7 @@
 #include <d3d9.h>
 #include <string>
 #include <vector>
+#include "EterLib/RenderOwnership.h"
 
 namespace UserInterface::FastBoot
 {
@@ -34,6 +35,12 @@ namespace UserInterface::FastBoot
         void Update();
         void Render();
         bool ProcessWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+        static bool CanDrawDirectly() noexcept
+        {
+            return RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI) ||
+                   RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::ImGui);
+        }
 
         void SetVisible(bool visible) noexcept { m_bVisible = visible; }
         bool IsVisible() const noexcept { return m_bVisible; }

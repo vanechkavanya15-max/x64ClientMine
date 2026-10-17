@@ -10,6 +10,8 @@
 #include "PythonNetworkStream.h"
 #include "Client/Network/Protocol/ProtocolDriverRegistry.h"
 #include "EterLib/StateManager.h"
+#include "EterLib/RenderOwnership.h"
+#include "EterLib/D3D9StateBlockScope.h"
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -848,18 +850,21 @@ namespace UserInterface::FastBoot
         ImDrawData* pDrawData = ImGui::GetDrawData();
         if (pDrawData && pDrawData->CmdListsCount > 0 && pDrawData->TotalVtxCount > 0)
         {
-            ImGui_ImplDX9_RenderDrawData(pDrawData);
-        }
+            // Bramka wlasnosci kategorii ImGui / UI (RenderOwnership)
+            if (CanDrawDirectly())
+            {
+                // Sekwencja Save/Restore stanow maszyny Direct3D 9 (zastepuje dawne twarde SetDefaultState)
+                EterLib::Render::D3D9StateBlockScope stateScope(m_pDevice);
 
-        // Przywrocenie stanu sprzetowego urzadzenia D3D9 i synchronizacja cache STATEMANAGER
-        if (m_pDevice)
-        {
-            m_pDevice->SetStreamSource(0, nullptr, 0, 0);
-            m_pDevice->SetIndices(nullptr);
-        }
-        if (::CStateManager::InstancePtr())
-        {
-            ::CStateManager::Instance().SetDefaultState();
+                ImGui_ImplDX9_RenderDrawData(pDrawData);
+
+                stateScope.Restore();
+                if (!stateScope.HasCaptured() && m_pDevice)
+                {
+                    m_pDevice->SetStreamSource(0, nullptr, 0, 0);
+                    m_pDevice->SetIndices(nullptr);
+                }
+            }
         }
     }
 

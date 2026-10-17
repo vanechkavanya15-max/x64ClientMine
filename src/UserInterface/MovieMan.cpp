@@ -128,24 +128,59 @@ BOOL CMovieMan::PlayTutorial(LONG nIdx)
 	return bRet;
 }
 
+bool CMovieMan::CanPlayMovieDirectly()
+{
+	if (RenderOwnership::IsWgpuConfigured() || RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Wgpu)
+		return false;
+	return RenderOwnership::LegacyDraws(ERenderCategory::Movie);
+}
+
 BOOL CMovieMan::PlayMovie( const char *cpFileName, const bool bSkipAllowed, const int nPostEffectID, const DWORD dwPostEffectData )
 {
-	if (!RenderOwnership::LegacyDraws(ERenderCategory::Movie))
+	// DEC-10: Sprawdzenie aktywnosci backendu WGPU
+	if (RenderOwnership::IsWgpuConfigured() || RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Wgpu)
+	{
+		TraceError("CMovieMan::PlayMovie: WGPU backend is active, skipping video playback '%s' (DEC-10: video supported only under D3D9 legacy pipeline)", cpFileName ? cpFileName : "unknown");
 		return FALSE;
+	}
+
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Movie))
+	{
+		TraceError("CMovieMan::PlayMovie: Movie category owner is not Legacy (%d), skipping video playback", static_cast<int>(RenderOwnership::Owner(ERenderCategory::Movie)));
+		return FALSE;
+	}
 
 	HWND hWnd = CPythonApplication::Instance().GetWindowHandle();
+	if (!hWnd || !IsWindow(hWnd))
+	{
+		TraceError("CMovieMan::PlayMovie: Invalid window handle");
+		return FALSE;
+	}
 
 	IDirectDraw *pDD = NULL;
-	DirectDrawCreate(NULL, &pDD, NULL);
-	pDD->SetCooperativeLevel(hWnd, DDSCL_NORMAL);
+	HRESULT hr = DirectDrawCreate(NULL, &pDD, NULL);
+	if (FAILED(hr) || !pDD)
+	{
+		TraceError("CMovieMan::PlayMovie: DirectDrawCreate failed (hr=0x%08X)", hr);
+		return FALSE;
+	}
+
+	hr = pDD->SetCooperativeLevel(hWnd, DDSCL_NORMAL);
+	if (FAILED(hr))
+	{
+		TraceError("CMovieMan::PlayMovie: SetCooperativeLevel failed (hr=0x%08X)", hr);
+		pDD->Release();
+		return FALSE;
+	}
 
 	DDSURFACEDESC ddsd;
 	ZeroMemory(&ddsd, sizeof(ddsd));
 	ddsd.dwSize = sizeof(ddsd);
 	ddsd.dwFlags = DDSD_CAPS;
 	ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-	if (FAILED(pDD->CreateSurface(&ddsd, &m_pPrimarySurface, NULL)))
+	if (FAILED(pDD->CreateSurface(&ddsd, &m_pPrimarySurface, NULL)) || !m_pPrimarySurface)
 	{
+		TraceError("CMovieMan::PlayMovie: CreateSurface for primary surface failed");
 		pDD->Release();
 		return FALSE;
 	}
@@ -154,13 +189,19 @@ BOOL CMovieMan::PlayMovie( const char *cpFileName, const bool bSkipAllowed, cons
 	ZeroMemory(&ddsd, sizeof(ddsd));
 	ddsd.dwSize = sizeof(ddsd);
 	ddsd.dwFlags = DDSD_PIXELFORMAT;
-	m_pPrimarySurface->GetSurfaceDesc(&ddsd);
-	ddsd.ddpfPixelFormat.dwSize = sizeof(ddsd.ddpfPixelFormat);
+	if (FAILED(m_pPrimarySurface->GetSurfaceDesc(&ddsd)))
+	{
+		TraceError("CMovieMan::PlayMovie: GetSurfaceDesc failed");
+		m_pPrimarySurface->Release();
+		m_pPrimarySurface = NULL;
+		pDD->Release();
+		return FALSE;
+	}
 	m_usingRGB32 = (ddsd.ddpfPixelFormat.dwRGBBitCount == 32);
 
 	IDirectDrawClipper *pDDClipper = NULL;
-	HRESULT hr = pDD->CreateClipper(0, &pDDClipper, NULL);
-	if (SUCCEEDED(hr))
+	hr = pDD->CreateClipper(0, &pDDClipper, NULL);
+	if (SUCCEEDED(hr) && pDDClipper)
 	{
 		pDDClipper->SetHWnd(0, hWnd);
 		m_pPrimarySurface->SetClipper(pDDClipper);
@@ -168,55 +209,70 @@ BOOL CMovieMan::PlayMovie( const char *cpFileName, const bool bSkipAllowed, cons
 
 	IMultiMediaStream *pMMStream = NULL;
 	hr = RenderFileToMMStream(cpFileName, &pMMStream, pDD);
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && pMMStream)
 	{
 		IMediaStream *pPrimaryVidStream = NULL;
-		HRESULT hr = pMMStream->GetMediaStream(MSPID_PrimaryVideo, &pPrimaryVidStream);
-		if (SUCCEEDED(hr))
+		hr = pMMStream->GetMediaStream(MSPID_PrimaryVideo, &pPrimaryVidStream);
+		if (SUCCEEDED(hr) && pPrimaryVidStream)
 		{
 			IDirectDrawMediaStream *pDDStream = NULL;
-			pPrimaryVidStream->QueryInterface(IID_IDirectDrawMediaStream, (void **) &pDDStream);
+			hr = pPrimaryVidStream->QueryInterface(IID_IDirectDrawMediaStream, (void **) &pDDStream);
 			pPrimaryVidStream->Release();
+			pPrimaryVidStream = NULL;
 
-			ddsd.dwSize = sizeof(ddsd);
-			hr = pDDStream->GetFormat(&ddsd, NULL, NULL, NULL);
-			if (SUCCEEDED(hr))
+			if (SUCCEEDED(hr) && pDDStream)
 			{
-				// 동영상 크기와 윈도우 크기를 기준으로 동영상 재생될 적당한 영역을 설정
-				m_movieWidth = ddsd.dwWidth;
-				m_movieHeight = ddsd.dwHeight;
-
-				// 백버퍼는 무조건 RGB32로 만들고 PrimarySurface와 형식이 다르면
-				// GDI fallback 해서 StretchBlt 한다
-				DDSURFACEDESC ddsdBackSurface;
-				ZeroMemory(&ddsdBackSurface, sizeof(ddsdBackSurface));
-				ddsdBackSurface.ddpfPixelFormat.dwSize = sizeof(ddsdBackSurface.ddpfPixelFormat);
-				ddsdBackSurface.ddpfPixelFormat.dwFlags = DDPF_RGB;
-				ddsdBackSurface.ddpfPixelFormat.dwRGBBitCount = 32;
-				ddsdBackSurface.ddpfPixelFormat.dwRBitMask = 255 << 16;
-				ddsdBackSurface.ddpfPixelFormat.dwGBitMask = 255 << 8;
-				ddsdBackSurface.ddpfPixelFormat.dwBBitMask = 255;
-				ddsdBackSurface.dwSize = sizeof(ddsdBackSurface);
-				ddsdBackSurface.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
-				ddsdBackSurface.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
-				ddsdBackSurface.dwHeight = m_movieHeight;
-				ddsdBackSurface.dwWidth = m_movieWidth;
-
-				IDirectDrawSurface *pSurface;
-				hr = pDD->CreateSurface(&ddsdBackSurface, &pSurface, NULL);
+				ddsd.dwSize = sizeof(ddsd);
+				hr = pDDStream->GetFormat(&ddsd, NULL, NULL, NULL);
 				if (SUCCEEDED(hr))
-				{ 
-					RenderStreamToSurface(pSurface, pDDStream, pMMStream, bSkipAllowed, nPostEffectID, dwPostEffectData);
-					pSurface->Release();
+				{
+					// 동영상 크기와 윈도우 크기를 기준으로 동영상 재생될 적당한 영역을 설정
+					m_movieWidth = ddsd.dwWidth;
+					m_movieHeight = ddsd.dwHeight;
+
+					// 백버퍼는 무조건 RGB32로 만들고 PrimarySurface와 형식이 다르면
+					// GDI fallback 해서 StretchBlt 한다
+					DDSURFACEDESC ddsdBackSurface;
+					ZeroMemory(&ddsdBackSurface, sizeof(ddsdBackSurface));
+					ddsdBackSurface.ddpfPixelFormat.dwSize = sizeof(ddsdBackSurface.ddpfPixelFormat);
+					ddsdBackSurface.ddpfPixelFormat.dwFlags = DDPF_RGB;
+					ddsdBackSurface.ddpfPixelFormat.dwRGBBitCount = 32;
+					ddsdBackSurface.ddpfPixelFormat.dwRBitMask = 255 << 16;
+					ddsdBackSurface.ddpfPixelFormat.dwGBitMask = 255 << 8;
+					ddsdBackSurface.ddpfPixelFormat.dwBBitMask = 255;
+					ddsdBackSurface.dwSize = sizeof(ddsdBackSurface);
+					ddsdBackSurface.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
+					ddsdBackSurface.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
+					ddsdBackSurface.dwHeight = m_movieHeight;
+					ddsdBackSurface.dwWidth = m_movieWidth;
+
+					IDirectDrawSurface *pSurface = NULL;
+					hr = pDD->CreateSurface(&ddsdBackSurface, &pSurface, NULL);
+					if (SUCCEEDED(hr) && pSurface)
+					{ 
+						RenderStreamToSurface(pSurface, pDDStream, pMMStream, bSkipAllowed, nPostEffectID, dwPostEffectData);
+						pSurface->Release();
+					}
+					else
+					{
+						TraceError("CMovieMan::PlayMovie: CreateSurface for back surface failed (hr=0x%08X)", hr);
+					}
 				}
+				pDDStream->Release();
 			}
-			pDDStream->Release();
+			else
+			{
+				TraceError("CMovieMan::PlayMovie: QueryInterface for IDirectDrawMediaStream failed (hr=0x%08X)", hr);
+			}
 		}
 		pMMStream->Release();
 	}
 
-	m_pPrimarySurface->Release();
-	m_pPrimarySurface = NULL;
+	if (m_pPrimarySurface)
+	{
+		m_pPrimarySurface->Release();
+		m_pPrimarySurface = NULL;
+	}
 
 	if (m_pBasicAudio)
 	{
@@ -337,6 +393,21 @@ HRESULT CMovieMan::RenderStreamToSurface(IDirectDrawSurface *pSurface, IDirectDr
 		pMMStream->SetState(STREAMSTATE_RUN);
 		while (pSample->Update(0, NULL, NULL, NULL) == S_OK)
 		{
+			// Przetwarzanie komunikatow okna chroniace przed zawieszeniem petli (E17)
+			MSG msg;
+			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+			{
+				if (msg.message == WM_QUIT)
+				{
+					PostQuitMessage((int)msg.wParam);
+					pMMStream->SetState(STREAMSTATE_STOP);
+					pSample->Release();
+					return hr;
+				}
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+
 			// 윈도우 중앙을 기준으로 꽉차게 그린다
 			CalcMovieRect(m_movieWidth, m_movieHeight, movieRect);
 			if (RenderOwnership::LegacyDraws(ERenderCategory::Movie))
@@ -444,6 +515,21 @@ HRESULT CMovieMan::RenderPostEffectFadeOut(IDirectDrawSurface *pSurface, int fad
 	float fadeProgress = 0.0;
 	while ((fadeProgress = ((float)((LONG)GetTickCount()) - fadeBegin) / fadeOutDuration) < 1.0)
 	{
+		// Przetwarzanie komunikatow okna podczas fade-out
+		MSG msg;
+		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		{
+			if (msg.message == WM_QUIT)
+			{
+				PostQuitMessage((int)msg.wParam);
+				if (pCopiedSrcSurBuf)
+					free(pCopiedSrcSurBuf);
+				return S_OK;
+			}
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+
 		ZeroMemory(&lockedSurfaceDesc, sizeof(lockedSurfaceDesc));
 		lockedSurfaceDesc.dwSize = sizeof(lockedSurfaceDesc);
 		HRESULT hr = pSurface->Lock(NULL, &lockedSurfaceDesc, DDLOCK_WAIT | DDLOCK_NOSYSLOCK | DDLOCK_READONLY, NULL);
