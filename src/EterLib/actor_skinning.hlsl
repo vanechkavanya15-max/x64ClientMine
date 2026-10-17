@@ -88,20 +88,23 @@ VS_OUTPUT vs_main(VS_INPUT input)
 
     // Transform skinned vertex to world space and then clip space
     float4 worldPos = mul(float4(skinnedPos, 1.0f), g_matWorld);
-    skinnedNormal = normalize(mul(skinnedNormal, (float3x3)g_matWorld));
+    float3 worldNormal = mul(skinnedNormal, (float3x3)g_matWorld);
+    float normalLenSq = dot(worldNormal, worldNormal);
+    skinnedNormal = (normalLenSq > 1e-8f) ? (worldNormal * rsqrt(normalLenSq)) : float3(0.0f, 0.0f, 1.0f);
 
     output.vPosition = mul(worldPos, g_matViewProj);
     output.vTexCoord = input.vTexCoord;
 
     // Diffuse lighting calculation (Lambertian + Ambient)
-    float nDotL = max(0.0f, dot(skinnedNormal, -g_vLightDir.xyz));
+    float3 lightDir = (dot(g_vLightDir.xyz, g_vLightDir.xyz) > 1e-8f) ? normalize(g_vLightDir.xyz) : float3(0.0f, 0.0f, -1.0f);
+    float nDotL = max(0.0f, dot(skinnedNormal, -lightDir));
     float3 diffuseLight = saturate(g_vLightAmbient.rgb + (g_vLightDiffuse.rgb * nDotL));
     output.vColor = float4(diffuseLight * g_vMaterialColor.rgb, g_vMaterialColor.a);
 
     // Depth fog computation
     if (g_vFogParams.w > 0.5f)
     {
-        float depth = output.vPosition.z;
+        float depth = output.vPosition.w;
         output.fFog = saturate((g_vFogParams.y - depth) * g_vFogParams.z);
     }
     else

@@ -5,6 +5,7 @@
 #include "RenderOwnership.h"
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include "Render/TerrainShaderPipeline.h"
+#include "Render/ActorSkinningPipeline.h"
 #include "RenderResourceRegistry.h"
 #include "CFrameSnapshot.h"
 #include "RenderQueueManager.h"
@@ -79,14 +80,12 @@ void CD3D9RenderBackend::InitVertexDeclarations()
 
 	if (!m_pDungeonGltfVertexDecl)
 	{
-		// Zgodnosc 1:1 z 72-bajtowym GpuSkinnedVertex dla siatek glTF w lochach
+		// Deklaracja dla 72-bajtowego GpuSkinnedVertex bezpieczna dla potoku Fixed-Function (pomija FLOAT4 BLENDINDICES)
 		const D3DVERTEXELEMENT9 dungeonGltfDeclElements[] = {
 			{ 0, 0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION,     0 },
 			{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,       0 },
 			{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,     0 },
 			{ 0, 32, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,     1 },
-			{ 0, 40, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDINDICES, 0 },
-			{ 0, 56, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDWEIGHT,  0 },
 			D3DDECL_END()
 		};
 		pD3DDevice->CreateVertexDeclaration(dungeonGltfDeclElements, &m_pDungeonGltfVertexDecl);
@@ -114,12 +113,27 @@ void CD3D9RenderBackend::ReleaseVertexDeclarations()
 
 void CD3D9RenderBackend::OnLostDevice()
 {
+	if (CStateManager::InstancePtr())
+	{
+		for (UINT s = 0; s < STATEMANAGER_MAX_STREAMS; ++s)
+			STATEMANAGER.SetStreamSource(s, nullptr, 0);
+		STATEMANAGER.SetIndices(nullptr, 0);
+		for (DWORD t = 0; t < STATEMANAGER_MAX_STAGES; ++t)
+			STATEMANAGER.SetTexture(t, nullptr);
+	}
+	EterLib::Render::ActorSkinningPipeline::Instance().Shutdown();
 	if (m_pTerrainPipeline)
 		m_pTerrainPipeline->Shutdown();
+	ReleaseVertexDeclarations();
 }
 
 void CD3D9RenderBackend::OnResetDevice()
 {
+	InitVertexDeclarations();
+	if (CStateManager::InstancePtr() && STATEMANAGER.GetDevice())
+	{
+		EterLib::Render::ActorSkinningPipeline::Instance().Initialize(STATEMANAGER.GetDevice());
+	}
 }
 
 void CD3D9RenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
@@ -561,7 +575,7 @@ void CD3D9RenderBackend::RenderTerrainSector(const TTerrainSectorPacket& pkt)
 	if (!pD3DDevice)
 		return;
 
-	STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_NORMAL);
+	STATEMANAGER.SaveFVF(D3DFVF_XYZ | D3DFVF_NORMAL);
 	STATEMANAGER.SetStreamSource(0, reinterpret_cast<LPDIRECT3DVERTEXBUFFER9>(pkt.pVertexData), sizeof(float) * 6);
 
 	if (pkt.pIndexBuffer)
@@ -578,11 +592,16 @@ void CD3D9RenderBackend::RenderTerrainSector(const TTerrainSectorPacket& pkt)
 		STATEMANAGER.DrawIndexedPrimitive(ePrimType, 0, pkt.dwVertexCount, 0, wPrimCount);
 		STATEMANAGER.SetStreamSource(0, NULL, 0);
 		STATEMANAGER.SetIndices(NULL, 0);
+		STATEMANAGER.RestoreFVF();
 		return;
 	}
 
 	// Pasma Near i Fog - pelne odtworzenie stanow renderowania splattingu
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	D3DCOLOR dwInitFogCol = D3DCOLOR_COLORVALUE(m_currentUniforms.vFogColor.r, m_currentUniforms.vFogColor.g, m_currentUniforms.vFogColor.b, m_currentUniforms.vFogColor.a);
+	STATEMANAGER.SaveRenderState(D3DRS_FOGCOLOR, dwInitFogCol ? dwInitFogCol : 0xFFFFFFFF);
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, TRUE);
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x00000000);
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
@@ -737,12 +756,16 @@ void CD3D9RenderBackend::RenderTerrainSector(const TTerrainSectorPacket& pkt)
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_FOGCOLOR);
+	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
 
 	STATEMANAGER.SetStreamSource(0, NULL, 0);
 	STATEMANAGER.SetIndices(NULL, 0);
 	STATEMANAGER.SetTexture(0, NULL);
 	STATEMANAGER.SetTexture(1, NULL);
+	STATEMANAGER.RestoreFVF();
 }
 
 void CD3D9RenderBackend::RenderActor(const TActorRenderPacket& pkt)
@@ -755,7 +778,14 @@ void CD3D9RenderBackend::RenderActor(const TActorRenderPacket& pkt)
 			UINT matrixCount = (std::min)(pkt.dwBoneCount, kMaxShaderBones);
 			if (matrixCount > 0)
 			{
-				STATEMANAGER.SetVertexShaderConstant(4, pBones, matrixCount * 4);
+				std::vector<float> packedBoneRegs;
+				EterLib::Render::ActorSkinningPipeline::PackBonePaletteTo4x3Registers(
+					pBones, matrixCount, packedBoneRegs);
+				const UINT numBones = static_cast<UINT>(packedBoneRegs.size() / 12);
+				STATEMANAGER.SetVertexShaderConstant(
+					EterLib::Render::ActorSkinningShaderConstants::kRegBonePalette,
+					packedBoneRegs.data(),
+					numBones * EterLib::Render::ActorSkinningShaderConstants::kRegsPerBone);
 			}
 		}
 	}
@@ -817,6 +847,8 @@ void CD3D9RenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int 
 	float currentHeight = 0.0f;
 	D3DXMATRIX matWorldWater;
 	D3DXMatrixIdentity(&matWorldWater);
+	STATEMANAGER.SaveTransform(D3DTS_WORLD, &matWorldWater);
+	STATEMANAGER.SaveTransform(D3DTS_TEXTURE0, &matWorldWater);
 
 	for (unsigned int idx = 0; idx < count; ++idx)
 	{
@@ -837,7 +869,7 @@ void CD3D9RenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int 
 				}
 				STATEMANAGER.SetTexture(0, pTex);
 				STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-				STATEMANAGER.SaveTransform(D3DTS_TEXTURE0, &pkt.matTexTransformWater);
+				STATEMANAGER.SetTransform(D3DTS_TEXTURE0, &pkt.matTexTransformWater);
 			}
 			else
 			{
@@ -858,15 +890,11 @@ void CD3D9RenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int 
 		STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, pkt.dwFaceCount);
 	}
 
-	D3DXMatrixIdentity(&matWorldWater);
-	STATEMANAGER.SetTransform(D3DTS_WORLD, &matWorldWater);
 	STATEMANAGER.SetStreamSource(0, NULL, 0);
 	STATEMANAGER.SetTexture(0, NULL);
 
-	if (currentPass == 0)
-	{
-		STATEMANAGER.RestoreTransform(D3DTS_TEXTURE0);
-	}
+	STATEMANAGER.RestoreTransform(D3DTS_TEXTURE0);
+	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 
 	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MINFILTER);
 	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MAGFILTER);
@@ -1334,7 +1362,8 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 	D3DXMatrixIdentity(&matIdentity);
 
 	D3DXMATRIX matOrthoProj;
-	D3DXMatrixOrthoOffCenterRH(&matOrthoProj, 0.0f, screenW, screenH, 0.0f, -1.0f, 1.0f);
+	// Korekcja polpiksela (-0.5f) dla D3D9 eliminujaca rozmycie czcionek i artefakty krawedzi 2D
+	D3DXMatrixOrthoOffCenterRH(&matOrthoProj, -0.5f, screenW - 0.5f, screenH - 0.5f, -0.5f, -1.0f, 1.0f);
 
 	STATEMANAGER.SaveTransform(D3DTS_WORLD, &matIdentity);
 	STATEMANAGER.SaveTransform(D3DTS_VIEW, &matIdentity);
@@ -1347,9 +1376,12 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
 	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 
 	if (m_pUIVertexDecl)
-		STATEMANAGER.SetVertexDeclaration(m_pUIVertexDecl);
+		STATEMANAGER.SaveVertexDeclaration(m_pUIVertexDecl);
 
 	for (unsigned int i = 0; i < count; ++i)
 	{
@@ -1431,6 +1463,12 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 		}
 	}
 
+	if (m_pUIVertexDecl)
+		STATEMANAGER.RestoreVertexDeclaration();
+	STATEMANAGER.SetTexture(0, nullptr);
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSV);
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSU);
+	STATEMANAGER.RestoreRenderState(D3DRS_SCISSORTESTENABLE);
 	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
 	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
 	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);

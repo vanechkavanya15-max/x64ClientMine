@@ -2,6 +2,7 @@
 #include "../StdAfx.h"
 #endif
 #include "ActorSkinningPipeline.h"
+#include "../StateManager.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -79,18 +80,21 @@ VS_OUTPUT vs_main(VS_INPUT input)
     }
 
     float4 worldPos = mul(float4(skinnedPos, 1.0f), g_matWorld);
-    skinnedNormal = normalize(mul(skinnedNormal, (float3x3)g_matWorld));
+    float3 worldNormal = mul(skinnedNormal, (float3x3)g_matWorld);
+    float normalLenSq = dot(worldNormal, worldNormal);
+    skinnedNormal = (normalLenSq > 1e-8f) ? (worldNormal * rsqrt(normalLenSq)) : float3(0.0f, 0.0f, 1.0f);
 
     output.vPosition = mul(worldPos, g_matViewProj);
     output.vTexCoord = input.vTexCoord;
 
-    float nDotL = max(0.0f, dot(skinnedNormal, -g_vLightDir.xyz));
+    float3 lightDir = (dot(g_vLightDir.xyz, g_vLightDir.xyz) > 1e-8f) ? normalize(g_vLightDir.xyz) : float3(0.0f, 0.0f, -1.0f);
+    float nDotL = max(0.0f, dot(skinnedNormal, -lightDir));
     float3 diffuseLight = saturate(g_vLightAmbient.rgb + (g_vLightDiffuse.rgb * nDotL));
     output.vColor = float4(diffuseLight * g_vMaterialColor.rgb, g_vMaterialColor.a);
 
     if (g_vFogParams.w > 0.5f)
     {
-        float depth = output.vPosition.z;
+        float depth = output.vPosition.w;
         output.fFog = saturate((g_vFogParams.y - depth) * g_vFogParams.z);
     }
     else
@@ -268,13 +272,23 @@ bool ActorSkinningPipeline::Begin(
         return false;
     }
 
-    m_device->GetVertexDeclaration(&m_prevVertexDecl);
-    m_device->GetVertexShader(&m_prevVertexShader);
-    m_device->GetPixelShader(&m_prevPixelShader);
+    if (m_inPass) {
+        End();
+    }
 
-    m_device->SetVertexDeclaration(m_vertexDecl);
-    m_device->SetVertexShader(m_vertexShader);
-    m_device->SetPixelShader(m_pixelShader);
+    if (CStateManager::InstancePtr()) {
+        STATEMANAGER.SaveVertexDeclaration(m_vertexDecl);
+        STATEMANAGER.SaveVertexShader(m_vertexShader);
+        STATEMANAGER.SavePixelShader(m_pixelShader);
+    } else {
+        m_device->GetVertexDeclaration(&m_prevVertexDecl);
+        m_device->GetVertexShader(&m_prevVertexShader);
+        m_device->GetPixelShader(&m_prevPixelShader);
+
+        m_device->SetVertexDeclaration(m_vertexDecl);
+        m_device->SetVertexShader(m_vertexShader);
+        m_device->SetPixelShader(m_pixelShader);
+    }
 
     D3DXMATRIX matVPTransposed;
     D3DXMATRIX matWorldTransposed;
@@ -339,21 +353,27 @@ void ActorSkinningPipeline::End() noexcept {
         return;
     }
 
-    m_device->SetVertexShader(m_prevVertexShader);
-    m_device->SetPixelShader(m_prevPixelShader);
-    m_device->SetVertexDeclaration(m_prevVertexDecl);
+    if (CStateManager::InstancePtr()) {
+        STATEMANAGER.RestorePixelShader();
+        STATEMANAGER.RestoreVertexShader();
+        STATEMANAGER.RestoreVertexDeclaration();
+    } else {
+        m_device->SetVertexShader(m_prevVertexShader);
+        m_device->SetPixelShader(m_prevPixelShader);
+        m_device->SetVertexDeclaration(m_prevVertexDecl);
 
-    if (m_prevVertexShader) {
-        m_prevVertexShader->Release();
-        m_prevVertexShader = nullptr;
-    }
-    if (m_prevPixelShader) {
-        m_prevPixelShader->Release();
-        m_prevPixelShader = nullptr;
-    }
-    if (m_prevVertexDecl) {
-        m_prevVertexDecl->Release();
-        m_prevVertexDecl = nullptr;
+        if (m_prevVertexShader) {
+            m_prevVertexShader->Release();
+            m_prevVertexShader = nullptr;
+        }
+        if (m_prevPixelShader) {
+            m_prevPixelShader->Release();
+            m_prevPixelShader = nullptr;
+        }
+        if (m_prevVertexDecl) {
+            m_prevVertexDecl->Release();
+            m_prevVertexDecl = nullptr;
+        }
     }
 
     m_inPass = false;
