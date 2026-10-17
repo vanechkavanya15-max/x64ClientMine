@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "GrpTextInstance.h"
 #include "StateManager.h"
+#include "RenderOwnership.h"
 #include "IME.h"
 #include "TextTag.h"
 #include "EterBase/Utils.h"
@@ -908,13 +909,19 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 
 			STATEMANAGER.SetTexture(0, NULL);
 			CGraphicBase::SetDefaultIndexBuffer(CGraphicBase::DEFAULT_IB_FILL_RECT);
-			if (CGraphicBase::SetPDTStream(vertices, 4))
-				STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 4, 0, 2);
+			if (RenderOwnership::LegacyDraws(ERenderCategory::Text))
+			{
+				if (CGraphicBase::SetPDTStream(vertices, 4))
+					STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 4, 0, 2);
+			}
 		}
 	}
 
 	// Single-pass standard alpha blending: optimal for both D3D9 and WGPU
 	auto DrawBatch = [](const std::unordered_map<LPDIRECT3DTEXTURE9, std::vector<SVertex>>& batches) {
+		if (!RenderOwnership::LegacyDraws(ERenderCategory::Text))
+			return;
+
 		for (const auto& [pTexture, vtxBatch] : batches) {
 			if (vtxBatch.empty())
 				continue;
@@ -1006,8 +1013,11 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 		STATEMANAGER.SetTexture(0, NULL);
 
 		CGraphicBase::SetDefaultIndexBuffer(CGraphicBase::DEFAULT_IB_FILL_RECT);
-		if (CGraphicBase::SetPDTStream(vertices, 4))
-			STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 4, 0, 2);
+		if (RenderOwnership::LegacyDraws(ERenderCategory::Text))
+		{
+			if (CGraphicBase::SetPDTStream(vertices, 4))
+				STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 4, 0, 2);
+		}
 
 		int ulbegin = CIME::GetULBegin();
 		int ulend = CIME::GetULEnd();
@@ -1031,7 +1041,10 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 			vertices[2].position = TPosition(sx, ey, 0.0f);
 			vertices[3].position = TPosition(ex, ey, 0.0f);
 
-			STATEMANAGER.DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, c_FillRectIndices, D3DFMT_INDEX16, vertices, sizeof(TPDTVertex));
+			if (RenderOwnership::LegacyDraws(ERenderCategory::Text))
+			{
+				STATEMANAGER.DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, c_FillRectIndices, D3DFMT_INDEX16, vertices, sizeof(TPDTVertex));
+			}
 		}
 	}
 

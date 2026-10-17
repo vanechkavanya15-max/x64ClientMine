@@ -2,6 +2,7 @@
 #include "EterLib/StateManager.h"
 #include "EterLib/GrpSubImage.h"
 #include "EterLib/Camera.h"
+#include "EterLib/RenderOwnership.h"
 #include "PackLib/PackManager.h"
 
 #include "PythonMiniMap.h"
@@ -255,20 +256,23 @@ void CPythonMiniMap::Render(float fScreenX, float fScreenY)
 	STATEMANAGER.SetIndices(m_IndexBuffer.GetD3DIndexBuffer(), 0);
 	STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorld);
 
-	for (BYTE byTerrainNum = 0; byTerrainNum < AROUND_AREA_NUM; ++byTerrainNum)
+	if (RenderOwnership::LegacyDraws(ERenderCategory::MiniMap))
 	{
-		LPDIRECT3DTEXTURE9 pMiniMapTexture = m_lpMiniMapTexture[byTerrainNum];
-		STATEMANAGER.SetTexture(0, pMiniMapTexture);
-		if (pMiniMapTexture)
+		for (BYTE byTerrainNum = 0; byTerrainNum < AROUND_AREA_NUM; ++byTerrainNum)
 		{
-			CStateManager& rkSttMgr=CStateManager::Instance();
-			rkSttMgr.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, byTerrainNum * 4, 4, byTerrainNum * 6, 2);
-		}
-		else
-		{
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
-			STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, byTerrainNum * 4, 4, byTerrainNum * 6, 2);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+			LPDIRECT3DTEXTURE9 pMiniMapTexture = m_lpMiniMapTexture[byTerrainNum];
+			STATEMANAGER.SetTexture(0, pMiniMapTexture);
+			if (pMiniMapTexture)
+			{
+				CStateManager& rkSttMgr=CStateManager::Instance();
+				rkSttMgr.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, byTerrainNum * 4, 4, byTerrainNum * 6, 2);
+			}
+			else
+			{
+				STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
+				STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, byTerrainNum * 4, 4, byTerrainNum * 6, 2);
+				STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+			}
 		}
 	}
 

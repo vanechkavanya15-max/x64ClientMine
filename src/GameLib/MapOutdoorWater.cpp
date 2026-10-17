@@ -2,6 +2,7 @@
 #include "EterLib/StateManager.h"
 #include "EterLib/ResourceManager.h"
 #include "EterLib/RenderQueueManager.h"
+#include "EterLib/RenderOwnership.h"
 
 #include "MapOutdoor.h"
 #include "TerrainPatch.h"
@@ -191,9 +192,12 @@ void CMapOutdoor::DrawWater(long patchnum)
 
 	CRenderQueueManager::Instance().SubmitWater(kWaterPacket);
 	
-	STATEMANAGER.SetStreamSource(0, lpd3dVB, sizeof(SWaterVertex));
-	STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, uPriCount);
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Water))
+	{
+		STATEMANAGER.SetStreamSource(0, lpd3dVB, sizeof(SWaterVertex));
+		STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, uPriCount);
 
-	ms_faceCount += uPriCount;
+		ms_faceCount += uPriCount;
+	}
 }
 

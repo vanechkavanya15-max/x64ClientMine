@@ -2,9 +2,13 @@
 #include "MapOutdoor.h"
 
 #include "EterLib/StateManager.h"
+#include "EterLib/RenderOwnership.h"
 
 void CMapOutdoor::__RenderTerrain_RenderHardwareTransformPatch()
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Terrain))
+		return;
+
 	// Bezwzgledna gwarancja RAII: czyszczenie shaderow/deklaracji oraz ustawienie FVF
 	ScopedD3DFFPGuard htpFFPGuard(D3DFVF_XYZ | D3DFVF_NORMAL, false);
 
@@ -440,6 +444,9 @@ void CMapOutdoor::__HardwareTransformPatch_RenderPatchNone(long patchnum, WORD w
 	if (!pkVB)
 		return;
 
-	STATEMANAGER.SetStreamSource(0, pkVB->GetD3DVertexBuffer(), m_iPatchTerrainVertexSize);
-	STATEMANAGER.DrawIndexedPrimitive(ePrimitiveType, 0, m_iPatchTerrainVertexCount, 0, wPrimitiveCount);
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Terrain))
+	{
+		STATEMANAGER.SetStreamSource(0, pkVB->GetD3DVertexBuffer(), m_iPatchTerrainVertexSize);
+		STATEMANAGER.DrawIndexedPrimitive(ePrimitiveType, 0, m_iPatchTerrainVertexCount, 0, wPrimitiveCount);
+	}
 }

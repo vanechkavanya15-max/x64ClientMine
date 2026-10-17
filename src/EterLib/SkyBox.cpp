@@ -4,6 +4,7 @@
 #include "StateManager.h"
 #include "ResourceManager.h"
 #include "RenderQueueManager.h"
+#include "RenderOwnership.h"
 
 #include "EterBase/Timer.h"
 
@@ -91,8 +92,11 @@ bool CSkyObjectQuad::Update()
 
 void CSkyObjectQuad::Render()
 {
-	if (CGraphicBase::SetPDTStream(m_Vertex, 4))
-		STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+	if (RenderOwnership::LegacyDraws(ERenderCategory::SkyBox))
+	{
+		if (CGraphicBase::SetPDTStream(m_Vertex, 4))
+			STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+	}
 	//STATEMANAGER.DrawIndexedPrimitiveUP(D3DPT_TRIANGLESTRIP, 0, 4, 2, m_Indices, D3DFMT_INDEX16, &m_Vertex, sizeof(TPDTVertex));
 }
 
@@ -891,81 +895,87 @@ void CSkyBox::Render()
 
 	CRenderQueueManager::Instance().SubmitSkyBox(pkt);
 
-	// 2004.01.25 myevan 처리를 렌더링 후반으로 옮기고, DepthTest 처리
-	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE,	TRUE);
-	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_FOGENABLE, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-
-	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
-	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-
-	STATEMANAGER.SaveTexture(1, NULL);
-	STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-	STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-
- 	STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);
-
-	STATEMANAGER.SaveTransform(D3DTS_WORLD, &m_matWorld);
-
-	//Render Face
-	if( m_ucRenderMode == CSkyObject::SKY_RENDER_MODE_TEXTURE )
+	if (RenderOwnership::LegacyDraws(ERenderCategory::SkyBox))
 	{
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-		STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-		STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+		// 2004.01.25 myevan 처리를 렌더링 후반으로 옮기고, DepthTest 처리
+		STATEMANAGER.SaveRenderState(D3DRS_ZENABLE,	TRUE);
+		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_FOGENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 
-		for (unsigned int i = 0; i < 6; ++i)
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+		STATEMANAGER.SaveTexture(1, NULL);
+		STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+	 	STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);
+
+		STATEMANAGER.SaveTransform(D3DTS_WORLD, &m_matWorld);
+
+		//Render Face
+		if( m_ucRenderMode == CSkyObject::SKY_RENDER_MODE_TEXTURE )
 		{
-			TGraphicImageInstanceMap::iterator itor = m_GraphicImageInstanceMap.find(m_Faces[i].m_strFaceTextureFileName);
-			if (itor == m_GraphicImageInstanceMap.end())
-				break;
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+			STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+			STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 
-			CGraphicImageInstance * pFaceImageInstance = itor->second;
-			if (!pFaceImageInstance)
-				break;
+			for (unsigned int i = 0; i < 6; ++i)
+			{
+				TGraphicImageInstanceMap::iterator itor = m_GraphicImageInstanceMap.find(m_Faces[i].m_strFaceTextureFileName);
+				if (itor == m_GraphicImageInstanceMap.end())
+					break;
 
-			STATEMANAGER.SetTexture( 0, pFaceImageInstance->GetTextureReference().GetD3DTexture() );
+				CGraphicImageInstance * pFaceImageInstance = itor->second;
+				if (!pFaceImageInstance)
+					break;
 
-			m_Faces[i].Render();
+				STATEMANAGER.SetTexture( 0, pFaceImageInstance->GetTextureReference().GetD3DTexture() );
+
+				m_Faces[i].Render();
+			}
+
+			//STATEMANAGER.SetTexture( 0, NULL );
+
+			STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSU);
+			STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSV);
+		}
+		else
+		{
+			for (unsigned int i = 0; i < 6; ++i)
+			{
+				m_Faces[i].Render();
+			}
 		}
 
-		//STATEMANAGER.SetTexture( 0, NULL );
+		STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 
-		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSU);
-		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSV);
+		STATEMANAGER.RestoreTextureStageState(1, D3DTSS_ALPHAOP);
+		STATEMANAGER.RestoreTextureStageState(1, D3DTSS_COLOROP);
+		STATEMANAGER.RestoreTexture(1);
+
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG2);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_FOGENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
 	}
-	else
-	{
-		for (unsigned int i = 0; i < 6; ++i)
-		{
-			m_Faces[i].Render();
-		}
-	}
-
-	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
-
-	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_ALPHAOP);
-	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_COLOROP);
-	STATEMANAGER.RestoreTexture(1);
-
-	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
-	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG2);
-	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
-	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
-
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_FOGENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
 }
 
 void CSkyBox::RenderCloud()
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::SkyBox))
+		return;
+
 	if (m_FaceCloud.m_strfacename.empty())
 		return;
 

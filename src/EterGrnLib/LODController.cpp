@@ -5,6 +5,7 @@
 #include "Eterlib/ResourceManager.h"
 #include "Eterlib/GrpImage.h"
 #include "Eterlib/StateManager.h"
+#include "EterLib/RenderOwnership.h"
 #include "Eterbase/Filename.h"
 #include <algorithm>
 #include <cctype>
@@ -468,76 +469,72 @@ void CGrannyLODController::DestroyDeviceObjects()
 
 void CGrannyLODController::RenderWithOneTexture()
 {
-	if (m_pGltfModelInstance)
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Model))
 	{
-		RenderGltfModel();
-		return;
+		if (m_pGltfModelInstance)
+		{
+			RenderGltfModel();
+			return;
+		}
+
+		if (!m_pCurrentModelInstance)
+			return;
+
+		m_pCurrentModelInstance->RenderWithOneTexture();
 	}
-
-	if (!m_pCurrentModelInstance)
-		return;
-
-//#define CHECK_LOD
-#ifdef CHECK_LOD
-	if (m_que_pkModelInst.size() > 0 && m_pCurrentModelInstance == m_que_pkModelInst[0])
-		m_pCurrentModelInstance->RenderWithoutTexture();
-
-	if (m_que_pkModelInst.size() > 1 && m_pCurrentModelInstance == m_que_pkModelInst[1])
-		m_pCurrentModelInstance->RenderWithOneTexture();
-
-	if (m_que_pkModelInst.size() > 2 && m_pCurrentModelInstance == m_que_pkModelInst[2])
-		m_pCurrentModelInstance->RenderWithOneTexture();
-
-	if (m_que_pkModelInst.size() > 3 && m_pCurrentModelInstance == m_que_pkModelInst[3])
-		m_pCurrentModelInstance->RenderWithOneTexture();
-
-#else
-	m_pCurrentModelInstance->RenderWithOneTexture();
-#endif
 }
 
 void CGrannyLODController::BlendRenderWithOneTexture()
 {
-	if (m_pGltfModelInstance)
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Model))
 	{
-		if (HaveBlendThing())
-			RenderGltfModel();
-		return;
+		if (m_pGltfModelInstance)
+		{
+			if (HaveBlendThing())
+				RenderGltfModel();
+			return;
+		}
+
+		if (!m_pCurrentModelInstance)
+			return;
+
+		m_pCurrentModelInstance->BlendRenderWithOneTexture();
 	}
-
-	if (!m_pCurrentModelInstance)
-		return;
-
-	m_pCurrentModelInstance->BlendRenderWithOneTexture();
 }
 
 void CGrannyLODController::RenderWithTwoTexture()
 {
-	if (m_pGltfModelInstance)
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Model))
 	{
-		RenderGltfModel();
-		return;
+		if (m_pGltfModelInstance)
+		{
+			RenderGltfModel();
+			return;
+		}
+
+		if (!m_pCurrentModelInstance)
+			return;
+
+		m_pCurrentModelInstance->RenderWithTwoTexture();
 	}
-
-	if (!m_pCurrentModelInstance)
-		return;
-
-	m_pCurrentModelInstance->RenderWithTwoTexture();
 }
 
 void CGrannyLODController::BlendRenderWithTwoTexture()
 {
-	if (m_pGltfModelInstance)
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Model))
 	{
-		if (HaveBlendThing())
-			RenderGltfModel();
-		return;
+		if (m_pGltfModelInstance)
+		{
+			if (HaveBlendThing())
+				RenderGltfModel();
+			return;
+		}
+
+		if (!m_pCurrentModelInstance)
+			return;
+
+		m_pCurrentModelInstance->BlendRenderWithTwoTexture();
 	}
-
-	if (!m_pCurrentModelInstance)
-		return;
-
-	m_pCurrentModelInstance->BlendRenderWithTwoTexture();
 }
 
 bool CGrannyLODController::HaveBlendThing()
@@ -773,26 +770,32 @@ void CGrannyLODController::Deform(const D3DXMATRIX * c_pWorldMatrix)
 
 void CGrannyLODController::RenderToShadowMap()
 {
-	if (m_pGltfModelInstance)
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Model))
 	{
-		RenderGltfModel();
-		return;
-	}
+		if (m_pGltfModelInstance)
+		{
+			RenderGltfModel();
+			return;
+		}
 
-	if (m_pCurrentModelInstance)
-		m_pCurrentModelInstance->RenderWithoutTexture();
+		if (m_pCurrentModelInstance)
+			m_pCurrentModelInstance->RenderWithoutTexture();
+	}
 }
 
 void CGrannyLODController::RenderShadow()
 {
-	if (m_pGltfModelInstance)
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Model))
 	{
-		RenderGltfModel();
-		return;
-	}
+		if (m_pGltfModelInstance)
+		{
+			RenderGltfModel();
+			return;
+		}
 
-	if (m_pCurrentModelInstance)
-		m_pCurrentModelInstance->RenderWithOneTexture();
+		if (m_pCurrentModelInstance)
+			m_pCurrentModelInstance->RenderWithOneTexture();
+	}
 }
 
 void CGrannyLODController::ReloadTexture()
