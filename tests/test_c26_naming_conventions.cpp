@@ -10,7 +10,6 @@
 #include "EterLib/GrpTextInstance.h"
 #include "EterLib/Render/DynamicQuadBatcher.h"
 #include "EterLib/RenderQueueManager.h"
-#include "EterLib/Camera.h"
 
 using namespace EterLib::Render;
 
@@ -33,8 +32,11 @@ TEST_SUITE("S8.1_NamingConventions")
         CModelLODController* pModel = pGranny;
         CHECK(pModel->GetModelID() == 42001);
 
-        // 3. Sprawdzenie poczatkowego poziomu LOD (domyslnie 0 bez zaladowanych instancji modeli)
+        // 3. Sprawdzenie stanu poczatkowego LOD i metod
         CHECK(controller.GetLODLevel() == 0);
+        CHECK(controller.GetAttachedParentModel() == nullptr);
+        CHECK(controller.isModelInstance() == FALSE);
+        CHECK(controller.isGltfModelInstance() == false);
     }
 
     TEST_CASE("GrpTextInstance - SetHorizontalAlignAndSetHorizonalAlignWrapper")
