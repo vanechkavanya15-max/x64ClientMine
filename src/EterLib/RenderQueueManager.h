@@ -2,6 +2,7 @@
 
 #include "RenderPacketTypes.h"
 #include "GrpBase.h"
+#include "RenderOwnership.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -9,6 +10,55 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+
+struct SRenderCategoryStats
+{
+	uint32_t packetCount{ 0 };
+	uint32_t drawCallCount{ 0 };
+	uint32_t faceCount{ 0 };
+	uint32_t droppedCount{ 0 };
+
+	uint32_t GetPacketCount() const { return packetCount; }
+	uint32_t GetDrawCallCount() const { return drawCallCount; }
+	uint32_t GetFaceCount() const { return faceCount; }
+	uint32_t GetDroppedCount() const { return droppedCount; }
+};
+
+struct SRenderFrameStats
+{
+	static constexpr size_t CATEGORY_COUNT = static_cast<size_t>(ERenderCategory::Count);
+
+	SRenderCategoryStats categories[CATEGORY_COUNT]{};
+
+	uint32_t totalPackets{ 0 };
+	uint32_t totalDrawCalls{ 0 };
+	uint32_t totalFaceCount{ 0 };
+	uint32_t totalDropped{ 0 };
+
+	const SRenderCategoryStats& GetCategory(ERenderCategory cat) const
+	{
+		size_t idx = static_cast<size_t>(cat);
+		if (idx < CATEGORY_COUNT)
+			return categories[idx];
+		static const SRenderCategoryStats s_empty{};
+		return s_empty;
+	}
+
+	SRenderCategoryStats& GetCategory(ERenderCategory cat)
+	{
+		size_t idx = static_cast<size_t>(cat);
+		if (idx < CATEGORY_COUNT)
+			return categories[idx];
+		static SRenderCategoryStats s_fallback{};
+		return s_fallback;
+	}
+
+	void Reset()
+	{
+		*this = SRenderFrameStats{};
+	}
+};
+
 
 class IRenderBackend;
 struct SSkyDescription;
@@ -225,9 +275,19 @@ public:
 	void SetActiveBackend(IRenderBackend* pBackend);
 	IRenderBackend* GetActiveBackend() const;
 
+	// Render statistics (S7.4)
+	void ResetFrameStats();
+	void RecordDrawCall(ERenderCategory category, uint32_t faceCount);
+	void RecordPacket(ERenderCategory category, uint32_t count = 1);
+	void RecordDroppedPacket(ERenderCategory category, uint32_t count = 1);
+	const SRenderFrameStats& GetFrameStats() const { return m_frameStats; }
+
 private:
 	CRenderQueueManager(const CRenderQueueManager&) = delete;
 	CRenderQueueManager& operator=(const CRenderQueueManager&) = delete;
+
+	SRenderFrameStats m_frameStats{};
+
 
 	TRenderFrameUniforms m_frameUniforms{};
 	std::vector<TSpeedTreePacket> m_speedTreePackets;

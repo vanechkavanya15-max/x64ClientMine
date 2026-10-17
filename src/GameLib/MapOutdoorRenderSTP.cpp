@@ -262,8 +262,8 @@ void CMapOutdoor::__SoftwareTransformPatch_RenderPatchSplat(SoftwareTransformPat
 		else
 			__SoftwareTransformPatch_RestoreFogShadowRenderState();
 		
-		ms_faceCount += wPrimitiveCount;
   		++m_iRenderedSplatNum;
+
 
 		
 
@@ -344,8 +344,8 @@ void CMapOutdoor::__SoftwareTransformPatch_RenderPatchNone(SoftwareTransformPatc
 	{
 		STATEMANAGER.SetStreamSource(0, pkVB, sizeof(SoftwareTransformPatch_STVertex));
 		STATEMANAGER.DrawIndexedPrimitive(ePrimitiveType, 0, m_iPatchTerrainVertexCount, 0, wPrimitiveCount);
-		ms_faceCount += wPrimitiveCount;
 	}
+
 }
 
 void CMapOutdoor::__SoftwareTransformPatch_ApplyStaticShadowRenderState()

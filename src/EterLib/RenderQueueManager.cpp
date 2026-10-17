@@ -79,9 +79,50 @@ CRenderQueueManager::CRenderQueueManager()
 	m_droppedBones = 0;
 
 	memset(&m_frameUniforms, 0, sizeof(TRenderFrameUniforms));
+	ResetFrameStats();
 }
 
 CRenderQueueManager::~CRenderQueueManager() = default;
+
+void CRenderQueueManager::ResetFrameStats()
+{
+	m_frameStats.Reset();
+}
+
+void CRenderQueueManager::RecordDrawCall(ERenderCategory category, uint32_t faceCount)
+{
+	m_frameStats.totalDrawCalls++;
+	m_frameStats.totalFaceCount += faceCount;
+
+	size_t idx = static_cast<size_t>(category);
+	if (idx < static_cast<size_t>(ERenderCategory::Count))
+	{
+		m_frameStats.categories[idx].drawCallCount++;
+		m_frameStats.categories[idx].faceCount += faceCount;
+	}
+}
+
+void CRenderQueueManager::RecordPacket(ERenderCategory category, uint32_t count)
+{
+	m_frameStats.totalPackets += count;
+
+	size_t idx = static_cast<size_t>(category);
+	if (idx < static_cast<size_t>(ERenderCategory::Count))
+	{
+		m_frameStats.categories[idx].packetCount += count;
+	}
+}
+
+void CRenderQueueManager::RecordDroppedPacket(ERenderCategory category, uint32_t count)
+{
+	m_frameStats.totalDropped += count;
+
+	size_t idx = static_cast<size_t>(category);
+	if (idx < static_cast<size_t>(ERenderCategory::Count))
+	{
+		m_frameStats.categories[idx].droppedCount += count;
+	}
+}
 
 void CRenderQueueManager::BeginFrame()
 {
@@ -109,6 +150,7 @@ void CRenderQueueManager::BeginFrame()
 	m_droppedWeaponTrace = 0;
 	m_droppedEffectMesh = 0;
 	m_droppedBones = 0;
+	ResetFrameStats();
 }
 
 void CRenderQueueManager::EndFrame()
@@ -134,41 +176,49 @@ const TRenderFrameUniforms& CRenderQueueManager::GetFrameUniforms() const
 void CRenderQueueManager::SubmitSpeedTree(const TSpeedTreePacket& packet)
 {
 	m_speedTreePackets.push_back(packet);
+	RecordPacket(ERenderCategory::SpeedTree);
 }
 
 void CRenderQueueManager::SubmitUI(const TUIBatchPacket& packet)
 {
 	m_uiPackets.push_back(packet);
+	RecordPacket(ERenderCategory::UI);
 }
 
 void CRenderQueueManager::SubmitActor(const TActorRenderPacket& packet)
 {
 	m_actorPackets.push_back(packet);
+	RecordPacket(ERenderCategory::Model);
 }
 
 void CRenderQueueManager::SubmitTerrain(const TTerrainSectorPacket& packet)
 {
 	m_terrainPackets.push_back(packet);
+	RecordPacket(ERenderCategory::Terrain);
 }
 
 void CRenderQueueManager::SubmitEffect(const TEffectInstancePacket& packet)
 {
 	m_effectPackets.push_back(packet);
+	RecordPacket(ERenderCategory::Effect);
 }
 
 void CRenderQueueManager::SubmitWater(const TWaterPacket& packet)
 {
 	m_waterPackets.push_back(packet);
+	RecordPacket(ERenderCategory::Water);
 }
 
 void CRenderQueueManager::SubmitSkyBox(const TSkyBoxPacket& packet)
 {
 	m_skyBoxPackets.push_back(packet);
+	RecordPacket(ERenderCategory::SkyBox);
 }
 
 void CRenderQueueManager::SubmitSkyDescription(const SSkyDescription& desc)
 {
 	m_pSkyDescription = std::make_unique<SSkyDescription>(desc);
+	RecordPacket(ERenderCategory::SkyBox);
 }
 
 const SSkyDescription* CRenderQueueManager::GetSkyDescription() const
@@ -184,11 +234,13 @@ bool CRenderQueueManager::HasSkyDescription() const
 void CRenderQueueManager::SubmitDungeonBlock(const TDungeonBlockPacket& packet)
 {
 	m_dungeonPackets.push_back(packet);
+	RecordPacket(ERenderCategory::Dungeon);
 }
 
 void CRenderQueueManager::SubmitWeaponTrace(const TWeaponTracePacket& packet)
 {
 	m_weaponTracePackets.push_back(packet);
+	RecordPacket(ERenderCategory::WeaponTrace);
 }
 
 const std::vector<TWeaponTracePacket>& CRenderQueueManager::GetWeaponTracePackets() const
@@ -199,6 +251,7 @@ const std::vector<TWeaponTracePacket>& CRenderQueueManager::GetWeaponTracePacket
 void CRenderQueueManager::SubmitEffectMesh(const TEffectMeshPacket& packet)
 {
 	m_effectMeshPackets.push_back(packet);
+	RecordPacket(ERenderCategory::EffectMesh);
 }
 
 const std::vector<TEffectMeshPacket>& CRenderQueueManager::GetEffectMeshPackets() const
@@ -209,6 +262,7 @@ const std::vector<TEffectMeshPacket>& CRenderQueueManager::GetEffectMeshPackets(
 void CRenderQueueManager::SubmitDebugLine(const TDebugLinePacket& packet)
 {
 	m_debugLinePackets.push_back(packet);
+	RecordPacket(ERenderCategory::Debug);
 }
 
 void CRenderQueueManager::SubmitDebugLines(const TDebugLinePacket* pPackets, size_t count)
@@ -216,7 +270,9 @@ void CRenderQueueManager::SubmitDebugLines(const TDebugLinePacket* pPackets, siz
 	if (!pPackets || count == 0)
 		return;
 	m_debugLinePackets.insert(m_debugLinePackets.end(), pPackets, pPackets + count);
+	RecordPacket(ERenderCategory::Debug, static_cast<uint32_t>(count));
 }
+
 
 const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() const
 {
@@ -353,6 +409,7 @@ TParticleInstanceData* CRenderQueueManager::AllocateParticleData(size_t count)
 	if (m_particleDataOffset + count > m_particleDataPool.size())
 	{
 		m_droppedParticles += count;
+		RecordDroppedPacket(ERenderCategory::Effect, static_cast<uint32_t>(count));
 		TraceError("CRenderQueueManager::AllocateParticleData: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
 			count, m_particleDataPool.size() - m_particleDataOffset, m_particleDataPool.size(), m_droppedParticles);
 		return nullptr;
@@ -371,6 +428,7 @@ TSpeedTreeInstanceData* CRenderQueueManager::AllocateSpeedTreeInstanceData(size_
 	if (m_speedTreeInstanceOffset + count > m_speedTreeInstancePool.size())
 	{
 		m_droppedSpeedTree += count;
+		RecordDroppedPacket(ERenderCategory::SpeedTree, static_cast<uint32_t>(count));
 		TraceError("CRenderQueueManager::AllocateSpeedTreeInstanceData: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
 			count, m_speedTreeInstancePool.size() - m_speedTreeInstanceOffset, m_speedTreeInstancePool.size(), m_droppedSpeedTree);
 		return nullptr;
@@ -389,6 +447,7 @@ TPDTVertex* CRenderQueueManager::AllocateWeaponTraceVertexData(size_t count)
 	if (m_weaponTraceVertexOffset + count > m_weaponTraceVertexPool.size())
 	{
 		m_droppedWeaponTrace += count;
+		RecordDroppedPacket(ERenderCategory::WeaponTrace, static_cast<uint32_t>(count));
 		TraceError("CRenderQueueManager::AllocateWeaponTraceVertexData: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
 			count, m_weaponTraceVertexPool.size() - m_weaponTraceVertexOffset, m_weaponTraceVertexPool.size(), m_droppedWeaponTrace);
 		return nullptr;
@@ -412,6 +471,7 @@ TPTVertex* CRenderQueueManager::AllocateEffectMeshVertexData(size_t count)
 	if (m_effectMeshVertexOffset + count > m_effectMeshVertexPool.size())
 	{
 		m_droppedEffectMesh += count;
+		RecordDroppedPacket(ERenderCategory::EffectMesh, static_cast<uint32_t>(count));
 		TraceError("CRenderQueueManager::AllocateEffectMeshVertexData: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
 			count, m_effectMeshVertexPool.size() - m_effectMeshVertexOffset, m_effectMeshVertexPool.size(), m_droppedEffectMesh);
 		return nullptr;
@@ -435,6 +495,7 @@ D3DXMATRIX* CRenderQueueManager::AllocateBoneMatrices(size_t count)
 	if (m_boneMatrixOffset + count > m_boneMatrixPool.size())
 	{
 		m_droppedBones += count;
+		RecordDroppedPacket(ERenderCategory::Model, static_cast<uint32_t>(count));
 		TraceError("CRenderQueueManager::AllocateBoneMatrices: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
 			count, m_boneMatrixPool.size() - m_boneMatrixOffset, m_boneMatrixPool.size(), m_droppedBones);
 		return nullptr;

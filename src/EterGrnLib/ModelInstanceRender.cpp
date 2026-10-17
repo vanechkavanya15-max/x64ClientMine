@@ -218,9 +218,8 @@ void CGrannyModelInstance::RenderMeshNodeListWithOneTexture(CGrannyMesh::EType e
 
 		while (pTriGroupNode)
 		{
-			ms_faceCount += pTriGroupNode->triCount;
-
 			// MR-12: Fix specular isolation issue
+
 			CGrannyMaterial& rkMtrl = m_kMtrlPal.GetMaterialRef(pTriGroupNode->mtrlIndex);
 
 			if (!material_data_.pImage)
@@ -269,8 +268,6 @@ void CGrannyModelInstance::RenderMeshNodeListWithTwoTexture(CGrannyMesh::EType e
 		int vtxCount = pMesh->GetVertexCount();
 		while (pTriGroupNode)
 		{
-			ms_faceCount += pTriGroupNode->triCount;
-
 			const CGrannyMaterial& rkMtrl=m_kMtrlPal.GetMaterialRef(pTriGroupNode->mtrlIndex);
 			STATEMANAGER.SetTexture(0, rkMtrl.GetD3DTexture(0));
 			STATEMANAGER.SetTexture(1, rkMtrl.GetD3DTexture(1));
@@ -311,10 +308,10 @@ void CGrannyModelInstance::RenderMeshNodeListWithoutTexture(CGrannyMesh::EType e
 
 		while (pTriGroupNode)
 		{
-			ms_faceCount += pTriGroupNode->triCount;
 			STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vtxMeshBasePos, 0, vtxCount, pTriGroupNode->idxPos, pTriGroupNode->triCount);
 			pTriGroupNode = pTriGroupNode->pNextTriGroupNode;
 		}
+
 		/////
 
 		pMeshNode = pMeshNode->pNextMeshNode;

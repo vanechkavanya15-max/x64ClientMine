@@ -6,6 +6,7 @@
 #include "StateManager.h"
 #include "Render/DynamicQuadBatcher.h"
 #include "RenderOwnership.h"
+#include "RenderQueueManager.h"
 
 #include <comdef.h>
 #include <utf8.h>
@@ -15,9 +16,11 @@ DWORD		CScreen::ms_clearColor = 0L;
 DWORD		CScreen::ms_clearStencil = 0L;
 float		CScreen::ms_clearDepth = 1.0f;
 Frustum		CScreen::ms_frustum;
-CScreen::TRenderStatistics CScreen::ms_renderStats = { 0, 0, 0, 0.0f, 0.0f };
+static float s_fLastFrameTimeMs = 0.0f;
+static float s_fLastFPS = 0.0f;
 static LARGE_INTEGER s_llFrameStartTime = { 0 };
 static LARGE_INTEGER s_llPerformanceFreq = { 0 };
+
 
 extern bool GRAPHICS_CAPS_CAN_NOT_DRAW_LINE;
 
@@ -705,19 +708,23 @@ void CScreen::End()
 	if (s_llPerformanceFreq.QuadPart > 0)
 	{
 		double dDeltaSec = static_cast<double>(llFrameEndTime.QuadPart - s_llFrameStartTime.QuadPart) / static_cast<double>(s_llPerformanceFreq.QuadPart);
-		ms_renderStats.fFrameTimeMs = static_cast<float>(dDeltaSec * 1000.0);
-		ms_renderStats.fFPS = (dDeltaSec > 0.000001) ? static_cast<float>(1.0 / dDeltaSec) : 0.0f;
+		s_fLastFrameTimeMs = static_cast<float>(dDeltaSec * 1000.0);
+		s_fLastFPS = (dDeltaSec > 0.000001) ? static_cast<float>(1.0 / dDeltaSec) : 0.0f;
 	}
-
-	ms_renderStats.dwDrawCallCount = STATEMANAGER.GetDrawCallCount();
-	ms_renderStats.dwPrimitiveCount = STATEMANAGER.GetPrimitiveCount();
-	ms_renderStats.dwFaceCount = GetFaceCount();
 }
 
 const CScreen::TRenderStatistics& CScreen::GetRenderStatistics()
 {
-	return ms_renderStats;
+	static TRenderStatistics s_stats{};
+	const auto& frameStats = CRenderQueueManager::Instance().GetFrameStats();
+	s_stats.dwDrawCallCount = frameStats.totalDrawCalls;
+	s_stats.dwPrimitiveCount = frameStats.totalFaceCount;
+	s_stats.dwFaceCount = frameStats.totalFaceCount;
+	s_stats.fFrameTimeMs = s_fLastFrameTimeMs;
+	s_stats.fFPS = s_fLastFPS;
+	return s_stats;
 }
+
 
 void CScreen::Show(HWND hWnd)
 {

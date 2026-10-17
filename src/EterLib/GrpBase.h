@@ -254,9 +254,8 @@ class CGraphicBase
 		static LPDIRECT3DDEVICE9EX		ms_lpd3dDevice;
 		static ID3DXMatrixStack*		ms_lpd3dMatStack;
 		static D3DVIEWPORT9				ms_Viewport;
-
-		static DWORD					ms_faceCount;
 		static D3DCAPS9					ms_d3dCaps;
+
 		static D3DPRESENT_PARAMETERS	ms_d3dPresentParameter;
 		
 		static DWORD					ms_dwD3DBehavior;

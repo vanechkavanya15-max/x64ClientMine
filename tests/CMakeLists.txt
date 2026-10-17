@@ -6482,8 +6482,25 @@ target_include_directories(test_c26_render_bypass_guard PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/include
 )
-target_link_libraries(test_c26_render_bypass_guard PRIVATE EterLib EterBase doctest)
+target_link_libraries(test_c26_render_bypass_guard PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
 add_test(NAME RenderBypassGuardTest COMMAND test_c26_render_bypass_guard)
+
 
 add_executable(test_c26_frustum test_c26_frustum.cpp)
 target_include_directories(test_c26_frustum PRIVATE
@@ -6959,6 +6976,32 @@ target_link_libraries(test_c26_naming_conventions PRIVATE
 )
 add_test(NAME test_c26_naming_conventions COMMAND test_c26_naming_conventions)
 
+add_executable(test_c26_queue_stats test_c26_queue_stats.cpp)
+target_include_directories(test_c26_queue_stats PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_queue_stats PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
+add_test(NAME test_c26_queue_stats COMMAND test_c26_queue_stats)
+add_test(NAME QueueStatsTest COMMAND test_c26_queue_stats)
+
 # --- S7.3 Zero CPU copies test ---
 add_executable(test_c26_cpu_copies test_c26_cpu_copies.cpp)
 target_include_directories(test_c26_cpu_copies PRIVATE
@@ -6975,5 +7018,6 @@ target_link_libraries(test_c26_cpu_copies PRIVATE
 )
 add_test(NAME test_c26_cpu_copies COMMAND test_c26_cpu_copies)
 add_test(NAME CpuCopiesTest COMMAND test_c26_cpu_copies)
+
 
 

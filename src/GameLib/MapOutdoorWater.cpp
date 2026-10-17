@@ -226,8 +226,7 @@ void CMapOutdoor::DrawWater(
 	{
 		STATEMANAGER.SetStreamSource(0, lpd3dVB, sizeof(SWaterVertex));
 		STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, uPriCount);
-
-		ms_faceCount += uPriCount;
 	}
 }
+
 
