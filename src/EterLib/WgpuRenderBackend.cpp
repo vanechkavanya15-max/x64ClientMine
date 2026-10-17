@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "WgpuRenderBackend.h"
+#include "WgpuModule.h"
 #include "D3D9RenderBackend.h"
+#include "RenderQueueManager.h"
 #include "RenderOwnership.h"
 
 CWgpuRenderBackend::CWgpuRenderBackend() = default;
@@ -16,63 +18,43 @@ bool CWgpuRenderBackend::Initialize(HWND hWnd, unsigned int width, unsigned int 
 	m_width = width;
 	m_height = height;
 
-	if (!m_hModule)
+	CWgpuModule& module = CWgpuModule::Instance();
+	if (!module.IsLoaded())
 	{
-		m_hModule = ::LoadLibraryA("m2_render_wgpu.dll");
-		if (m_hModule)
+		if (!module.Load())
 		{
-			m_pfnInitialize = reinterpret_cast<PFN_m2_wgpu_initialize>(::GetProcAddress(m_hModule, "m2_wgpu_initialize"));
-			m_pfnRenderFrame = reinterpret_cast<PFN_m2_wgpu_render_frame>(::GetProcAddress(m_hModule, "m2_wgpu_render_frame"));
-			m_pfnResize = reinterpret_cast<PFN_m2_wgpu_resize>(::GetProcAddress(m_hModule, "m2_wgpu_resize"));
-			m_pfnShutdown = reinterpret_cast<PFN_m2_wgpu_shutdown>(::GetProcAddress(m_hModule, "m2_wgpu_shutdown"));
-			m_pfnRegisterTexture = reinterpret_cast<PFN_m2_wgpu_register_texture>(::GetProcAddress(m_hModule, "m2_wgpu_register_texture"));
+			m_bInitialized = false;
+			return false;
 		}
 	}
 
-	if (m_pfnInitialize && m_pfnRenderFrame)
+	if (module.Initialize(hWnd, static_cast<uint32_t>(width), static_cast<uint32_t>(height)))
 	{
-		m_bInitialized = m_pfnInitialize(hWnd, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-		return m_bInitialized;
+		m_bInitialized = true;
+		CRenderQueueManager::Instance().SetActiveBackend(this);
+		return true;
 	}
 
+	m_bInitialized = false;
 	return false;
 }
 
 void CWgpuRenderBackend::Shutdown()
 {
-	if (m_bInitialized && m_pfnShutdown)
+	if (m_bInitialized)
 	{
-		m_pfnShutdown();
+		CWgpuModule::Instance().Destroy();
 	}
 	m_bInitialized = false;
-
-	if (m_hModule)
-	{
-		::FreeLibrary(m_hModule);
-		m_hModule = nullptr;
-	}
-	m_pfnInitialize = nullptr;
-	m_pfnRenderFrame = nullptr;
-	m_pfnResize = nullptr;
-	m_pfnShutdown = nullptr;
-	m_pfnRegisterTexture = nullptr;
-}
-
-void CWgpuRenderBackend::RegisterTexture(uintptr_t dwTextureID, uint32_t width, uint32_t height, uint32_t format, const uint8_t* pData, size_t dataSize)
-{
-	if (m_bInitialized && m_pfnRegisterTexture)
-	{
-		m_pfnRegisterTexture(dwTextureID, width, height, format, pData, dataSize);
-	}
 }
 
 void CWgpuRenderBackend::Resize(unsigned int width, unsigned int height)
 {
 	m_width = width;
 	m_height = height;
-	if (m_bInitialized && m_pfnResize)
+	if (m_bInitialized)
 	{
-		m_pfnResize(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+		CWgpuModule::Instance().Resize(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 	}
 }
 
@@ -139,9 +121,9 @@ void CWgpuRenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 
 void CWgpuRenderBackend::EndFrame()
 {
-	if (m_bInitialized && m_pfnRenderFrame)
+	if (m_bInitialized)
 	{
-		m_pfnRenderFrame(&m_framePacket);
+		CWgpuModule::Instance().RenderFrame(&m_framePacket);
 	}
 	CD3D9RenderBackend::Instance().EndFrame();
 }
@@ -151,9 +133,15 @@ const char* CWgpuRenderBackend::GetBackendName() const
 	return IsDllLoaded() ? "Rust WGPU Drop-In (m2_render_wgpu.dll)" : "Rust WGPU Bridge (D3D9 Fallback)";
 }
 
-#include <fstream>
-#include <string>
-#include <cstdlib>
+bool CWgpuRenderBackend::IsDllLoaded() const noexcept
+{
+	return CWgpuModule::Instance().IsLoaded();
+}
+
+HMODULE CWgpuRenderBackend::GetModuleHandle() const noexcept
+{
+	return CWgpuModule::Instance().GetHandle();
+}
 
 bool CWgpuRenderBackend::IsDeviceLost() const
 {
@@ -164,4 +152,3 @@ bool CWgpuRenderBackend::IsConfiguredInConfigJson()
 {
 	return RenderOwnership::IsWgpuConfigured();
 }
-

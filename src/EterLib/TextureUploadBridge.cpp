@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "TextureUploadBridge.h"
+#include "WgpuModule.h"
 #include "WgpuRenderBackend.h"
 #include "RenderQueueManager.h"
 #include "RenderOwnership.h"
@@ -23,48 +24,21 @@ bool CTextureUploadBridge::Initialize()
 void CTextureUploadBridge::Shutdown()
 {
 	std::lock_guard<std::mutex> lock(s_bridgeMutex);
-	m_pfnRegisterTexture = nullptr;
-	m_pfnUnregisterTexture = nullptr;
-
-	if (m_bOwnsModule && m_hWgpuModule)
-	{
-		::FreeLibrary(m_hWgpuModule);
-	}
-	m_hWgpuModule = nullptr;
-	m_bOwnsModule = false;
 	m_registeredCount = 0;
 }
 
 bool CTextureUploadBridge::EnsureWgpuLoaded()
 {
-	if (m_pfnRegisterTexture)
+	CWgpuModule& module = CWgpuModule::Instance();
+	if (module.IsLoaded())
 		return true;
 
-	// 1. Sprawdz czy modul m2_render_wgpu.dll jest juz zaladowany w procesie
-	HMODULE hModule = ::GetModuleHandleA("m2_render_wgpu.dll");
-
-	// 2. Jesli nie, ale konfiguracja wskazuje na wgpu, sprobuj zaladowac biblioteke
-	if (!hModule && RenderOwnership::IsWgpuConfigured())
+	if (RenderOwnership::IsWgpuConfigured())
 	{
-		hModule = ::LoadLibraryA("m2_render_wgpu.dll");
-		if (hModule)
-		{
-			m_bOwnsModule = true;
-		}
+		return module.Load();
 	}
 
-	if (!hModule)
-		return false;
-
-	m_hWgpuModule = hModule;
-	m_pfnRegisterTexture = reinterpret_cast<PFN_m2_wgpu_register_texture>(
-		::GetProcAddress(hModule, "m2_wgpu_register_texture")
-	);
-	m_pfnUnregisterTexture = reinterpret_cast<PFN_m2_wgpu_unregister_texture>(
-		::GetProcAddress(hModule, "m2_wgpu_unregister_texture")
-	);
-
-	return (m_pfnRegisterTexture != nullptr);
+	return false;
 }
 
 bool CTextureUploadBridge::IsWgpuActive() const
@@ -74,12 +48,8 @@ bool CTextureUploadBridge::IsWgpuActive() const
 	if (pActive && pActive == &CWgpuRenderBackend::Instance())
 		return true;
 
-	// Sprawdz czy instancja CWgpuRenderBackend ma zaladowana biblioteke
-	if (CWgpuRenderBackend::Instance().IsDllLoaded())
-		return true;
-
-	// Sprawdz czy biblioteka m2_render_wgpu.dll jest obecna w pamieci procesu
-	if (::GetModuleHandleA("m2_render_wgpu.dll") != nullptr)
+	// Sprawdz czy instancja CWgpuModule jest zaladowana
+	if (CWgpuModule::Instance().IsLoaded())
 		return true;
 
 	// Sprawdz czy config.json lub zmienna M2_GRAPHICS_ENGINE wskazuje wgpu
@@ -103,15 +73,16 @@ bool CTextureUploadBridge::RegisterTexture(
 	if (!IsWgpuActive())
 		return false;
 
+	CWgpuModule& module = CWgpuModule::Instance();
+	if (!module.IsLoaded())
 	{
 		std::lock_guard<std::mutex> lock(s_bridgeMutex);
-		if (!EnsureWgpuLoaded())
+		if (!module.IsLoaded() && !EnsureWgpuLoaded())
 			return false;
 	}
 
-	if (m_pfnRegisterTexture)
+	if (module.RegisterTexture(dwTextureID, width, height, format, pData, dataSize))
 	{
-		m_pfnRegisterTexture(dwTextureID, width, height, format, pData, dataSize);
 		++m_registeredCount;
 		return true;
 	}
@@ -142,8 +113,6 @@ void CTextureUploadBridge::UnregisterTexture(uintptr_t dwTextureID)
 	if (!dwTextureID)
 		return;
 
-	if (m_pfnUnregisterTexture)
-	{
-		m_pfnUnregisterTexture(dwTextureID);
-	}
+	// Bezpieczny no-op, gdy modul WGPU jest zamkniety lub niezaladowany
+	CWgpuModule::Instance().UnregisterTexture(dwTextureID);
 }

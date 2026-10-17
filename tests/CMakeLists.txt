@@ -6381,3 +6381,13 @@ target_include_directories(test_c26_render_ownership PRIVATE
 )
 target_link_libraries(test_c26_render_ownership PRIVATE EterLib EterBase doctest)
 add_test(NAME RenderOwnershipTest COMMAND test_c26_render_ownership)
+
+add_executable(test_c26_wgpu_module test_c26_wgpu_module.cpp)
+target_include_directories(test_c26_wgpu_module PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_wgpu_module PRIVATE EterLib EterBase doctest)
+add_test(NAME WgpuModuleTest COMMAND test_c26_wgpu_module)
+
