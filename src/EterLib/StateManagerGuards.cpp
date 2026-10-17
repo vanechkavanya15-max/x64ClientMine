@@ -6,9 +6,10 @@
 // ScopedD3DVertexDeclGuard
 // ============================================================================
 ScopedD3DVertexDeclGuard::ScopedD3DVertexDeclGuard(LPDIRECT3DVERTEXDECLARATION9 pNewDecl, bool bRestoreOnExit)
-    : m_bRestoreOnExit(bRestoreOnExit), m_pExitDecl(nullptr), m_bActive(true)
+    : m_bRestoreOnExit(bRestoreOnExit), m_pExitDecl(nullptr), m_dwExitFVF(0), m_bActive(true)
 {
     STATEMANAGER.GetVertexDeclaration(&m_pSavedDecl);
+    STATEMANAGER.GetFVF(&m_dwSavedFVF);
     if (pNewDecl != nullptr || !bRestoreOnExit)
     {
         STATEMANAGER.SetVertexDeclaration(pNewDecl);
@@ -21,11 +22,34 @@ ScopedD3DVertexDeclGuard::~ScopedD3DVertexDeclGuard() noexcept
     {
         if (m_bRestoreOnExit)
         {
-            STATEMANAGER.SetVertexDeclaration(m_pSavedDecl);
+            if (m_pSavedDecl != nullptr)
+            {
+                STATEMANAGER.SetVertexDeclaration(m_pSavedDecl);
+            }
+            else if (m_dwSavedFVF != 0)
+            {
+                STATEMANAGER.SetFVF(m_dwSavedFVF);
+            }
+            else
+            {
+                STATEMANAGER.SetVertexDeclaration(nullptr);
+                STATEMANAGER.SetFVF(0);
+            }
         }
         else
         {
-            STATEMANAGER.SetVertexDeclaration(m_pExitDecl);
+            if (m_pExitDecl != nullptr)
+            {
+                STATEMANAGER.SetVertexDeclaration(m_pExitDecl);
+            }
+            else if (m_dwExitFVF != 0)
+            {
+                STATEMANAGER.SetFVF(m_dwExitFVF);
+            }
+            else
+            {
+                STATEMANAGER.SetVertexDeclaration(nullptr);
+            }
         }
     }
 }
@@ -47,7 +71,9 @@ void ScopedD3DVertexDeclGuard::Dismiss() noexcept
 
 ScopedD3DVertexDeclGuard::ScopedD3DVertexDeclGuard(ScopedD3DVertexDeclGuard&& other) noexcept
     : m_pSavedDecl(other.m_pSavedDecl),
+      m_dwSavedFVF(other.m_dwSavedFVF),
       m_pExitDecl(other.m_pExitDecl),
+      m_dwExitFVF(other.m_dwExitFVF),
       m_bRestoreOnExit(other.m_bRestoreOnExit),
       m_bActive(other.m_bActive)
 {
@@ -61,12 +87,31 @@ ScopedD3DVertexDeclGuard& ScopedD3DVertexDeclGuard::operator=(ScopedD3DVertexDec
         if (m_bActive)
         {
             if (m_bRestoreOnExit)
-                STATEMANAGER.SetVertexDeclaration(m_pSavedDecl);
+            {
+                if (m_pSavedDecl != nullptr)
+                    STATEMANAGER.SetVertexDeclaration(m_pSavedDecl);
+                else if (m_dwSavedFVF != 0)
+                    STATEMANAGER.SetFVF(m_dwSavedFVF);
+                else
+                {
+                    STATEMANAGER.SetVertexDeclaration(nullptr);
+                    STATEMANAGER.SetFVF(0);
+                }
+            }
             else
-                STATEMANAGER.SetVertexDeclaration(m_pExitDecl);
+            {
+                if (m_pExitDecl != nullptr)
+                    STATEMANAGER.SetVertexDeclaration(m_pExitDecl);
+                else if (m_dwExitFVF != 0)
+                    STATEMANAGER.SetFVF(m_dwExitFVF);
+                else
+                    STATEMANAGER.SetVertexDeclaration(nullptr);
+            }
         }
         m_pSavedDecl = other.m_pSavedDecl;
+        m_dwSavedFVF = other.m_dwSavedFVF;
         m_pExitDecl = other.m_pExitDecl;
+        m_dwExitFVF = other.m_dwExitFVF;
         m_bRestoreOnExit = other.m_bRestoreOnExit;
         m_bActive = other.m_bActive;
         other.m_bActive = false;
@@ -115,13 +160,16 @@ ScopedD3DFFPGuard::~ScopedD3DFFPGuard() noexcept
     {
         if (m_bRestoreOnExit)
         {
-            STATEMANAGER.SetVertexDeclaration(m_pSavedDecl);
-            STATEMANAGER.SetVertexShader(m_pSavedVS);
-            STATEMANAGER.SetPixelShader(m_pSavedPS);
             if (m_dwSavedFVF != 0)
             {
                 STATEMANAGER.SetFVF(m_dwSavedFVF);
             }
+            if (m_pSavedDecl != nullptr)
+            {
+                STATEMANAGER.SetVertexDeclaration(m_pSavedDecl);
+            }
+            STATEMANAGER.SetVertexShader(m_pSavedVS);
+            STATEMANAGER.SetPixelShader(m_pSavedPS);
         }
         else
         {
@@ -159,11 +207,12 @@ ScopedD3DFFPGuard& ScopedD3DFFPGuard::operator=(ScopedD3DFFPGuard&& other) noexc
         {
             if (m_bRestoreOnExit)
             {
-                STATEMANAGER.SetVertexDeclaration(m_pSavedDecl);
-                STATEMANAGER.SetVertexShader(m_pSavedVS);
-                STATEMANAGER.SetPixelShader(m_pSavedPS);
                 if (m_dwSavedFVF != 0)
                     STATEMANAGER.SetFVF(m_dwSavedFVF);
+                if (m_pSavedDecl != nullptr)
+                    STATEMANAGER.SetVertexDeclaration(m_pSavedDecl);
+                STATEMANAGER.SetVertexShader(m_pSavedVS);
+                STATEMANAGER.SetPixelShader(m_pSavedPS);
             }
             else
             {

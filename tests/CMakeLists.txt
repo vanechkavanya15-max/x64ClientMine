@@ -1,5 +1,17 @@
 cmake_minimum_required(VERSION 3.19)
 
+if (NOT TARGET doctest)
+    add_library(doctest INTERFACE)
+    target_include_directories(doctest INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/extern/include
+        ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+        ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+    )
+    target_link_libraries(doctest INTERFACE DirectX sodium freetype libzstd_static lzo2 mio ws2_32)
+endif()
+
 add_executable(test_c26_strangler_facade test_c26_strangler_facade.cpp)
 
 target_include_directories(test_c26_strangler_facade PRIVATE
@@ -555,6 +567,15 @@ target_link_libraries(test_c30_d3d9_state_guards PRIVATE
     ws2_32
 )
 add_test(NAME D3D9StateGuardsTest COMMAND test_c30_d3d9_state_guards)
+
+add_executable(test_c26_state_manager_cache test_c26_state_manager_cache.cpp)
+target_include_directories(test_c26_state_manager_cache PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_state_manager_cache PRIVATE EterLib EterBase doctest)
+add_test(NAME StateManagerCacheTest COMMAND test_c26_state_manager_cache)
 
 add_executable(test_c31_beavium_server_profile
     test_c31_beavium_server_profile.cpp
