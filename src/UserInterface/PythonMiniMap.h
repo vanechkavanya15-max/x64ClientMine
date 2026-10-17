@@ -197,11 +197,13 @@ class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
 
 		bool							m_bShowAtlas;
 		CGraphicExpandedImageInstance	m_AtlasImageInstance;
-		D3DXMATRIX						m_matWorldAtlas;
 		CGraphicExpandedImageInstance	m_AtlasPlayerMark;
 
 		float							m_fAtlasScreenX;
 		float							m_fAtlasScreenY;
+
+		float							m_fAtlasPlayerX;
+		float							m_fAtlasPlayerY;
 
 		DWORD							m_dwAtlasBaseX;
 		DWORD							m_dwAtlasBaseY;
