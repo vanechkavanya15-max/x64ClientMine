@@ -6245,5 +6245,35 @@ target_link_libraries(test_c26_snow_particle PRIVATE
 )
 add_test(NAME SnowParticleTest COMMAND test_c26_snow_particle)
 
-
-
+add_executable(test_c26_effect_sort
+    test_c26_effect_sort.cpp
+)
+target_include_directories(test_c26_effect_sort PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/EffectLib
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_effect_sort PRIVATE
+    EffectLib
+    GameLib
+    PackLib
+    EterLib
+    EterImageLib
+    EterBase
+    EterGrnLib
+    EterModelLib
+    AudioLib
+    PRTerrainLib
+    SphereLib
+    SpeedTreeLib
+    SpeedTree
+    DirectX
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    Dbghelp
+)
+add_test(NAME EffectSortTest COMMAND test_c26_effect_sort)
