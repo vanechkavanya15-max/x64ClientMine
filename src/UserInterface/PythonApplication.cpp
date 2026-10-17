@@ -24,6 +24,7 @@
 
 #include "ProcessScanner.h"
 #include "FastBootOverlay.h"
+#include <stb_image_write.h>
 
 #include <utf8.h>
 #include <thread>
@@ -1289,4 +1290,63 @@ void CPythonApplication::Destroy()
 	sStickKeys.cbSize = sizeof(sStickKeys);
 	sStickKeys.dwFlags = m_dwStickyKeysFlag;
 	SystemParametersInfo( SPI_SETSTICKYKEYS, sizeof(sStickKeys), &sStickKeys, 0 );
+}
+
+bool CPythonApplication::SaveScreenShot(const char* c_szFileName)
+{
+	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
+	if (!lpDevice || !c_szFileName || !c_szFileName[0])
+		return false;
+
+	LPDIRECT3DSURFACE9 pBackBuffer = nullptr;
+	if (FAILED(lpDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer)) || !pBackBuffer)
+		return false;
+
+	D3DSURFACE_DESC desc;
+	pBackBuffer->GetDesc(&desc);
+
+	LPDIRECT3DSURFACE9 pOffscreenSurface = nullptr;
+	if (FAILED(lpDevice->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format, D3DPOOL_SYSTEMMEM, &pOffscreenSurface, nullptr)) || !pOffscreenSurface)
+	{
+		pBackBuffer->Release();
+		return false;
+	}
+
+	if (FAILED(lpDevice->GetRenderTargetData(pBackBuffer, pOffscreenSurface)))
+	{
+		pOffscreenSurface->Release();
+		pBackBuffer->Release();
+		return false;
+	}
+
+	D3DLOCKED_RECT lockedRect;
+	if (FAILED(pOffscreenSurface->LockRect(&lockedRect, nullptr, D3DLOCK_READONLY)))
+	{
+		pOffscreenSurface->Release();
+		pBackBuffer->Release();
+		return false;
+	}
+
+	// Convert D3DFMT_X8R8G8B8 or A8R8G8B8 to RGBA
+	std::vector<uint8_t> rgba(desc.Width * desc.Height * 4);
+	const uint8_t* pSrc = static_cast<const uint8_t*>(lockedRect.pBits);
+	for (UINT y = 0; y < desc.Height; ++y)
+	{
+		const uint32_t* pSrcRow = reinterpret_cast<const uint32_t*>(pSrc + y * lockedRect.Pitch);
+		uint8_t* pDstRow = rgba.data() + y * desc.Width * 4;
+		for (UINT x = 0; x < desc.Width; ++x)
+		{
+			uint32_t pixel = pSrcRow[x];
+			pDstRow[x * 4 + 0] = static_cast<uint8_t>((pixel >> 16) & 0xFF); // R
+			pDstRow[x * 4 + 1] = static_cast<uint8_t>((pixel >> 8) & 0xFF);  // G
+			pDstRow[x * 4 + 2] = static_cast<uint8_t>(pixel & 0xFF);         // B
+			pDstRow[x * 4 + 3] = 0xFF;                                       // A
+		}
+	}
+
+	pOffscreenSurface->UnlockRect();
+	pOffscreenSurface->Release();
+	pBackBuffer->Release();
+
+	return stbi_write_png(c_szFileName, desc.Width, desc.Height, 4, rgba.data(), desc.Width * 4) != 0;
 }

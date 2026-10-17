@@ -545,6 +545,51 @@ class HarnessBridge:
                 "is_frozen": self.controllers["input"]["freeze_active"]
             }
 
+    def capture_screenshot(self, output_path: str = "log/screenshot_latest.png") -> Dict[str, Any]:
+        """Zrzuca bufor klatki (D3D9 / WGPU) bezposrednio do pliku PNG przez Named Pipe."""
+        with self.lock:
+            if self.is_connected:
+                pipe_resp = self._send_raw_pipe_cmd({
+                    "jsonrpc": "2.0",
+                    "method": "capture_screenshot",
+                    "params": {"output_path": output_path},
+                    "id": 105
+                })
+                if pipe_resp and pipe_resp.get("ok"):
+                    res = pipe_resp.get("result", {})
+                    abs_path = os.path.abspath(output_path)
+                    res["abs_path"] = abs_path
+                    res["exists"] = os.path.exists(abs_path)
+                    return {"ok": True, "result": res}
+            return {
+                "ok": True,
+                "result": {
+                    "saved": False,
+                    "path": output_path,
+                    "note": "Klient w trybie mock lub potok niedostepny"
+                }
+            }
+
+    def dump_ui_tree(self) -> Dict[str, Any]:
+        """Pobiera pelne drzewo hierarchii okien i kontrolek UI z silnika C++."""
+        with self.lock:
+            if self.is_connected:
+                pipe_resp = self._send_raw_pipe_cmd({
+                    "jsonrpc": "2.0",
+                    "method": "ui_dump_tree",
+                    "id": 106
+                })
+                if pipe_resp and pipe_resp.get("ok"):
+                    res = pipe_resp.get("result", {})
+                    return {"ok": True, "tree": res}
+            return {
+                "ok": True,
+                "tree": {
+                    "name": "root",
+                    "note": "Tryb mock / potok niedostepny"
+                }
+            }
+
     # ------------------------------------------------------------------------
     # Pobieranie pelnego stanu silnika (m2_get_engine_state)
     # ------------------------------------------------------------------------
@@ -1789,21 +1834,26 @@ async def m2_client_status() -> str:
 
 
 @server.tool(
-    description="Pobiera zrzut ekranu okna gry lub zwraca status bufora klatki w trybie headless."
+    description="Pobiera zrzut ekranu okna gry lub bufora ramki D3D9/WGPU w trybie headless do pliku PNG."
 )
-async def m2_client_screenshot() -> str:
+async def m2_client_screenshot(output_path: str = "log/screenshot_latest.png") -> str:
     is_alive = bridge.process is not None and bridge.process.poll() is None
     if not is_alive:
         return json.dumps({"ok": False, "error": "Klient C++ nie jest uruchomiony."}, ensure_ascii=False, indent=2)
 
-    # W trybie headless okno D3D9 jest zminimalizowane/ukryte, zwracamy diagnostyke renderera
-    res = {
-        "ok": True,
-        "mode": bridge.mode,
-        "screenshot_status": "RENDER_BUFFER_HEADLESS_CAPTURED" if bridge.mode == "headless" else "WINDOW_CAPTURED",
-        "description": "Zrzut bufora klatki natywnego silnika C++23.",
-        "timestamp": time.time()
-    }
+    res = bridge.capture_screenshot(output_path)
+    return json.dumps(res, ensure_ascii=False, indent=2)
+
+
+@server.tool(
+    description="Pobiera pelne drzewo hierarchii okien i kontrolek UI z silnika gry w formacie JSON (pozycje, widocznosc, teksty)."
+)
+async def m2_ui_dump_tree() -> str:
+    is_alive = bridge.process is not None and bridge.process.poll() is None
+    if not is_alive:
+        return json.dumps({"ok": False, "error": "Klient C++ nie jest uruchomiony."}, ensure_ascii=False, indent=2)
+
+    res = bridge.dump_ui_tree()
     return json.dumps(res, ensure_ascii=False, indent=2)
 
 

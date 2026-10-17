@@ -2,6 +2,7 @@
 #include "Resource.h"
 #include "PythonApplication.h"
 #include "EterLib/Camera.h"
+#include "EterPythonLib/PythonWindowManager.h"
 #include "PackLib/PackManager.h"
 #include "EterBase/tea.h"
 
@@ -803,6 +804,7 @@ PyObject * appSetDefaultFontName(PyObject * poSelf, PyObject * poArgs)
 
 	// DEFAULT_FONT
 	DefaultFont_SetName(szFontName);
+	UI::CWindowManager::Instance().SetDefaultFontName(szFontName);
 	// END_OF_DEFAULT_FONT
 
 	return Py_BuildNone();

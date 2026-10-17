@@ -140,6 +140,8 @@ namespace UI
 			void		SetDefaultFontName(const char* c_szFontName);
 			const std::string& GetDefaultFontName() const;
 
+			std::string DumpTreeJson() const;
+
 		private:
 			void		SetMousePosition(long x, long y);
 			CWindow *	__PickWindow(long x, long y);

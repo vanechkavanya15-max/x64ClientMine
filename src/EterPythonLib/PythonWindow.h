@@ -274,6 +274,18 @@ namespace UI
 	class CTextLine : public CWindow
 	{
 		public:
+			static DWORD Type()
+			{
+				static DWORD s_dwType = GetCRC32("CTextLine", strlen("CTextLine"));
+				return s_dwType;
+			}
+			BOOL OnIsType(DWORD dwType) override
+			{
+				if (CTextLine::Type() == dwType)
+					return TRUE;
+				return CWindow::OnIsType(dwType);
+			}
+
 			CTextLine(PyObject * ppyObject);
 			virtual ~CTextLine();
 

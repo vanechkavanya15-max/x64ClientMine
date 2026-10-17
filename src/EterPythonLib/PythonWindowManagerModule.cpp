@@ -2308,6 +2308,20 @@ PyObject * wndTextSetFontName(PyObject * poSelf, PyObject * poArgs)
 	((UI::CTextLine*)pWindow)->SetFontName(szFontName);
 	return Py_BuildNone();
 }
+PyObject * wndMgrSetDefaultFontName(PyObject * poSelf, PyObject * poArgs)
+{
+	char * szFontName;
+	if (!PyTuple_GetString(poArgs, 0, &szFontName))
+		return Py_BuildException();
+
+	UI::CWindowManager::Instance().SetDefaultFontName(szFontName);
+	return Py_BuildNone();
+}
+PyObject * wndMgrDumpTree(PyObject * poSelf, PyObject * poArgs)
+{
+	std::string json = UI::CWindowManager::Instance().DumpTreeJson();
+	return Py_BuildValue("s", json.c_str());
+}
 PyObject * wndTextSetFontColor(PyObject * poSelf, PyObject * poArgs)
 {
 	UI::CWindow * pWindow;
@@ -3232,6 +3246,8 @@ void initwndMgr()
 		{ "Destroy",					wndMgrDestroy,						METH_VARARGS },
 		{ "AddFlag",					wndMgrAddFlag,						METH_VARARGS },
 		{ "IsRTL",						wndMgrIsRTL,						METH_VARARGS },
+		{ "SetDefaultFontName",			wndMgrSetDefaultFontName,			METH_VARARGS },
+		{ "DumpTree",					wndMgrDumpTree,						METH_VARARGS },
 
 		// Base Window
 		{ "SetName",					wndMgrSetName,						METH_VARARGS },

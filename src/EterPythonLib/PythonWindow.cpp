@@ -1109,6 +1109,12 @@ namespace UI
 
 		m_baseDirection = ::IsRTL() ? CGraphicTextInstance::ETextDirection::RTL : CGraphicTextInstance::ETextDirection::LTR;
 		m_TextInstance.SetTextDirection(m_baseDirection);
+
+		const std::string& stDefaultFont = UI::CWindowManager::Instance().GetDefaultFontName();
+		if (!stDefaultFont.empty())
+			SetFontName(stDefaultFont.c_str());
+		else
+			SetFontName("Tahoma:12");
 	}
 	CTextLine::~CTextLine()
 	{

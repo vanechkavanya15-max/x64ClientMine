@@ -14,6 +14,7 @@
 #include "../PythonSkill.h"
 #include "../GameLib/ItemManager.h"
 #include "../FastBootOverlay.h"
+#include "EterPythonLib/PythonWindowManager.h"
 
 extern bool g_bHeadlessMode;
 
@@ -3103,6 +3104,40 @@ namespace UserInterface::TestHarness
         m_routes["get_frame_telemetry"] = { true, telemetryHandler };
         m_routes["game_get_frame_telemetry"] = { true, telemetryHandler };
         m_routes["explain_frame"] = { true, telemetryHandler };
+
+        // 26. ui_dump_tree (Pelny zrzut drzewa okien i kontrolek interfejsu gry)
+        auto uiDumpTreeHandler = [](const std::string&, const std::string& id) -> std::string {
+            if (!UI::CWindowManager::InstancePtr())
+                return FormatJsonRpcError(id, -32000, "WindowManager not initialized");
+            std::string uiTreeJson = UI::CWindowManager::Instance().DumpTreeJson();
+            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{}}}", id, uiTreeJson);
+        };
+        m_routes["ui_dump_tree"] = { false, uiDumpTreeHandler };
+        m_routes["game_ui_dump_tree"] = { false, uiDumpTreeHandler };
+
+        // 27. capture_screenshot (Zrzut bufora ramki do pliku PNG)
+        auto screenshotHandler = [](const std::string& req, const std::string& id) -> std::string {
+            rapidjson::Document doc;
+            doc.Parse(req.c_str());
+            std::string filename = "log/screenshot_latest.png";
+            if (!doc.HasParseError())
+            {
+                auto parse = [&](const rapidjson::Value& p) {
+                    if (p.HasMember("filename") && p["filename"].IsString()) filename = p["filename"].GetString();
+                    else if (p.HasMember("output_path") && p["output_path"].IsString()) filename = p["output_path"].GetString();
+                    else if (p.HasMember("path") && p["path"].IsString()) filename = p["path"].GetString();
+                };
+                if (doc.HasMember("params") && doc["params"].IsObject())
+                    parse(doc["params"]);
+                else if (doc.IsObject())
+                    parse(doc);
+            }
+            bool ok = CPythonApplication::Instance().SaveScreenShot(filename.c_str());
+            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":{},\"id\":{},\"result\":{{\"saved\":{},\"path\":\"{}\"}}}}",
+                ok ? "true" : "false", id, ok ? "true" : "false", filename);
+        };
+        m_routes["capture_screenshot"] = { false, screenshotHandler };
+        m_routes["game_capture_screenshot"] = { false, screenshotHandler };
     }
 
     bool TestHarnessServer::IsImmediateMethod(std::string_view method) const noexcept

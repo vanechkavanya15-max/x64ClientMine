@@ -6,6 +6,9 @@
 #include "PythonInternedStrings.h"
 #include "EterLib/Render/DynamicQuadBatcher.h"
 #include "EterLib/RenderQueueManager.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 //#define __WINDOW_LEAK_CHECK__
 
@@ -41,7 +44,8 @@ namespace UI
 		m_poMouseHandler(NULL),
 		m_iHres(0),
 		m_iVres(0),
-		m_bOnceIgnoreMouseLeftButtonUpEventFlag(FALSE)
+		m_bOnceIgnoreMouseLeftButtonUpEventFlag(FALSE),
+		m_strDefaultFontName("Tahoma:12")
 	{		
 		m_pRootWindow = new CWindow(NULL);
 		m_pRootWindow->SetName("root");
@@ -1303,5 +1307,75 @@ namespace UI
 		}
 
 		m_pRootWindow->RunPressExitKeyEvent();
+	}
+
+	void CWindowManager::SetDefaultFontName(const char* c_szFontName)
+	{
+		if (c_szFontName && c_szFontName[0])
+			m_strDefaultFontName = c_szFontName;
+	}
+
+	const std::string& CWindowManager::GetDefaultFontName() const
+	{
+		return m_strDefaultFontName;
+	}
+
+	static void DumpWindowToJson(CWindow* pWin, rapidjson::Value& outVal, rapidjson::Document::AllocatorType& allocator)
+	{
+		if (!pWin) return;
+		outVal.SetObject();
+
+		const char* szName = pWin->GetName();
+		if (!szName) szName = "";
+		rapidjson::Value nameVal(szName, allocator);
+		outVal.AddMember("name", nameVal, allocator);
+		outVal.AddMember("visible", pWin->IsShow(), allocator);
+		outVal.AddMember("rendering", pWin->IsRendering(), allocator);
+
+		const RECT& rc = pWin->GetRect();
+		rapidjson::Value rectArr(rapidjson::kArrayType);
+		rectArr.PushBack(static_cast<int>(rc.left), allocator);
+		rectArr.PushBack(static_cast<int>(rc.top), allocator);
+		rectArr.PushBack(static_cast<int>(rc.right), allocator);
+		rectArr.PushBack(static_cast<int>(rc.bottom), allocator);
+		outVal.AddMember("rect", rectArr, allocator);
+
+		if (pWin->IsType(CTextLine::Type()))
+		{
+			CTextLine* pTextLine = static_cast<CTextLine*>(pWin);
+			outVal.AddMember("type", "TextLine", allocator);
+			const char* szText = pTextLine->GetText();
+			if (!szText) szText = "";
+			rapidjson::Value textVal(szText, allocator);
+			outVal.AddMember("text", textVal, allocator);
+		}
+
+		rapidjson::Value childrenArr(rapidjson::kArrayType);
+		for (CWindow* pChild : pWin->GetChildList())
+		{
+			rapidjson::Value childVal;
+			DumpWindowToJson(pChild, childVal, allocator);
+			childrenArr.PushBack(childVal, allocator);
+		}
+		outVal.AddMember("children", childrenArr, allocator);
+	}
+
+	std::string CWindowManager::DumpTreeJson() const
+	{
+		rapidjson::Document doc;
+		doc.SetObject();
+		auto& allocator = doc.GetAllocator();
+
+		if (m_pRootWindow)
+		{
+			rapidjson::Value rootVal;
+			DumpWindowToJson(m_pRootWindow, rootVal, allocator);
+			doc.AddMember("root", rootVal, allocator);
+		}
+
+		rapidjson::StringBuffer sb;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+		doc.Accept(writer);
+		return sb.GetString();
 	}
 }

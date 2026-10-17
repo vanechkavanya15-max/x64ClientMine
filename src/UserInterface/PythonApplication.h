@@ -201,6 +201,8 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 		int GetWidth();
 		int GetHeight();
 
+		bool SaveScreenShot(const char* c_szFileName);
+
 		void SetGlobalCenterPosition(int32_t x, int32_t y);
 		void SetCenterPosition(float fx, float fy, float fz);
 		void GetCenterPosition(TPixelPosition * pPixelPosition);
