@@ -114,7 +114,7 @@ const CGraphicTexture & CGraphicImageInstance::GetTextureReference() const
 	return m_roImage->GetTextureReference();
 }
 
-CGraphicTexture * CGraphicImageInstance::GetTexturePointer()
+CGraphicTexture * CGraphicImageInstance::GetTexturePointer() const
 {
 	CGraphicImage* pkImage = m_roImage.GetPointer();
 	return pkImage ? pkImage->GetTexturePointer() : NULL;

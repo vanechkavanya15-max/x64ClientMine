@@ -89,24 +89,27 @@ TEST_CASE("HlslConstantRegistersHaveZeroCollision")
 {
     using Consts = EterLib::Render::ActorSkinningShaderConstants;
 
-    // Globale zajmuja rejestry c0..c13
+    // c0..c3: ViewProj, c4..c183: 60 bones * 3 registers, c184..c192: Light/Fog/World
     CHECK(Consts::kRegViewProj == 0u);
-    CHECK(Consts::kRegWorld == 4u);
-    CHECK(Consts::kRegLightDir == 8u);
-    CHECK(Consts::kRegLightDiffuse == 9u);
-    CHECK(Consts::kRegLightAmbient == 10u);
-    CHECK(Consts::kRegMaterialColor == 11u);
-    CHECK(Consts::kRegFogParams == 12u);
-    CHECK(Consts::kRegSkinningInfo == 13u);
-
-    // Paleta kosci zaczyna sie od c16 i obejmuje 60 * 3 = 180 rejestrow (c16..c195)
-    CHECK(Consts::kRegBonePalette > Consts::kRegSkinningInfo);
-    CHECK(Consts::kRegBonePalette == 16u);
-    CHECK(Consts::kLastBoneReg == 195u);
-    CHECK(Consts::kLastBoneReg < 256u); // Miesci sie w limicie 256 rejestrow vs_3_0
+    CHECK(Consts::kRegBonePalette == 4u);
+    CHECK(Consts::kMaxBones == 60u);
+    CHECK(Consts::kRegsPerBone == 3u);
+    CHECK(Consts::kLastBoneReg == 183u);
+    CHECK(Consts::kRegLightDir == 184u);
+    CHECK(Consts::kRegLightDiffuse == 185u);
+    CHECK(Consts::kRegLightAmbient == 186u);
+    CHECK(Consts::kRegMaterialColor == 187u);
+    CHECK(Consts::kRegFogParams == 188u);
+    CHECK(Consts::kRegWorld == 189u);
 
     std::string hlslSource = ReadProjectFile("src/EterLib/actor_skinning.hlsl");
     REQUIRE_FALSE(hlslSource.empty());
+
+    CHECK(hlslSource.find("float4x3 g_matBones[60]") != std::string::npos);
+    CHECK(hlslSource.find("register(c4)") != std::string::npos);
+    CHECK(hlslSource.find("register(c184)") != std::string::npos);
+    CHECK(hlslSource.find("register(c188)") != std::string::npos);
+    CHECK(hlslSource.find("register(c189)") != std::string::npos);
 
     // Upewnij sie, ze stare kolidujace rejestry c61..c65 nie sa juz uzywane dla swiatla/fog
     CHECK(hlslSource.find("register(c61)") == std::string::npos);
@@ -114,7 +117,6 @@ TEST_CASE("HlslConstantRegistersHaveZeroCollision")
     CHECK(hlslSource.find("register(c63)") == std::string::npos);
     CHECK(hlslSource.find("register(c64)") == std::string::npos);
     CHECK(hlslSource.find("register(c65)") == std::string::npos);
-    CHECK(hlslSource.find("register(c16)") != std::string::npos);
 }
 
 // 2. Weryfikacja ukladu pamieci GpuSkinnedVertex i zgodnosci ze struktura GltfVertex (72B)
@@ -171,6 +173,10 @@ TEST_CASE("GpuSkinningMathMatchesModelInstancePalette")
     EterModelLib::CGltfModelInstance instance(&model);
     instance.Update(0.0f);
 
+    // Verify that Update() alone does NOT deform vertices on CPU (zero deform count)
+    CHECK(instance.GetDeformCount() == 0u);
+    CHECK(instance.IsSkinningDirty() == true);
+
     const auto& skinMatrices = instance.GetSkinningMatrices();
     REQUIRE(skinMatrices.size() == 2u);
 
@@ -191,6 +197,15 @@ TEST_CASE("GpuSkinningMathMatchesModelInstancePalette")
     CHECK(std::abs(gpuSkinnedPos.x - 12.0f) < 1e-3f);
     CHECK(std::abs(gpuSkinnedPos.y - 14.0f) < 1e-3f);
     CHECK(std::abs(gpuSkinnedPos.z - 6.0f) < 1e-3f);
+
+    // Calling GetDeformedVertices() triggers lazy evaluation for backward compatibility
+    const auto& cpuDeformed = instance.GetDeformedVertices();
+    REQUIRE(cpuDeformed.size() == 1u);
+    CHECK(instance.GetDeformCount() == 1u);
+
+    CHECK(std::abs(gpuSkinnedPos.x - cpuDeformed[0].position.x) < 1e-3f);
+    CHECK(std::abs(gpuSkinnedPos.y - cpuDeformed[0].position.y) < 1e-3f);
+    CHECK(std::abs(gpuSkinnedPos.z - cpuDeformed[0].position.z) < 1e-3f);
 }
 
 // 4. Weryfikacja usuniecia DrawIndexedPrimitiveUP i CPU DeformVertices z LODController

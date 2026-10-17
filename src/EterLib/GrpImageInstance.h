@@ -33,7 +33,7 @@ class CGraphicImageInstance
 		int GetWidth();
 		int GetHeight();
 
-		CGraphicTexture * GetTexturePointer();
+		CGraphicTexture * GetTexturePointer() const;
 		const CGraphicTexture &	GetTextureReference() const;
 		CGraphicImage * GetGraphicImagePointer();
 

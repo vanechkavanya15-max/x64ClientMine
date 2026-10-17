@@ -90,8 +90,18 @@ public:
     // CPU Skinning wierzcholkow na podstawie macierzy skinningu i wag kosci
     void Deform(bool bForce = false);
     void DeformVertices(bool bForce = false);
-    const std::vector<GltfVertex>& GetDeformedVertices() const { return m_deformedVertices; }
-    std::vector<GltfVertex>& GetDeformedVerticesRef() { return m_deformedVertices; }
+    const std::vector<GltfVertex>& GetDeformedVertices() const
+    {
+        if (m_bSkinningDirty || (m_deformedVertices.empty() && m_pModel && !m_pModel->GetVertices().empty()))
+            const_cast<CGltfModelInstance*>(this)->DeformVertices(false);
+        return m_deformedVertices;
+    }
+    std::vector<GltfVertex>& GetDeformedVerticesRef()
+    {
+        if (m_bSkinningDirty || (m_deformedVertices.empty() && m_pModel && !m_pModel->GetVertices().empty()))
+            DeformVertices(false);
+        return m_deformedVertices;
+    }
 
     bool IsSkinningDirty() const { return m_bSkinningDirty; }
     void MarkSkinningDirty() { m_bSkinningDirty = true; }

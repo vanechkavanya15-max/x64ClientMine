@@ -16,6 +16,7 @@ CGltfModel::~CGltfModel()
 
 void CGltfModel::Clear()
 {
+    ReleaseGpuBuffers();
     m_bLoaded = false;
     m_modelData.name.clear();
     m_modelData.vertices.clear();
@@ -122,6 +123,102 @@ const GltfMotionData* CGltfModel::FindAnimation(const std::string& name) const
         return &m_modelData.motions[index];
     }
     return nullptr;
+}
+
+void CGltfModel::ReleaseGpuBuffers() const
+{
+    if (m_pVertexBuffer)
+    {
+        m_pVertexBuffer->Release();
+        m_pVertexBuffer = nullptr;
+    }
+    if (m_pIndexBuffer)
+    {
+        m_pIndexBuffer->Release();
+        m_pIndexBuffer = nullptr;
+    }
+}
+
+bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
+{
+    if (m_pVertexBuffer && m_pIndexBuffer)
+        return true;
+
+    if (!pDevice || m_modelData.vertices.empty() || m_modelData.indices.empty())
+        return false;
+
+    ReleaseGpuBuffers();
+
+    struct GpuPackedGltfVertex
+    {
+        float position[3];
+        float normal[3];
+        float uv0[2];
+        float uv1[2];
+        float jointIndices[4];
+        float jointWeights[4];
+    };
+    static_assert(sizeof(GpuPackedGltfVertex) == sizeof(GltfVertex), "Stride must be 72 bytes");
+
+    const UINT vbSize = static_cast<UINT>(m_modelData.vertices.size() * sizeof(GpuPackedGltfVertex));
+    const UINT ibSize = static_cast<UINT>(m_modelData.indices.size() * sizeof(unsigned int));
+
+    if (FAILED(pDevice->CreateVertexBuffer(
+        vbSize, D3DUSAGE_WRITEONLY, 0, D3DPOOL_MANAGED, &m_pVertexBuffer, nullptr)))
+    {
+        ReleaseGpuBuffers();
+        return false;
+    }
+
+    GpuPackedGltfVertex* pLockedVB = nullptr;
+    if (FAILED(m_pVertexBuffer->Lock(0, vbSize, reinterpret_cast<void**>(&pLockedVB), 0)))
+    {
+        ReleaseGpuBuffers();
+        return false;
+    }
+
+    for (size_t i = 0; i < m_modelData.vertices.size(); ++i)
+    {
+        const GltfVertex& src = m_modelData.vertices[i];
+        GpuPackedGltfVertex& dst = pLockedVB[i];
+        dst.position[0]     = src.position.x;
+        dst.position[1]     = src.position.y;
+        dst.position[2]     = src.position.z;
+        dst.normal[0]       = src.normal.x;
+        dst.normal[1]       = src.normal.y;
+        dst.normal[2]       = src.normal.z;
+        dst.uv0[0]          = src.uv0.x;
+        dst.uv0[1]          = src.uv0.y;
+        dst.uv1[0]          = src.uv1.x;
+        dst.uv1[1]          = src.uv1.y;
+        dst.jointIndices[0] = static_cast<float>(src.jointIndices.x);
+        dst.jointIndices[1] = static_cast<float>(src.jointIndices.y);
+        dst.jointIndices[2] = static_cast<float>(src.jointIndices.z);
+        dst.jointIndices[3] = static_cast<float>(src.jointIndices.w);
+        dst.jointWeights[0] = src.jointWeights.x;
+        dst.jointWeights[1] = src.jointWeights.y;
+        dst.jointWeights[2] = src.jointWeights.z;
+        dst.jointWeights[3] = src.jointWeights.w;
+    }
+    m_pVertexBuffer->Unlock();
+
+    if (FAILED(pDevice->CreateIndexBuffer(
+        ibSize, D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_MANAGED, &m_pIndexBuffer, nullptr)))
+    {
+        ReleaseGpuBuffers();
+        return false;
+    }
+
+    void* pLockedIB = nullptr;
+    if (FAILED(m_pIndexBuffer->Lock(0, ibSize, &pLockedIB, 0)))
+    {
+        ReleaseGpuBuffers();
+        return false;
+    }
+    std::memcpy(pLockedIB, m_modelData.indices.data(), ibSize);
+    m_pIndexBuffer->Unlock();
+
+    return true;
 }
 
 } // namespace EterModelLib
