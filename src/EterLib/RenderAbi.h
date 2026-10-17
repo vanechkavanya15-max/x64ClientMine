@@ -857,6 +857,15 @@ typedef struct TDebugLinePacket
     uint8_t bPad[3];
 } TDebugLinePacket;
 
+typedef enum ERenderPassType
+{
+    RENDER_PASS_MAIN = 0,
+    RENDER_PASS_CHARACTER_SHADOW = 1,
+    RENDER_PASS_MINIMAP = 2,
+    RENDER_PASS_UI = 3,
+    RENDER_PASS_CUSTOM = 4
+} ERenderPassType;
+
 /* 20. TRenderPassDesc: 144 bajty */
 typedef struct TRenderPassDesc
 {
@@ -867,6 +876,13 @@ typedef struct TRenderPassDesc
     uint8_t bPad[3];
     TRenderMatrix4x4 matView;
     TRenderMatrix4x4 matProj;
+
+#ifdef __cplusplus
+    TRenderPassDesc()
+    {
+        std::memset(this, 0, sizeof(*this));
+    }
+#endif
 } TRenderPassDesc;
 
 /* 21. TParticlePacket: 96 bajtow, wyrownanie 16B (v2 pakiet czasteczki z pelna wiernoscia parametrow) */
@@ -900,6 +916,28 @@ typedef struct RENDER_ABI_ALIGN(16) TParticlePacket
 #endif
 } TParticlePacket;
 
+/* 22. TShadowPassData: 272 bajty, wyrownanie 16B */
+typedef struct RENDER_ABI_ALIGN(16) TShadowPassData
+{
+    TRenderPassDesc passDesc;           /* offset 0, 144B */
+    TRenderMatrix4x4 matDynamicShadow;  /* offset 144, 64B */
+    TRenderVec3 v3LightDir;             /* offset 208, 12B */
+    float fRange;                       /* offset 220, 4B */
+    TRenderVec3 v3TargetPos;            /* offset 224, 12B */
+    uint16_t wShadowMapSize;            /* offset 236, 2B */
+    uint16_t wPad;                      /* offset 238, 2B */
+    uint32_t hRenderTarget;             /* offset 240, 4B */
+    TRect32 viewport;                   /* offset 244, 16B */
+    float fPad[3];                      /* offset 260, 12B */
+
+#ifdef __cplusplus
+    TShadowPassData()
+    {
+        std::memset(this, 0, sizeof(*this));
+    }
+#endif
+} TShadowPassData;
+
 /* Statyczne asercje rozmiarow i wyrownan struktur pakietowych C-ABI */
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderMatrix4x4) == 64, "ABI: TRenderMatrix4x4 == 64B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderVec2) == 8, "ABI: TRenderVec2 == 8B");
@@ -930,6 +968,7 @@ RENDER_ABI_STATIC_ASSERT(sizeof(TDebugLinePacket) == 32, "ABI: TDebugLinePacket 
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderPassDesc) == 144, "ABI: TRenderPassDesc == 144B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TParticlePacket) == 96, "ABI: TParticlePacket == 96B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TSpeedTreeBillboardVertex) == 20, "ABI: TSpeedTreeBillboardVertex == 20B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TShadowPassData) == 272, "ABI: TShadowPassData == 272B");
 
 #ifdef __cplusplus
 }

@@ -2,6 +2,8 @@
 #include "EterLib/StateManager.h"
 #include "EterLib/Camera.h"
 #include "EterLib/RenderOwnership.h"
+#include "EterLib/RenderResourceRegistry.h"
+#include "EterLib/RenderPacketTypes.h"
 
 #include "MapOutdoor.h"
 #include "MapOutdoorCharacterShadow.h"
@@ -38,7 +40,14 @@ void CMapOutdoor::CreateCharacterShadowTexture()
 	m_ShadowMapViewport.MinZ = 0.0f;
 	m_ShadowMapViewport.MaxZ = 1.0f;
 
-	if (FAILED(ms_lpd3dDevice->CreateTexture(m_wShadowMapSize, m_wShadowMapSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &m_lpCharacterShadowMapTexture, nullptr)))
+	LPDIRECT3DDEVICE9EX pDevice = STATEMANAGER.GetDevice();
+	if (!pDevice)
+	{
+		TraceError("CMapOutdoor: D3D Device unavailable for Character Shadow RT\n");
+		return;
+	}
+
+	if (FAILED(pDevice->CreateTexture(m_wShadowMapSize, m_wShadowMapSize, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R5G6B5, D3DPOOL_DEFAULT, &m_lpCharacterShadowMapTexture, nullptr)))
 	{
 		TraceError("CMapOutdoor Unable to create Character Shadow render target texture\n");
 		return;
@@ -50,15 +59,27 @@ void CMapOutdoor::CreateCharacterShadowTexture()
 		return;
 	}
 
-	if (FAILED(ms_lpd3dDevice->CreateDepthStencilSurface(m_wShadowMapSize, m_wShadowMapSize, D3DFMT_D16, D3DMULTISAMPLE_NONE, 0, TRUE, &m_lpCharacterShadowMapDepthSurface, nullptr)))
+	if (FAILED(pDevice->CreateDepthStencilSurface(m_wShadowMapSize, m_wShadowMapSize, D3DFMT_D16, D3DMULTISAMPLE_NONE, 0, TRUE, &m_lpCharacterShadowMapDepthSurface, nullptr)))
 	{
 		TraceError("CMapOutdoor Unable to create Character Shadow depth Surface\n");
 		return;
+	}
+
+	if (m_lpCharacterShadowMapTexture && CRenderResourceRegistry::InstancePtr())
+	{
+		m_hCharacterShadowTexture = CRenderResourceRegistry::Instance().RegisterTextureWithInfo(
+			m_lpCharacterShadowMapTexture, m_wShadowMapSize, m_wShadowMapSize, D3DFMT_R5G6B5, "CharacterShadowRT");
 	}
 }
 
 void CMapOutdoor::ReleaseCharacterShadowTexture()
 {
+	if (m_hCharacterShadowTexture != 0 && CRenderResourceRegistry::InstancePtr())
+	{
+		CRenderResourceRegistry::Instance().UnregisterTexture(m_hCharacterShadowTexture);
+		m_hCharacterShadowTexture = 0;
+	}
+
 	SAFE_RELEASE(m_lpCharacterShadowMapRenderTargetSurface);
 	SAFE_RELEASE(m_lpCharacterShadowMapDepthSurface);
 	SAFE_RELEASE(m_lpCharacterShadowMapTexture);
@@ -71,8 +92,6 @@ bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 	if (!RenderOwnership::LegacyDraws(ERenderCategory::Shadow))
 		return false;
 
-	D3DXMATRIX matLightView, matLightProj;
-	
 	CCamera* pCurrentCamera = CCameraManager::Instance().GetCurrentCamera();
 
 	if (!pCurrentCamera)
@@ -85,9 +104,16 @@ bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 	}
 
 	D3DXVECTOR3 v3Target = pCurrentCamera->GetTarget();
-	BuildCharacterShadowMatrix(&matLightView, kDefaultCharacterShadowLightDir, v3Target, 5000.0f);
-	
-	D3DXMatrixOrthoRH(&matLightProj, 2550.0f, 2550.0f, 1.0f, 15000.0f);
+	D3DXMATRIX matLightView, matLightProj;
+	CalculateLightViewMatrix(&matLightView, kDefaultCharacterShadowLightDir, v3Target, 5000.0f);
+	CalculateLightProjMatrix(&matLightProj, 2550.0f, 2550.0f, 1.0f, 15000.0f);
+
+	m_characterShadowPassDesc.passType = RENDER_PASS_CHARACTER_SHADOW;
+	m_characterShadowPassDesc.targetHandle = m_hCharacterShadowTexture;
+	m_characterShadowPassDesc.clearColor = 0xFFFFFFFF;
+	m_characterShadowPassDesc.bClearTarget = 1;
+	m_characterShadowPassDesc.matView = ToAbi(matLightView);
+	m_characterShadowPassDesc.matProj = ToAbi(matLightProj);
 
 	STATEMANAGER.SaveTransform(D3DTS_VIEW, &matLightView);
 	STATEMANAGER.SaveTransform(D3DTS_PROJECTION, &matLightProj);
@@ -101,16 +127,20 @@ bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 	STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 	
-	ms_lpd3dDevice->GetDepthStencilSurface(&m_lpBackupDepthSurface);
-	ms_lpd3dDevice->GetRenderTarget(0, &m_lpBackupRenderTargetSurface);
+	LPDIRECT3DDEVICE9EX pDevice = STATEMANAGER.GetDevice();
+	if (!pDevice)
+		return false;
 
-	ms_lpd3dDevice->SetRenderTarget(0, m_lpCharacterShadowMapRenderTargetSurface);
-	ms_lpd3dDevice->SetDepthStencilSurface(m_lpCharacterShadowMapDepthSurface);
+	pDevice->GetDepthStencilSurface(&m_lpBackupDepthSurface);
+	pDevice->GetRenderTarget(0, &m_lpBackupRenderTargetSurface);
+
+	pDevice->SetRenderTarget(0, m_lpCharacterShadowMapRenderTargetSurface);
+	pDevice->SetDepthStencilSurface(m_lpCharacterShadowMapDepthSurface);
 	
-	ms_lpd3dDevice->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xFFFFFFFF, 1.0f, 0);
+	pDevice->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, m_characterShadowPassDesc.clearColor, 1.0f, 0);
 	
-	ms_lpd3dDevice->GetViewport(&m_BackupViewport);
-	ms_lpd3dDevice->SetViewport(&m_ShadowMapViewport);
+	pDevice->GetViewport(&m_BackupViewport);
+	pDevice->SetViewport(&m_ShadowMapViewport);
 	
 	return true;
 }
@@ -120,10 +150,13 @@ void CMapOutdoor::EndRenderCharacterShadowToTexture()
 	if (!RenderOwnership::LegacyDraws(ERenderCategory::Shadow))
 		return;
 
-	ms_lpd3dDevice->SetViewport(&m_BackupViewport);
-
-	ms_lpd3dDevice->SetDepthStencilSurface(m_lpBackupDepthSurface);
-	ms_lpd3dDevice->SetRenderTarget(0, m_lpBackupRenderTargetSurface);
+	LPDIRECT3DDEVICE9EX pDevice = STATEMANAGER.GetDevice();
+	if (pDevice)
+	{
+		pDevice->SetViewport(&m_BackupViewport);
+		pDevice->SetDepthStencilSurface(m_lpBackupDepthSurface);
+		pDevice->SetRenderTarget(0, m_lpBackupRenderTargetSurface);
+	}
 
 	SAFE_RELEASE(m_lpBackupRenderTargetSurface);
 	SAFE_RELEASE(m_lpBackupDepthSurface);
@@ -138,4 +171,34 @@ void CMapOutdoor::EndRenderCharacterShadowToTexture()
 	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
 	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, dwLightEnable);
 	STATEMANAGER.RestoreRenderState(D3DRS_TEXTUREFACTOR);
+}
+
+void CMapOutdoor::GetShadowPassData(TShadowPassData* pOutData) const
+{
+	if (!pOutData)
+		return;
+
+	pOutData->passDesc = m_characterShadowPassDesc;
+	pOutData->matDynamicShadow = ToAbi(m_matDynamicShadow);
+	pOutData->v3LightDir = ToAbi(kDefaultCharacterShadowLightDir);
+	pOutData->fRange = 5000.0f;
+
+	CCamera* pCurrentCamera = CCameraManager::Instance().GetCurrentCamera();
+	if (pCurrentCamera)
+	{
+		D3DXVECTOR3 v3Target = pCurrentCamera->GetTarget();
+		pOutData->v3TargetPos = ToAbi(v3Target);
+	}
+	else
+	{
+		pOutData->v3TargetPos = TRenderVec3{ 0.0f, 0.0f, 0.0f };
+	}
+
+	pOutData->wShadowMapSize = m_wShadowMapSize;
+	pOutData->wPad = 0;
+	pOutData->hRenderTarget = m_hCharacterShadowTexture;
+	pOutData->viewport.left = m_ShadowMapViewport.X;
+	pOutData->viewport.top = m_ShadowMapViewport.Y;
+	pOutData->viewport.right = m_ShadowMapViewport.X + m_ShadowMapViewport.Width;
+	pOutData->viewport.bottom = m_ShadowMapViewport.Y + m_ShadowMapViewport.Height;
 }

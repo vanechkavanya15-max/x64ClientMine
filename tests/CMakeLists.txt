@@ -6779,3 +6779,34 @@ target_link_libraries(test_c26_speedtree_packet PRIVATE
 add_test(NAME test_c26_speedtree_packet COMMAND test_c26_speedtree_packet)
 add_test(NAME SpeedTreePacketTest COMMAND test_c26_speedtree_packet)
 
+add_executable(test_c26_shadow_minimap_pass
+    test_c26_shadow_minimap_pass.cpp
+    ${CMAKE_SOURCE_DIR}/src/UserInterface/MiniMap/MiniMapCoordinateProjector.cpp
+)
+target_include_directories(test_c26_shadow_minimap_pass PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/UserInterface
+    ${CMAKE_SOURCE_DIR}/src/UserInterface/MiniMap
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_shadow_minimap_pass PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
+add_test(NAME test_c26_shadow_minimap_pass COMMAND test_c26_shadow_minimap_pass)
+
+

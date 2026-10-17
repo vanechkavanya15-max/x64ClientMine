@@ -6,6 +6,7 @@
 #include "SphereLib/frustum.h"
 #include "EterLib/SkyBox.h"
 #include "EterLib/LensFlare.h"
+#include "EterLib/RenderPacketTypes.h"
 #include "MapOutdoorSky.h"
 
 #include "PRTerrainLib/TerrainType.h"
@@ -151,6 +152,10 @@ class CMapOutdoor : public CMapBase
 		void			SetDrawCharacterShadow(bool bDrawChrShadow);
 
 		DWORD			GetShadowMapColor(float fx, float fy);
+
+		uint32_t		GetCharacterShadowTextureHandle() const { return m_hCharacterShadowTexture; }
+		const TRenderPassDesc& GetCharacterShadowPassDesc() const { return m_characterShadowPassDesc; }
+		void			GetShadowPassData(TShadowPassData* pOutData) const;
 
 	protected:
 		bool			__PickTerrainHeight(float& fPos, const D3DXVECTOR3& v3Start, const D3DXVECTOR3& v3End, float fStep, float fRayRange, float fLimitRange, D3DXVECTOR3* pv3Pick);
@@ -437,6 +442,8 @@ class CMapOutdoor : public CMapBase
 		LPDIRECT3DSURFACE9		m_lpCharacterShadowMapDepthSurface;
 		D3DVIEWPORT9			m_ShadowMapViewport;
 		WORD					m_wShadowMapSize;
+		uint32_t				m_hCharacterShadowTexture;
+		TRenderPassDesc			m_characterShadowPassDesc;
 
 		// Backup Device Context
 		LPDIRECT3DSURFACE9		m_lpBackupRenderTargetSurface;

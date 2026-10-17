@@ -134,6 +134,8 @@ bool CMapOutdoor::Initialize()
 	m_lpCharacterShadowMapTexture = NULL;
 	m_lpCharacterShadowMapRenderTargetSurface = NULL;
 	m_lpCharacterShadowMapDepthSurface = NULL;
+	m_hCharacterShadowTexture = 0;
+	std::memset(&m_characterShadowPassDesc, 0, sizeof(m_characterShadowPassDesc));
 
 	m_lpBackupRenderTargetSurface = NULL;
 	m_lpBackupDepthSurface = NULL;
