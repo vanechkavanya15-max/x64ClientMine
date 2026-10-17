@@ -44,6 +44,7 @@ public:
 	virtual void RenderUI(const TUIBatchPacket* pPackets, unsigned int count) override;
 	virtual void RenderDungeonBlocks(const TDungeonBlockPacket* pPackets, unsigned int count) override;
 	virtual void RenderWeaponTrace(const TWeaponTracePacket* pPackets, unsigned int count) override;
+	virtual void RenderEffectMesh(const TEffectMeshPacket* pPackets, unsigned int count) override;
 	virtual void RenderDebugLines(const TDebugLinePacket* pPackets, unsigned int count) override;
 	void RenderDebugLinesWithDevice(const TDebugLinePacket* pPackets, unsigned int count, void* pCustomDevice);
 

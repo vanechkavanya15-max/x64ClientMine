@@ -627,15 +627,38 @@ typedef struct TTerrainPassPacket
 /* 16. TEffectMeshPacket: 88 bajtow */
 typedef struct TEffectMeshPacket
 {
-    TRenderMatrix4x4 matWorld;
-    uint32_t textureHandle;
-    uint32_t textureFactorColor;
-    uint32_t colorOp;
+    union
+    {
+        TRenderMatrix4x4 matWorld;
+        TRenderMatrix4x4 m_matWorld;
+    };
+    union
+    {
+        uint32_t textureHandle;
+        uint32_t hTexture;
+    };
+    union
+    {
+        uint32_t textureFactorColor;
+        uint32_t dwTFactor;
+    };
+    union
+    {
+        uint32_t colorOp;
+        uint32_t dwColorOp;
+    };
     uint8_t srcBlend;
     uint8_t destBlend;
     uint8_t bPad[2];
     uint32_t vertexOffset;
     uint32_t vertexCount;
+
+#ifdef __cplusplus
+    TEffectMeshPacket()
+    {
+        std::memset(this, 0, sizeof(*this));
+    }
+#endif
 } TEffectMeshPacket;
 
 /* 17. TModelDrawItem: 96 bajtow */
