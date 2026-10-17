@@ -335,84 +335,92 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 		iRet |= CREATE_NO_TNL;
 	}
 
-	int ErrorCorrection = 0;
+	bool deviceCreated = false;
 	bool disableMSAA = false;
+	const int maxAttempts = 2;
 
-RETRY:
-	ZeroMemory(&ms_d3dPresentParameter, sizeof(ms_d3dPresentParameter));
-	
-	ms_d3dPresentParameter.Windowed							= Windowed;
-	ms_d3dPresentParameter.BackBufferWidth					= iHres;
-	ms_d3dPresentParameter.BackBufferHeight					= iVres;
-	ms_d3dPresentParameter.hDeviceWindow					= hWnd;
-	ms_d3dPresentParameter.BackBufferFormat					= Windowed ? D3DFMT_UNKNOWN : d3dDisplayMode.Format;
-	ms_d3dPresentParameter.BackBufferCount					= m_uBackBufferCount;
-	ms_d3dPresentParameter.SwapEffect						= D3DSWAPEFFECT_DISCARD;
-	ms_d3dPresentParameter.MultiSampleType					= D3DMULTISAMPLE_NONE;
-
-	if (Windowed)
+	for (int attempt = 0; attempt < maxAttempts; ++attempt)
 	{
-		ms_d3dPresentParameter.PresentationInterval			= D3DPRESENT_INTERVAL_DEFAULT;
-		ms_d3dPresentParameter.FullScreen_RefreshRateInHz	= 0;
-	}
-	else
-	{
-		ms_d3dPresentParameter.PresentationInterval			= D3DPRESENT_INTERVAL_ONE;
-		ms_d3dPresentParameter.FullScreen_RefreshRateInHz	= D3DPRESENT_RATE_DEFAULT;
-	}
+		ZeroMemory(&ms_d3dPresentParameter, sizeof(ms_d3dPresentParameter));
+		
+		ms_d3dPresentParameter.Windowed							= Windowed;
+		ms_d3dPresentParameter.BackBufferWidth					= iHres;
+		ms_d3dPresentParameter.BackBufferHeight					= iVres;
+		ms_d3dPresentParameter.hDeviceWindow					= hWnd;
+		ms_d3dPresentParameter.BackBufferFormat					= Windowed ? D3DFMT_UNKNOWN : d3dDisplayMode.Format;
+		ms_d3dPresentParameter.BackBufferCount					= m_uBackBufferCount;
+		ms_d3dPresentParameter.SwapEffect						= D3DSWAPEFFECT_DISCARD;
+		ms_d3dPresentParameter.MultiSampleType					= D3DMULTISAMPLE_NONE;
 
-	ms_d3dPresentParameter.EnableAutoDepthStencil			= TRUE;
-	ms_d3dPresentParameter.AutoDepthStencilFormat			= D3DFMT_D24S8;
-
-	// Enable MSAA only in fullscreen and only if supported for the chosen backbuffer format
-	if (!Windowed && !disableMSAA)
-	{
-		D3DFORMAT msaaCheckFormat = ms_d3dPresentParameter.BackBufferFormat;
-		if (SUCCEEDED(ms_lpd3d->CheckDeviceMultiSampleType(
-			D3DADAPTER_DEFAULT,
-			D3DDEVTYPE_HAL,
-			msaaCheckFormat,
-			FALSE,
-			D3DMULTISAMPLE_2_SAMPLES,
-			&ms_d3dPresentParameter.MultiSampleQuality)))
+		if (Windowed)
 		{
-			ms_d3dPresentParameter.MultiSampleType = D3DMULTISAMPLE_2_SAMPLES;
-			ms_d3dPresentParameter.MultiSampleQuality = 0;
+			ms_d3dPresentParameter.PresentationInterval			= D3DPRESENT_INTERVAL_DEFAULT;
+			ms_d3dPresentParameter.FullScreen_RefreshRateInHz	= 0;
+		}
+		else
+		{
+			ms_d3dPresentParameter.PresentationInterval			= D3DPRESENT_INTERVAL_ONE;
+			ms_d3dPresentParameter.FullScreen_RefreshRateInHz	= D3DPRESENT_RATE_DEFAULT;
 		}
 
-		if (SUCCEEDED(ms_lpd3d->CheckDeviceMultiSampleType(
+		ms_d3dPresentParameter.EnableAutoDepthStencil			= TRUE;
+		ms_d3dPresentParameter.AutoDepthStencilFormat			= D3DFMT_D24S8;
+
+		// Enable MSAA only in fullscreen and only if supported for the chosen backbuffer format
+		if (!Windowed && !disableMSAA)
+		{
+			D3DFORMAT msaaCheckFormat = ms_d3dPresentParameter.BackBufferFormat;
+			if (SUCCEEDED(ms_lpd3d->CheckDeviceMultiSampleType(
+				D3DADAPTER_DEFAULT,
+				D3DDEVTYPE_HAL,
+				msaaCheckFormat,
+				FALSE,
+				D3DMULTISAMPLE_2_SAMPLES,
+				&ms_d3dPresentParameter.MultiSampleQuality)))
+			{
+				ms_d3dPresentParameter.MultiSampleType = D3DMULTISAMPLE_2_SAMPLES;
+				ms_d3dPresentParameter.MultiSampleQuality = 0;
+			}
+
+			if (SUCCEEDED(ms_lpd3d->CheckDeviceMultiSampleType(
+				D3DADAPTER_DEFAULT,
+				D3DDEVTYPE_HAL,
+				msaaCheckFormat,
+				FALSE,
+				D3DMULTISAMPLE_4_SAMPLES,
+				&ms_d3dPresentParameter.MultiSampleQuality)))
+			{
+				ms_d3dPresentParameter.MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
+				ms_d3dPresentParameter.MultiSampleQuality = 0;
+			}
+		}
+
+		D3DDISPLAYMODEEX displayModeEx;
+		ZeroMemory(&displayModeEx, sizeof(displayModeEx));
+		displayModeEx.Size = sizeof(D3DDISPLAYMODEEX);
+		displayModeEx.Width = iHres;
+		displayModeEx.Height = iVres;
+		displayModeEx.RefreshRate = iReflashRate;
+		displayModeEx.Format = d3dDisplayMode.Format;
+		displayModeEx.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
+
+		D3DDISPLAYMODEEX* pDisplayMode = Windowed ? NULL : &displayModeEx;
+
+		ms_hLastResult = ms_lpd3d->CreateDeviceEx(
 			D3DADAPTER_DEFAULT,
 			D3DDEVTYPE_HAL,
-			msaaCheckFormat,
-			FALSE,
-			D3DMULTISAMPLE_4_SAMPLES,
-			&ms_d3dPresentParameter.MultiSampleQuality)))
+			hWnd,
+			ms_dwD3DBehavior,
+			&ms_d3dPresentParameter,
+			pDisplayMode,
+			&ms_lpd3dDevice);
+
+		if (SUCCEEDED(ms_hLastResult))
 		{
-			ms_d3dPresentParameter.MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
-			ms_d3dPresentParameter.MultiSampleQuality = 0;
+			deviceCreated = true;
+			break;
 		}
-	}
 
-	D3DDISPLAYMODEEX displayModeEx;
-	ZeroMemory(&displayModeEx, sizeof(displayModeEx));
-	displayModeEx.Size = sizeof(D3DDISPLAYMODEEX);
-	displayModeEx.Width = iHres;
-	displayModeEx.Height = iVres;
-	displayModeEx.RefreshRate = iReflashRate;
-	displayModeEx.Format = d3dDisplayMode.Format;
-	displayModeEx.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
-
-	D3DDISPLAYMODEEX* pDisplayMode = Windowed ? NULL : &displayModeEx;
-
-	if (FAILED(ms_hLastResult = ms_lpd3d->CreateDeviceEx(
-		D3DADAPTER_DEFAULT,
-		D3DDEVTYPE_HAL,
-		hWnd,
-		ms_dwD3DBehavior,
-		&ms_d3dPresentParameter,
-		pDisplayMode,
-		&ms_lpd3dDevice)))
-	{
 		switch (ms_hLastResult)
 		{
 		case D3DERR_INVALIDCALL:
@@ -429,15 +437,15 @@ RETRY:
 			break;
 		}
 
-		if (ErrorCorrection)
-			return CREATE_DEVICE;
-
-		// Retry with conservative settings
+		// Fallback for next attempt: conservative settings
 		disableMSAA = true;
 		iReflashRate = 0;
-		++ErrorCorrection;
 		iRet |= CREATE_REFRESHRATE;
-		goto RETRY;
+	}
+
+	if (!deviceCreated)
+	{
+		return CREATE_DEVICE;
 	}
 
 	// Check DXT Support Info

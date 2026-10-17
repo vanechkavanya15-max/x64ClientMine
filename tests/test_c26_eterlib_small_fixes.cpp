@@ -11,7 +11,6 @@
 
 // Stubs for external symbols pulled in when linking EterLib
 #include "EterLib/Camera.h"
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
 
 class CSpeedTreeWrapper
 {
