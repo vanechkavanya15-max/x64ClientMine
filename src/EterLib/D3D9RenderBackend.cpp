@@ -624,11 +624,25 @@ void CD3D9RenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int 
 
 void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsigned int count)
 {
+	if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+		return;
+
 	if (RenderOwnership::Owner(ERenderCategory::SpeedTree) != ERenderOwner::D3D9Backend)
 		return;
 
 	if (!pPackets || count == 0)
 		return;
+
+	if (!CStateManager::InstancePtr() || !STATEMANAGER.GetDevice())
+		return;
+
+	ScopedD3DVertexDeclGuard speedTreeDeclGuard(nullptr, false);
+
+	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_COLORVERTEX, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 
 	for (unsigned int i = 0; i < count; ++i)
 	{
@@ -638,6 +652,9 @@ void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsig
 
 		if (packet.bRenderBranches)
 		{
+			if (CSpeedTreeWrapper::GetBranchVertexShader())
+				STATEMANAGER.SetVertexDeclaration(CSpeedTreeWrapper::GetBranchVertexShader());
+
 			packet.pMainTree->SetupBranchForTreeType();
 			for (uint32_t idx = 0; idx < packet.dwInstanceCount; ++idx)
 			{
@@ -649,6 +666,8 @@ void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsig
 
 		if (packet.bRenderFronds)
 		{
+			STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
 			packet.pMainTree->SetupFrondForTreeType();
 			for (uint32_t idx = 0; idx < packet.dwInstanceCount; ++idx)
 			{
@@ -660,6 +679,12 @@ void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsig
 
 		if (packet.bRenderLeaves)
 		{
+			if (CSpeedTreeWrapper::GetLeafVertexShaderDecl() && CSpeedTreeWrapper::GetLeafVertexShader())
+			{
+				STATEMANAGER.SetVertexDeclaration(CSpeedTreeWrapper::GetLeafVertexShaderDecl());
+				STATEMANAGER.SaveVertexShader(CSpeedTreeWrapper::GetLeafVertexShader());
+			}
+
 			packet.pMainTree->SetupLeafForTreeType();
 			for (uint32_t idx = 0; idx < packet.dwInstanceCount; ++idx)
 			{
@@ -668,10 +693,18 @@ void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsig
 					const_cast<CSpeedTreeWrapper*>(inst.pTreeInstance)->RenderLeaves();
 			}
 			const_cast<CSpeedTreeWrapper*>(packet.pMainTree)->EndLeafForTreeType();
+
+			if (CSpeedTreeWrapper::GetLeafVertexShaderDecl() && CSpeedTreeWrapper::GetLeafVertexShader())
+			{
+				STATEMANAGER.RestoreVertexShader();
+			}
 		}
 
 		if (packet.bRenderBillboards)
 		{
+			STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
+			STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, FALSE);
+
 			packet.pMainTree->SetupLeafForTreeType();
 			for (uint32_t idx = 0; idx < packet.dwInstanceCount; ++idx)
 			{
@@ -681,6 +714,15 @@ void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsig
 			}
 		}
 	}
+
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_COLORVERTEX);
+	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
 }
 
 static void EnsureSharedQuadIndices(std::vector<uint16_t>& indices, uint32_t requiredQuads)

@@ -190,12 +190,6 @@ void CRenderQueueManager::SubmitDebugLines(const TDebugLinePacket* pPackets, siz
 	m_debugLinePackets.insert(m_debugLinePackets.end(), pPackets, pPackets + count);
 }
 
-const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() const
-{
-	return m_debugLinePackets;
-}
-}
-
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
 	if (!pBackend)
@@ -547,9 +541,6 @@ bool CRenderQueueManager::ExportFrameToBinaryV2(const char* c_pszFileName) const
 				std::memset(&sanitized, 0, sizeof(sanitized));
 				sanitized = pkt.pInstances[idx];
 				sanitized.pTreeInstance = nullptr;
-				sanitized.fPad[0] = 0.0f;
-				sanitized.fPad[1] = 0.0f;
-				sanitized.fPad[2] = 0.0f;
 				fwrite(&sanitized, sizeof(TSpeedTreeInstanceData), 1, fp);
 			}
 		}

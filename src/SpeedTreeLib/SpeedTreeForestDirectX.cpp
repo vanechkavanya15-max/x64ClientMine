@@ -143,16 +143,30 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 	if (m_pMainTreeMap.empty())
 		return;
 
+	// Gwarancja RAII: wyczyszczenie deklaracji wierzcholkow po zakonczeniu renderowania drzew SpeedTree
+	ScopedD3DVertexDeclGuard speedTreeDeclGuard(nullptr, false);
+
+	UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
+
+	TTreeMap::iterator itor;
+	UINT uiCount;
+	
+	itor = m_pMainTreeMap.begin();
+
+	while (itor != m_pMainTreeMap.end())
+	{
+		auto pMainTree = (itor++)->second;
+		const auto& ppInstances = pMainTree->GetInstances(uiCount);
+
+		for (const auto& it : ppInstances)
+			it->Advance();
+	}
+
 	// Przekazuj partie drzew do CRenderQueueManager
 	SubmitTreePackets(ulRenderBitVector);
 
 	if (!RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
 		return;
-
-	// Gwarancja RAII: wyczyszczenie deklaracji wierzcholkow po zakonczeniu renderowania drzew SpeedTree
-	ScopedD3DVertexDeclGuard speedTreeDeclGuard(nullptr, false);
-
-	UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
 
 	DWORD dwLightState = STATEMANAGER.GetRenderState(D3DRS_LIGHTING);
 	DWORD dwColorVertexState = STATEMANAGER.GetRenderState(D3DRS_COLORVERTEX);
@@ -164,20 +178,6 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
 	STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, TRUE);
 #endif
-
-	TTreeMap::iterator itor;
-	UINT uiCount;
-	
-	itor = m_pMainTreeMap.begin();
-
-	while (itor != m_pMainTreeMap.end())
-	{
-		auto pMainTree = (itor++)->second;
-		auto ppInstances = pMainTree->GetInstances(uiCount);
-
-		for (auto it : ppInstances)
-			it->Advance();
-	}
 
 	STATEMANAGER.SetVertexShaderConstant(c_nVertexShader_Light,	m_afLighting, 3);
 	STATEMANAGER.SetVertexShaderConstant(c_nVertexShader_Fog, m_afFog, 1);
@@ -233,7 +233,7 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 		while (itor != m_pMainTreeMap.end())
 		{
 			auto pMainTree = (itor++)->second;
-			auto ppInstances = pMainTree->GetInstances(uiCount);
+			const auto& ppInstances = pMainTree->GetInstances(uiCount);
 			
 			pMainTree->SetupBranchForTreeType();
 
@@ -254,11 +254,11 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 		while (itor != m_pMainTreeMap.end())
 		{
 			auto pMainTree = (itor++)->second;
-			auto ppInstances = pMainTree->GetInstances(uiCount);
+			const auto& ppInstances = pMainTree->GetInstances(uiCount);
 
 			pMainTree->SetupFrondForTreeType();
 
-			for (auto it : ppInstances)
+			for (const auto& it : ppInstances)
 			{
 				if (it->isShow())
 					it->RenderFronds();
@@ -290,11 +290,11 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 		while (itor != m_pMainTreeMap.end())
 		{
 			auto pMainTree = (itor++)->second;
-			auto ppInstances = pMainTree->GetInstances(uiCount);
+			const auto& ppInstances = pMainTree->GetInstances(uiCount);
 
 			pMainTree->SetupLeafForTreeType();
 
-			for (auto it : ppInstances)
+			for (const auto& it : ppInstances)
 			{
 				if (it->isShow())
 					it->RenderLeaves();
@@ -321,11 +321,11 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 			while (itor != m_pMainTreeMap.end())
 			{
 				auto pMainTree = (itor++)->second;
-				auto ppInstances = pMainTree->GetInstances(uiCount);
+				const auto& ppInstances = pMainTree->GetInstances(uiCount);
 
 				pMainTree->SetupLeafForTreeType();
 
-				for (auto it : ppInstances)
+				for (const auto& it : ppInstances)
 				{
 					if (it->isShow())
 						it->RenderBillboards();

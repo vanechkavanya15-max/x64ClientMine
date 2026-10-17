@@ -130,11 +130,21 @@ public:
 	void						RenderBillboards(void) const;
 	
 	// instancing
-	std::vector <SpeedTreeWrapperPtr>		GetInstances(UINT& nCount);
+	const std::vector<SpeedTreeWrapperPtr>&	GetInstances(UINT& nCount) const;
 	SpeedTreeWrapperPtr			InstanceOf(void) const { return m_pInstanceOf; }
 	SpeedTreeWrapperPtr 		MakeInstance();
 	void						DeleteInstance(SpeedTreeWrapperPtr pInstance);
 	CSpeedTreeRT *				GetSpeedTree(void) const						{ return m_pSpeedTree; }
+	const CSpeedTreeRT::SGeometry* GetGeometryCache(void) const					{ return m_pGeometryCache; }
+
+	// lod & alpha ref accessors
+	float						GetBranchAlphaTestValue(void) const;
+	float						GetFrondAlphaTestValue(void) const;
+	float						GetLeafAlphaTestValue(int level = 0) const;
+	float						GetBillboardAlphaTestValue(int level = 0) const;
+	int							GetBranchLod(void) const;
+	int							GetFrondLod(void) const;
+	int							GetLeafLod(int level = 0) const;
 	
 	// lighting																	
 	const CSpeedTreeMaterial &	GetBranchMaterial(void) const					{ return m_cBranchMaterial; }
@@ -148,7 +158,13 @@ public:
 	
 	// utility
 	LPDIRECT3DTEXTURE9			GetBranchTexture(void) const;
+	LPDIRECT3DTEXTURE9			GetCompositeTexture(void) const;
 	void						CleanUpMemory(void);
+
+	// shaders
+	static LPDIRECT3DVERTEXDECLARATION9 GetBranchVertexShader() { return ms_dwBranchVertexShader; }
+	static LPDIRECT3DVERTEXDECLARATION9 GetLeafVertexShaderDecl() { return ms_pLeafVertexShaderDecl; }
+	static LPDIRECT3DVERTEXSHADER9 GetLeafVertexShader() { return ms_pLeafVertexShader; }
 
 	// frustum culling
 	bool						TestFrustumCulling(const DirectX::XMVECTOR* planes, size_t planeCount) const;
