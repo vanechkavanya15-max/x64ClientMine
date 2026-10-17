@@ -3,6 +3,8 @@
 #include "GrpDevice.h"
 #include "Camera.h"
 #include "StateManager.h"
+#include "Render/DynamicQuadBatcher.h"
+#include "RenderOwnership.h"
 
 #include <comdef.h>
 #include <utf8.h>
@@ -237,17 +239,29 @@ void CScreen::RenderCube(float sx, float sy, float sz, float ex, float ey, float
 
 void CScreen::RenderLine2d(float sx, float sy, float ex, float ey, float z)
 {
-	RenderLine3d(sx, sy, z, ex, ey, z);
+	CDynamicQuadBatcher::Instance().AddLine2d(sx, sy, ex, ey, ms_diffuseColor);
+	if (RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI))
+	{
+		RenderLine3d(sx, sy, z, ex, ey, z);
+	}
 }
 
 void CScreen::RenderBox2d(float sx, float sy, float ex, float ey, float z)
 {
-	RenderBox3d(sx, sy, z, ex, ey, z);
+	CDynamicQuadBatcher::Instance().AddBox2d(sx, sy, ex, ey, ms_diffuseColor);
+	if (RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI))
+	{
+		RenderBox3d(sx, sy, z, ex, ey, z);
+	}
 }
 
 void CScreen::RenderBar2d(float sx, float sy, float ex, float ey, float z)
 {
-	RenderBar3d(sx, sy, z, ex, ey, z);
+	CDynamicQuadBatcher::Instance().AddBar2d(sx, sy, ex, ey, ms_diffuseColor);
+	if (RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI))
+	{
+		RenderBar3d(sx, sy, z, ex, ey, z);
+	}
 }
 
 void CScreen::RenderGradationBar2d(float sx, float sy, float ex, float ey, DWORD dwStartColor, DWORD dwEndColor, float ez)

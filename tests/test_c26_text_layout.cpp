@@ -165,3 +165,249 @@ TEST_SUITE("TextLayoutEngine") {
         CHECK(result->lines[0].glyphs[1].x == 80.0f);
     }
 }
+
+#include "EterLib/GrpTextInstance.h"
+#include "EterLib/RenderOwnership.h"
+#include <algorithm>
+
+class TestGraphicTextInstance : public CGraphicTextInstance
+{
+public:
+    TestGraphicTextInstance()
+    {
+        m_isUpdate = true;
+    }
+
+    void AddMockChar(short width, short height, float advance, float bearingX,
+                     float left, float top, float right, float bottom,
+                     DWORD color = 0xFFFFFFFF, float kern = 0.0f)
+    {
+        auto* pInfo = new CGraphicFontTexture::TCharacterInfomation();
+        pInfo->index = -1;
+        pInfo->width = width;
+        pInfo->height = height;
+        pInfo->advance = advance;
+        pInfo->bearingX = bearingX;
+        pInfo->left = left;
+        pInfo->top = top;
+        pInfo->right = right;
+        pInfo->bottom = bottom;
+
+        m_mockInfos.push_back(pInfo);
+        m_pCharInfoVector.push_back(pInfo);
+        m_dwColorInfoVector.push_back(color);
+        m_kernVector.push_back(kern);
+
+        m_textWidth += static_cast<WORD>(advance + kern);
+        m_textHeight = (std::max)(m_textHeight, static_cast<WORD>(height));
+    }
+
+    void SetMockTextSize(WORD w, WORD h)
+    {
+        m_textWidth = w;
+        m_textHeight = h;
+    }
+
+    void SetComputedRTL(bool rtl)
+    {
+        m_computedRTL = rtl;
+    }
+
+    ~TestGraphicTextInstance() override
+    {
+        for (auto* p : m_mockInfos)
+            delete p;
+        m_mockInfos.clear();
+        m_pCharInfoVector.clear();
+    }
+
+private:
+    std::vector<CGraphicFontTexture::TCharacterInfomation*> m_mockInfos;
+};
+
+TEST_SUITE("CGraphicTextInstance_LayoutGlyphs") {
+    TEST_CASE("LayoutGlyphs - PlainText") {
+        TestGraphicTextInstance inst;
+        inst.SetPosition(100.0f, 200.0f);
+
+        inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.1f, 0.1f, 0.2f, 0.2f, 0xFFFFFFFF);
+        inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.2f, 0.1f, 0.3f, 0.2f, 0xFFFFFFFF);
+        inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.3f, 0.1f, 0.4f, 0.2f, 0xFFFFFFFF);
+
+        const auto& quads = inst.LayoutGlyphs();
+
+        REQUIRE(quads.size() == 3);
+        for (const auto& q : quads)
+        {
+            CHECK(q.layer == ETextQuadLayer::Main);
+            CHECK(q.color == 0xFFFFFFFF);
+            CHECK(q.w == 10.0f);
+            CHECK(q.h == 16.0f);
+        }
+
+        // Base fStanX = 100, fStanY = 200 + 1.0f = 201.0f
+        // fFontSx = fCurX + bearingX - 0.5f = 99.5f
+        // fFontSy = fCurY - 0.5f = 200.5f
+        CHECK(quads[0].x == doctest::Approx(99.5f));
+        CHECK(quads[0].y == doctest::Approx(200.5f));
+        CHECK(quads[0].u0 == doctest::Approx(0.1f));
+
+        CHECK(quads[1].x == doctest::Approx(109.5f));
+        CHECK(quads[1].y == doctest::Approx(200.5f));
+
+        CHECK(quads[2].x == doctest::Approx(119.5f));
+        CHECK(quads[2].y == doctest::Approx(200.5f));
+    }
+
+    TEST_CASE("LayoutGlyphs - ColoredText") {
+        TestGraphicTextInstance inst;
+        inst.SetPosition(0.0f, 0.0f);
+
+        inst.AddMockChar(8, 14, 8.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.1f, 0xFFFF0000);
+        inst.AddMockChar(8, 14, 8.0f, 0.0f, 0.1f, 0.0f, 0.2f, 0.1f, 0xFF00FF00);
+        inst.AddMockChar(8, 14, 8.0f, 0.0f, 0.2f, 0.0f, 0.3f, 0.1f, 0xFF0000FF);
+
+        const auto& quads = inst.LayoutGlyphs();
+
+        REQUIRE(quads.size() == 3);
+        CHECK(quads[0].color == 0xFFFF0000);
+        CHECK(quads[1].color == 0xFF00FF00);
+        CHECK(quads[2].color == 0xFF0000FF);
+    }
+
+    TEST_CASE("LayoutGlyphs - AlignmentHorizontalAndVertical") {
+        SUBCASE("Center Horizontal Alignment") {
+            TestGraphicTextInstance inst;
+            inst.SetPosition(100.0f, 200.0f);
+            inst.SetHorizonalAlign(CGraphicTextInstance::HORIZONTAL_ALIGN_CENTER);
+
+            inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.1f);
+            inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.1f, 0.0f, 0.2f, 0.1f);
+            inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.2f, 0.0f, 0.3f, 0.1f);
+            // textWidth = 30 -> offset -15
+            const auto& quads = inst.LayoutGlyphs();
+            REQUIRE(quads.size() == 3);
+            CHECK(quads[0].x == doctest::Approx(99.5f - 15.0f));
+        }
+
+        SUBCASE("Right Horizontal Alignment") {
+            TestGraphicTextInstance inst;
+            inst.SetPosition(100.0f, 200.0f);
+            inst.SetHorizonalAlign(CGraphicTextInstance::HORIZONTAL_ALIGN_RIGHT);
+
+            inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.1f);
+            inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.1f, 0.0f, 0.2f, 0.1f);
+            inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.2f, 0.0f, 0.3f, 0.1f);
+            // textWidth = 30 -> offset -30
+            const auto& quads = inst.LayoutGlyphs();
+            REQUIRE(quads.size() == 3);
+            CHECK(quads[0].x == doctest::Approx(99.5f - 30.0f));
+        }
+
+        SUBCASE("Center Vertical Alignment") {
+            TestGraphicTextInstance inst;
+            inst.SetPosition(100.0f, 200.0f);
+            inst.SetVerticalAlign(CGraphicTextInstance::VERTICAL_ALIGN_CENTER);
+
+            inst.AddMockChar(10, 20, 10.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.1f);
+            // textHeight = 20 -> offset -10
+            const auto& quads = inst.LayoutGlyphs();
+            REQUIRE(quads.size() == 1);
+            CHECK(quads[0].y == doctest::Approx(200.5f - 10.0f));
+        }
+
+        SUBCASE("Bottom Vertical Alignment") {
+            TestGraphicTextInstance inst;
+            inst.SetPosition(100.0f, 200.0f);
+            inst.SetVerticalAlign(CGraphicTextInstance::VERTICAL_ALIGN_BOTTOM);
+
+            inst.AddMockChar(10, 20, 10.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.1f);
+            // textHeight = 20 -> offset -20
+            const auto& quads = inst.LayoutGlyphs();
+            REQUIRE(quads.size() == 1);
+            CHECK(quads[0].y == doctest::Approx(200.5f - 20.0f));
+        }
+
+        SUBCASE("RTL Direction Alignment") {
+            TestGraphicTextInstance inst;
+            inst.SetPosition(100.0f, 200.0f);
+            inst.SetComputedRTL(true);
+            inst.SetHorizonalAlign(CGraphicTextInstance::HORIZONTAL_ALIGN_LEFT);
+
+            inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.1f);
+            inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.1f, 0.0f, 0.2f, 0.1f);
+            // In RTL, HORIZONTAL_ALIGN_LEFT offsets by -textWidth (-20)
+            const auto& quads = inst.LayoutGlyphs();
+            REQUIRE(quads.size() == 2);
+            CHECK(quads[0].x == doctest::Approx(99.5f - 20.0f));
+        }
+    }
+
+    TEST_CASE("LayoutGlyphs - OutlineGeneration") {
+        TestGraphicTextInstance inst;
+        inst.SetPosition(100.0f, 200.0f);
+        inst.SetOutline(true);
+        inst.SetOutLineColor(0xFF334455);
+
+        inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.1f, 0.1f, 0.2f, 0.2f);
+        inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.2f, 0.1f, 0.3f, 0.2f);
+
+        const auto& quads = inst.LayoutGlyphs();
+
+        // 2 chars * 4 outline directions = 8 outline quads + 2 main quads = 10 quads
+        REQUIRE(quads.size() == 10);
+
+        for (size_t i = 0; i < 8; ++i)
+        {
+            CHECK(quads[i].layer == ETextQuadLayer::Outline);
+            CHECK(quads[i].color == 0xFF334455);
+            CHECK(quads[i].w == 10.0f);
+            CHECK(quads[i].h == 16.0f);
+        }
+
+        // First glyph outline directions: Left (-1, 0), Right (+1, 0), Top (0, -1), Bottom (0, +1)
+        // base fFontSx = 99.5f, fFontSy = 200.5f
+        CHECK(quads[0].x == doctest::Approx(98.5f));
+        CHECK(quads[0].y == doctest::Approx(200.5f));
+
+        CHECK(quads[1].x == doctest::Approx(100.5f));
+        CHECK(quads[1].y == doctest::Approx(200.5f));
+
+        CHECK(quads[2].x == doctest::Approx(99.5f));
+        CHECK(quads[2].y == doctest::Approx(199.5f));
+
+        CHECK(quads[3].x == doctest::Approx(99.5f));
+        CHECK(quads[3].y == doctest::Approx(201.5f));
+
+        // Main text quads at the end
+        CHECK(quads[8].layer == ETextQuadLayer::Main);
+        CHECK(quads[9].layer == ETextQuadLayer::Main);
+    }
+
+    TEST_CASE("LayoutGlyphs - SelectionAndCursor") {
+        TestGraphicTextInstance inst;
+        inst.SetPosition(50.0f, 60.0f);
+
+        inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.1f);
+        inst.AddMockChar(10, 16, 10.0f, 0.0f, 0.1f, 0.0f, 0.2f, 0.1f);
+
+        inst.SetSelection(0, 2);
+        inst.ShowCursor();
+
+        const auto& quads = inst.LayoutGlyphs();
+
+        REQUIRE(quads.size() >= 4);
+
+        // First quad should be Selection
+        CHECK(quads[0].layer == ETextQuadLayer::Selection);
+        CHECK(quads[0].color == 0x80339CFF);
+        CHECK(quads[0].w == 20.0f);
+        CHECK(quads[0].h == 16.0f);
+        CHECK(quads[0].x == doctest::Approx(50.0f));
+        CHECK(quads[0].y == doctest::Approx(60.0f));
+
+        // Last quad should be Cursor
+        CHECK(quads.back().layer == ETextQuadLayer::Cursor);
+    }
+}
+
