@@ -3,6 +3,7 @@
 #include "AreaTerrain.h"
 #include "AreaLoaderThread.h"
 #include "EterLib/ResourceManager.h"
+#include "EterLib/StateManager.h"
 #include "PackLib/PackManager.h"
 
 //CAreaLoaderThread CMapOutdoor::ms_AreaLoaderThread;
