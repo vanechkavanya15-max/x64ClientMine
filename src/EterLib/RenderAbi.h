@@ -276,6 +276,9 @@ typedef struct RENDER_ABI_ALIGN(16) TRenderFrameUniforms
 #endif
 } TRenderFrameUniforms;
 
+/* Forward declaration dla TTerrainPassPacket */
+typedef struct TTerrainPassPacket TTerrainPassPacket;
+
 /* 4. TTerrainSectorPacket: 176 bajtow, wyrownanie 16B */
 typedef struct RENDER_ABI_ALIGN(16) TTerrainSectorPacket
 {
@@ -289,8 +292,16 @@ typedef struct RENDER_ABI_ALIGN(16) TTerrainSectorPacket
     float fWorldPosY;
     float fMinHeight;
     float fMaxHeight;
-    uint32_t dwTextureSetID;
-    uint32_t dwPatchCount;
+    union
+    {
+        uint32_t dwTextureSetID;
+        uint32_t dwPrimitiveType;
+    };
+    union
+    {
+        uint32_t dwPatchCount;
+        uint32_t dwPrimitiveCount;
+    };
     uint32_t patchNum;
     uint32_t splatTextureId;
     void* pSplatTexture;
@@ -298,20 +309,52 @@ typedef struct RENDER_ABI_ALIGN(16) TTerrainSectorPacket
     void* pLayerTextures[4];
     void* pVertexData;
     uint32_t dwVertexCount;
-    const uint32_t* pSplatWeights;
-    uint32_t dwSplatWeightCount;
-    const void* pHeightMap;
-    const void* pTileMap;
-    const void* pNormalMap;
+    union
+    {
+        const uint32_t* pSplatWeights;
+        const TTerrainPassPacket* pPassPackets;
+        const void* pPassData;
+    };
+    union
+    {
+        uint32_t dwSplatWeightCount;
+        uint32_t dwPassCount;
+    };
+    union
+    {
+        const void* pHeightMap;
+        void* pIndexBuffer;
+    };
+    union
+    {
+        const void* pTileMap;
+        void* pShadowTexture;
+    };
+    union
+    {
+        const void* pNormalMap;
+        void* pChrShadowTexture;
+    };
     bool bHasWater;
+    uint8_t byBand;
+    uint8_t byLODLevel;
+    uint8_t bDrawShadow;
     float fWaterHeight;
-    float fReserved;
+    union
+    {
+        float fReserved;
+        uint32_t dwShadowFlags;
+    };
 
 #ifdef __cplusplus
     TTerrainSectorPacket()
     {
         std::memset(this, 0, sizeof(*this));
     }
+
+    [[nodiscard]] bool HasShadow() const noexcept { return bDrawShadow != 0; }
+    [[nodiscard]] bool HasCharacterShadow() const noexcept { return (dwShadowFlags & 0xFF) != 0; }
+    void SetCharacterShadow(bool bEnable) noexcept { dwShadowFlags = (dwShadowFlags & ~0xFFu) | (bEnable ? 1u : 0u); }
 #endif
 } TTerrainSectorPacket;
 

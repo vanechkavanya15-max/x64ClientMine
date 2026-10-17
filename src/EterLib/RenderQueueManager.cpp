@@ -194,7 +194,7 @@ const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() 
 {
 	return m_debugLinePackets;
 }
-}
+
 
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
@@ -306,10 +306,6 @@ const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonPackets()
 	return m_dungeonPackets;
 }
 
-const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() const
-{
-	return m_debugLinePackets;
-}
 
 size_t CRenderQueueManager::GetTotalPacketCount() const
 {

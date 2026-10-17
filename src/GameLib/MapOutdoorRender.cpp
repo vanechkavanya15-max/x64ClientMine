@@ -50,9 +50,6 @@ void CMapOutdoor::RenderTerrain()
 	m_visibleQuadtreeNodeList.clear();
 
 	__RenderTerrain_RecurseRenderQuadTree(m_pRootNode);
-
-	static CTerrainRenderExtractor s_terrainExtractor;
-	s_terrainExtractor.ExtractAndSubmitFromOutdoor(this);
 	
 	// 거리순 정렬
 	std::sort(m_PatchVector.begin(),m_PatchVector.end());
@@ -602,7 +599,8 @@ void CMapOutdoor::SelectIndexBuffer(BYTE byLODLevel, WORD * pwPrimitiveCount, D3
 		*pwPrimitiveCount =  m_wNumIndices[byLODLevel]/3;
 		*pePrimitiveType = D3DPT_TRIANGLELIST;
 	}
-	STATEMANAGER.SetIndices(m_IndexBuffer[byLODLevel].GetD3DIndexBuffer(), 0);
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Terrain))
+		STATEMANAGER.SetIndices(m_IndexBuffer[byLODLevel].GetD3DIndexBuffer(), 0);
 }
 
 void CMapOutdoor::SetPatchDrawVector()

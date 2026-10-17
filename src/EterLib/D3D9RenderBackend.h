@@ -35,6 +35,7 @@ public:
 
 	virtual void RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned int count) override;
 	virtual void RenderTerrain(const TTerrainSectorPacket* pPackets, unsigned int count) override;
+	void RenderTerrainSector(const TTerrainSectorPacket& pkt);
 	virtual void RenderActors(const TActorRenderPacket* pPackets, unsigned int count) override;
 	virtual void RenderWater(const TWaterPacket* pPackets, unsigned int count) override;
 	virtual void RenderSpeedTree(const TSpeedTreePacket* pPackets, unsigned int count) override;
