@@ -13,6 +13,7 @@
 #include "EterLib/StateManagerGuards.h"
 #include "EterLib/RenderQueueManager.h"
 #include "EterLib/Render/DynamicQuadBatcher.h"
+#include "EterLib/CFrameSnapshot.h"
 #include "EterLib/D3D9RenderBackend.h"
 #include "EterLib/WgpuRenderBackend.h"
 #include "EterLib/WgpuModule.h"
@@ -239,6 +240,11 @@ void CPythonApplication::RenderGame()
 
 	m_pyGraphic.SetPerspective(30.0f, fAspect, 100.0, fFarClip);
 
+	static uint32_t s_dwFrameIdx = 0;
+	++s_dwFrameIdx;
+	CCamera* pCam = CCameraManager::Instance().GetCurrentCamera();
+	CFrameSnapshot::Capture(pCam, 30.0f, fAspect, 100.0f, fFarClip, m_fGlobalTime, s_dwFrameIdx);
+
 	CCullingManager::Instance().Process();
 
 	m_kChrMgr.Deform();
@@ -285,17 +291,14 @@ void CPythonApplication::RenderGame()
 
 	// Aktualizacja macierzy kamery i czasu klatki w TRenderFrameUniforms przed Flush
 	{
+		const TFrameSnapshot& snapshot = CFrameSnapshot::Current();
 		TRenderFrameUniforms uniforms = CRenderQueueManager::Instance().GetFrameUniforms();
-		STATEMANAGER.GetTransform(D3DTS_VIEW, &uniforms.matView);
-		STATEMANAGER.GetTransform(D3DTS_PROJECTION, &uniforms.matProj);
-		D3DXMatrixMultiply(&uniforms.matViewProj, &uniforms.matView, &uniforms.matProj);
-		if (CCamera* pCam = CCameraManager::Instance().GetCurrentCamera())
-		{
-			uniforms.vCameraPos = pCam->GetEye();
-		}
-		uniforms.fTime = m_fGlobalTime;
-		static uint32_t s_dwFrameIdx = 0;
-		uniforms.dwFrameIndex = ++s_dwFrameIdx;
+		uniforms.matView = snapshot.matView;
+		uniforms.matProj = snapshot.matProj;
+		uniforms.matViewProj = snapshot.matViewProj;
+		uniforms.vCameraPos = snapshot.v3CameraPos;
+		uniforms.fTime = snapshot.fTime;
+		uniforms.dwFrameIndex = snapshot.dwFrameIndex;
 		CRenderQueueManager::Instance().SetFrameUniforms(uniforms);
 	}
 

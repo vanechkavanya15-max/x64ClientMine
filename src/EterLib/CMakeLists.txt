@@ -9,5 +9,5 @@ target_link_libraries(EterLib
 	freetype
 )
 
-# Includes D3D9RenderBackend, WgpuRenderBackend, TextureUploadBridge and RenderResourceRegistry
+# Includes D3D9RenderBackend, WgpuRenderBackend, TextureUploadBridge, RenderResourceRegistry and CFrameSnapshot
 GroupSourcesByFolder(EterLib)
