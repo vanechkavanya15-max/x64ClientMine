@@ -82,13 +82,27 @@ typedef struct SPNTVertex
 	TTextureCoordinate	texCoord;
 } TPNTVertex;
 
+#ifndef _SPNT2VERTEX_DEFINED_
+#define _SPNT2VERTEX_DEFINED_
 typedef struct SPNT2Vertex
 {
 	TPosition	position;
 	TNormal		normal;
-	TTextureCoordinate texCoord;
-	TTextureCoordinate texCoord2;
+	union
+	{
+		struct
+		{
+			TTextureCoordinate texCoord;
+			TTextureCoordinate texCoord2;
+		};
+		struct
+		{
+			TTextureCoordinate uv0;
+			TTextureCoordinate uv1;
+		};
+	};
 } TPNT2Vertex;
+#endif
 
 typedef struct SPDT2Vertex
 {	
