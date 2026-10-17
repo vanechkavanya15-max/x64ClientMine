@@ -264,9 +264,9 @@ TEST_CASE("RenderQueueManager - Dropped Packet Counting on Pool Overflow")
 
 TEST_CASE("RenderQueueManager - ABI Version and Packet Sizes")
 {
-	CHECK(M2_RENDER_ABI_VERSION == 1u);
-	CHECK(CRenderQueueManager::ABI_VERSION == 1u);
-	CHECK(CRenderQueueManager::GetABIVersion() == 1u);
+	CHECK(M2_RENDER_ABI_VERSION == 2u);
+	CHECK(CRenderQueueManager::ABI_VERSION == 2u);
+	CHECK(CRenderQueueManager::GetABIVersion() == 2u);
 
 	const auto sizeList = CRenderQueueManager::GetPacketSizes();
 	const auto sizeMap = CRenderQueueManager::GetPacketSizeMap();
@@ -294,7 +294,7 @@ TEST_CASE("RenderQueueManager - ABI Version and Packet Sizes")
 	CHECK(sizeMap.at("TRenderFrameUniforms") == 288u);
 	CHECK(sizeMap.at("TTerrainSectorPacket") == 176u);
 	CHECK(sizeMap.at("TActorRenderPacket") == 5008u);
-	CHECK(sizeMap.at("TWaterPacket") == 112u);
+	CHECK(sizeMap.at("TWaterPacket") == 176u);
 	CHECK(sizeMap.at("TSkyBoxPacket") == 112u);
 	CHECK(sizeMap.at("TSpeedTreeInstanceData") == 112u);
 	CHECK(sizeMap.at("TSpeedTreePacket") == 48u);
@@ -303,7 +303,7 @@ TEST_CASE("RenderQueueManager - ABI Version and Packet Sizes")
 	CHECK(sizeMap.at("TUIVertex") == 24u);
 	CHECK(sizeMap.at("TUIBatchPacket") == 64u);
 	CHECK(sizeMap.at("TDungeonBlockPacket") == 160u);
-	CHECK(sizeMap.at("TRenderFramePacket") == 400u);
+	CHECK(sizeMap.at("TRenderFramePacket") == 416u);
 #endif
 
 	// Weryfikacja wolnych funkcji pomocniczych

@@ -61,8 +61,15 @@ namespace EterLib::Render
 static_assert(sizeof(TTerrainSectorPacket) == 176, "ABI: TTerrainSectorPacket != packets.rs");
 static_assert(sizeof(TDebugLinePacket) == 32, "ABI: TDebugLinePacket == 32");
 static_assert(sizeof(TActorRenderPacket) == 5008, "ABI: TActorRenderPacket != packets.rs");
-static_assert(sizeof(TWaterPacket) == 112, "ABI: TWaterPacket != packets.rs");
 static_assert(sizeof(TSpeedTreeInstanceData) == 112, "ABI: TSpeedTreeInstanceData != packets.rs");
+static_assert(sizeof(TWaterPacket) == 176, "ABI: TWaterPacket != packets.rs");
+static_assert(alignof(TWaterPacket) == 16, "ABI: TWaterPacket align != 16");
+static_assert(offsetof(TWaterPacket, dwWaterTextureID) == 56, "ABI: water dwWaterTextureID");
+static_assert(offsetof(TWaterPacket, pWaterTexture) == 64, "ABI: water pWaterTexture");
+static_assert(offsetof(TWaterPacket, bFarPass) == 96, "ABI: water bFarPass");
+static_assert(offsetof(TWaterPacket, bAlphaBlend) == 97, "ABI: water bAlphaBlend");
+static_assert(offsetof(TWaterPacket, fFogDistance) == 100, "ABI: water fFogDistance");
+static_assert(offsetof(TWaterPacket, matTexTransformWater) == 112, "ABI: water matTexTransformWater");
 static_assert(sizeof(TSpeedTreePacket) == 48, "ABI: TSpeedTreePacket != packets.rs");
 static_assert(sizeof(TParticleInstanceData) == 64, "ABI: TParticleInstanceData != packets.rs");
 static_assert(sizeof(TEffectInstancePacket) == 48, "ABI: TEffectInstancePacket != packets.rs");

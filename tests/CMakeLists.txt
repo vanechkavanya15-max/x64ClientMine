@@ -6631,3 +6631,18 @@ target_link_libraries(test_c26_sky_description PRIVATE
 )
 add_test(NAME SkyDescriptionTest COMMAND test_c26_sky_description)
 
+add_executable(test_c26_water_packet test_c26_water_packet.cpp)
+target_include_directories(test_c26_water_packet PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_water_packet PRIVATE
+    EterLib
+    EterBase
+    DirectX
+    doctest
+)
+add_test(NAME test_c26_water_packet COMMAND test_c26_water_packet)
+add_test(NAME WaterPacketTest COMMAND test_c26_water_packet)
+

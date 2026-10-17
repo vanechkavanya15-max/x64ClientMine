@@ -410,6 +410,7 @@ class CMapOutdoor : public CMapBase
 
 		void					DrawWireFrame(long patchnum, WORD wPrimitiveCount, D3DPRIMITIVETYPE ePrimitiveType);
 		void					DrawWater(long patchnum);
+		void					DrawWater(long patchnum, bool bFarPass, uint32_t hWaterTexture, LPDIRECT3DTEXTURE9 pD3DTexture, const D3DXMATRIX& matTexTransformWater, float fWaterHeightCurrent, float fTimeSec, float fFogDistance);
 
 		bool					m_bDrawWireFrame;
 		bool					m_bDrawShadow;

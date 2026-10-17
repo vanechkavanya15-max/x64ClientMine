@@ -23,6 +23,10 @@
  *      przy rzutowaniu ortogonalnym 2D/UI stosuje sie przesuniecie wierzcholkow o -0.5f (kUiHalfPixelOffset).
  */
 
+#include <cmath>
+#include <d3d9.h>
+#include <d3dx9.h>
+
 constexpr float kUiHalfPixelOffset = 0.5f;
 constexpr float kCloudFovRad = 1.04719755f; // 60 deg
 constexpr float kCloudAspect = 1.33333333f; // 4:3 zachowane dla chmur
@@ -35,10 +39,31 @@ inline uint32_t ToBgraDword(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
 	       static_cast<uint32_t>(b);
 }
 
+inline float CalculateWaterWaveHeight(float /*x*/, float /*y*/, float fTime)
+{
+	return -6.0f + 5.0f * sinf(fTime * 1.5f) + 1.0f * sinf(fTime * 3.1f);
+}
+
+inline void BuildWaterUVTransformMatrix(D3DXMATRIX* pOutMat, const D3DXMATRIX& matViewInverse, float fWaterTexCoordBase)
+{
+	if (!pOutMat)
+		return;
+	D3DXMatrixScaling(pOutMat, fWaterTexCoordBase, -fWaterTexCoordBase, 0.0f);
+	D3DXMatrixMultiply(pOutMat, &matViewInverse, pOutMat);
+}
+
+inline uint32_t CalculateWaterAnimationFrameIndex(uint32_t dwTimeMs)
+{
+	return (dwTimeMs / 70) % 30;
+}
+
 namespace EterLib
 {
 	using ::kUiHalfPixelOffset;
 	using ::kCloudFovRad;
 	using ::kCloudAspect;
 	using ::ToBgraDword;
+	using ::CalculateWaterWaveHeight;
+	using ::BuildWaterUVTransformMatrix;
+	using ::CalculateWaterAnimationFrameIndex;
 }
