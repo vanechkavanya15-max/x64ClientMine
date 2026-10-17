@@ -153,8 +153,24 @@ class CGrannyLODController : public CGraphicCollisionObject
 
 			void operator() (CGrannyLODController * pController)
 			{
+				if (!pController)
+					return;
+
 				if (pController->isModelInstance() || pController->isGltfModelInstance())
-					pController->GetBoundBox(m_vtMin, m_vtMax);
+				{
+					D3DXVECTOR3 curMin(100000.0f, 100000.0f, 100000.0f);
+					D3DXVECTOR3 curMax(-100000.0f, -100000.0f, -100000.0f);
+					pController->GetBoundBox(&curMin, &curMax);
+					if (curMin.x <= curMax.x && curMin.y <= curMax.y && curMin.z <= curMax.z)
+					{
+						if (curMin.x < m_vtMin->x) m_vtMin->x = curMin.x;
+						if (curMin.y < m_vtMin->y) m_vtMin->y = curMin.y;
+						if (curMin.z < m_vtMin->z) m_vtMin->z = curMin.z;
+						if (curMax.x > m_vtMax->x) m_vtMax->x = curMax.x;
+						if (curMax.y > m_vtMax->y) m_vtMax->y = curMax.y;
+						if (curMax.z > m_vtMax->z) m_vtMax->z = curMax.z;
+					}
+				}
 			}
 		};
 

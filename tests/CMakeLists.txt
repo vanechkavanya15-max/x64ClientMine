@@ -6779,3 +6779,39 @@ target_link_libraries(test_c26_speedtree_packet PRIVATE
 add_test(NAME test_c26_speedtree_packet COMMAND test_c26_speedtree_packet)
 add_test(NAME SpeedTreePacketTest COMMAND test_c26_speedtree_packet)
 
+add_executable(test_c26_actor_packet test_c26_actor_packet.cpp)
+target_include_directories(test_c26_actor_packet PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_actor_packet PRIVATE
+    GameLib
+    EterGrnLib
+    EterModelLib
+    EterLib
+    EterImageLib
+    PRTerrainLib
+    AudioLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EffectLib
+    EterBase
+    DirectX
+    Dbghelp
+    sodium
+    freetype
+    libzstd_static
+    lzo2
+    mio
+    ws2_32
+    doctest
+)
+add_test(NAME test_c26_actor_packet COMMAND test_c26_actor_packet)
+add_test(NAME ActorPacketTest COMMAND test_c26_actor_packet)
+
+

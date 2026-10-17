@@ -265,7 +265,8 @@ void CGraphicThingInstance::ReserveModelThing(int iCount)
 
 bool CGraphicThingInstance::FindBoneIndex(int iModelInstance, const char* c_szBoneName, int* iRetBone)
 {
-	assert(CheckModelInstanceIndex(iModelInstance));
+	if (!CheckModelInstanceIndex(iModelInstance))
+		return false;
 
 	CGrannyLODController * pController = m_LODControllerVector[iModelInstance];
 	if (!pController)
@@ -350,7 +351,8 @@ void CGraphicThingInstance::DetachModelInstance(int iDstModelInstance, CGraphicT
 
 bool CGraphicThingInstance::GetBonePosition(int iModelIndex, int iBoneIndex, float * pfx, float * pfy, float * pfz)
 {
-	assert(CheckModelInstanceIndex(iModelIndex));
+	if (!CheckModelInstanceIndex(iModelIndex))
+		return false;
 
 	CGrannyLODController * pController = m_LODControllerVector[iModelIndex];
 	if (!pController)
@@ -645,6 +647,11 @@ void CGraphicThingInstance::GetBoundBox(D3DXVECTOR3* vtMin, D3DXVECTOR3* vtMax)
 	vtMin->x = vtMin->y = vtMin->z = 100000.0f;
 	vtMax->x = vtMax->y = vtMax->z = -100000.0f;
 	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), CGrannyLODController::FBoundBox(vtMin, vtMax));
+	if (vtMin->x > vtMax->x)
+	{
+		vtMin->x = vtMin->y = vtMin->z = 0.0f;
+		vtMax->x = vtMax->y = vtMax->z = 0.0f;
+	}
 }
 
 BOOL CGraphicThingInstance::GetBoundBox(DWORD dwModelInstanceIndex, D3DXVECTOR3 * vtMin, D3DXVECTOR3 * vtMax)
@@ -955,19 +962,22 @@ DWORD CGraphicThingInstance::GetLODControllerCount() const
 
 CGrannyLODController * CGraphicThingInstance::GetLODControllerPointer(DWORD dwModelIndex) const
 {
-	assert(dwModelIndex < m_LODControllerVector.size());
+	if (dwModelIndex >= m_LODControllerVector.size())
+		return nullptr;
 	return m_LODControllerVector[dwModelIndex];
 }
 
 CGrannyLODController * CGraphicThingInstance::GetLODControllerPointer(DWORD dwModelIndex)
 {
-	assert(dwModelIndex < m_LODControllerVector.size());
+	if (dwModelIndex >= m_LODControllerVector.size())
+		return nullptr;
 	return m_LODControllerVector[dwModelIndex];
 }
 
 BYTE CGraphicThingInstance::GetLODLevel(DWORD dwModelInstance)
 {
-	assert(dwModelInstance < m_LODControllerVector.size());
+	if (dwModelInstance >= m_LODControllerVector.size() || !m_LODControllerVector[dwModelInstance])
+		return 0;
 	return (m_LODControllerVector[dwModelInstance]->GetLODLevel());
 }
 

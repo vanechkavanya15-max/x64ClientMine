@@ -359,7 +359,7 @@ void CMapOutdoor::__HardwareTransformPatch_RenderPatchSplat(
 
 		if (bLegacyDraws)
 		{
-			DWORD dwFogColor = mc_pEnvironmentData ? mc_pEnvironmentData->FogColor : 0xffffffff;
+			DWORD dwFogColor = mc_pEnvironmentData ? static_cast<DWORD>(mc_pEnvironmentData->FogColor) : 0xffffffff;
 			STATEMANAGER.SetRenderState(D3DRS_LIGHTING, TRUE);
 
 			STATEMANAGER.SetRenderState(D3DRS_FOGCOLOR, 0xFFFFFFFF);

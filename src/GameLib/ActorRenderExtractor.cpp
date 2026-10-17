@@ -47,8 +47,12 @@ bool ActorRenderExtractor::Extract(CActorInstance& actor, TActorRenderPacket& ou
 			D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
 		}
 		outPacket.dwBoneCount = 1;
+		outPacket.pBoneMatrices = outPacket.boneMatrices;
 	}
-	outPacket.pBoneMatrices = nullptr; // Bezpieczny: GetBoneMatrices() uzywa wewnetrznej tablicy boneMatrices w kolejce
+	else if (!outPacket.pBoneMatrices)
+	{
+		outPacket.pBoneMatrices = outPacket.boneMatrices;
+	}
 
 	// 7. Ekstrakcja macierzy socketow (bron, helm, fryzura, aury)
 	ExtractSockets(actor, outPacket);
@@ -73,9 +77,19 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 				if (!skinMatrices.empty())
 				{
 					uint32_t copyCount = std::min<uint32_t>(static_cast<uint32_t>(skinMatrices.size()), 64);
+					D3DXMATRIX* pContinuousPoolBones = CRenderQueueManager::Instance().AllocateBoneMatrices(copyCount);
+					if (pContinuousPoolBones)
+					{
+						memcpy(pContinuousPoolBones, skinMatrices.data(), sizeof(D3DXMATRIX) * copyCount);
+						outPacket.pBoneMatrices = pContinuousPoolBones;
+					}
+					else
+					{
+						outPacket.pBoneMatrices = outPacket.boneMatrices;
+					}
+
 					memcpy(outPacket.boneMatrices, skinMatrices.data(), sizeof(D3DXMATRIX) * copyCount);
 					outPacket.dwBoneCount = copyCount;
-					outPacket.pBoneMatrices = nullptr;
 					for (uint32_t i = copyCount; i < 64; ++i)
 						D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
 					return true;
@@ -92,9 +106,19 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 			if (pCompositeBones && totalBones > 0)
 			{
 				uint32_t copyCount = std::min<uint32_t>(static_cast<uint32_t>(totalBones), 64);
+				D3DXMATRIX* pContinuousPoolBones = CRenderQueueManager::Instance().AllocateBoneMatrices(copyCount);
+				if (pContinuousPoolBones)
+				{
+					memcpy(pContinuousPoolBones, pCompositeBones, sizeof(D3DXMATRIX) * copyCount);
+					outPacket.pBoneMatrices = pContinuousPoolBones;
+				}
+				else
+				{
+					outPacket.pBoneMatrices = pCompositeBones;
+				}
+
 				memcpy(outPacket.boneMatrices, pCompositeBones, sizeof(D3DXMATRIX) * copyCount);
 				outPacket.dwBoneCount = copyCount;
-				outPacket.pBoneMatrices = pCompositeBones;
 				for (uint32_t i = copyCount; i < 64; ++i)
 					D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
 				return true;
@@ -102,12 +126,22 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 		}
 	}
 
-	// W przypadku braku kosci ustawiamy pojedyncza macierz jednostkowa
+	// W przypadku braku kosci ustawiamy pojedyncza macierz jednostkowa w puli klatki i w buforze
 	if (outPacket.dwBoneCount == 0)
 	{
 		for (uint32_t i = 0; i < 64; ++i)
 		{
 			D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
+		}
+		D3DXMATRIX* pContinuousPoolBones = CRenderQueueManager::Instance().AllocateBoneMatrices(1);
+		if (pContinuousPoolBones)
+		{
+			D3DXMatrixIdentity(pContinuousPoolBones);
+			outPacket.pBoneMatrices = pContinuousPoolBones;
+		}
+		else
+		{
+			outPacket.pBoneMatrices = outPacket.boneMatrices;
 		}
 		outPacket.dwBoneCount = 1;
 	}
