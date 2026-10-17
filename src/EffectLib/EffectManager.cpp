@@ -78,14 +78,6 @@ void CEffectManager::Update()
 }
 
 
-struct CEffectManager_LessEffectInstancePtrRenderOrder
-{
-	bool operator() (CEffectInstance* pkLeft, CEffectInstance* pkRight)
-	{
-		return pkLeft->LessRenderOrder(pkRight);		
-	}
-};
-
 struct CEffectManager_FEffectInstanceRender
 {
 	inline void operator () (CEffectInstance * pkEftInst)
@@ -110,16 +102,15 @@ void CEffectManager::Render()
 	}
 	else
 	{
-		static std::vector<CEffectInstance*> s_kVct_pkEftInstSort;
-		s_kVct_pkEftInstSort.clear();
+		m_kVct_pkEftInstSort.clear();
 
 		TEffectInstanceMap& rkMap_pkEftInstSrc=m_kEftInstMap;
 		TEffectInstanceMap::iterator i;
 		for (i=rkMap_pkEftInstSrc.begin(); i!=rkMap_pkEftInstSrc.end(); ++i)
-			s_kVct_pkEftInstSort.push_back(i->second);
+			m_kVct_pkEftInstSort.push_back(i->second);
 
-		std::sort(s_kVct_pkEftInstSort.begin(), s_kVct_pkEftInstSort.end(), CEffectManager_LessEffectInstancePtrRenderOrder());
-		std::for_each(s_kVct_pkEftInstSort.begin(), s_kVct_pkEftInstSort.end(), CEffectManager_FEffectInstanceRender());
+		std::stable_sort(m_kVct_pkEftInstSort.begin(), m_kVct_pkEftInstSort.end(), CEffectManager_LessEffectInstancePtrRenderOrder());
+		std::for_each(m_kVct_pkEftInstSort.begin(), m_kVct_pkEftInstSort.end(), CEffectManager_FEffectInstanceRender());
 	}
 }
 
@@ -481,19 +472,10 @@ DWORD CEffectManager::GetSelectedEffectDataCRC() const
 		return 0;
 
 	CEffectData* pData = m_pSelectedEffectInstance->GetEffectDataPointer();
-	
 	if (!pData)
 		return 0;
 
-	const char* cszFile = pData->GetFileName();
-
-	if (!cszFile || !cszFile[0])
-		return 0;
-
-	std::string str;
-	StringPath(cszFile, str);
-
-	return GetCaseCRC32(str.c_str(), (int)str.length());
+	return pData->GetCRC32();
 }
 
 // just for map effect

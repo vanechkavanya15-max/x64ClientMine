@@ -27,6 +27,7 @@ bool CEffectData::LoadScript(const char * c_szFileName)
 {
 	m_strFileName = c_szFileName;
 	CFileNameHelper::StringPath(m_strFileName);
+	m_dwCRC = GetCaseCRC32(m_strFileName.c_str(), (int)m_strFileName.length());
 
 	CTextFileLoader TextFileLoader;
 	if (!TextFileLoader.Load(c_szFileName))
@@ -184,6 +185,20 @@ const char * CEffectData::GetFileName() const
 	return m_strFileName.c_str();
 }
 
+DWORD CEffectData::GetCRC32() const
+{
+	if (m_dwCRC != 0)
+		return m_dwCRC;
+	if (!m_strFileName.empty())
+		return GetCaseCRC32(m_strFileName.c_str(), (int)m_strFileName.length());
+	return 0;
+}
+
+void CEffectData::SetCRC32(DWORD dwCRC)
+{
+	m_dwCRC = dwCRC;
+}
+
 void CEffectData::__ClearParticleDataVector()
 {
 	std::for_each(m_ParticleVector.begin(), m_ParticleVector.end(), CParticleSystemData::Delete);
@@ -206,6 +221,8 @@ void CEffectData::Clear()
 {
 	m_fBoundingSphereRadius = 0.0f;
 	m_v3BoundingSpherePosition.x = m_v3BoundingSpherePosition.y = m_v3BoundingSpherePosition.z = 0.0f;
+	m_strFileName.clear();
+	m_dwCRC = 0;
 	__ClearParticleDataVector();
 	__ClearLightDataVector();
 	__ClearMeshDataVector();	
@@ -215,6 +232,7 @@ CEffectData::CEffectData()
 {
 	m_fBoundingSphereRadius = 0.0f;
 	m_v3BoundingSpherePosition.x = m_v3BoundingSpherePosition.y = m_v3BoundingSpherePosition.z = 0.0f;
+	m_dwCRC = 0;
 }
 CEffectData::~CEffectData()
 {

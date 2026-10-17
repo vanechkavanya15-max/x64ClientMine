@@ -145,40 +145,68 @@ BOOL CEffectMesh::__LoadData_Ver002(int iSize, const BYTE * c_pbBuf)
 			c_pbBuf += sizeof(DWORD);
 
 			v3VertexVector.clear();
-			v3VertexVector.resize(rFrameData.dwVertexCount);
-			iIndexVector.clear();
-			iIndexVector.resize(rFrameData.dwIndexCount);
-			v3TextureVertexVector.clear();
-			v3TextureVertexVector.resize(rFrameData.dwTextureVertexCount);
-			iTextureIndexVector.clear();
-			iTextureIndexVector.resize(rFrameData.dwIndexCount);
+			if (rFrameData.dwVertexCount > 0)
+			{
+				v3VertexVector.resize(rFrameData.dwVertexCount);
+				memcpy(v3VertexVector.data(), c_pbBuf, rFrameData.dwVertexCount * sizeof(D3DXVECTOR3));
+				c_pbBuf += rFrameData.dwVertexCount * sizeof(D3DXVECTOR3);
+			}
 
-			memcpy(&v3VertexVector[0], c_pbBuf, rFrameData.dwVertexCount*sizeof(D3DXVECTOR3));
-			c_pbBuf += rFrameData.dwVertexCount*sizeof(D3DXVECTOR3);
-			memcpy(&iIndexVector[0], c_pbBuf, rFrameData.dwIndexCount*sizeof(int));
-			c_pbBuf += rFrameData.dwIndexCount*sizeof(int);
-			memcpy(&v3TextureVertexVector[0], c_pbBuf, rFrameData.dwTextureVertexCount*sizeof(D3DXVECTOR2));
-			c_pbBuf += rFrameData.dwTextureVertexCount*sizeof(D3DXVECTOR2);
-			memcpy(&iTextureIndexVector[0], c_pbBuf, rFrameData.dwIndexCount*sizeof(int));
-			c_pbBuf += rFrameData.dwIndexCount*sizeof(int);
+			iIndexVector.clear();
+			if (rFrameData.dwIndexCount > 0)
+			{
+				iIndexVector.resize(rFrameData.dwIndexCount);
+				memcpy(iIndexVector.data(), c_pbBuf, rFrameData.dwIndexCount * sizeof(int));
+				c_pbBuf += rFrameData.dwIndexCount * sizeof(int);
+			}
+
+			v3TextureVertexVector.clear();
+			if (rFrameData.dwTextureVertexCount > 0)
+			{
+				v3TextureVertexVector.resize(rFrameData.dwTextureVertexCount);
+				memcpy(v3TextureVertexVector.data(), c_pbBuf, rFrameData.dwTextureVertexCount * sizeof(D3DXVECTOR2));
+				c_pbBuf += rFrameData.dwTextureVertexCount * sizeof(D3DXVECTOR2);
+			}
+
+			iTextureIndexVector.clear();
+			if (rFrameData.dwIndexCount > 0)
+			{
+				iTextureIndexVector.resize(rFrameData.dwIndexCount);
+				memcpy(iTextureIndexVector.data(), c_pbBuf, rFrameData.dwIndexCount * sizeof(int));
+				c_pbBuf += rFrameData.dwIndexCount * sizeof(int);
+			}
 
 			///////////////////////////////
 
 			rFrameData.PDTVertexVector.clear();
-			rFrameData.PDTVertexVector.resize(rFrameData.dwIndexCount);
-			for (DWORD j = 0; j < rFrameData.dwIndexCount; ++j)
+			if (rFrameData.dwIndexCount > 0)
 			{
-				TPTVertex & rVertex = rFrameData.PDTVertexVector[j];
+				rFrameData.PDTVertexVector.resize(rFrameData.dwIndexCount);
+				for (DWORD j = 0; j < rFrameData.dwIndexCount; ++j)
+				{
+					TPTVertex & rVertex = rFrameData.PDTVertexVector[j];
 
-				DWORD dwIndex = iIndexVector[j];
-				DWORD dwTextureIndex = iTextureIndexVector[j];
+					DWORD dwIndex = iIndexVector[j];
+					DWORD dwTextureIndex = iTextureIndexVector[j];
 
-				assert(dwIndex < v3VertexVector.size());
-				assert(dwTextureIndex < v3TextureVertexVector.size());
+					assert(dwIndex < v3VertexVector.size());
+					assert(dwTextureIndex < v3TextureVertexVector.size());
 
-				rVertex.position = v3VertexVector[dwIndex];
-				rVertex.texCoord = v3TextureVertexVector[dwTextureIndex];
-				rVertex.texCoord.y *= -1;
+					if (dwIndex < v3VertexVector.size())
+						rVertex.position = v3VertexVector[dwIndex];
+					else
+						rVertex.position = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+
+					if (dwTextureIndex < v3TextureVertexVector.size())
+					{
+						rVertex.texCoord = v3TextureVertexVector[dwTextureIndex];
+						rVertex.texCoord.y *= -1;
+					}
+					else
+					{
+						rVertex.texCoord = D3DXVECTOR2(0.0f, 0.0f);
+					}
+				}
 			}
 		}
 

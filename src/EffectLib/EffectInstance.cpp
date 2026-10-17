@@ -12,9 +12,30 @@
 CDynamicPool<CEffectInstance>	CEffectInstance::ms_kPool;
 int CEffectInstance::ms_iRenderingEffectCount = 0;
 
-bool CEffectInstance::LessRenderOrder(CEffectInstance* pkEftInst)
+bool CEffectInstance::LessRenderOrder(const CEffectInstance* pkEftInst) const
 {
-	return (m_pkEftData<pkEftInst->m_pkEftData);	
+	if (!pkEftInst)
+		return false;
+	if (this == pkEftInst)
+		return false;
+
+	DWORD dwMyCRC = m_pkEftData ? m_pkEftData->GetCRC32() : 0;
+	DWORD dwOtherCRC = pkEftInst->m_pkEftData ? pkEftInst->m_pkEftData->GetCRC32() : 0;
+
+	if (dwMyCRC != dwOtherCRC)
+		return dwMyCRC < dwOtherCRC;
+
+	if (m_fLifeTime != pkEftInst->m_fLifeTime)
+		return m_fLifeTime < pkEftInst->m_fLifeTime;
+
+	return false;
+}
+
+DWORD CEffectInstance::GetEffectDataCRC() const
+{
+	if (!m_pkEftData)
+		return 0;
+	return m_pkEftData->GetCRC32();
 }
 
 void CEffectInstance::ResetRenderingEffectCount()
@@ -82,13 +103,17 @@ void CEffectInstance::OnUpdate()
 {
 	Transform();
 
-	FEffectUpdator f(CTimer::Instance().GetCurrentSecond()-m_fLastTime);
+	float fCurrentSecond = CTimer::InstancePtr() ? CTimer::Instance().GetCurrentSecond() : (m_fLastTime + 0.016f);
+	float fElapsedTime = fCurrentSecond - m_fLastTime;
+	m_fLifeTime += fElapsedTime;
+
+	FEffectUpdator f(fElapsedTime);
 	f = std::for_each(m_ParticleInstanceVector.begin(), m_ParticleInstanceVector.end(),f);
 	f = std::for_each(m_MeshInstanceVector.begin(), m_MeshInstanceVector.end(),f);
 	f = std::for_each(m_LightInstanceVector.begin(), m_LightInstanceVector.end(),f);
 	m_isAlive = f.isAlive;
 
-	m_fLastTime = CTimer::Instance().GetCurrentSecond();
+	m_fLastTime = fCurrentSecond;
 }
 
 void CEffectInstance::OnRender()
@@ -116,24 +141,31 @@ void CEffectInstance::OnRender()
 		STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
 
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
 
 		std::for_each(m_MeshInstanceVector.begin(), m_MeshInstanceVector.end(), std::mem_fn(&CEffectElementBaseInstance::Render));
 
-		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MINFILTER);
-		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MAGFILTER);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAARG2);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAARG1);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG2);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
 
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
-		STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
 		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+
+		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MAGFILTER);
+		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MINFILTER);
 	}
 
 	++ms_iRenderingEffectCount;
@@ -213,7 +245,8 @@ void CEffectInstance::SetEffectDataPointer(CEffectData * pEffectData)
 
 	m_pkEftData=pEffectData;
 
-	m_fLastTime = CTimer::Instance().GetCurrentSecond();
+	m_fLifeTime = 0.0f;
+	m_fLastTime = CTimer::InstancePtr() ? CTimer::Instance().GetCurrentSecond() : 0.0f;
 	m_fBoundingSphereRadius = pEffectData->GetBoundingSphereRadius();
 	m_v3BoundingSpherePosition = pEffectData->GetBoundingSpherePosition();
 
@@ -287,6 +320,8 @@ void CEffectInstance::__Initialize()
 	m_pSoundInstanceVector = NULL;
 	m_fBoundingSphereRadius = 0.0f;
 	m_v3BoundingSpherePosition.x = m_v3BoundingSpherePosition.y = m_v3BoundingSpherePosition.z = 0.0f;
+	m_fLastTime = 0.0f;
+	m_fLifeTime = 0.0f;
 
 	m_pkEftData=NULL;
 

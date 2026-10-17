@@ -10,6 +10,10 @@
 #include "Type.h"
 #include "EffectElementBase.h"
 
+// Legacy compatibility constant for MESH_BILLBOARD_TYPE_ALL billboard rotation (in radians).
+// Preserves 20-year legacy visual behavior (B5 C.10).
+constexpr float kLegacyBillboardAllRotationRad = 90.0f;
+
 class CEffectMesh : public CResource
 {
 	public:

@@ -90,4 +90,18 @@ class CEffectManager : public CScreen, public CSingleton<CEffectManager>
 		TEffectInstanceMap				m_kEftCacheMap;
 
 		CEffectInstance *				m_pSelectedEffectInstance;
+		std::vector<CEffectInstance*>	m_kVct_pkEftInstSort;
 };
+
+struct CEffectManager_LessEffectInstancePtrRenderOrder
+{
+	bool operator() (const CEffectInstance* pkLeft, const CEffectInstance* pkRight) const
+	{
+		if (!pkLeft)
+			return pkRight != nullptr;
+		if (!pkRight)
+			return false;
+		return pkLeft->LessRenderOrder(pkRight);
+	}
+};
+

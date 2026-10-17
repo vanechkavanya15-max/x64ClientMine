@@ -39,7 +39,7 @@ class CEffectInstance : public CGraphicObjectInstance
 		CEffectInstance();
 		virtual ~CEffectInstance();
 		
-		bool LessRenderOrder(CEffectInstance* pkEftInst);
+		bool LessRenderOrder(const CEffectInstance* pkEftInst) const;
 
 		void SetEffectDataPointer(CEffectData * pEffectData);
 		
@@ -48,6 +48,10 @@ class CEffectInstance : public CGraphicObjectInstance
 		{
 			return m_pkEftData;
 		}
+
+		DWORD GetEffectDataCRC() const;
+		float GetLifeTime() const { return m_fLifeTime; }
+		void SetLifeTime(float fLifeTime) { m_fLifeTime = fLifeTime; }
 
 		void Clear();
 		BOOL isAlive();
@@ -90,6 +94,7 @@ class CEffectInstance : public CGraphicObjectInstance
 		D3DXVECTOR3 m_v3BoundingSpherePosition;
 
 		float m_fLastTime;
+		float m_fLifeTime;
 
 	public:
 

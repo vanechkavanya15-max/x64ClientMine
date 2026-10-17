@@ -36,6 +36,8 @@ class CEffectData
 		D3DXVECTOR3						GetBoundingSpherePosition();
 
 		const char *					GetFileName() const;
+		DWORD							GetCRC32() const;
+		void							SetCRC32(DWORD dwCRC);
 
 	protected:
 		void __ClearParticleDataVector();
@@ -58,6 +60,7 @@ class CEffectData
 		D3DXVECTOR3						m_v3BoundingSpherePosition;
 
 		std::string						m_strFileName;
+		DWORD							m_dwCRC;
 
 	public:
 		static void DestroySystem();

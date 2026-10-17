@@ -64,13 +64,19 @@ void CEffectMeshInstance::OnRender()
 		return;
 
 	CEffectMesh * pEffectMesh = m_roMesh.GetPointer();
+	if (!pEffectMesh)
+		return;
 
 	for (DWORD i = 0; i < pEffectMesh->GetMeshCount(); ++i)
 	{
-		assert(i < m_TextureInstanceVector.size());
+		if (i >= m_TextureInstanceVector.size())
+			continue;
 
 		CFrameController & rTextureFrameController = m_TextureInstanceVector[i].TextureFrameController;
 		if (!rTextureFrameController.isActive(m_MeshFrameController.GetCurrentFrame()))
+			continue;
+
+		if (!m_pMeshScript)
 			continue;
 
 		int iBillboardType = m_pMeshScript->GetBillboardType(i);
@@ -83,7 +89,7 @@ void CEffectMeshInstance::OnRender()
 			case MESH_BILLBOARD_TYPE_ALL:
 				{
 					D3DXMATRIX matTemp;
-					D3DXMatrixRotationX(&matTemp, 90.0f);
+					D3DXMatrixRotationX(&matTemp, kLegacyBillboardAllRotationRad);
 					D3DXMatrixInverse(&m_matWorld, NULL, &CScreen::GetViewMatrix());
 
 					m_matWorld = matTemp * m_matWorld;
@@ -120,31 +126,53 @@ void CEffectMeshInstance::OnRender()
 				break;
 		}
 
-		if (!m_pMeshScript->isBlendingEnable(i))
-		{
-			STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-		}
-		else
-		{
-			int iBlendingSrcType = m_pMeshScript->GetBlendingSrcType(i);
-			int iBlendingDestType = m_pMeshScript->GetBlendingDestType(i);
-			STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, iBlendingSrcType);
-			STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, iBlendingDestType);
-		}
-
 		D3DXVECTOR3 Position;
 		m_pMeshScript->GetPosition(m_fLocalTime, Position);
 		m_matWorld._41 = Position.x;
 		m_matWorld._42 = Position.y;
 		m_matWorld._43 = Position.z;
-		m_matWorld = m_matWorld * *mc_pmatLocal;
+		if (mc_pmatLocal)
+			m_matWorld = m_matWorld * *mc_pmatLocal;
 		STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorld);
 
-		BYTE byType;
-		D3DXCOLOR Color(1.0f, 1.0f, 1.0f, 1.0f);
+		// Render state & texture stage guards
+		const bool bBlendingEnable = m_pMeshScript->isBlendingEnable(i);
+		if (!bBlendingEnable)
+		{
+			STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		}
+		else
+		{
+			int iBlendingSrcType = m_pMeshScript->GetBlendingSrcType(i);
+			int iBlendingDestType = m_pMeshScript->GetBlendingDestType(i);
+			STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+			STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, iBlendingSrcType);
+			STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, iBlendingDestType);
+		}
+
+		BYTE byType = 0;
+		bool bColorOpChanged = false;
 		if (m_pMeshScript->GetColorOperationType(i, &byType))
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, byType);
+		{
+			STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, byType);
+			bColorOpChanged = true;
+		}
+
+		auto RestoreEffectMeshStates = [&](bool bTexFactorRestored = false)
+		{
+			if (!bTexFactorRestored)
+				STATEMANAGER.RestoreRenderState(D3DRS_TEXTUREFACTOR);
+			if (bColorOpChanged)
+				STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+			if (bBlendingEnable)
+			{
+				STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+				STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+			}
+			STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+		};
+
+		D3DXCOLOR Color(1.0f, 1.0f, 1.0f, 1.0f);
 		m_pMeshScript->GetColorFactor(i, &Color);
 
 		TTimeEventTableFloat * TableAlpha;
@@ -155,24 +183,41 @@ void CEffectMeshInstance::OnRender()
 
 		// Render //
 		CEffectMesh::TEffectMeshData * pMeshData = pEffectMesh->GetMeshDataPointer(i);
+		if (!pMeshData)
+		{
+			RestoreEffectMeshStates(true);
+			continue;
+		}
 
-		assert(m_MeshFrameController.GetCurrentFrame() < pMeshData->EffectFrameDataVector.size());
+		if (m_MeshFrameController.GetCurrentFrame() >= pMeshData->EffectFrameDataVector.size())
+		{
+			RestoreEffectMeshStates(true);
+			continue;
+		}
+
 		CEffectMesh::TEffectFrameData & rFrameData = pMeshData->EffectFrameDataVector[m_MeshFrameController.GetCurrentFrame()];
+		if (rFrameData.dwIndexCount < 3 || rFrameData.PDTVertexVector.empty())
+		{
+			RestoreEffectMeshStates(true);
+			continue;
+		}
 
 		DWORD dwcurTextureFrame = rTextureFrameController.GetCurrentFrame();
 		if (dwcurTextureFrame < m_TextureInstanceVector[i].TextureInstanceVector.size())
 		{
 			CGraphicImageInstance * pImageInstance = m_TextureInstanceVector[i].TextureInstanceVector[dwcurTextureFrame];
-			STATEMANAGER.SetTexture(0, pImageInstance->GetTexturePointer()->GetD3DTexture());
+			if (pImageInstance && pImageInstance->GetTexturePointer())
+				STATEMANAGER.SetTexture(0, pImageInstance->GetTexturePointer()->GetD3DTexture());
 		}
 
 		Color.a = fAlpha * rFrameData.fVisibility;
-		STATEMANAGER.SetRenderState(D3DRS_TEXTUREFACTOR, DWORD(Color));
+		STATEMANAGER.SaveRenderState(D3DRS_TEXTUREFACTOR, DWORD(Color));
 		STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
 		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLELIST,
 									 rFrameData.dwIndexCount/3,
-									 &rFrameData.PDTVertexVector[0],
+									 rFrameData.PDTVertexVector.data(),
 									 sizeof(TPTVertex));
+		RestoreEffectMeshStates(false);
 		// Render //
 	}
 }
