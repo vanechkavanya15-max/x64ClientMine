@@ -1198,11 +1198,18 @@ void CGrannyLODController::InitGltfMaterials()
 		if (texPath.empty())
 			return nullptr;
 
+		auto SafeCastImage = [](CResource* pRes) -> CGraphicImage*
+		{
+			if (pRes && pRes->IsType(CGraphicImage::Type()))
+				return static_cast<CGraphicImage*>(pRes);
+			return nullptr;
+		};
+
 		// 1. Proba bezposrednia
 		CResource* pRes = resMgr.GetResourcePointer(texPath.c_str());
 		if (pRes)
 		{
-			CGraphicImage* pImg = static_cast<CGraphicImage*>(pRes);
+			CGraphicImage* pImg = SafeCastImage(pRes);
 			if (pImg)
 				return pImg;
 		}
@@ -1213,7 +1220,11 @@ void CGrannyLODController::InitGltfMaterials()
 			std::string localTex = localPath + texPath;
 			pRes = resMgr.GetResourcePointer(localTex.c_str());
 			if (pRes)
-				return static_cast<CGraphicImage*>(pRes);
+			{
+				CGraphicImage* pImg = SafeCastImage(pRes);
+				if (pImg)
+					return pImg;
+			}
 
 			// 3. Sama nazwa pliku w katalogu lokalnym
 			size_t lastSlash = texPath.find_last_of("/\\");
@@ -1223,7 +1234,11 @@ void CGrannyLODController::InitGltfMaterials()
 				std::string localFile = localPath + fileNameOnly;
 				pRes = resMgr.GetResourcePointer(localFile.c_str());
 				if (pRes)
-					return static_cast<CGraphicImage*>(pRes);
+				{
+					CGraphicImage* pImg = SafeCastImage(pRes);
+					if (pImg)
+						return pImg;
+				}
 			}
 		}
 

@@ -4,6 +4,13 @@
 #include <string>
 #include <cstring>
 #include <initializer_list>
+#include <DirectXMath.h>
+#include "SkeletalMath.h"
+
+using Matrix4x4 = EterModelLib::Matrix4x4;
+
+static_assert(sizeof(Matrix4x4) == 64, "Matrix4x4 size mismatch");
+static_assert(sizeof(DirectX::XMFLOAT4X4) == 64, "XMFLOAT4X4 size mismatch");
 
 struct float2 { float x, y; };
 struct float3 { float x, y, z; };
