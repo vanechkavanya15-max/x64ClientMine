@@ -6466,5 +6466,15 @@ target_link_libraries(test_c26_gltf_gpu_skinning PRIVATE
 )
 add_test(NAME GltfGpuSkinningTest COMMAND test_c26_gltf_gpu_skinning)
 
+add_executable(test_c26_render_conventions test_c26_render_conventions.cpp)
+target_include_directories(test_c26_render_conventions PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_render_conventions PRIVATE EterLib EterBase doctest)
+add_test(NAME RenderConventionsTest COMMAND test_c26_render_conventions)
+
+
 
 
