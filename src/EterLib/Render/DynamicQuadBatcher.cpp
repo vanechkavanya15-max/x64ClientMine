@@ -3,6 +3,7 @@
 #include "EterLib/RenderQueueManager.h"
 #include "EterLib/GrpImageInstance.h"
 #include "EterLib/GrpImage.h"
+#include "EterLib/RenderConventions.h"
 #include <algorithm>
 
 namespace EterLib::Render
@@ -285,7 +286,7 @@ namespace EterLib::Render
         const float eu = (rRect.left + (rRect.right - rRect.left)) * texReverseWidth;
         const float ev = (rRect.top + (rRect.bottom - rRect.top)) * texReverseHeight;
 
-        AddQuad(x - 0.5f, y - 0.5f, width, height, diffuseColor, dwTextureID, su, sv, eu, ev, 0);
+        AddQuad(x - kUiHalfPixelOffset, y - kUiHalfPixelOffset, width, height, diffuseColor, dwTextureID, su, sv, eu, ev, 0);
     }
 
     void DynamicQuadBatcher::Flush()

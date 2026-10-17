@@ -3,6 +3,7 @@
 #include "GrpExpandedImageInstance.h"
 #include "StateManager.h"
 #include "Render/DynamicQuadBatcher.h"
+#include "RenderConventions.h"
 
 CDynamicPool<CGraphicExpandedImageInstance>		CGraphicExpandedImageInstance::ms_kPool;
 
@@ -51,26 +52,26 @@ void CGraphicExpandedImageInstance::OnRender()
 	float ev = (c_rRect.top + m_RenderingRect.bottom + (c_rRect.bottom-c_rRect.top)) * texReverseHeight;
 
 	TPDTVertex vertices[4];	
-	vertices[0].position.x	= m_v2Position.x-0.5f;
-	vertices[0].position.y	= m_v2Position.y-0.5f;
+	vertices[0].position.x	= m_v2Position.x - kUiHalfPixelOffset;
+	vertices[0].position.y	= m_v2Position.y - kUiHalfPixelOffset;
 	vertices[0].position.z	= m_fDepth;
 	vertices[0].texCoord	= TTextureCoordinate(su, sv);
 	vertices[0].diffuse		= m_DiffuseColor;
 
-	vertices[1].position.x	= m_v2Position.x-0.5f;
-	vertices[1].position.y	= m_v2Position.y-0.5f;
+	vertices[1].position.x	= m_v2Position.x - kUiHalfPixelOffset;
+	vertices[1].position.y	= m_v2Position.y - kUiHalfPixelOffset;
 	vertices[1].position.z	= m_fDepth;
 	vertices[1].texCoord	= TTextureCoordinate(eu, sv);
 	vertices[1].diffuse		= m_DiffuseColor;
 
-	vertices[2].position.x	= m_v2Position.x-0.5f;
-	vertices[2].position.y	= m_v2Position.y-0.5f;
+	vertices[2].position.x	= m_v2Position.x - kUiHalfPixelOffset;
+	vertices[2].position.y	= m_v2Position.y - kUiHalfPixelOffset;
 	vertices[2].position.z	= m_fDepth;
 	vertices[2].texCoord	= TTextureCoordinate(su, ev);
 	vertices[2].diffuse		= m_DiffuseColor;
 
-	vertices[3].position.x	= m_v2Position.x-0.5f;
-	vertices[3].position.y	= m_v2Position.y-0.5f;
+	vertices[3].position.x	= m_v2Position.x - kUiHalfPixelOffset;
+	vertices[3].position.y	= m_v2Position.y - kUiHalfPixelOffset;
 	vertices[3].position.z	= m_fDepth;
 	vertices[3].texCoord	= TTextureCoordinate(eu, ev);	
 	vertices[3].diffuse		= m_DiffuseColor;
