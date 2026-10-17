@@ -3,6 +3,7 @@
 #include "StateManager.h"
 #include "RenderOwnership.h"
 #include "Render/DynamicQuadBatcher.h"
+#include "RenderConventions.h"
 #include "IME.h"
 #include "TextTag.h"
 #include "EterBase/Utils.h"

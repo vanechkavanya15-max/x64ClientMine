@@ -29,7 +29,7 @@
 
 constexpr float kUiHalfPixelOffset = 0.5f;
 constexpr float kCloudFovRad = 1.04719755f; // 60 deg
-constexpr float kCloudAspect = 1.33333333f; // 4:3 zachowane dla chmur
+constexpr float kCloudAspect = 1.3333333f; // 4:3 zachowane dla chmur
 
 // -------------------------------------------------------------------------
 // Stale odleglosci widzenia kamery (Camera)
@@ -73,7 +73,7 @@ constexpr float kTextTailNamePositionOffset = -10.0f; // [cm] pionowe przesuniec
 constexpr float kWeaponTraceDefaultDuration = 0.18f; // [s] domyslny czas trwania / zaniku punktow smugi broni (m_fLifeTime)
 constexpr float kWeaponTraceSamplingInterval = 0.003f; // [s] interwal czasowy probkowania punktow interpolacji splajnu (m_fSamplingTime)
 
-inline uint32_t ToBgraDword(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
+inline constexpr uint32_t ToBgraDword(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
 {
 	return (static_cast<uint32_t>(a) << 24) |
 	       (static_cast<uint32_t>(r) << 16) |

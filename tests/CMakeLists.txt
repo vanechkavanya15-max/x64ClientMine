@@ -7066,3 +7066,17 @@ target_link_libraries(test_c26_frame_double_buffer PRIVATE
 add_test(NAME test_c26_frame_double_buffer COMMAND test_c26_frame_double_buffer)
 add_test(NAME FrameDoubleBufferTest COMMAND test_c26_frame_double_buffer)
 
+# --- S8.3 Unified render conventions test ---
+add_executable(test_c26_conventions_unified test_c26_conventions_unified.cpp)
+target_include_directories(test_c26_conventions_unified PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_conventions_unified PRIVATE
+    doctest
+)
+add_test(NAME test_c26_conventions_unified COMMAND test_c26_conventions_unified)
+add_test(NAME ConventionsUnifiedTest COMMAND test_c26_conventions_unified)
+
+
