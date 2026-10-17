@@ -282,7 +282,7 @@ bool IsNaN(const D3DXVECTOR3& v)
 	return std::isnan(v.x) || std::isnan(v.y) || std::isnan(v.z);
 }
 
-void CCamera::SetViewMatrix()
+void CCamera::UpdatePosition()
 {
 	// Sprawdzenie integralnosci wektorow zrodlowych
 	if (IsNaN(m_v3Eye) || IsNaN(m_v3Target) || IsNaN(m_v3Up))
@@ -311,10 +311,10 @@ void CCamera::SetViewMatrix()
 		m_fDistance = 10.0f;
 	}
 	m_v3View /= m_fDistance;
+}
 
-	// v3CenterRay jest odwrotnoscia wektora widoku
-	D3DXVECTOR3 v3CenterRay = -m_v3View;
-
+void CCamera::UpdateVectors()
+{
 	// Bezpieczne obliczenie roll
 	CalculateRoll();
 
@@ -384,7 +384,10 @@ void CCamera::SetViewMatrix()
 	if (m_v3View.z > 0.0f)
 		m_fPitch = -m_fPitch;
 	m_fPitch = std::clamp(m_fPitch, -89.5f, 89.5f);
+}
 
+void CCamera::UpdateMatrices()
+{
 	// Wyznaczenie macierzy widoku
 	D3DXMatrixLookAtRH(&m_matView, &m_v3Eye, &m_v3Target, &m_v3Up);
 
@@ -403,6 +406,9 @@ void CCamera::SetViewMatrix()
 	m_matBillboard._41 = 0.0f;
 	m_matBillboard._42 = 0.0f;
 	m_matBillboard._43 = 0.0f;
+
+	// v3CenterRay jest odwrotnoscia wektora widoku
+	D3DXVECTOR3 v3CenterRay = -m_v3View;
 
 	m_ViewRay.SetStartPoint(m_v3Target);
 	m_ViewRay.SetDirection(v3CenterRay, m_fDistance);
@@ -449,6 +455,13 @@ void CCamera::SetViewMatrix()
 	float val4Len = D3DXVec3Length(&val4);
 	if (val4Len > 1e-4f && !std::isnan(val4Len))
 		m_kBottomObjectCollisionRay.SetDirection(val4, val4Len);
+}
+
+void CCamera::SetViewMatrix()
+{
+	UpdatePosition();
+	UpdateVectors();
+	UpdateMatrices();
 }
 
 void CCamera::Move(const D3DXVECTOR3 & v3Displacement)

@@ -230,6 +230,11 @@ class CCamera
 		void SetViewMatrix();
 		void CalculateRoll();
 
+	private:
+		void UpdatePosition();
+		void UpdateVectors();
+		void UpdateMatrices();
+
 	public:
 		float GetTargetHeight();
 		void SetTargetHeight(float fTarget);
