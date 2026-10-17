@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "RenderQueueManager.h"
 #include "IRenderBackend.h"
+#include "SkyBox.h"
 #include <cstdio>
 #include <algorithm>
 
@@ -72,6 +73,7 @@ void CRenderQueueManager::BeginFrame()
 	m_waterPackets.clear();
 	m_skyBoxPackets.clear();
 	m_dungeonPackets.clear();
+	m_pSkyDescription.reset();
 	m_flushedSpeedTreeOffset = 0;
 	m_flushedUIOffset = 0;
 	m_particleDataOffset = 0;
@@ -133,6 +135,21 @@ void CRenderQueueManager::SubmitWater(const TWaterPacket& packet)
 void CRenderQueueManager::SubmitSkyBox(const TSkyBoxPacket& packet)
 {
 	m_skyBoxPackets.push_back(packet);
+}
+
+void CRenderQueueManager::SubmitSkyDescription(const SSkyDescription& desc)
+{
+	m_pSkyDescription = std::make_unique<SSkyDescription>(desc);
+}
+
+const SSkyDescription* CRenderQueueManager::GetSkyDescription() const
+{
+	return m_pSkyDescription.get();
+}
+
+bool CRenderQueueManager::HasSkyDescription() const
+{
+	return m_pSkyDescription != nullptr;
 }
 
 void CRenderQueueManager::SubmitDungeonBlock(const TDungeonBlockPacket& packet)

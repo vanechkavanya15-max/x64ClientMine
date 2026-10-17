@@ -14,6 +14,7 @@
 #include "GrpImageInstance.h"
 #include "ColorTransitionHelper.h"
 #include "RenderPacketTypes.h"
+#include "RenderResourceRegistry.h"
 
 #include <map>
 #include <string>
@@ -61,6 +62,10 @@ public:
 	void StartTransition();
 	bool Update();
 	void Render();
+
+	const TPDTVertex * GetVertices() const { return m_Vertex; }
+	const TIndex * GetIndices() const { return m_Indices; }
+	const CColorTransitionHelper * GetHelpers() const { return m_Helper; }
 	
 private:
 	TPDTVertex m_Vertex[4];
@@ -105,7 +110,7 @@ protected:
 	typedef std::vector<CSkyObjectQuad> TSkyObjectQuadVector;
 	typedef TSkyObjectQuadVector::iterator TSkyObjectQuadIterator;
 	
-	typedef struct CSkyBox
+	typedef struct SSkyObjectFace
 	{
 		void StartTransition();
 		bool Update();
@@ -113,7 +118,7 @@ protected:
 		std::string m_strfacename;
 		std::string m_strFaceTextureFileName;
 		TSkyObjectQuadVector m_SkyObjectQuadVector;
-	}TSkyObjectFace;
+	} TSkyObjectFace;
 
 	typedef std::map <std::string, CGraphicImageInstance*> TGraphicImageInstanceMap;
 
@@ -148,6 +153,46 @@ protected:
 	CGraphicImageInstance m_CloudAlphaImageInstance;
 };
 
+struct SSkyFaceDesc
+{
+	std::string strFaceName;
+	std::string strFaceTextureFileName;
+	TRenderTextureHandle textureHandle{ kInvalidTextureHandle };
+	uint32_t textureId{ 0 };
+	std::vector<CSkyObjectQuad> quadVector;
+	std::vector<TPDTVertex> vertices;
+};
+
+struct SSkyDescription
+{
+	unsigned char ucRenderMode{ 0 };
+	TRenderTextureHandle faceTextures[6]{ 0, 0, 0, 0, 0, 0 };
+	uint32_t faceTextureIds[6]{ 0, 0, 0, 0, 0, 0 };
+	SSkyFaceDesc faces[6];
+	uint32_t totalQuadCount{ 0 };
+	std::vector<TPDTVertex> gradientVertices;
+
+	// Macierze nieba i chmur
+	D3DXMATRIX matSkyWorld;
+	D3DXMATRIX matCloudWorld;
+	D3DXMATRIX matCloudTexture;
+
+	// Offset UV chmur i parametry
+	float fCloudPositionU{ 0.0f };
+	float fCloudPositionV{ 0.0f };
+	float fCloudScaleX{ 0.0f };
+	float fCloudScaleY{ 0.0f };
+	float fCloudHeight{ 0.0f };
+	float fCloudScrollSpeedU{ 0.0f };
+	float fCloudScrollSpeedV{ 0.0f };
+
+	TRenderTextureHandle cloudTextureHandle{ kInvalidTextureHandle };
+	uint32_t cloudTextureId{ 0 };
+	SSkyFaceDesc faceCloud;
+};
+
+using TSkyDescription = SSkyDescription;
+
 class CSkyBox : public CSkyObject
 {
 public:
@@ -180,6 +225,13 @@ public:
 	void SetSunLight(const D3DXVECTOR4& v4Direction, const D3DXVECTOR4& v4Color);
 	void SetAmbientColor(const D3DXVECTOR4& v4Ambient);
 	void SetFogParams(float fFogNear, float fFogFar, float fLinearScale, bool bEnable);
+
+	// CPU Description of Sky & Clouds state
+	SSkyDescription BuildSkyDescription() const;
+
+	const TSkyObjectFace & GetFace(size_t index) const { return m_Faces[index]; }
+	const TSkyObjectFace & GetFaceCloud() const { return m_FaceCloud; }
+	unsigned char GetRenderMode() const { return m_ucRenderMode; }
 
 protected:
 	void SetSkyObjectQuadVertical(TSkyObjectQuadVector * pSkyObjectQuadVector, const D3DXVECTOR2 * c_pv2QuadPoints);

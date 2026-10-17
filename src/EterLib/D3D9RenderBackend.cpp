@@ -6,6 +6,9 @@
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include "Render/TerrainShaderPipeline.h"
 #include "CFrameSnapshot.h"
+#include "RenderResourceRegistry.h"
+#include "RenderQueueManager.h"
+#include "SkyBox.h"
 
 CD3D9RenderBackend::CD3D9RenderBackend()
 {
@@ -125,19 +128,306 @@ void CD3D9RenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 
 void CD3D9RenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned int count)
 {
+	if (RenderOwnership::LegacyDraws(ERenderCategory::SkyBox))
+		return;
+
 	if (RenderOwnership::Owner(ERenderCategory::SkyBox) != ERenderOwner::D3D9Backend)
 		return;
 
 	if (!pPackets || count == 0)
 		return;
 
-	if (RenderOwnership::Owner(ERenderCategory::SkyBox) != ERenderOwner::D3D9Backend)
+	if (!CStateManager::InstancePtr())
 		return;
 
-	// W trybie hybrydowym (Strangler Fig) CSkyBox::Render() oraz CSkyBox::RenderCloud()
-	// odpowiadaja za bezposrednie rysowanie nieba i chmur w Direct3D 9 z pelnymi teksturami 64-bit.
-	// Pakiety TSkyBoxPacket w kolejce sluza wylacznie do eksportu Golden Master oraz dla backendu WGPU.
-	return;
+	LPDIRECT3DDEVICE9 pD3DDevice = STATEMANAGER.GetDevice();
+	if (!pD3DDevice)
+		return;
+
+	const SSkyDescription* pSkyDesc = CRenderQueueManager::Instance().GetSkyDescription();
+
+	// Geometria 6 scian standardowego skyboxa
+	struct SSkyBoxVertexFace
+	{
+		D3DXVECTOR3 pos[4];
+	};
+
+	static const SSkyBoxVertexFace s_faces[6] = {
+		// 0: FRONT
+		{ { D3DXVECTOR3(1.0f, -1.0f, -1.0f), D3DXVECTOR3(1.0f, -1.0f, 1.0f), D3DXVECTOR3(-1.0f, -1.0f, -1.0f), D3DXVECTOR3(-1.0f, -1.0f, 1.0f) } },
+		// 1: BACK
+		{ { D3DXVECTOR3(-1.0f, 1.0f, -1.0f), D3DXVECTOR3(-1.0f, 1.0f, 1.0f), D3DXVECTOR3(1.0f, 1.0f, -1.0f), D3DXVECTOR3(1.0f, 1.0f, 1.0f) } },
+		// 2: LEFT
+		{ { D3DXVECTOR3(1.0f, 1.0f, -1.0f), D3DXVECTOR3(1.0f, 1.0f, 1.0f), D3DXVECTOR3(1.0f, -1.0f, -1.0f), D3DXVECTOR3(1.0f, -1.0f, 1.0f) } },
+		// 3: RIGHT
+		{ { D3DXVECTOR3(-1.0f, -1.0f, -1.0f), D3DXVECTOR3(-1.0f, -1.0f, 1.0f), D3DXVECTOR3(-1.0f, 1.0f, -1.0f), D3DXVECTOR3(-1.0f, 1.0f, 1.0f) } },
+		// 4: TOP
+		{ { D3DXVECTOR3(1.0f, -1.0f, 1.0f), D3DXVECTOR3(1.0f, 1.0f, 1.0f), D3DXVECTOR3(-1.0f, -1.0f, 1.0f), D3DXVECTOR3(-1.0f, 1.0f, 1.0f) } },
+		// 5: BOTTOM
+		{ { D3DXVECTOR3(1.0f, -1.0f, -1.0f), D3DXVECTOR3(1.0f, 1.0f, -1.0f), D3DXVECTOR3(-1.0f, -1.0f, -1.0f), D3DXVECTOR3(-1.0f, 1.0f, -1.0f) } }
+	};
+
+	for (unsigned int i = 0; i < count; ++i)
+	{
+		const TSkyBoxPacket& pkt = pPackets[i];
+
+		// 1. Odtworzenie pelnego stanu nieba (SELECTARG1 / SELECTARG2)
+		STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, TRUE);
+		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_FOGENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+		STATEMANAGER.SaveTexture(1, NULL);
+		STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+		STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+
+		const D3DXMATRIX& matSky = (pSkyDesc != nullptr) ? pSkyDesc->matSkyWorld : pkt.matWorld;
+		STATEMANAGER.SaveTransform(D3DTS_WORLD, &matSky);
+
+		const bool bTextureMode = (pSkyDesc != nullptr && pSkyDesc->ucRenderMode == CSkyObject::SKY_RENDER_MODE_TEXTURE) ||
+			(pkt.dwSkyTextureID != kInvalidTextureHandle);
+
+		if (bTextureMode)
+		{
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+			STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+			STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+
+			for (unsigned int f = 0; f < 6; ++f)
+			{
+				TRenderTextureHandle hTex = kInvalidTextureHandle;
+				if (pSkyDesc && pSkyDesc->faceTextures[f] != kInvalidTextureHandle)
+					hTex = pSkyDesc->faceTextures[f];
+				else
+					hTex = pkt.dwSkyTextureID;
+
+				LPDIRECT3DTEXTURE9 pD3DTex = (hTex != kInvalidTextureHandle && CRenderResourceRegistry::InstancePtr())
+					? CRenderResourceRegistry::Instance().ResolveTexture(hTex)
+					: nullptr;
+
+				STATEMANAGER.SetTexture(0, pD3DTex);
+
+				if (pSkyDesc && f < 6 && !pSkyDesc->faces[f].vertices.empty())
+				{
+					const auto& verts = pSkyDesc->faces[f].vertices;
+					for (size_t q = 0; q + 4 <= verts.size(); q += 4)
+					{
+						if (CGraphicBase::SetPDTStream(const_cast<TPDTVertex*>(&verts[q]), 4))
+							STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+					}
+				}
+				else
+				{
+					TPDTVertex quad[4];
+					quad[0].position = s_faces[f].pos[0];
+					quad[0].texCoord = D3DXVECTOR2(0.0f, 1.0f);
+					quad[0].diffuse = 0xFFFFFFFF;
+
+					quad[1].position = s_faces[f].pos[1];
+					quad[1].texCoord = D3DXVECTOR2(0.0f, 0.0f);
+					quad[1].diffuse = 0xFFFFFFFF;
+
+					quad[2].position = s_faces[f].pos[2];
+					quad[2].texCoord = D3DXVECTOR2(1.0f, 1.0f);
+					quad[2].diffuse = 0xFFFFFFFF;
+
+					quad[3].position = s_faces[f].pos[3];
+					quad[3].texCoord = D3DXVECTOR2(1.0f, 0.0f);
+					quad[3].diffuse = 0xFFFFFFFF;
+
+					if (CGraphicBase::SetPDTStream(quad, 4))
+						STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+				}
+			}
+
+			STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSU);
+			STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSV);
+		}
+		else
+		{
+			// Tryb diffuse / gradientowy (SELECTARG2)
+			D3DCOLOR dwDiffuse = D3DCOLOR_COLORVALUE(pkt.vSkyColor.r, pkt.vSkyColor.g, pkt.vSkyColor.b, pkt.vSkyColor.a);
+			if (dwDiffuse == 0)
+				dwDiffuse = 0xFFFFFFFF;
+
+			if (pSkyDesc && !pSkyDesc->gradientVertices.empty())
+			{
+				const auto& gverts = pSkyDesc->gradientVertices;
+				for (size_t q = 0; q + 4 <= gverts.size(); q += 4)
+				{
+					if (CGraphicBase::SetPDTStream(const_cast<TPDTVertex*>(&gverts[q]), 4))
+						STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+				}
+			}
+			else
+			{
+				for (unsigned int f = 0; f < 6; ++f)
+				{
+					TPDTVertex quad[4];
+					quad[0].position = s_faces[f].pos[0];
+					quad[0].texCoord = D3DXVECTOR2(0.0f, 1.0f);
+					quad[0].diffuse = dwDiffuse;
+
+					quad[1].position = s_faces[f].pos[1];
+					quad[1].texCoord = D3DXVECTOR2(0.0f, 0.0f);
+					quad[1].diffuse = dwDiffuse;
+
+					quad[2].position = s_faces[f].pos[2];
+					quad[2].texCoord = D3DXVECTOR2(1.0f, 1.0f);
+					quad[2].diffuse = dwDiffuse;
+
+					quad[3].position = s_faces[f].pos[3];
+					quad[3].texCoord = D3DXVECTOR2(1.0f, 0.0f);
+					quad[3].diffuse = dwDiffuse;
+
+					if (CGraphicBase::SetPDTStream(quad, 4))
+						STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+				}
+			}
+		}
+
+		STATEMANAGER.RestoreTransform(D3DTS_WORLD);
+
+		STATEMANAGER.RestoreTextureStageState(1, D3DTSS_ALPHAOP);
+		STATEMANAGER.RestoreTextureStageState(1, D3DTSS_COLOROP);
+		STATEMANAGER.RestoreTexture(1);
+
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG2);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_FOGENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
+
+		// 2. Odtworzenie pelnego stanu chmur:
+		// (D3DTS_TEXTURE0 + COUNT2, MODULATEINVALPHA_ADDCOLOR, ONE/INVSRCCOLOR)
+		const TRenderTextureHandle hCloudTex = (pSkyDesc && pSkyDesc->cloudTextureHandle != kInvalidTextureHandle)
+			? pSkyDesc->cloudTextureHandle
+			: pkt.dwCloudTextureID;
+
+		if (hCloudTex != kInvalidTextureHandle)
+		{
+			LPDIRECT3DTEXTURE9 pCloudTex = CRenderResourceRegistry::InstancePtr()
+				? CRenderResourceRegistry::Instance().ResolveTexture(hCloudTex)
+				: nullptr;
+
+			if (pCloudTex)
+			{
+				STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, TRUE);
+				STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+				STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+				STATEMANAGER.SaveRenderState(D3DRS_FOGENABLE, FALSE);
+				STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+				STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+				STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCCOLOR);
+
+				STATEMANAGER.SaveTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+
+				D3DXMATRIX matTextureCloud;
+				if (pSkyDesc)
+				{
+					matTextureCloud = pSkyDesc->matCloudTexture;
+				}
+				else
+				{
+					D3DXMatrixIdentity(&matTextureCloud);
+					matTextureCloud._11 = (pkt.fCloudScale != 0.0f) ? pkt.fCloudScale : 1.0f;
+					matTextureCloud._22 = (pkt.fCloudScale != 0.0f) ? pkt.fCloudScale : 1.0f;
+				}
+
+				STATEMANAGER.SaveTransform(D3DTS_TEXTURE0, &matTextureCloud);
+
+				STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATEINVALPHA_ADDCOLOR);
+				STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+				STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+				STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+				STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+
+				D3DXMATRIX matProjCloud;
+				D3DXMatrixPerspectiveFovRH(&matProjCloud, D3DX_PI * 0.25f, 1.33333f, 50.0f, 999999.0f);
+
+				D3DXMATRIX matWorldCloud;
+				if (pSkyDesc)
+				{
+					matWorldCloud = pSkyDesc->matCloudWorld;
+				}
+				else
+				{
+					float fScale = (pkt.fCloudScale != 0.0f) ? pkt.fCloudScale : 1.0f;
+					D3DXMatrixScaling(&matWorldCloud, fScale, fScale, 1.0f);
+					matWorldCloud._43 = pkt.fCloudHeight;
+				}
+
+				STATEMANAGER.SaveTransform(D3DTS_WORLD, &matWorldCloud);
+				STATEMANAGER.SaveTransform(D3DTS_PROJECTION, &matProjCloud);
+				STATEMANAGER.SetTexture(0, pCloudTex);
+
+				if (pSkyDesc && !pSkyDesc->faceCloud.vertices.empty())
+				{
+					const auto& cverts = pSkyDesc->faceCloud.vertices;
+					for (size_t q = 0; q + 4 <= cverts.size(); q += 4)
+					{
+						if (CGraphicBase::SetPDTStream(const_cast<TPDTVertex*>(&cverts[q]), 4))
+							STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+					}
+				}
+				else
+				{
+					TPDTVertex cloudQuad[4];
+					cloudQuad[0].position = D3DXVECTOR3(1.0f, 1.0f, 0.0f);
+					cloudQuad[0].texCoord = D3DXVECTOR2(0.0f, 1.0f);
+					cloudQuad[0].diffuse = 0xFFFFFFFF;
+
+					cloudQuad[1].position = D3DXVECTOR3(-1.0f, 1.0f, 0.0f);
+					cloudQuad[1].texCoord = D3DXVECTOR2(0.0f, 0.0f);
+					cloudQuad[1].diffuse = 0xFFFFFFFF;
+
+					cloudQuad[2].position = D3DXVECTOR3(1.0f, -1.0f, 0.0f);
+					cloudQuad[2].texCoord = D3DXVECTOR2(1.0f, 1.0f);
+					cloudQuad[2].diffuse = 0xFFFFFFFF;
+
+					cloudQuad[3].position = D3DXVECTOR3(-1.0f, -1.0f, 0.0f);
+					cloudQuad[3].texCoord = D3DXVECTOR2(1.0f, 0.0f);
+					cloudQuad[3].diffuse = 0xFFFFFFFF;
+
+					if (CGraphicBase::SetPDTStream(cloudQuad, 4))
+						STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+				}
+
+				STATEMANAGER.RestoreTransform(D3DTS_PROJECTION);
+				STATEMANAGER.RestoreTransform(D3DTS_WORLD);
+
+				STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAARG1);
+				STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
+				STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG2);
+				STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
+				STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+
+				STATEMANAGER.RestoreTransform(D3DTS_TEXTURE0);
+				STATEMANAGER.RestoreTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS);
+
+				STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+				STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
+				STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+				STATEMANAGER.RestoreRenderState(D3DRS_FOGENABLE);
+				STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+				STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+				STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+			}
+		}
+	}
 }
 
 void CD3D9RenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, unsigned int count)
