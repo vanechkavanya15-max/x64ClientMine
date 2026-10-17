@@ -130,7 +130,7 @@ CSkyObject::CSkyObject() :
 	D3DXMatrixIdentity(&m_matTranslationCloud);
 	D3DXMatrixIdentity(&m_matTextureCloud);
 
-	m_dwlastTime = CTimer::Instance().GetCurrentMillisecond();
+	m_dwlastTime = CTimer::InstancePtr() ? CTimer::Instance().GetCurrentMillisecond() : 0;
 }
 
 CSkyObject::~CSkyObject()
@@ -852,56 +852,127 @@ void CSkyBox::Update()
 	m_bTransitionStarted = bResult;
 }
 
+SSkyDescription CSkyBox::BuildSkyDescription() const
+{
+	SSkyDescription desc{};
+	desc.ucRenderMode = m_ucRenderMode;
+	desc.matSkyWorld = m_matWorld;
+	desc.matCloudWorld = m_matWorldCloud;
+	desc.matCloudTexture = m_matTextureCloud;
+	desc.matCloudTexture._31 = m_fCloudPositionU;
+	desc.matCloudTexture._32 = m_fCloudPositionV;
+
+	desc.fCloudPositionU = m_fCloudPositionU;
+	desc.fCloudPositionV = m_fCloudPositionV;
+	desc.fCloudScaleX = m_fCloudScaleX;
+	desc.fCloudScaleY = m_fCloudScaleY;
+	desc.fCloudHeight = m_fCloudHeight;
+	desc.fCloudScrollSpeedU = m_fCloudScrollSpeedU;
+	desc.fCloudScrollSpeedV = m_fCloudScrollSpeedV;
+
+	desc.totalQuadCount = 0;
+
+	for (size_t i = 0; i < 6; ++i)
+	{
+		desc.faces[i].strFaceName = m_Faces[i].m_strfacename;
+		desc.faces[i].strFaceTextureFileName = m_Faces[i].m_strFaceTextureFileName;
+		desc.faces[i].quadVector = m_Faces[i].m_SkyObjectQuadVector;
+		desc.totalQuadCount += static_cast<uint32_t>(m_Faces[i].m_SkyObjectQuadVector.size());
+
+		for (const auto& quad : m_Faces[i].m_SkyObjectQuadVector)
+		{
+			const TPDTVertex* pVerts = quad.GetVertices();
+			for (int v = 0; v < 4; ++v)
+			{
+				desc.faces[i].vertices.push_back(pVerts[v]);
+				desc.gradientVertices.push_back(pVerts[v]);
+			}
+		}
+
+		if (!m_Faces[i].m_strFaceTextureFileName.empty())
+		{
+			auto it = m_GraphicImageInstanceMap.find(m_Faces[i].m_strFaceTextureFileName);
+			if (it != m_GraphicImageInstanceMap.end() && it->second)
+			{
+				LPDIRECT3DTEXTURE9 pTex = it->second->GetTextureReference().GetD3DTexture();
+				if (pTex && CRenderResourceRegistry::InstancePtr())
+				{
+					TRenderTextureHandle h = CRenderResourceRegistry::Instance().RegisterTexture(pTex, "SkyBox_Face");
+					desc.faces[i].textureHandle = h;
+					desc.faces[i].textureId = h;
+					desc.faceTextures[i] = h;
+					desc.faceTextureIds[i] = h;
+				}
+			}
+		}
+	}
+
+	desc.faceCloud.strFaceName = m_FaceCloud.m_strfacename;
+	desc.faceCloud.strFaceTextureFileName = m_FaceCloud.m_strFaceTextureFileName;
+	desc.faceCloud.quadVector = m_FaceCloud.m_SkyObjectQuadVector;
+	for (const auto& quad : m_FaceCloud.m_SkyObjectQuadVector)
+	{
+		const TPDTVertex* pVerts = quad.GetVertices();
+		for (int v = 0; v < 4; ++v)
+		{
+			desc.faceCloud.vertices.push_back(pVerts[v]);
+		}
+	}
+
+	if (!m_FaceCloud.m_strfacename.empty())
+	{
+		auto itCloud = m_GraphicImageInstanceMap.find(m_FaceCloud.m_strfacename);
+		if (itCloud != m_GraphicImageInstanceMap.end() && itCloud->second)
+		{
+			CGraphicTexture* pTexObj = itCloud->second->GetTexturePointer();
+			if (pTexObj && pTexObj->GetD3DTexture() && CRenderResourceRegistry::InstancePtr())
+			{
+				TRenderTextureHandle h = CRenderResourceRegistry::Instance().RegisterTexture(pTexObj->GetD3DTexture(), "SkyBox_Cloud");
+				desc.cloudTextureHandle = h;
+				desc.cloudTextureId = h;
+				desc.faceCloud.textureHandle = h;
+				desc.faceCloud.textureId = h;
+			}
+		}
+	}
+
+	return desc;
+}
+
 void CSkyBox::Render()
 {
+	SSkyDescription skyDesc = BuildSkyDescription();
+
 	// Ekstrakcja stanu nieba do kolejki pakietow C-ABI (WGPU / Strangler Fig Pattern)
 	TSkyBoxPacket pkt{};
-	pkt.matWorld = m_matWorld;
+	pkt.matWorld = skyDesc.matSkyWorld;
 	pkt.dwFaceCount = 6;
 
 	pkt.dwSkyTextureID = kInvalidTextureHandle;
 	for (unsigned int i = 0; i < 6; ++i)
 	{
-		auto it = m_GraphicImageInstanceMap.find(m_Faces[i].m_strFaceTextureFileName);
-		if (it != m_GraphicImageInstanceMap.end() && it->second)
+		if (skyDesc.faceTextures[i] != kInvalidTextureHandle)
 		{
-			LPDIRECT3DTEXTURE9 pTex = it->second->GetTextureReference().GetD3DTexture();
-			if (pTex)
-			{
-				pkt.dwSkyTextureID = CRenderResourceRegistry::InstancePtr()
-					? CRenderResourceRegistry::Instance().RegisterTexture(pTex, "SkyBox_Face")
-					: kInvalidTextureHandle;
-				break;
-			}
+			pkt.dwSkyTextureID = skyDesc.faceTextures[i];
+			break;
 		}
 	}
 
-	pkt.dwCloudTextureID = kInvalidTextureHandle;
-	if (!m_FaceCloud.m_strfacename.empty())
-	{
-		auto it = m_GraphicImageInstanceMap.find(m_FaceCloud.m_strfacename);
-		if (it != m_GraphicImageInstanceMap.end() && it->second)
-		{
-			CGraphicTexture* pTexObj = it->second->GetTexturePointer();
-			if (pTexObj && pTexObj->GetD3DTexture())
-			{
-				pkt.dwCloudTextureID = CRenderResourceRegistry::InstancePtr()
-					? CRenderResourceRegistry::Instance().RegisterTexture(pTexObj->GetD3DTexture(), "SkyBox_Cloud")
-					: kInvalidTextureHandle;
-			}
-		}
-	}
-
-	pkt.fCloudScale = m_fCloudScaleX;
-	pkt.fCloudHeight = m_fCloudHeight;
-	pkt.fCloudScrollSpeed = m_fCloudScrollSpeedU;
+	pkt.dwCloudTextureID = skyDesc.cloudTextureHandle;
+	pkt.fCloudScale = (skyDesc.fCloudScaleX != 0.0f) ? skyDesc.fCloudScaleX : 1.0f;
+	pkt.fCloudHeight = skyDesc.fCloudHeight;
+	pkt.fCloudScrollSpeed = skyDesc.fCloudScrollSpeedU;
 	pkt.fPad = 0.0f;
 	pkt.vSkyColor = m_atmosphereUniforms.vFogColor;
 
 	CRenderQueueManager::Instance().SubmitSkyBox(pkt);
+	CRenderQueueManager::Instance().SubmitSkyDescription(skyDesc);
 
 	if (RenderOwnership::LegacyDraws(ERenderCategory::SkyBox))
 	{
+		if (!CStateManager::InstancePtr() || !STATEMANAGER.GetDevice())
+			return;
+
 		// 2004.01.25 myevan 처리를 렌더링 후반으로 옮기고, DepthTest 처리
 		STATEMANAGER.SaveRenderState(D3DRS_ZENABLE,	TRUE);
 		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
@@ -981,6 +1052,9 @@ void CSkyBox::RenderCloud()
 	if (!RenderOwnership::LegacyDraws(ERenderCategory::SkyBox))
 		return;
 
+	if (!CStateManager::InstancePtr() || !STATEMANAGER.GetDevice())
+		return;
+
 	if (m_FaceCloud.m_strfacename.empty())
 		return;
 
@@ -1006,7 +1080,7 @@ void CSkyBox::RenderCloud()
 	m_matTextureCloud._31 = m_fCloudPositionU;
 	m_matTextureCloud._32 = m_fCloudPositionV;
 	
-	DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
+	DWORD dwCurTime = CTimer::InstancePtr() ? CTimer::Instance().GetCurrentMillisecond() : 0;
 	
 	m_fCloudPositionU += m_fCloudScrollSpeedU * (float)( dwCurTime - m_dwlastTime ) * 0.001f;
 	if (m_fCloudPositionU >= 1.0f)

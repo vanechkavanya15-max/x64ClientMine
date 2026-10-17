@@ -8,8 +8,10 @@
 #include <utility>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 class IRenderBackend;
+struct SSkyDescription;
 
 constexpr uint32_t M2_RENDER_ABI_VERSION = 2;
 
@@ -158,6 +160,9 @@ public:
 	void SubmitEffect(const TEffectInstancePacket& packet);
 	void SubmitWater(const TWaterPacket& packet);
 	void SubmitSkyBox(const TSkyBoxPacket& packet);
+	void SubmitSkyDescription(const SSkyDescription& desc);
+	const SSkyDescription* GetSkyDescription() const;
+	bool HasSkyDescription() const;
 	void SubmitDungeonBlock(const TDungeonBlockPacket& packet);
 	void SubmitWeaponTrace(const TWeaponTracePacket& packet);
 
@@ -219,6 +224,7 @@ private:
 	std::vector<TSkyBoxPacket> m_skyBoxPackets;
 	std::vector<TDungeonBlockPacket> m_dungeonPackets;
 	std::vector<TWeaponTracePacket> m_weaponTracePackets;
+	std::unique_ptr<SSkyDescription> m_pSkyDescription;
 
 	size_t m_flushedSpeedTreeOffset{ 0 };
 	size_t m_flushedUIOffset{ 0 };
