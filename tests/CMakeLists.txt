@@ -6418,6 +6418,11 @@ target_include_directories(test_c26_render_packet_abi PRIVATE
 target_link_libraries(test_c26_render_packet_abi PRIVATE EterLib EterBase doctest)
 add_test(NAME RenderPacketAbiTest COMMAND test_c26_render_packet_abi)
 
+add_executable(test_c26_render_abi_c test_c26_render_abi_c.c)
+set_source_files_properties(test_c26_render_abi_c.c PROPERTIES LANGUAGE C)
+target_include_directories(test_c26_render_abi_c PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME RenderAbiCTest COMMAND test_c26_render_abi_c)
+
 add_executable(test_c26_ui_scissor test_c26_ui_scissor.cpp)
 target_include_directories(test_c26_ui_scissor PRIVATE
     ${CMAKE_SOURCE_DIR}/src
