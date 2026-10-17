@@ -2,6 +2,7 @@
 #include "TextureUploadBridge.h"
 #include "WgpuRenderBackend.h"
 #include "RenderQueueManager.h"
+#include "RenderOwnership.h"
 #include <mutex>
 
 static std::mutex s_bridgeMutex;
@@ -43,7 +44,7 @@ bool CTextureUploadBridge::EnsureWgpuLoaded()
 	HMODULE hModule = ::GetModuleHandleA("m2_render_wgpu.dll");
 
 	// 2. Jesli nie, ale konfiguracja wskazuje na wgpu, sprobuj zaladowac biblioteke
-	if (!hModule && CWgpuRenderBackend::IsConfiguredInConfigJson())
+	if (!hModule && RenderOwnership::IsWgpuConfigured())
 	{
 		hModule = ::LoadLibraryA("m2_render_wgpu.dll");
 		if (hModule)
@@ -82,7 +83,7 @@ bool CTextureUploadBridge::IsWgpuActive() const
 		return true;
 
 	// Sprawdz czy config.json lub zmienna M2_GRAPHICS_ENGINE wskazuje wgpu
-	if (CWgpuRenderBackend::IsConfiguredInConfigJson())
+	if (RenderOwnership::IsWgpuConfigured())
 		return true;
 
 	return false;
