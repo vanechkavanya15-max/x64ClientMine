@@ -481,7 +481,30 @@ typedef struct RENDER_ABI_ALIGN(16) TSpeedTreeInstanceData
     RENDER_VEC3_TYPE v3Position;
     uint32_t dwTreeCRC;
     float fWindStrength;
-    float fPad[3];
+    union
+    {
+        float fPad[3];
+        struct
+        {
+            float fAlphaRefBranch;
+            float fAlphaRefFrond;
+            float fAlphaRefLeaf;
+        };
+        struct
+        {
+            uint8_t ucAlphaRefBranch;
+            uint8_t ucAlphaRefFrond;
+            uint8_t ucAlphaRefLeaf0;
+            uint8_t ucAlphaRefLeaf1;
+            int8_t nBranchLod;
+            int8_t nFrondLod;
+            int8_t nLeafLod0;
+            int8_t nLeafLod1;
+            uint8_t ucAlphaRefBillboard0;
+            uint8_t ucAlphaRefBillboard1;
+            uint16_t wInstanceFlags;
+        };
+    };
 
 #ifdef __cplusplus
     TSpeedTreeInstanceData()
@@ -505,7 +528,24 @@ typedef struct RENDER_ABI_ALIGN(16) TSpeedTreePacket
     uint32_t dwLeafTextureID;
     uint32_t dwInstanceCount;
     const TSpeedTreeInstanceData* pInstances;
-    float fPad[2];
+    union
+    {
+        float fPad[2];
+        struct
+        {
+            float fAlphaRef;
+            uint32_t dwFlags;
+        };
+        struct
+        {
+            uint8_t ucAlphaRefBranch;
+            uint8_t ucAlphaRefFrond;
+            uint8_t ucAlphaRefLeaf;
+            uint8_t ucAlphaRefBillboard;
+            int16_t nDiscreteLod;
+            uint16_t wFlags;
+        };
+    };
 
 #ifdef __cplusplus
     TSpeedTreePacket()
@@ -514,6 +554,30 @@ typedef struct RENDER_ABI_ALIGN(16) TSpeedTreePacket
     }
 #endif
 } TSpeedTreePacket;
+
+/* 9b. TSpeedTreeBillboardVertex: 20 bajtow (Vec3 + Vec2, D3DFVF_XYZ | D3DFVF_TEX1) */
+typedef struct TSpeedTreeBillboardVertex
+{
+    RENDER_VEC3_TYPE position;
+    RENDER_VEC2_TYPE texCoord;
+
+#ifdef __cplusplus
+    TSpeedTreeBillboardVertex()
+    {
+        std::memset(this, 0, sizeof(*this));
+    }
+    TSpeedTreeBillboardVertex(float x, float y, float z, float u, float v)
+    {
+#if defined(RENDER_VEC3_TYPE) && !defined(RENDER_ABI_C_ONLY)
+        position = RENDER_VEC3_TYPE(x, y, z);
+        texCoord = RENDER_VEC2_TYPE(u, v);
+#else
+        position.x = x; position.y = y; position.z = z;
+        texCoord.x = u; texCoord.y = v;
+#endif
+    }
+#endif
+} TSpeedTreeBillboardVertex;
 
 /* 10. TParticleInstanceData: 64 bajty, wyrownanie 16B */
 typedef struct RENDER_ABI_ALIGN(16) TParticleInstanceData
@@ -865,6 +929,7 @@ RENDER_ABI_STATIC_ASSERT(sizeof(TWeaponTracePacket) == 24, "ABI: TWeaponTracePac
 RENDER_ABI_STATIC_ASSERT(sizeof(TDebugLinePacket) == 32, "ABI: TDebugLinePacket == 32B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderPassDesc) == 144, "ABI: TRenderPassDesc == 144B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TParticlePacket) == 96, "ABI: TParticlePacket == 96B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TSpeedTreeBillboardVertex) == 20, "ABI: TSpeedTreeBillboardVertex == 20B");
 
 #ifdef __cplusplus
 }

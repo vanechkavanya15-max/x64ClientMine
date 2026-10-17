@@ -12,6 +12,7 @@
 #include "SpeedTreeForest.h"
 #include "SpeedTreeConfig.h"
 #include "EterLib/RenderQueueManager.h"
+#include "EterLib/RenderResourceRegistry.h"
 #include <cfloat>
 
 using namespace std;
@@ -58,7 +59,7 @@ void CSpeedTreeForest::Clear()
 		SpeedTreeWrapperPtr pMainTree = tr.second;
 
 		UINT uiCount;
-		auto ppInstances = pMainTree->GetInstances(uiCount);
+		const auto& ppInstances = pMainTree->GetInstances(uiCount);
 
 		for (auto it : ppInstances)
 			it->Clear();
@@ -200,7 +201,7 @@ void CSpeedTreeForest::SetWindStrength(float fStrength)
 	while (itor != m_pMainTreeMap.end())
 	{
 		auto pMainTree = (itor++)->second;
-		auto ppInstances = pMainTree->GetInstances(uiCount);
+		const auto& ppInstances = pMainTree->GetInstances(uiCount);
 
 		for (auto it : ppInstances)
 			it->GetSpeedTree()->SetWindStrength(m_fWindStrength);
@@ -331,7 +332,7 @@ void CSpeedTreeForest::SubmitTreePackets(unsigned long ulRenderBitVector)
 			continue;
 
 		UINT uiCount = 0;
-		auto ppInstances = pMainTree->GetInstances(uiCount);
+		const auto& ppInstances = pMainTree->GetInstances(uiCount);
 		if (ppInstances.empty())
 			continue;
 
@@ -369,7 +370,35 @@ void CSpeedTreeForest::SubmitTreePackets(unsigned long ulRenderBitVector)
 					instData.v3Position = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 					D3DXMatrixIdentity(&instData.matWorld);
 				}
+
+				instData.fAlphaRefBranch = pInst->GetBranchAlphaTestValue();
+				instData.fAlphaRefFrond = pInst->GetFrondAlphaTestValue();
+				instData.fAlphaRefLeaf = pInst->GetLeafAlphaTestValue(0);
+				instData.ucAlphaRefBranch = static_cast<uint8_t>(pInst->GetBranchAlphaTestValue());
+				instData.ucAlphaRefFrond = static_cast<uint8_t>(pInst->GetFrondAlphaTestValue());
+				instData.ucAlphaRefLeaf0 = static_cast<uint8_t>(pInst->GetLeafAlphaTestValue(0));
+				instData.ucAlphaRefLeaf1 = static_cast<uint8_t>(pInst->GetLeafAlphaTestValue(1));
+				instData.nBranchLod = static_cast<int8_t>(pInst->GetBranchLod());
+				instData.nFrondLod = static_cast<int8_t>(pInst->GetFrondLod());
+				instData.nLeafLod0 = static_cast<int8_t>(pInst->GetLeafLod(0));
+				instData.nLeafLod1 = static_cast<int8_t>(pInst->GetLeafLod(1));
+				instData.ucAlphaRefBillboard0 = static_cast<uint8_t>(pInst->GetBillboardAlphaTestValue(0));
+				instData.ucAlphaRefBillboard1 = static_cast<uint8_t>(pInst->GetBillboardAlphaTestValue(1));
+				instData.wInstanceFlags = 0;
 			}
+		}
+
+		uint32_t dwTrunkTexID = 0;
+		uint32_t dwLeafTexID = 0;
+		if (CRenderResourceRegistry::InstancePtr())
+		{
+			auto* pTrunkTex = pMainTree->GetBranchTexture();
+			if (pTrunkTex)
+				dwTrunkTexID = CRenderResourceRegistry::Instance().FindTextureHandle(pTrunkTex);
+
+			auto* pLeafTex = pMainTree->GetCompositeTexture();
+			if (pLeafTex)
+				dwLeafTexID = CRenderResourceRegistry::Instance().FindTextureHandle(pLeafTex);
 		}
 
 		// 1. Partia pni (siatki 3D: Branches + Fronds)
@@ -379,10 +408,16 @@ void CSpeedTreeForest::SubmitTreePackets(unsigned long ulRenderBitVector)
 			branchPacket.pMainTree = pMainTree.get();
 			branchPacket.dwTreeCRC = dwCRC;
 			branchPacket.dwTreeTypeID = dwCRC;
+			branchPacket.dwTrunkTextureID = dwTrunkTexID;
+			branchPacket.dwLeafTextureID = dwLeafTexID;
 			branchPacket.bRenderBranches = (ulRenderBitVector & Forest_RenderBranches) != 0;
 			branchPacket.bRenderFronds = (ulRenderBitVector & Forest_RenderFronds) != 0;
 			branchPacket.dwInstanceCount = static_cast<uint32_t>(visibleCount);
 			branchPacket.pInstances = pInstanceSlice;
+			branchPacket.fAlphaRef = pMainTree->GetBranchAlphaTestValue();
+			branchPacket.ucAlphaRefBranch = static_cast<uint8_t>(pMainTree->GetBranchAlphaTestValue());
+			branchPacket.ucAlphaRefFrond = static_cast<uint8_t>(pMainTree->GetFrondAlphaTestValue());
+			branchPacket.nDiscreteLod = static_cast<int16_t>(pMainTree->GetBranchLod());
 			rqm.SubmitSpeedTree(branchPacket);
 		}
 
@@ -393,10 +428,16 @@ void CSpeedTreeForest::SubmitTreePackets(unsigned long ulRenderBitVector)
 			leafPacket.pMainTree = pMainTree.get();
 			leafPacket.dwTreeCRC = dwCRC;
 			leafPacket.dwTreeTypeID = dwCRC;
+			leafPacket.dwTrunkTextureID = dwTrunkTexID;
+			leafPacket.dwLeafTextureID = dwLeafTexID;
 			leafPacket.bRenderLeaves = (ulRenderBitVector & Forest_RenderLeaves) != 0;
 			leafPacket.bRenderBillboards = (ulRenderBitVector & Forest_RenderBillboards) != 0;
 			leafPacket.dwInstanceCount = static_cast<uint32_t>(visibleCount);
 			leafPacket.pInstances = pInstanceSlice;
+			leafPacket.fAlphaRef = pMainTree->GetLeafAlphaTestValue(0);
+			leafPacket.ucAlphaRefLeaf = static_cast<uint8_t>(pMainTree->GetLeafAlphaTestValue(0));
+			leafPacket.ucAlphaRefBillboard = static_cast<uint8_t>(pMainTree->GetBillboardAlphaTestValue(0));
+			leafPacket.nDiscreteLod = static_cast<int16_t>(pMainTree->GetLeafLod(0));
 			rqm.SubmitSpeedTree(leafPacket);
 		}
 	}

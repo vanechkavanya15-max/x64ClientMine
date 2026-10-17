@@ -590,9 +590,6 @@ bool CRenderQueueManager::ExportFrameToBinaryV2(const char* c_pszFileName) const
 				std::memset(&sanitized, 0, sizeof(sanitized));
 				sanitized = pkt.pInstances[idx];
 				sanitized.pTreeInstance = nullptr;
-				sanitized.fPad[0] = 0.0f;
-				sanitized.fPad[1] = 0.0f;
-				sanitized.fPad[2] = 0.0f;
 				fwrite(&sanitized, sizeof(TSpeedTreeInstanceData), 1, fp);
 			}
 		}

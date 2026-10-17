@@ -898,20 +898,61 @@ CSpeedTreeWrapper::SpeedTreeWrapperPtr CSpeedTreeWrapper::MakeInstance()
 
 ///////////////////////////////////////////////////////////////////////  
 //	CSpeedTreeWrapper::GetInstances
-std::vector <CSpeedTreeWrapper::SpeedTreeWrapperPtr> CSpeedTreeWrapper::GetInstances(UINT& nCount)
+const std::vector<CSpeedTreeWrapper::SpeedTreeWrapperPtr>& CSpeedTreeWrapper::GetInstances(UINT& nCount) const
 {
-	std::vector <SpeedTreeWrapperPtr> kResult;
+	nCount = static_cast<UINT>(m_vInstances.size());
+	return m_vInstances;
+}
 
-	nCount = m_vInstances.size();
-	if (nCount)
-	{
-		for (auto it : m_vInstances)
-		{
-			kResult.push_back(it);
-		}
-	}
+float CSpeedTreeWrapper::GetBranchAlphaTestValue(void) const
+{
+	return m_pGeometryCache ? m_pGeometryCache->m_fBranchAlphaTestValue : 84.0f;
+}
 
-	return kResult;
+float CSpeedTreeWrapper::GetFrondAlphaTestValue(void) const
+{
+	return m_pGeometryCache ? m_pGeometryCache->m_fFrondAlphaTestValue : 84.0f;
+}
+
+float CSpeedTreeWrapper::GetLeafAlphaTestValue(int level) const
+{
+	if (!m_pGeometryCache)
+		return 84.0f;
+	return (level == 0) ? m_pGeometryCache->m_sLeaves0.m_fAlphaTestValue : m_pGeometryCache->m_sLeaves1.m_fAlphaTestValue;
+}
+
+float CSpeedTreeWrapper::GetBillboardAlphaTestValue(int level) const
+{
+	if (!m_pGeometryCache)
+		return 84.0f;
+	return (level == 0) ? m_pGeometryCache->m_sBillboard0.m_fAlphaTestValue : m_pGeometryCache->m_sBillboard1.m_fAlphaTestValue;
+}
+
+int CSpeedTreeWrapper::GetBranchLod(void) const
+{
+	return m_pGeometryCache ? m_pGeometryCache->m_sBranches.m_nDiscreteLodLevel : 0;
+}
+
+int CSpeedTreeWrapper::GetFrondLod(void) const
+{
+	return m_pGeometryCache ? m_pGeometryCache->m_sFronds.m_nDiscreteLodLevel : 0;
+}
+
+int CSpeedTreeWrapper::GetLeafLod(int level) const
+{
+	if (!m_pGeometryCache)
+		return 0;
+	return (level == 0) ? m_pGeometryCache->m_sLeaves0.m_nDiscreteLodLevel : m_pGeometryCache->m_sLeaves1.m_nDiscreteLodLevel;
+}
+
+LPDIRECT3DTEXTURE9 CSpeedTreeWrapper::GetBranchTexture(void) const
+{
+	return m_BranchImageInstance.IsEmpty() ? nullptr : m_BranchImageInstance.GetTextureReference().GetD3DTexture();
+}
+
+LPDIRECT3DTEXTURE9 CSpeedTreeWrapper::GetCompositeTexture(void) const
+{
+	return m_CompositeImageInstance.IsEmpty() ? nullptr : m_CompositeImageInstance.GetTextureReference().GetD3DTexture();
 }
 
 void CSpeedTreeWrapper::DeleteInstance(SpeedTreeWrapperPtr pInstance)
@@ -1006,7 +1047,7 @@ void CSpeedTreeWrapper::RenderBranches(void) const
 			if (stripLength > 2)
 			{
 				ms_faceCount += stripLength - 2;
-				if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+				if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 					STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, 0, m_pGeometryCache->m_sBranches.m_usVertexCount, m_branchStripOffsets[s], stripLength - 2);
 			}
 		}
@@ -1087,7 +1128,7 @@ void CSpeedTreeWrapper::RenderFronds(void) const
 			if (stripLength > 2)
 			{
 				ms_faceCount += stripLength - 2;
-				if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+				if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 					STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, 0, m_pGeometryCache->m_sFronds.m_usVertexCount, m_frondStripOffsets[s], stripLength - 2);
 			}
 		}
@@ -1258,7 +1299,7 @@ void CSpeedTreeWrapper::RenderLeaves(void) const
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, static_cast<DWORD>(pLeaf->m_fAlphaTestValue));
 		
 		ms_faceCount += pLeaf->m_usLeafCount * 2;
-		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 			STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, pLeaf->m_usLeafCount * 2);
 	}
 }
@@ -1314,7 +1355,7 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sBillboard0.m_fAlphaTestValue));
 		
 		ms_faceCount += 2;
-		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
 	
@@ -1333,7 +1374,7 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sBillboard1.m_fAlphaTestValue));
 		
 		ms_faceCount += 2;
-		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
 	
@@ -1353,7 +1394,7 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sHorizontalBillboard.m_fAlphaTestValue));
 		
 		ms_faceCount += 2;
-		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
 	
