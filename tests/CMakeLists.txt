@@ -6260,6 +6260,16 @@ target_include_directories(test_c26_world_small_fixes PRIVATE
 target_link_libraries(test_c26_world_small_fixes PRIVATE DirectX)
 add_test(NAME WorldSmallFixesTest COMMAND test_c26_world_small_fixes)
 
+add_executable(test_c26_texture_ownership test_c26_texture_ownership.cpp)
+target_include_directories(test_c26_texture_ownership PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_texture_ownership PRIVATE EterLib EterImageLib PackLib EterBase DirectX ws2_32)
+add_test(NAME TextureOwnershipTest COMMAND test_c26_texture_ownership)
+
+
 add_executable(test_c26_speedtree_update
     test_c26_speedtree_update.cpp
 )

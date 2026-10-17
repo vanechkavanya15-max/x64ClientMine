@@ -14,16 +14,28 @@ CGraphicSubImage::TType CGraphicSubImage::Type()
 
 CGraphicSubImage::CGraphicSubImage(const char* c_szFileName) : CGraphicImage(c_szFileName)
 {
+	m_imageTexture.SetOwnsTexture(false);
 }
 
 CGraphicSubImage::~CGraphicSubImage()
 {
+	m_imageTexture.SetOwnsTexture(false);
 	m_roImage = NULL;
+}
+
+void CGraphicSubImage::DestroyDeviceObjects()
+{
+	m_imageTexture.SetOwnsTexture(false);
+	m_imageTexture.DestroyDeviceObjects();
 }
 
 bool CGraphicSubImage::CreateDeviceObjects()
 {
+	if (m_roImage.IsNull())
+		return false;
+
 	m_imageTexture.CreateFromTexturePointer(m_roImage->GetTexturePointer());
+	m_imageTexture.SetOwnsTexture(false);
 	return true;
 }
 
@@ -134,6 +146,9 @@ bool CGraphicSubImage::OnLoad(int iSize, const void* c_pvBuf)
 
 void CGraphicSubImage::OnClear()
 {
+	m_imageTexture.SetOwnsTexture(false);
+	m_imageTexture.Destroy();
+	m_imageTexture.SetOwnsTexture(false);
 	m_roImage = NULL;
 	memset(&m_rect, 0, sizeof(m_rect));
 }

@@ -44,6 +44,9 @@ class CGraphicTexture : public CGraphicBase
 		LPDIRECT3DTEXTURE9 GetD3DTexture() const;
 
 		void DestroyDeviceObjects();
+
+		void SetOwnsTexture(bool bOwns) { m_bOwnsTexture = bOwns; }
+		bool DoesOwnTexture() const { return m_bOwnsTexture; }
 		
 	protected:
 		CGraphicTexture();
@@ -54,6 +57,7 @@ class CGraphicTexture : public CGraphicBase
 
 	protected:
 		bool m_bEmpty;
+		bool m_bOwnsTexture;
 
 		int m_width;
 		int m_height;

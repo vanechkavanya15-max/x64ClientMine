@@ -116,8 +116,15 @@ void CGraphicTexture::DestroyDeviceObjects()
 {
 	if (m_lpd3dTexture)
 	{
-		CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(m_lpd3dTexture));
-		safe_release(m_lpd3dTexture);
+		if (m_bOwnsTexture)
+		{
+			CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(m_lpd3dTexture));
+			safe_release(m_lpd3dTexture);
+		}
+		else
+		{
+			m_lpd3dTexture = NULL;
+		}
 	}
 }
 
@@ -134,6 +141,7 @@ void CGraphicTexture::Initialize()
 	m_width = 0;
 	m_height = 0;
 	m_bEmpty = true;
+	m_bOwnsTexture = true;
 }
 
 bool CGraphicTexture::IsEmpty() const
@@ -169,4 +177,5 @@ CGraphicTexture::CGraphicTexture()
 
 CGraphicTexture::~CGraphicTexture()	
 {
+	DestroyDeviceObjects();
 }
