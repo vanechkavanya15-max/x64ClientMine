@@ -6,6 +6,7 @@
 #include "RenderQueueManager.h"
 #include "RenderOwnership.h"
 #include "RenderResourceRegistry.h"
+#include "RenderConventions.h"
 
 #include "EterBase/Timer.h"
 
@@ -1101,7 +1102,7 @@ void CSkyBox::RenderCloud()
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 	
 	D3DXMATRIX matProjCloud;
-	D3DXMatrixPerspectiveFovRH(&matProjCloud, D3DX_PI * 0.25f, 1.33333f, 50.0f, 999999.0f);
+	D3DXMatrixPerspectiveFovRH(&matProjCloud, D3DX_PI * 0.25f, kCloudAspect, 50.0f, 999999.0f);
 	STATEMANAGER.SaveTransform(D3DTS_WORLD, &m_matWorldCloud);
 	STATEMANAGER.SaveTransform(D3DTS_PROJECTION, &matProjCloud);
 	STATEMANAGER.SetTexture(0, pCloudGraphicImageInstance->GetTexturePointer()->GetD3DTexture());

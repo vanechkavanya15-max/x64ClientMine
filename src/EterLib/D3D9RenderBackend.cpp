@@ -11,6 +11,7 @@
 #include "SkyBox.h"
 #include "Camera.h"
 #include "ParticleQuad.h"
+#include "RenderConventions.h"
 
 CD3D9RenderBackend::CD3D9RenderBackend()
 {
@@ -463,7 +464,7 @@ void CD3D9RenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned in
 				STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
 				D3DXMATRIX matProjCloud;
-				D3DXMatrixPerspectiveFovRH(&matProjCloud, D3DX_PI * 0.25f, 1.33333f, 50.0f, 999999.0f);
+				D3DXMatrixPerspectiveFovRH(&matProjCloud, D3DX_PI * 0.25f, kCloudAspect, 50.0f, 999999.0f);
 
 				D3DXMATRIX matWorldCloud;
 				if (pSkyDesc)
