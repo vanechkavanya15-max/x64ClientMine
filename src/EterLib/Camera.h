@@ -264,11 +264,9 @@ class CCameraManager : public CSingleton<CCameraManager>
 		virtual ~CCameraManager();
 
 		bool AddCamera(unsigned char ucCameraNum);
-		bool RemoveCamera(unsigned char ucCameraNum);
 
 		CCamera * GetCurrentCamera();
 		void SetCurrentCamera(unsigned char ucCameraNum);
-		void ResetToPreviousCamera();
 
 		bool isCurrentCamera(unsigned char ucCameraNum);
 

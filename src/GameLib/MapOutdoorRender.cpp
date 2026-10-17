@@ -228,11 +228,6 @@ void CMapOutdoor::RenderCollision()
 	}
 }
 
-void CMapOutdoor::RenderScreenFiltering()
-{
-	m_ScreenFilter.Render();
-}
-
 void CMapOutdoor::RenderSky()
 {
 	if (IsVisiblePart(PART_SKY))

@@ -445,49 +445,6 @@ void CScreen::RenderBillboard(D3DXVECTOR3 * Position, D3DXCOLOR & Color)
 	//OLD: STATEMANAGER.DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, &ms_fillRectIdxVector[0], D3DFMT_INDEX16, vertices, sizeof(TPDTVertex));
 }
 
-void CScreen::DrawMinorGrid(float xMin, float yMin, float xMax, float yMax, float xminorStep, float yminorStep, float zPos)
-{
-	float x, y;
-	
-	for (y = yMin; y <= yMax; y += yminorStep)
-		RenderLine2d(xMin, y, xMax, y, zPos);
-
-	for (x = xMin; x <= xMax; x += xminorStep)
-		RenderLine2d(x, yMin, x, yMax, zPos);
-}
-
-void CScreen::DrawGrid(float xMin, float yMin, float xMax, float yMax, float xmajorStep, float ymajorStep, float xminorStep, float yminorStep, float zPos)
-{
-	xMin*=xminorStep;
-	xMax*=xminorStep;
-	yMin*=yminorStep;
-	yMax*=yminorStep;
-	xmajorStep*=xminorStep;
-	ymajorStep*=yminorStep;
-	
-	float x, y;
-	
-	SetDiffuseColor(0.5f, 0.5f, 0.5f);
-	DrawMinorGrid(xMin, yMin, xMax, yMax, xminorStep, yminorStep, zPos);
-	
-	SetDiffuseColor(0.7f, 0.7f, 0.7f);
-	for (y = 0.0f; y >= yMin; y -= ymajorStep)
-		RenderLine2d(xMin, y, xMax, y, zPos);
-	
-	for (y = 0.0f; y <= yMax; y += ymajorStep)
-		RenderLine2d(xMin, y, xMax, y, zPos);
-	
-	for (x = 0.0f; x >= xMin; x -= xmajorStep)
-		RenderLine2d(x, yMin, x, yMax, zPos);
-	
-	for (x = 0.0f; x <= yMax; x += xmajorStep)
-		RenderLine2d(x, yMin, x, yMax, zPos);
-
-	SetDiffuseColor(1.0f, 1.0f, 1.0f);
-	RenderLine2d(xMin, 0.0f, xMax, 0.0f, zPos);
-	RenderLine2d(0.0f, yMin, 0.0f, yMax, zPos);
-}
-
 void CScreen::SetCursorPosition(int x, int y, int hres, int vres)
 {
 	D3DXVECTOR3 v;
@@ -758,49 +715,11 @@ const CScreen::TRenderStatistics& CScreen::GetRenderStatistics()
 	return ms_renderStats;
 }
 
-bool g_isBrowserMode = false;
-RECT g_rcBrowser = { 0, 0, 0, 0 };
-
 void CScreen::Show(HWND hWnd)
 {
 	assert(ms_lpd3dDevice != NULL);
 
-	if (g_isBrowserMode)
-	{
-		RECT rcTop={ static_cast<long>(0), static_cast<long>(0), static_cast<long>(ms_d3dPresentParameter.BackBufferWidth), static_cast<long>(g_rcBrowser.top)};
-		RECT rcBottom={0, g_rcBrowser.bottom, static_cast<long>(ms_d3dPresentParameter.BackBufferWidth), static_cast<long>(ms_d3dPresentParameter.BackBufferHeight)};
-		RECT rcLeft={0, g_rcBrowser.top, g_rcBrowser.left, g_rcBrowser.bottom};	
-		RECT rcRight={g_rcBrowser.right, g_rcBrowser.top, static_cast<long>(ms_d3dPresentParameter.BackBufferWidth), g_rcBrowser.bottom};		
-		
-		ms_lpd3dDevice->Present(&rcTop, &rcTop, hWnd, NULL);
-		ms_lpd3dDevice->Present(&rcBottom, &rcBottom, hWnd, NULL);
-		ms_lpd3dDevice->Present(&rcLeft, &rcLeft, hWnd, NULL);	
-		ms_lpd3dDevice->Present(&rcRight, &rcRight, hWnd, NULL);
-	}
-	else
-	{
-		HRESULT hr = ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
-		if (D3DERR_DEVICELOST == hr || D3DERR_DEVICENOTRESET == hr)
-			RestoreDevice();
-		else if (FAILED(hr))
-			TraceError("CScreen::Show: Present failed (hr=0x%08X)", hr);
-	}	
-}
-
-void CScreen::Show(RECT * pSrcRect)
-{
-	assert(ms_lpd3dDevice != NULL);
-	HRESULT hr = ms_lpd3dDevice->Present(pSrcRect, NULL, NULL, NULL);
-	if (D3DERR_DEVICELOST == hr || D3DERR_DEVICENOTRESET == hr)
-		RestoreDevice();
-	else if (FAILED(hr))
-		TraceError("CScreen::Show: Present failed (hr=0x%08X)", hr);
-}
-
-void CScreen::Show(RECT * pSrcRect, HWND hWnd)
-{
-	assert(ms_lpd3dDevice != NULL);
-	HRESULT hr = ms_lpd3dDevice->Present(pSrcRect, NULL, hWnd, NULL);
+	HRESULT hr = ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
 	if (D3DERR_DEVICELOST == hr || D3DERR_DEVICENOTRESET == hr)
 		RestoreDevice();
 	else if (FAILED(hr))

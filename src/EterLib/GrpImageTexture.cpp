@@ -2,7 +2,6 @@
 #include "PackLib/PackManager.h"
 #include "GrpImageTexture.h"
 #include "EterImageLib/DDSTextureLoader9.h"
-#include "DecodedImageData.h"
 #include "TextureUploadBridge.h"
 
 #include <stb_image.h>
@@ -288,63 +287,6 @@ bool CGraphicImageTexture::CreateFromDiskFile(const char * c_szFileName, D3DFORM
 	m_d3dFmt = d3dFmt;
 	m_dwFilter = dwFilter;
 	return CreateDeviceObjects();
-}
-
-bool CGraphicImageTexture::CreateFromDecodedData(const TDecodedImageData& decodedImage, D3DFORMAT d3dFmt, DWORD dwFilter)
-{
-	assert(ms_lpd3dDevice != NULL);
-	assert(m_lpd3dTexture == NULL);
-
-	if (!decodedImage.IsValid())
-		return false;
-
-	m_bEmpty = true;
-
-	if (decodedImage.isDDS)
-	{
-		// DDS format - use DirectX loader
-		if (!CreateFromDDSTexture(decodedImage.pixels.size(), decodedImage.pixels.data()))
-		{
-			TraceError("CreateFromDecodedData: Failed to create DDS texture");
-			return false;
-		}
-	}
-	else if (decodedImage.format == TDecodedImageData::FORMAT_RGBA8)
-	{
-		D3DFORMAT format = D3DFMT_A8R8G8B8;
-		LPDIRECT3DTEXTURE9 texture = nullptr;
-		if (!CreateTextureFromRGBA(ms_lpd3dDevice, decodedImage.width, decodedImage.height, format, decodedImage.pixels.data(), decodedImage.width * 4, &texture))
-		{
-			TraceError("CreateFromDecodedData: Failed to create staged texture (%ux%u)", decodedImage.width, decodedImage.height);
-			return false;
-		}
-
-		m_width = decodedImage.width;
-		m_height = decodedImage.height;
-		m_lpd3dTexture = texture;
-		m_bEmpty = false;
-	}
-	else
-	{
-		TraceError("CreateFromDecodedData: Unsupported decoded image format");
-		return false;
-	}
-
-	if (!m_bEmpty)
-	{
-		const uintptr_t dwTextureID = reinterpret_cast<uintptr_t>(m_lpd3dTexture ? (void*)m_lpd3dTexture : (void*)this);
-		const uint32_t texFormat = static_cast<uint32_t>(decodedImage.d3dFormat != D3DFMT_UNKNOWN ? decodedImage.d3dFormat : (decodedImage.format == TDecodedImageData::FORMAT_RGBA8 ? D3DFMT_A8R8G8B8 : d3dFmt));
-		CTextureUploadBridge::Instance().RegisterTexture(
-			dwTextureID,
-			static_cast<uint32_t>(m_width),
-			static_cast<uint32_t>(m_height),
-			texFormat,
-			decodedImage.pixels.data(),
-			decodedImage.pixels.size()
-		);
-	}
-
-	return !m_bEmpty;
 }
 
 CGraphicImageTexture::CGraphicImageTexture()

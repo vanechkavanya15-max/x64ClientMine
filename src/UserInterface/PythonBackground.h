@@ -10,7 +10,6 @@
 #endif // _MSC_VER > 1000
 
 #include "GameLib/MapManager.h"
-#include "GameLib/TerrainDecal.h"
 #include "GameLib/SnowEnvironment.h"
 
 class CInstanceBase;

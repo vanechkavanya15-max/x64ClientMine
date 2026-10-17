@@ -774,14 +774,6 @@ void CCameraManager::SetCurrentCamera(unsigned char ucCameraNum)
 	m_pCurrentCamera = m_CameraMap[ucCameraNum];
 }
 
-void CCameraManager::ResetToPreviousCamera()
-{
-	if (!m_pPreviousCamera)
-		assert(false);
-	m_pCurrentCamera = m_pPreviousCamera;
-	m_pPreviousCamera = NULL;
-}
-
 bool CCameraManager::isCurrentCamera(unsigned char ucCameraNum)
 {
 	if (m_CameraMap[ucCameraNum] == m_pCurrentCamera)
@@ -795,15 +787,6 @@ bool CCameraManager::AddCamera(unsigned char ucCameraNum)
 	if(m_CameraMap.end() != m_CameraMap.find(ucCameraNum))
 		return false;
 	m_CameraMap.insert(TCameraMap::value_type(ucCameraNum, new CCamera));
-	return true;
-}
-
-bool CCameraManager::RemoveCamera(unsigned char ucCameraNum)
-{
-	TCameraMap::iterator itor = m_CameraMap.find(ucCameraNum);
-	if(m_CameraMap.end() == itor)
-		return false;
-	m_CameraMap.erase(itor);
 	return true;
 }
 

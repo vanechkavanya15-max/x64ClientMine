@@ -184,13 +184,9 @@ class CGraphicBase
 		void		GetMatrix(D3DXMATRIX * pRetMatrix) const;
 		const		D3DXMATRIX * GetMatrixPointer() const;
 
-		// Special Routine
-		void		GetSphereMatrix(D3DXMATRIX * pMatrix, float fValue = 0.1f);
-
 		////////////////////////////////////////////////////////////////////////
 		void		InitScreenEffect();
 		void		SetScreenEffectWaving(float fDuringTime, int iPower);
-		void		SetScreenEffectFlashing(float fDuringTime, const D3DXCOLOR & c_rColor);
 
 		////////////////////////////////////////////////////////////////////////
 		DWORD		GetColor(float r, float g, float b, float a = 1.0f);
@@ -219,7 +215,6 @@ class CGraphicBase
 		static D3DXMATRIX				ms_matView;
 		static D3DXMATRIX				ms_matProj;
 		static D3DXMATRIX				ms_matInverseView;
-		static D3DXMATRIX				ms_matInverseViewYAxis;
 
 		static D3DXMATRIX				ms_matWorld;
 		static D3DXMATRIX				ms_matWorldView;
@@ -254,10 +249,6 @@ class CGraphicBase
 		static LPDIRECT3DVERTEXDECLARATION9					ms_ptVS;
 		static LPDIRECT3DVERTEXDECLARATION9					ms_pntVS;
 		static LPDIRECT3DVERTEXDECLARATION9					ms_pnt2VS;
-
-		static D3DXMATRIX				ms_matScreen0;
-		static D3DXMATRIX				ms_matScreen1;
-		static D3DXMATRIX				ms_matScreen2;
 		//static D3DXMATRIX				ms_matPrePipeLine;
 
 		static D3DXVECTOR3				ms_vtPickRayOrig;
@@ -283,8 +274,6 @@ class CGraphicBase
 		// Screen Effect - Waving, Flashing and so on..
 		static DWORD					ms_dwWavingEndTime;
 		static int						ms_iWavingPower;
-		static DWORD					ms_dwFlashingEndTime;
-		static D3DXCOLOR				ms_FlashingColor;
 
 		// Terrain picking용 Ray... CCamera 이용하는 버전.. 기존의 Ray와 통합 필요...
  		static CRay						ms_Ray;

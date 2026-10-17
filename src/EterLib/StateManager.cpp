@@ -127,38 +127,9 @@ void CStateManager::SetBestFiltering(DWORD dwStage)
 	SetSamplerState(dwStage, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 }
 
-void CStateManager::Restore()
-{
-	int i, j;
-
-	m_bForce = true;
-
-	for (i = 0; i < STATEMANAGER_MAX_RENDERSTATES; ++i)
-	{
-		SetRenderState(D3DRENDERSTATETYPE(i), m_CurrentState.m_RenderStates[i]);
-	}
-
-	for (i = 0; i < STATEMANAGER_MAX_STAGES; ++i)
-	{
-		for (j = 0; j < STATEMANAGER_MAX_TEXTURESTATES; ++j)
-		{
-			SetTextureStageState(i, D3DTEXTURESTAGESTATETYPE(j), m_CurrentState.m_TextureStates[i][j]);
-			SetTextureStageState(i, D3DTEXTURESTAGESTATETYPE(j), m_CurrentState.m_SamplerStates[i][j]);
-		}
-	}
-
-	for (i = 0; i < STATEMANAGER_MAX_STAGES; ++i)
-	{
-		SetTexture(i, m_CurrentState.m_Textures[i]);
-	}
-
-	m_bForce = false;
-}
-
 void CStateManager::SetDefaultState()
 {
 	m_CurrentState.ResetState();
-	m_CurrentState_Copy.ResetState();
 
 	for (auto& stack : m_RenderStateStack)
 		stack.clear();
@@ -466,16 +437,6 @@ DWORD CStateManager::GetRenderState(D3DRENDERSTATETYPE Type)
 	return m_CurrentState.m_RenderStates[Type];
 }
 
-void CStateManager::StateManager_Capture()
-{
-	m_CurrentState_Copy = m_CurrentState;
-}
-
-void CStateManager::StateManager_Apply()
-{
-	m_CurrentState = m_CurrentState_Copy;
-}
-
 LPDIRECT3DDEVICE9EX CStateManager::GetDevice()
 {
 	return m_lpD3DDev;
@@ -761,14 +722,6 @@ void CStateManager::SaveVertexProcessing(BOOL IsON)
 	m_lpD3DDev->SetSoftwareVertexProcessing(IsON);
 	m_CurrentState.m_bVertexProcessing = IsON;
 }
-void CStateManager::RestoreVertexProcessing()
-{
-	if (m_VertexProcessingStack.empty())
-		return;
-
-	m_lpD3DDev->SetSoftwareVertexProcessing(m_VertexProcessingStack.back());
-	m_VertexProcessingStack.pop_back();
-}
 // Vertex Declaration
 void CStateManager::SaveVertexDeclaration(LPDIRECT3DVERTEXDECLARATION9 dwShader)
 {
@@ -857,39 +810,6 @@ void CStateManager::SetPixelShader(LPDIRECT3DPIXELSHADER9 dwShader)
 
 	m_lpD3DDev->SetPixelShader(dwShader);
 	m_CurrentState.m_dwPixelShader = dwShader;
-}
-
-void CStateManager::ClearVertexDeclaration()
-{
-	SetVertexDeclaration(NULL);
-}
-
-void CStateManager::ClearShaders()
-{
-	SetVertexShader(NULL);
-	SetPixelShader(NULL);
-}
-
-void CStateManager::ClearAllShadersAndDeclaration()
-{
-	SetVertexShader(NULL);
-	SetPixelShader(NULL);
-	SetVertexDeclaration(NULL);
-	if (m_lpD3DDev)
-	{
-		m_lpD3DDev->SetVertexDeclaration(NULL);
-		m_lpD3DDev->SetVertexShader(NULL);
-		m_lpD3DDev->SetPixelShader(NULL);
-	}
-}
-
-void CStateManager::SetFixedFunctionPipeline(DWORD dwFVF)
-{
-	ClearAllShadersAndDeclaration();
-	if (dwFVF != 0)
-	{
-		SetFVF(dwFVF);
-	}
 }
 
 void CStateManager::GetPixelShader(LPDIRECT3DPIXELSHADER9* pdwShader)

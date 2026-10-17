@@ -83,7 +83,6 @@ class CLightManager : public CGraphicBase, public CLightBase, public CSingleton<
 
 		typedef std::deque<TLightID>			TLightIDDeque;
 		typedef std::map<TLightID, CLight *>	TLightMap;
-		typedef std::vector<CLight *>			TLightSortVector;
 
 	public:
 		CLightManager();
@@ -93,11 +92,7 @@ class CLightManager : public CGraphicBase, public CLightBase, public CSingleton<
 
 		void		Initialize();
 
-		// NOTE : FlushLight후 렌더링
-		//        그 후 반드시 RestoreLight를 해줘야만 한다.
 		void		Update();
-		void		FlushLight();
-		void		RestoreLight();
 
 		/////
 		void		RegisterLight(ELightType LightType, TLightID * poutLightID, D3DLIGHT9 & LightData);
@@ -113,7 +108,6 @@ class CLightManager : public CGraphicBase, public CLightBase, public CSingleton<
 		TLightIDDeque			m_NonUsingLightIDDeque;
 
 		TLightMap				m_LightMap;
-		TLightSortVector		m_LightSortVector;
 
 		D3DXVECTOR3				m_v3CenterPosition;
 		DWORD					m_dwLimitLightCount;

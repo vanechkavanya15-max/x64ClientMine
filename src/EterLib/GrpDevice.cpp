@@ -31,7 +31,6 @@ void CGraphicDevice::__Initialize()
 	ms_lpd3dMatStack	= NULL;
 
 	ms_dwWavingEndTime = 0;
-	ms_dwFlashingEndTime = 0;
 
 	m_pStateManager		= NULL;
 
@@ -167,33 +166,6 @@ LPDIRECT3DVERTEXDECLARATION9 CGraphicDevice::CreatePTStreamVertexShader()
 	{
 		wchar_t szError[1024];
 		swprintf(szError, L"Failed to create CreatePTStreamVertexShader");
-		MessageBoxW(NULL, szError, L"Vertex Shader Error", MB_ICONSTOP);
-	}
-
-	return dwShader;
-}
-
-LPDIRECT3DVERTEXDECLARATION9 CGraphicDevice::CreateDoublePNTStreamVertexShader()
-{
-	assert(ms_lpd3dDevice != NULL);
-
-	LPDIRECT3DVERTEXDECLARATION9 dwShader = NULL;
-
-	D3DVERTEXELEMENT9 pShaderDecl[] = {
-		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-		{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
-		{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-
-		{ 1, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 1 },
-		{ 1, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 1 },
-		{ 1, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
-		D3DDECL_END()
-	};
-
-	if (ms_lpd3dDevice->CreateVertexDeclaration(pShaderDecl, &dwShader) != D3D_OK)
-	{
-		wchar_t szError[1024];
-		swprintf(szError, L"Failed to create CreateDoublePNTStreamVertexShader");
 		MessageBoxW(NULL, szError, L"Vertex Shader Error", MB_ICONSTOP);
 	}
 
@@ -523,19 +495,6 @@ RETRY:
 	D3DXMatrixIdentity(&ms_matView);
 	D3DXMatrixIdentity(&ms_matProj);
 	D3DXMatrixIdentity(&ms_matInverseView);
-	D3DXMatrixIdentity(&ms_matInverseViewYAxis);
-	D3DXMatrixIdentity(&ms_matScreen0);
-	D3DXMatrixIdentity(&ms_matScreen1);
-	D3DXMatrixIdentity(&ms_matScreen2);
-
-	ms_matScreen0._11 = 1;
-	ms_matScreen0._22 = -1;	
-
-	ms_matScreen1._41 = 1;
-	ms_matScreen1._42 = 1;
-
-	ms_matScreen2._11 = (float) iHres / 2;
-	ms_matScreen2._22 = (float) iVres / 2;
 	
 	D3DXCreateSphere(ms_lpd3dDevice, 1.0f, 32, 32, &ms_lpSphereMesh, NULL);
 	D3DXCreateCylinder(ms_lpd3dDevice, 1.0f, 1.0f, 1.0f, 8, 8, &ms_lpCylinderMesh, NULL);

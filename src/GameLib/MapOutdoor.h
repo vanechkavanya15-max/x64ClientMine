@@ -5,7 +5,6 @@
 #include <cstdint>
 #include "EterLib/SkyBox.h"
 #include "EterLib/LensFlare.h"
-#include "EterLib/ScreenFilter.h"
 #include "MapOutdoorSky.h"
 
 #include "PRTerrainLib/TerrainType.h"
@@ -105,7 +104,6 @@ class CMapOutdoor : public CMapBase
 		bool			LoadSetting(const char * c_szFileName);
 
 		void			ApplyLight(DWORD dwVersion, const D3DLIGHT9& c_rkLight);
-		void			SetEnvironmentScreenFilter();
 		void			SetEnvironmentSkyBox();
 		void			SetEnvironmentLensFlare();
 
@@ -131,7 +129,6 @@ class CMapOutdoor : public CMapBase
 		void			RenderCloud();
 		void			RenderBeforeLensFlare();
 		void			RenderAfterLensFlare();
-		void			RenderScreenFiltering();
 		CMapOutdoorSky&	GetOutdoorSky() { return m_OutdoorSky; }
 
 		void			SetWireframe(bool bWireFrame);
@@ -455,7 +452,6 @@ class CMapOutdoor : public CMapBase
 		CSkyBox						m_SkyBox;
 		CMapOutdoorSky				m_OutdoorSky;
 		CLensFlare					m_LensFlare;
-		CScreenFilter				m_ScreenFilter;
 
 	protected:
 		void SetIndexBuffer();
