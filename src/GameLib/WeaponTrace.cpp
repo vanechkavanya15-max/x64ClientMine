@@ -1,4 +1,5 @@
 #include "StdAfx.h"
+#include "EterLib/RenderConventions.h"
 #include "EterLib/ResourceManager.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/RenderOwnership.h"
@@ -501,11 +502,8 @@ void CWeaponTrace::Initialize()
 	m_fz = 0.0f;
 	m_fRotation = 0.0f;
 	
-	m_fLifeTime = 0.18f;
-	//m_fLifeTime = 3.0f;
-	m_fSamplingTime = 0.003f;
-	//m_fLifeTime = 3.0f;
-	//m_fSamplingTime = 0.003f;
+	m_fLifeTime = kWeaponTraceDefaultDuration;
+	m_fSamplingTime = kWeaponTraceSamplingInterval;
 	
 	m_isPlaying = FALSE;
 	

@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "GrpScreen.h"
+#include "RenderConventions.h"
 #include "GrpDevice.h"
 #include "Camera.h"
 #include "StateManager.h"
@@ -507,7 +508,7 @@ void CScreen::SetCursorPosition(int x, int y, int hres, int vres)
 //	// 2003. 9. 9 동현 추가
 //	// 지형 picking을 위한 뻘짓... ㅡㅡ; 위에 것과 통합 필요...
 	ms_Ray.SetStartPoint(ms_vtPickRayOrig);
-	ms_Ray.SetDirection(-ms_vtPickRayDir, 51200.0f);
+	ms_Ray.SetDirection(-ms_vtPickRayDir, kDefaultPickRayDistance);
 //	// 2003. 9. 9 동현 추가
 }
 
@@ -524,10 +525,10 @@ bool CScreen::GetCursorXYPosition(float* px, float* py)
 	D3DXVECTOR3 v3Eye = CCameraManager::Instance().GetCurrentCamera()->GetEye();
 
 	TPosition posVertices[4];
-	posVertices[0] = TPosition(v3Eye.x-90000000.0f, v3Eye.y+90000000.0f, 0.0f);
-	posVertices[1] = TPosition(v3Eye.x-90000000.0f, v3Eye.y-90000000.0f, 0.0f);
-	posVertices[2] = TPosition(v3Eye.x+90000000.0f, v3Eye.y+90000000.0f, 0.0f);
-	posVertices[3] = TPosition(v3Eye.x+90000000.0f, v3Eye.y-90000000.0f, 0.0f);
+	posVertices[0] = TPosition(v3Eye.x-kDefaultPlaneHalfExtent, v3Eye.y+kDefaultPlaneHalfExtent, 0.0f);
+	posVertices[1] = TPosition(v3Eye.x-kDefaultPlaneHalfExtent, v3Eye.y-kDefaultPlaneHalfExtent, 0.0f);
+	posVertices[2] = TPosition(v3Eye.x+kDefaultPlaneHalfExtent, v3Eye.y+kDefaultPlaneHalfExtent, 0.0f);
+	posVertices[3] = TPosition(v3Eye.x+kDefaultPlaneHalfExtent, v3Eye.y-kDefaultPlaneHalfExtent, 0.0f);
 
 	static const WORD sc_awFillRectIndices[6] = { 0, 2, 1, 2, 3, 1, };
 
@@ -553,10 +554,10 @@ bool CScreen::GetCursorZPosition(float* pz)
 	D3DXVECTOR3 v3Eye = CCameraManager::Instance().GetCurrentCamera()->GetEye();
 
 	TPosition posVertices[4];
-	posVertices[0] = TPosition(v3Eye.x-90000000.0f, 0.0f, v3Eye.z+90000000.0f);
-	posVertices[1] = TPosition(v3Eye.x-90000000.0f, 0.0f, v3Eye.z-90000000.0f);
-	posVertices[2] = TPosition(v3Eye.x+90000000.0f, 0.0f, v3Eye.z+90000000.0f);
-	posVertices[3] = TPosition(v3Eye.x+90000000.0f, 0.0f, v3Eye.z-90000000.0f);
+	posVertices[0] = TPosition(v3Eye.x-kDefaultPlaneHalfExtent, 0.0f, v3Eye.z+kDefaultPlaneHalfExtent);
+	posVertices[1] = TPosition(v3Eye.x-kDefaultPlaneHalfExtent, 0.0f, v3Eye.z-kDefaultPlaneHalfExtent);
+	posVertices[2] = TPosition(v3Eye.x+kDefaultPlaneHalfExtent, 0.0f, v3Eye.z+kDefaultPlaneHalfExtent);
+	posVertices[3] = TPosition(v3Eye.x+kDefaultPlaneHalfExtent, 0.0f, v3Eye.z-kDefaultPlaneHalfExtent);
 
 	static const WORD sc_awFillRectIndices[6] = { 0, 2, 1, 2, 3, 1, };
 

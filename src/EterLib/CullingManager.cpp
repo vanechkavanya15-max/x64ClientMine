@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "CullingManager.h"
 #include "GrpObjectInstance.h"
+#include "RenderConventions.h"
 
 //#define COUNT_SHOWING_SPHERE
 
@@ -141,13 +142,13 @@ void CCullingManager::Unregister(CullingHandle h)
 }
 
 CCullingManager::CCullingManager()
-	: m_RayFarDistance(kDefaultRayFarDistance)
+	: m_RayFarDistance(kDefaultCullingRayFarDistance)
 {
 	m_Factory = new SpherePackFactory(
-		kDefaultMaxSpheres,	// maximum count
-		kDefaultRootRadius,	// root radius
-		kDefaultLeafRadius,	// leaf radius
-		kDefaultExtraRadius	// extra radius
+		kDefaultCullingMaxSpheres,	// maximum count
+		kDefaultCullingRootRadius,	// root radius
+		kDefaultCullingRadius,		// leaf radius
+		kDefaultCullingExtraRadius	// extra radius
 		);
 }
 
@@ -164,7 +165,7 @@ void CCullingManager::FindRange(const Vector3d &p, float radius)
 
 void CCullingManager::FindRay(const Vector3d &p1, const Vector3d &dir)
 {
-	m_RayFarDistance = kDefaultRayFarDistance;
+	m_RayFarDistance = kDefaultCullingRayFarDistance;
 	m_list.clear();
 	m_Factory->RayTrace(p1,dir,this);
 }
