@@ -75,12 +75,6 @@ int CGrannyModelInstance::GetBoneCount() const
 	return pSkeleton ? pSkeleton->BoneCount : 0;
 }
 
-bool CGrannyModelInstance::FillBonePalette(EterLib::Render::TActorBonePalette& outPalette) const
-{
-	outPalette.pBoneMatrices = GetCompositeBoneMatrices();
-	outPalette.boneCount = static_cast<uint32_t>(GetBoneCount());
-	return outPalette.pBoneMatrices != NULL && outPalette.boneCount > 0;
-}
 
 void CGrannyModelInstance::LinkSkeleton(CGrannyModelInstance** ppkSkeletonInst)
 {

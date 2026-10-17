@@ -85,38 +85,6 @@ void CFlyTrace::Update()
 	
 }
 
-//1. 알파를 쓰려면 색깔만 줄수있다.
-//2. 텍스쳐를 쓰려면 알파 없다-_-
-
-
-struct TFlyVertex
-{
-	D3DXVECTOR3 p;
-	DWORD c;
-	D3DXVECTOR2 t;
-	TFlyVertex(){};
-	TFlyVertex(const D3DXVECTOR3& p, DWORD c, const D3DXVECTOR2 & t):p(p),c(c),t(t){}
-};
-
-struct TFlyVertexSet
-{
-	TFlyVertex v[6];
-	TFlyVertexSet(TFlyVertex * pv)
-	{
-		memcpy(v,pv,sizeof(v));
-	}
-	bool operator < (const TFlyVertexSet& ) const
-	{
-		return false;
-	}
-	TFlyVertexSet & operator = ( const TFlyVertexSet& rhs )
-	{
-		memcpy(v,rhs.v,sizeof(v));
-		return *this;
-	}
-};
-
-typedef std::vector<std::pair<float, TFlyVertexSet> > TFlyVertexSetVector;
 
 void CFlyTrace::Render()
 {

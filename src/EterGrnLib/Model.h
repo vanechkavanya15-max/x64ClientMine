@@ -51,7 +51,6 @@ class CGrannyModel : public CReferenceObject
 
 	protected:
 		bool LoadMeshs();		
-		bool LoadPNTVertices();
 		bool LoadDeformVertices();
 		bool LoadIndices();
 		void Initialize();

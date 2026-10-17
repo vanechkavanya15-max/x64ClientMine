@@ -28,8 +28,6 @@
 #include <thread>
 #include <chrono>
 
-extern void GrannyCreateSharedDeformBuffer();
-extern void GrannyDestroySharedDeformBuffer();
 
 static bool s_bWindowVisibleState = true;
 
@@ -1021,7 +1019,6 @@ bool CPythonApplication::Create(PyObject * poSelf, const char * c_szName, int wi
 		if (!g_bHeadlessMode)
 		{
 			UserInterface::FastBoot::FastBootOverlay::Instance().Initialize(GetWindowHandle(), STATEMANAGER.GetDevice());
-			GrannyCreateSharedDeformBuffer();
 
 			extern bool g_bFastBootAutoConnect;
 			if (g_bFastBootAutoConnect && !UserInterface::FastBoot::FastBootOverlay::Instance().IsConnecting())
@@ -1257,8 +1254,6 @@ void CPythonApplication::Destroy()
 	// DEFAULT_FONT
 	DefaultFont_Cleanup();
 	// END_OF_DEFAULT_FONT
-
-	GrannyDestroySharedDeformBuffer();
 
 	m_pyGraphic.Destroy();
 	

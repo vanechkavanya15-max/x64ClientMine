@@ -140,7 +140,6 @@ class CGrannyModelInstance : public CGraphicCollisionObject
 		const float *	GetCompositeBoneMatrixPointer(int iBone) const;
 		const D3DXMATRIX * GetCompositeBoneMatrices() const;
 		int				GetBoneCount() const;
-		bool			FillBonePalette(EterLib::Render::TActorBonePalette& outPalette) const;
 		const D3DXMATRIX * GetActiveMeshMatrices() const;
 		bool			GetMeshMatrixPointer(int iMesh, const D3DXMATRIX ** c_ppMatrix) const;
 		bool			GetBoneIndexByName(const char * c_szBoneName, int * pBoneIndex) const;

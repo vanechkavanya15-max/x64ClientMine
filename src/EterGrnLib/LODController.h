@@ -72,24 +72,6 @@ class CGrannyLODController : public CGraphicCollisionObject
 			}
 		};
 
-		struct FRenderWithTwoTexture
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance() || pController->isGltfModelInstance())
-					pController->RenderWithTwoTexture();
-			}
-		};
-
-		struct FBlendRenderWithTwoTexture
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance() || pController->isGltfModelInstance())
-					pController->BlendRenderWithTwoTexture();
-			}
-		};
-
 		struct FRenderToShadowMap
 		{
 			void operator() (CGrannyLODController * pController)
@@ -258,7 +240,6 @@ class CGrannyLODController : public CGraphicCollisionObject
 		void	UpdateLODLevel(float fDistanceFromCenter, float fDistanceFromCamera);
 		void	UpdateTime(float fElapsedTime);
 		
-		void	UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float fElapsedTime);
 		void	Deform(const D3DXMATRIX * c_pWorldMatrix);
 		void	DeformNoSkin(const D3DXMATRIX * c_pWorldMatrix);
 		void	DeformAll(const D3DXMATRIX * c_pWorldMatrix);
