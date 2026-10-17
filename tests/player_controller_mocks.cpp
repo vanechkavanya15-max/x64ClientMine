@@ -1,12 +1,12 @@
-﻿#include "../src/UserInterface/StdAfx.h"
+#include "../src/UserInterface/StdAfx.h"
 #include "../src/UserInterface/InstanceBase.h"
 #include "../src/UserInterface/PythonApplication.h"
 #include "../src/UserInterface/PythonItem.h"
 #include "EterLib/Camera.h"
 #include "EffectLib/EffectManager.h"
 
-// CCamera mock
-float CCamera::CAMERA_MAX_DISTANCE = 5000.0f;
+// CCamera mock (CAMERA_MAX_DISTANCE is already defined in EterLib::Camera.obj)
+// float CCamera::CAMERA_MAX_DISTANCE = 5000.0f;
 
 // CPythonApplication mock
 CPythonApplication* CPythonApplication::ms_pInstance = nullptr;
