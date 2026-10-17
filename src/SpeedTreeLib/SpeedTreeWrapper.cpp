@@ -105,8 +105,6 @@ void CSpeedTreeWrapper::OnRenderPCBlocker()
 		//LogBox("Vertex Shader not assigned. You must call CSpeedTreeWrapper::SetVertexShader for this");
 	}
 	
-	CSpeedTreeForestDirectX::Instance().UpdateSystem(ELTimer_GetMSec() / 1000.0f);
-	
 	m_pSpeedTree->SetLodLevel(1.0f);
 	//Advance();
 	
@@ -257,8 +255,6 @@ void CSpeedTreeWrapper::OnRender()
 		ms_dwBranchVertexShader = LoadBranchShader(ms_lpd3dDevice);
 		//LogBox("Vertex Shader not assigned. You must call CSpeedTreeWrapper::SetVertexShader for this");
 	}
-	
-	CSpeedTreeForestDirectX::Instance().UpdateSystem(ELTimer_GetMSec() / 1000.0f);
 	
 	// ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ LOD ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	m_pSpeedTree->SetLodLevel(1.0f);
@@ -998,14 +994,7 @@ void CSpeedTreeWrapper::RenderBranches(void) const
 
 		PositionTree();
 		
-		// Zabezpieczenie przed nadmiernymi przelaczeniami stanu ALPHAREF w D3D9
-		const DWORD dwBranchAlphaRef = static_cast<DWORD>(m_pGeometryCache->m_fBranchAlphaTestValue);
-		static DWORD s_dwLastBranchAlphaRef = 0xFFFFFFFF;
-		if (s_dwLastBranchAlphaRef != dwBranchAlphaRef)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, dwBranchAlphaRef);
-			s_dwLastBranchAlphaRef = dwBranchAlphaRef;
-		}
+		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, static_cast<DWORD>(m_pGeometryCache->m_fBranchAlphaTestValue));
 		
 		const auto& lengths = m_branchStripLengths[lod];
 		const size_t stripCount = lengths.size() < m_branchStripOffsets.size() ? lengths.size() : m_branchStripOffsets.size();
@@ -1085,14 +1074,7 @@ void CSpeedTreeWrapper::RenderFronds(void) const
 
 		PositionTree();
 		
-		// Zabezpieczenie przed nadmiernymi przelaczeniami stanu ALPHAREF w D3D9
-		const DWORD dwFrondAlphaRef = static_cast<DWORD>(m_pGeometryCache->m_fFrondAlphaTestValue);
-		static DWORD s_dwCurrentFrondAlphaRef = 0xFFFFFFFF;
-		if (s_dwCurrentFrondAlphaRef != dwFrondAlphaRef)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, dwFrondAlphaRef);
-			s_dwCurrentFrondAlphaRef = dwFrondAlphaRef;
-		}
+		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, static_cast<DWORD>(m_pGeometryCache->m_fFrondAlphaTestValue));
 		
 		const auto& lengths = m_frondStripLengths[lod];
 		const size_t stripCount = lengths.size() < m_frondStripOffsets.size() ? lengths.size() : m_frondStripOffsets.size();
@@ -1254,10 +1236,6 @@ void CSpeedTreeWrapper::RenderLeaves(void) const
 	
 	PositionTree();
 	
-	// Cache aktualnego zrodla strumienia wierzcholkow oraz stanu ALPHAREF lisci
-	static LPDIRECT3DVERTEXBUFFER9 s_pCurrentLeafVB = NULL;
-	static DWORD s_dwCurrentLeafAlphaRef = 0xFFFFFFFF;
-
 	// render LODs, if needed
 	for (UINT unLeafLevel = 0; unLeafLevel < 2; ++unLeafLevel)
 	{
@@ -1272,20 +1250,8 @@ void CSpeedTreeWrapper::RenderLeaves(void) const
 		if (!m_pLeafVertexBuffer[unLod])
 			continue;
 
-		// Zabezpieczenie przed nadmiernym przelaczaniem strumienia wierzcholkow
-		if (s_pCurrentLeafVB != m_pLeafVertexBuffer[unLod])
-		{
-			STATEMANAGER.SetStreamSource(0, m_pLeafVertexBuffer[unLod], sizeof(SFVFLeafVertex));
-			s_pCurrentLeafVB = m_pLeafVertexBuffer[unLod];
-		}
-
-		// Zabezpieczenie przed nadmiernym przelaczaniem stanu ALPHAREF
-		const DWORD dwLeafAlphaRef = static_cast<DWORD>(pLeaf->m_fAlphaTestValue);
-		if (s_dwCurrentLeafAlphaRef != dwLeafAlphaRef)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, dwLeafAlphaRef);
-			s_dwCurrentLeafAlphaRef = dwLeafAlphaRef;
-		}
+		STATEMANAGER.SetStreamSource(0, m_pLeafVertexBuffer[unLod], sizeof(SFVFLeafVertex));
+		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, static_cast<DWORD>(pLeaf->m_fAlphaTestValue));
 		
 		ms_faceCount += pLeaf->m_usLeafCount * 2;
 		STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, pLeaf->m_usLeafCount * 2);

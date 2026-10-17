@@ -6260,5 +6260,32 @@ target_include_directories(test_c26_world_small_fixes PRIVATE
 target_link_libraries(test_c26_world_small_fixes PRIVATE DirectX)
 add_test(NAME WorldSmallFixesTest COMMAND test_c26_world_small_fixes)
 
-
+add_executable(test_c26_speedtree_update
+    test_c26_speedtree_update.cpp
+)
+target_include_directories(test_c26_speedtree_update PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/SpeedTreeLib
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_speedtree_update PRIVATE
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    PackLib
+    EterLib
+    EterImageLib
+    EterBase
+    DirectX
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    Dbghelp
+)
+add_test(NAME SpeedTreeUpdateTest COMMAND test_c26_speedtree_update)
 
