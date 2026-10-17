@@ -19,8 +19,8 @@ struct HardwareTransformPatch_SSourceVertex
 {
 	D3DXVECTOR3 kPosition;
 	D3DXVECTOR3 kNormal;
-	D3DXVECTOR2 kTexCoord;
 };
+static_assert(sizeof(HardwareTransformPatch_SSourceVertex) == 24, "HardwareTransformPatch_SSourceVertex must be exactly 24 bytes");
 
 struct SoftwareTransformPatch_SSourceVertex
 {
