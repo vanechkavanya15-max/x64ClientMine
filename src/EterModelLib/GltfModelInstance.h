@@ -4,9 +4,45 @@
 #include "SkeletalMath.h"
 #include <vector>
 #include <string>
+#include <type_traits>
 
 namespace EterModelLib
 {
+
+// Bezpieczne rzutowanie wskaznikow materialow (checked material cast z obsluga nullptr)
+template <typename TTarget, typename TSource>
+inline TTarget* CheckedMaterialCast(TSource* pSource)
+{
+    if (!pSource)
+    {
+        return nullptr;
+    }
+    if constexpr (std::is_polymorphic_v<TSource>)
+    {
+        return dynamic_cast<TTarget*>(pSource);
+    }
+    else
+    {
+        return static_cast<TTarget*>(pSource);
+    }
+}
+
+template <typename TTarget, typename TSource>
+inline const TTarget* CheckedMaterialCast(const TSource* pSource)
+{
+    if (!pSource)
+    {
+        return nullptr;
+    }
+    if constexpr (std::is_polymorphic_v<TSource>)
+    {
+        return dynamic_cast<const TTarget*>(pSource);
+    }
+    else
+    {
+        return static_cast<const TTarget*>(pSource);
+    }
+}
 
 class CGltfModelInstance
 {
@@ -52,8 +88,26 @@ public:
     void Update(float deltaTime);
 
     // CPU Skinning wierzcholkow na podstawie macierzy skinningu i wag kosci
-    void DeformVertices();
+    void Deform(bool bForce = false);
+    void DeformVertices(bool bForce = false);
     const std::vector<GltfVertex>& GetDeformedVertices() const { return m_deformedVertices; }
+    std::vector<GltfVertex>& GetDeformedVerticesRef() { return m_deformedVertices; }
+
+    bool IsSkinningDirty() const { return m_bSkinningDirty; }
+    void MarkSkinningDirty() { m_bSkinningDirty = true; }
+    size_t GetDeformCount() const { return m_deformCount; }
+
+    // Bezpieczne pobranie materialu (checked material cast z obsluga nullptr)
+    template <typename T = GltfMaterial>
+    const T* GetCheckedMaterial(size_t index) const
+    {
+        if (!m_pModel)
+            return nullptr;
+        const auto& materials = m_pModel->GetModelData().materials;
+        if (index >= materials.size())
+            return nullptr;
+        return CheckedMaterialCast<T>(&materials[index]);
+    }
 
     // Wykrywanie eventow walki w oknie czasowym
     void CheckEvents(float prevTime, float currTime, std::vector<GltfEvent>& outEvents) const;
@@ -112,7 +166,18 @@ private:
     std::vector<Matrix4x4> m_worldTransforms;
     std::vector<Matrix4x4> m_skinningMatrices;
 
+    // Dedykowany bufor deformacji wierzcholkow
     std::vector<GltfVertex> m_deformedVertices;
+    bool m_bSkinningDirty;
+    size_t m_deformCount;
+
+    // Bufory robocze CPU skinningu i transformacji kosci (zero alokacji na stercie per klatka)
+    std::vector<Vector3> m_workTranslations;
+    std::vector<Quaternion> m_workRotations;
+    std::vector<Vector3> m_workScales;
+    std::vector<int32_t> m_workParentIndices;
+    std::vector<Matrix4x4> m_workInvBindMatrices;
+    std::vector<uint8_t> m_workNodeState;
 };
 
 } // namespace EterModelLib

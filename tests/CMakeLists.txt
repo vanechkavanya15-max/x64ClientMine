@@ -480,6 +480,16 @@ target_link_libraries(test_c26_gltf_model PRIVATE
 )
 add_test(NAME test_c26_gltf_model COMMAND test_c26_gltf_model)
 
+add_executable(test_c26_gltf_skinning test_c26_gltf_skinning.cpp)
+target_include_directories(test_c26_gltf_skinning PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_gltf_skinning PRIVATE
+    EterModelLib
+)
+add_test(NAME GltfSkinningTest COMMAND test_c26_gltf_skinning)
+
 add_executable(test_c27_gltf_pipeline test_c27_gltf_pipeline.cpp)
 target_include_directories(test_c27_gltf_pipeline PRIVATE
     ${CMAKE_SOURCE_DIR}/src

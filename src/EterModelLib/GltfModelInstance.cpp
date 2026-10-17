@@ -20,6 +20,8 @@ CGltfModelInstance::CGltfModelInstance()
     , m_isLoop(true)
     , m_isFinished(false)
     , m_playSpeed(1.0f)
+    , m_bSkinningDirty(true)
+    , m_deformCount(0)
 {
     m_parentBoneMatrix = Matrix4x4::Identity();
 }
@@ -38,6 +40,8 @@ CGltfModelInstance::CGltfModelInstance(const CGltfModel* pModel)
     , m_isLoop(true)
     , m_isFinished(false)
     , m_playSpeed(1.0f)
+    , m_bSkinningDirty(true)
+    , m_deformCount(0)
 {
     m_parentBoneMatrix = Matrix4x4::Identity();
     SetModel(pModel);
@@ -97,6 +101,7 @@ void CGltfModelInstance::LinkSkeleton(const CGltfModelInstance* pParentInstance)
         m_pLinkedModelInstance->RegisterLinkedChild(this);
     }
 
+    m_bSkinningDirty = true;
     if (m_pModel && m_pModel->IsLoaded())
     {
         UpdateTransforms(m_currentTime);
@@ -113,6 +118,7 @@ void CGltfModelInstance::SetParentModelInstance(const CGltfModelInstance* pParen
         m_parentBoneIndex = pParentInstance->GetModel()->FindBoneIndex(m_parentBoneName);
     }
     m_bHasParentBoneMatrix = false;
+    m_bSkinningDirty = true;
     if (m_pModel && m_pModel->IsLoaded())
     {
         UpdateTransforms(m_currentTime);
@@ -125,6 +131,7 @@ void CGltfModelInstance::SetParentModelInstance(const CGltfModelInstance* pParen
     m_parentBoneIndex = boneIndex;
     m_parentBoneName.clear();
     m_bHasParentBoneMatrix = false;
+    m_bSkinningDirty = true;
     if (m_pModel && m_pModel->IsLoaded())
     {
         UpdateTransforms(m_currentTime);
@@ -142,6 +149,7 @@ void CGltfModelInstance::SetParentBoneMatrix(const Matrix4x4* pParentMatrix)
     {
         m_bHasParentBoneMatrix = false;
     }
+    m_bSkinningDirty = true;
     if (m_pModel && m_pModel->IsLoaded())
     {
         UpdateTransforms(m_currentTime);
@@ -179,6 +187,8 @@ void CGltfModelInstance::SetModel(const CGltfModel* pModel)
     m_prevTime = 0.0f;
     m_duration = 0.0f;
     m_isFinished = false;
+    m_bSkinningDirty = true;
+    m_deformCount = 0;
 
     if (m_pModel && m_pModel->IsLoaded())
     {
@@ -187,7 +197,19 @@ void CGltfModelInstance::SetModel(const CGltfModel* pModel)
         m_worldTransforms.assign(boneCount, Matrix4x4::Identity());
         m_skinningMatrices.assign(boneCount, Matrix4x4::Identity());
 
-        m_deformedVertices = m_pModel->GetVertices();
+        m_workTranslations.resize(boneCount);
+        m_workRotations.resize(boneCount);
+        m_workScales.resize(boneCount);
+        m_workParentIndices.resize(boneCount);
+        m_workInvBindMatrices.resize(boneCount);
+        m_workNodeState.resize(boneCount);
+
+        size_t vertexCount = m_pModel->GetVertexCount();
+        m_deformedVertices.clear();
+        m_deformedVertices.reserve(vertexCount);
+        const auto& srcVertices = m_pModel->GetVertices();
+        m_deformedVertices.assign(srcVertices.begin(), srcVertices.end());
+
         UpdateTransforms(0.0f);
     }
     else
@@ -195,6 +217,12 @@ void CGltfModelInstance::SetModel(const CGltfModel* pModel)
         m_localTransforms.clear();
         m_worldTransforms.clear();
         m_skinningMatrices.clear();
+        m_workTranslations.clear();
+        m_workRotations.clear();
+        m_workScales.clear();
+        m_workParentIndices.clear();
+        m_workInvBindMatrices.clear();
+        m_workNodeState.clear();
         m_deformedVertices.clear();
     }
 }
@@ -367,6 +395,15 @@ void CGltfModelInstance::Update(float deltaTime)
         }
     }
 
+    m_bSkinningDirty = true;
+    for (auto* pChild : m_linkedChildren)
+    {
+        if (pChild)
+        {
+            pChild->m_bSkinningDirty = true;
+        }
+    }
+
     UpdateTransforms(m_currentTime);
 }
 
@@ -401,9 +438,19 @@ void CGltfModelInstance::UpdateTransforms(float time)
     if (m_skinningMatrices.size() != boneCount)
         m_skinningMatrices.assign(boneCount, Matrix4x4::Identity());
 
-    std::vector<Vector3> translations(boneCount, Vector3(0.0f, 0.0f, 0.0f));
-    std::vector<Quaternion> rotations(boneCount, Quaternion::Identity());
-    std::vector<Vector3> scales(boneCount, Vector3(1.0f, 1.0f, 1.0f));
+    if (m_workTranslations.size() != boneCount) m_workTranslations.resize(boneCount);
+    if (m_workRotations.size() != boneCount) m_workRotations.resize(boneCount);
+    if (m_workScales.size() != boneCount) m_workScales.resize(boneCount);
+    if (m_workParentIndices.size() != boneCount) m_workParentIndices.resize(boneCount);
+    if (m_workInvBindMatrices.size() != boneCount) m_workInvBindMatrices.resize(boneCount);
+    if (m_workNodeState.size() != boneCount) m_workNodeState.resize(boneCount);
+
+    auto& translations = m_workTranslations;
+    auto& rotations = m_workRotations;
+    auto& scales = m_workScales;
+    auto& parentIndices = m_workParentIndices;
+    auto& invBindMatrices = m_workInvBindMatrices;
+    auto& state = m_workNodeState;
 
     const auto& joints = m_pModel->GetModelData().skin.joints;
     for (size_t j = 0; j < boneCount && j < joints.size(); ++j)
@@ -553,7 +600,6 @@ void CGltfModelInstance::UpdateTransforms(float time)
     }
 
     const auto& skin = m_pModel->GetSkin();
-    std::vector<int32_t> parentIndices(boneCount);
     for (size_t j = 0; j < boneCount; ++j)
     {
         parentIndices[j] = skin.joints[j].parentIndex;
@@ -584,7 +630,7 @@ void CGltfModelInstance::UpdateTransforms(float time)
     const Matrix4x4* pAttachMat = GetParentBoneMatrix();
     if (pAttachMat)
     {
-        std::vector<uint8_t> state(boneCount, 0); // 0: unvisited, 1: visiting, 2: visited
+        std::fill(state.begin(), state.end(), static_cast<uint8_t>(0)); // 0: unvisited, 1: visiting, 2: visited
         auto computeAttachedNode = [&](auto& self, size_t i) -> void {
             if (state[i] == 2) return;
             if (state[i] == 1) {
@@ -609,16 +655,21 @@ void CGltfModelInstance::UpdateTransforms(float time)
         }
     }
 
-    std::vector<Matrix4x4> invBindMatrices(boneCount);
     for (size_t j = 0; j < boneCount; ++j)
     {
         std::memcpy(invBindMatrices[j].m, skin.joints[j].inverseBindMatrix.m, sizeof(invBindMatrices[j].m));
     }
 
     ComputeSkinningMatrices(m_worldTransforms, invBindMatrices, m_skinningMatrices);
+    m_bSkinningDirty = true;
 }
 
-void CGltfModelInstance::DeformVertices()
+void CGltfModelInstance::Deform(bool bForce)
+{
+    DeformVertices(bForce);
+}
+
+void CGltfModelInstance::DeformVertices(bool bForce)
 {
     if (!m_pModel || !m_pModel->IsLoaded())
     {
@@ -630,15 +681,25 @@ void CGltfModelInstance::DeformVertices()
         UpdateTransforms(m_currentTime);
     }
 
+    if (!bForce && !m_bSkinningDirty)
+    {
+        return;
+    }
+
     const auto& srcVertices = m_pModel->GetVertices();
     if (srcVertices.empty())
     {
         m_deformedVertices.clear();
+        m_bSkinningDirty = false;
         return;
     }
 
     if (m_deformedVertices.size() != srcVertices.size())
     {
+        if (m_deformedVertices.capacity() < srcVertices.size())
+        {
+            m_deformedVertices.reserve(srcVertices.size());
+        }
         m_deformedVertices.resize(srcVertices.size());
     }
 
@@ -672,10 +733,14 @@ void CGltfModelInstance::DeformVertices()
                 else
                     dst.normal = src.normal;
             }
+            m_bSkinningDirty = false;
+            ++m_deformCount;
             return;
         }
 
         m_deformedVertices = srcVertices;
+        m_bSkinningDirty = false;
+        ++m_deformCount;
         return;
     }
 
@@ -782,6 +847,9 @@ void CGltfModelInstance::DeformVertices()
             dst.normal = src.normal;
         }
     }
+
+    m_bSkinningDirty = false;
+    ++m_deformCount;
 }
 
 void CGltfModelInstance::CheckEvents(float prevTime, float currTime, std::vector<GltfEvent>& outEvents) const
