@@ -91,6 +91,11 @@ class CSpeedTreeForest
 		void						SetWindStrength(float fStrength);
 		void						SetupWindMatrices(float fTimeInSecs);
 		const float*				GetCachedWindMatrix(int nIndex) const;
+		float						GetAccumTime(void) const					{ return m_fAccumTime; }
+		float						GetLastUpdateTime(void) const				{ return m_fLastUpdateTime; }
+		float						GetMatrixTime(int nIndex) const				{ return (nIndex >= 0 && nIndex < 4) ? m_afMatrixTimes[nIndex] : 0.0f; }
+		bool						IsWindMatricesCached(void) const			{ return m_bWindMatricesCached; }
+		float						GetLastWindComputedTime(void) const			{ return m_fLastWindComputedTime; }
 
 		// packet extraction and submission
 		void						SubmitTreePackets(unsigned long ulRenderBitVector = Forest_RenderAll);
@@ -116,4 +121,10 @@ class CSpeedTreeForest
 		float						m_fLastWindComputedTime;
 		float						m_fLastWindStrength;
 		bool						m_bWindMatricesCached;
+
+		float						m_fLastUpdateTime;
+		bool						m_bFirstUpdate;
+		float						m_afMatrixTimes[4];
+		float						m_fTimeOfLastWindCall;
+		float						m_fOldWindStrength;
 };

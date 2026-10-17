@@ -139,8 +139,6 @@ void CSpeedTreeForestDirectX::UpdateCompundMatrix(const D3DXVECTOR3& c_rEyeVec, 
 
 void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 {
-	UpdateSystem(CTimer::Instance().GetCurrentSecond());
-
 	if (m_pMainTreeMap.empty())
 		return;
 
@@ -213,6 +211,7 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, TRUE);
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
 	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, STATEMANAGER.GetRenderState(D3DRS_ALPHAREF));
 
 	// set up fog if it is enabled
 	if (STATEMANAGER.GetRenderState(D3DRS_FOGENABLE))
@@ -349,6 +348,7 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 	}
 
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
 	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);

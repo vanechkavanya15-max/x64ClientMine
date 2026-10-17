@@ -28,7 +28,12 @@ CSpeedTreeForest::CSpeedTreeForest() :
 					0.8f, 0.8f, 0.8f, 1.0f }, // diffuse
 	m_fLastWindComputedTime(-1000.0f),
 	m_fLastWindStrength(-1.0f),
-	m_bWindMatricesCached(false)
+	m_bWindMatricesCached(false),
+	m_fLastUpdateTime(0.0f),
+	m_bFirstUpdate(true),
+	m_afMatrixTimes{ 0.0f, 0.0f, 0.0f, 0.0f },
+	m_fTimeOfLastWindCall(0.0f),
+	m_fOldWindStrength(0.0f)
 {
 	CSpeedTreeRT::SetNumWindMatrices(c_nNumWindMatrices);
 
@@ -136,9 +141,29 @@ void CSpeedTreeForest::DeleteInstance(SpeedTreeWrapperPtr pInstance)
 
 void CSpeedTreeForest::UpdateSystem(float fCurrentTime)
 {
-	static float fLastTime = fCurrentTime;
-	float fElapsedTime = fCurrentTime - fLastTime;
-	fLastTime = fCurrentTime;
+	if (m_bFirstUpdate)
+	{
+		m_fLastUpdateTime = fCurrentTime;
+		m_bFirstUpdate = false;
+		CSpeedTreeRT::SetTime(0.0f);
+		SetupWindMatrices(m_fAccumTime);
+		return;
+	}
+
+	float fElapsedTime = fCurrentTime - m_fLastUpdateTime;
+	if (fabsf(fElapsedTime) < 0.00001f)
+	{
+		// Unikaj zbednych duplikatow w tej samej klatce
+		return;
+	}
+
+	if (fElapsedTime < 0.0f)
+	{
+		// Ochrona przed cofaniem sie czasu (np. zapetlenie lub reset timera)
+		fElapsedTime = 0.0f;
+	}
+
+	m_fLastUpdateTime = fCurrentTime;
 	CSpeedTreeRT::SetTime(fElapsedTime);
 
 	m_fAccumTime += fElapsedTime; 
@@ -186,7 +211,6 @@ void CSpeedTreeForest::SetWindStrength(float fStrength)
 //	CSpeedTreeForest::SetupWindMatrices
 void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 {
-	static float afMatrixTimes[c_nNumWindMatrices] = { 0.0f };
 	static const float afFrequencies[c_nNumWindMatrices][2] = 
 	{
 		{ 0.15f, 0.17f },
@@ -203,11 +227,8 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 		return;
 	}
 
-	static float fTimeOfLastCall = 0.0f;
-	float fTimeSinceLastCall = fTimeInSecs - fTimeOfLastCall;
-	fTimeOfLastCall = fTimeInSecs;
-
-	static float fOldStrength = m_fWindStrength;
+	float fTimeSinceLastCall = fTimeInSecs - m_fTimeOfLastWindCall;
+	m_fTimeOfLastWindCall = fTimeInSecs;
 
 	// Brak wiatru - macierze jednostkowe
 	if (m_fWindStrength <= 0.0001f)
@@ -229,7 +250,7 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 			#endif
 		}
 
-		fOldStrength = m_fWindStrength;
+		m_fOldWindStrength = m_fWindStrength;
 		m_fLastWindComputedTime = fTimeInSecs;
 		m_fLastWindStrength = m_fWindStrength;
 		m_bWindMatricesCached = true;
@@ -239,7 +260,7 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 	if (fTimeSinceLastCall > 0.0f && fTimeSinceLastCall < 1.0f)
 	{
 		for (int i = 0; i < c_nNumWindMatrices; ++i)
-			afMatrixTimes[i] += fTimeSinceLastCall;
+			m_afMatrixTimes[i] += fTimeSinceLastCall;
 	}
 
 	const float fBaseAngle = m_fWindStrength * 35.0f;
@@ -248,11 +269,11 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 
 	for (int j = 0; j < c_nNumWindMatrices; ++j)
 	{
-		if (m_fWindStrength != 0.0f && fOldStrength != 0.0f)
-			afMatrixTimes[j] = (afMatrixTimes[j] * fOldStrength) / m_fWindStrength;
+		if (m_fWindStrength != 0.0f && m_fOldWindStrength != 0.0f)
+			m_afMatrixTimes[j] = (m_afMatrixTimes[j] * m_fOldWindStrength) / m_fWindStrength;
 
-		const float fXPercent = sinf(fBaseFreq * afFrequencies[j % c_nNumWindMatrices][0] * afMatrixTimes[j]);
-		const float fYPercent = cosf(fBaseFreq * afFrequencies[j % c_nNumWindMatrices][1] * afMatrixTimes[j]);
+		const float fXPercent = sinf(fBaseFreq * afFrequencies[j % c_nNumWindMatrices][0] * m_afMatrixTimes[j]);
+		const float fYPercent = cosf(fBaseFreq * afFrequencies[j % c_nNumWindMatrices][1] * m_afMatrixTimes[j]);
 
 		const float fSinX = sinf(fBaseAngle * fXPercent / c_fDeg2Rad);
 		const float fSinY = sinf(fBaseAngle * fYPercent / c_fDeg2Rad);
@@ -280,7 +301,7 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 		#endif
 	}
 
-	fOldStrength = m_fWindStrength;
+	m_fOldWindStrength = m_fWindStrength;
 	m_fLastWindComputedTime = fTimeInSecs;
 	m_fLastWindStrength = m_fWindStrength;
 	m_bWindMatricesCached = true;
