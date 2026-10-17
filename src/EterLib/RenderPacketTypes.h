@@ -59,6 +59,7 @@ namespace EterLib::Render
 #if defined(_WIN64)
 #include <cstddef>
 static_assert(sizeof(TTerrainSectorPacket) == 176, "ABI: TTerrainSectorPacket != packets.rs");
+static_assert(sizeof(TDebugLinePacket) == 32, "ABI: TDebugLinePacket == 32");
 static_assert(sizeof(TActorRenderPacket) == 5008, "ABI: TActorRenderPacket != packets.rs");
 static_assert(sizeof(TWaterPacket) == 112, "ABI: TWaterPacket != packets.rs");
 static_assert(sizeof(TSpeedTreeInstanceData) == 112, "ABI: TSpeedTreeInstanceData != packets.rs");

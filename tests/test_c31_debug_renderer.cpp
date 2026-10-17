@@ -9,6 +9,8 @@
 #include "Client/Graphics/Debug/DebugVertex.h"
 #include "Client/Graphics/Debug/DebugRenderer.h"
 #include "Client/World/ActorRegistry.h"
+#include "EterLib/RenderQueueManager.h"
+#include "EterLib/IRenderBackend.h"
 
 using namespace Client::Graphics::Debug;
 using namespace Client::World;
@@ -222,6 +224,81 @@ public:
     HRESULT STDMETHODCALLTYPE CreateQuery(D3DQUERYTYPE, IDirect3DQuery9**) override { return D3D_OK; }
 };
 
+// ============================================================================
+// Mock IRenderBackend do testow potoku kolejki renderowania
+// ============================================================================
+class MockD3D9RenderBackend final : public IRenderBackend {
+public:
+    MockD3D9Device* m_pDevice{ nullptr };
+    explicit MockD3D9RenderBackend(MockD3D9Device* dev) : m_pDevice(dev) {}
+
+    bool Initialize(HWND, unsigned int, unsigned int) override { return true; }
+    void Shutdown() override {}
+    void Resize(unsigned int, unsigned int) override {}
+    void BeginFrame(const TRenderFrameUniforms&) override {}
+    void RenderTerrain(const TTerrainSectorPacket*, unsigned int) override {}
+    void RenderActors(const TActorRenderPacket*, unsigned int) override {}
+    void RenderWater(const TWaterPacket*, unsigned int) override {}
+    void RenderSpeedTree(const TSpeedTreePacket*, unsigned int) override {}
+    void RenderEffects(const TEffectInstancePacket*, unsigned int) override {}
+    void RenderUI(const TUIBatchPacket*, unsigned int) override {}
+    void EndFrame() override {}
+    const char* GetBackendName() const override { return "MockD3D9"; }
+    bool IsDeviceLost() const override { return false; }
+    bool CaptureFrame(const char*) override { return true; }
+
+    void RenderDebugLines(const TDebugLinePacket* pPackets, unsigned int count) override
+    {
+        if (!pPackets || count == 0 || !m_pDevice)
+            return;
+
+        std::vector<DebugVertex> stdVerts;
+        std::vector<DebugVertex> xrayVerts;
+        stdVerts.reserve(count * 2);
+        xrayVerts.reserve(count * 2);
+
+        for (unsigned int i = 0; i < count; ++i)
+        {
+            const auto& p = pPackets[i];
+            auto& target = p.bXRay ? xrayVerts : stdVerts;
+            target.push_back({ p.v3Start.x, p.v3Start.y, p.v3Start.z, p.dwColor });
+            target.push_back({ p.v3End.x, p.v3End.y, p.v3End.z, p.dwColor });
+        }
+
+        auto drawBatched = [this](const std::vector<DebugVertex>& verts) {
+            constexpr size_t MAX_BATCH_PRIMITIVES = 4096;
+            const size_t maxVerticesPerChunk = MAX_BATCH_PRIMITIVES * 2;
+            for (size_t offset = 0; offset < verts.size(); offset += maxVerticesPerChunk)
+            {
+                const size_t chunkVerts = std::min(maxVerticesPerChunk, verts.size() - offset);
+                const auto primitiveCount = static_cast<UINT>(chunkVerts / 2);
+                if (primitiveCount > 0)
+                {
+                    m_pDevice->DrawPrimitiveUP(D3DPT_LINELIST, primitiveCount, &verts[offset], sizeof(DebugVertex));
+                }
+            }
+        };
+
+        if (!stdVerts.empty())
+        {
+            m_pDevice->SetFVF(DebugVertex::FVF);
+            drawBatched(stdVerts);
+        }
+
+        if (!xrayVerts.empty())
+        {
+            DWORD dwSavedZEnable = D3DZB_TRUE;
+            m_pDevice->GetRenderState(D3DRS_ZENABLE, &dwSavedZEnable);
+
+            m_pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+            m_pDevice->SetFVF(DebugVertex::FVF);
+            drawBatched(xrayVerts);
+
+            m_pDevice->SetRenderState(D3DRS_ZENABLE, dwSavedZEnable);
+        }
+    }
+};
+
 TEST_CASE("DebugVertex - pamiec i format FVF") {
     CHECK(sizeof(DebugVertex) == 16);
     CHECK(DebugVertex::FVF == (D3DFVF_XYZ | D3DFVF_DIFFUSE));
@@ -391,7 +468,12 @@ TEST_CASE("DebugRenderer - Renderowanie Direct3D 9 i obsluga X-Ray") {
     renderer.AddActorBox(2, 0xFFFFFF00, false);
 
     MockD3D9Device device;
-    renderer.Render(&device);
+    MockD3D9RenderBackend backend(&device);
+
+    auto& queue = CRenderQueueManager::Instance();
+    queue.BeginFrame();
+    renderer.FlushToRenderQueue();
+    queue.Flush(&backend);
 
     // Weryfikacja wykonania DrawCalls
     REQUIRE(device.m_drawCalls.size() >= 2);
@@ -414,6 +496,52 @@ TEST_CASE("DebugRenderer - Renderowanie Direct3D 9 i obsluga X-Ray") {
     CHECK(hasNormalDraw == true);
     CHECK(hasXRayDraw == true);
 
+    queue.BeginFrame();
     renderer.SetActorRegistry(nullptr);
     renderer.Clear();
 }
+
+TEST_CASE("DebugRenderer - TDebugLinePacket i RenderQueueManager (S6.11)") {
+    auto& renderer = DebugRenderer::GetInstance();
+    renderer.Clear();
+
+    renderer.AddLine(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 0xFF112233, false);
+    renderer.AddLine(10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 0xFF445566, true);
+    renderer.AddBox(0.0f, 0.0f, 0.0f, 10.0f, 10.0f, 10.0f, 0xFFAABBCC, false);
+    renderer.AddCircle(100.0f, 100.0f, 0.0f, 50.0f, 0xFFDDEEFF, true, 8);
+
+    std::vector<TDebugLinePacket> packets;
+    renderer.BuildVertexBatches(packets);
+
+    // 1 linia + 1 linia + 12 krawedzi boxa + 8 krawedzi okregu = 22 odcinki
+    CHECK(packets.size() == 22);
+
+    CHECK(packets[0].v3Start.x == 1.0f);
+    CHECK(packets[0].v3End.x == 4.0f);
+    CHECK(packets[0].bXRay == 0);
+    CHECK(packets[0].dwColor == 0xFF112233);
+
+    CHECK(packets[1].v3Start.x == 10.0f);
+    CHECK(packets[1].bXRay == 1);
+    CHECK(packets[1].dwColor == 0xFF445566);
+
+    // Test integracji z CRenderQueueManager
+    auto& queue = CRenderQueueManager::Instance();
+    queue.BeginFrame();
+    CHECK(queue.GetDebugLinePackets().empty());
+
+    renderer.FlushToRenderQueue();
+    CHECK(queue.GetDebugLinePackets().size() == 22);
+
+    // Test renderowania przez backend
+    MockD3D9Device mockDev;
+    MockD3D9RenderBackend backend(&mockDev);
+    queue.Flush(&backend);
+
+    CHECK(mockDev.m_drawCalls.size() >= 2);
+
+    queue.BeginFrame();
+    CHECK(queue.GetDebugLinePackets().empty());
+    renderer.Clear();
+}
+

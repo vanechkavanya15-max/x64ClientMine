@@ -165,6 +165,8 @@ public:
 	bool HasSkyDescription() const;
 	void SubmitDungeonBlock(const TDungeonBlockPacket& packet);
 	void SubmitWeaponTrace(const TWeaponTracePacket& packet);
+	void SubmitDebugLine(const TDebugLinePacket& packet);
+	void SubmitDebugLines(const TDebugLinePacket* pPackets, size_t count);
 
 	void Flush(IRenderBackend* pBackend = nullptr);
 	void FlushUI();
@@ -178,6 +180,7 @@ public:
 	const std::vector<TSkyBoxPacket>& GetSkyBoxPackets() const;
 	const std::vector<TDungeonBlockPacket>& GetDungeonPackets() const;
 	const std::vector<TWeaponTracePacket>& GetWeaponTracePackets() const;
+	const std::vector<TDebugLinePacket>& GetDebugLinePackets() const;
 
 	size_t GetTotalPacketCount() const;
 
@@ -225,6 +228,7 @@ private:
 	std::vector<TDungeonBlockPacket> m_dungeonPackets;
 	std::vector<TWeaponTracePacket> m_weaponTracePackets;
 	std::unique_ptr<SSkyDescription> m_pSkyDescription;
+	std::vector<TDebugLinePacket> m_debugLinePackets;
 
 	size_t m_flushedSpeedTreeOffset{ 0 };
 	size_t m_flushedUIOffset{ 0 };

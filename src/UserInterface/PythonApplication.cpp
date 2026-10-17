@@ -302,15 +302,14 @@ void CPythonApplication::RenderGame()
 		CRenderQueueManager::Instance().SetFrameUniforms(uniforms);
 	}
 
+	// Przekaz linie geometrii diagnostycznej i debugowania do kolejki renderowania
+	Client::Graphics::Debug::DebugRenderer::Instance().FlushToRenderQueue();
+
 	// Strangler Fig: Zrenderuj pakiety zebrane w kolejce renderowania przez aktywny backend (D3D9 / WGPU)
 	CRenderQueueManager::Instance().Flush(CRenderQueueManager::Instance().GetActiveBackend());
 
-	// Bezpieczne renderowanie geometrii diagnostycznej i linii debugowania w potoku gry
-	{
-		ScopedDebugRenderGuard debugGuard;
-		auto ms_lpd3dDevice = STATEMANAGER.GetDevice();
-		Client::Graphics::Debug::DebugRenderer::Instance().Render(ms_lpd3dDevice);
-	}
+	// Po wyrenderowaniu klatki wyczysc bufor linii diagnostycznych
+	Client::Graphics::Debug::DebugRenderer::Instance().Clear();
 }
 
 void CPythonApplication::UpdateGame()
