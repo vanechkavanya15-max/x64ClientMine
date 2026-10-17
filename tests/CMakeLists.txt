@@ -7174,4 +7174,3 @@ add_test(NAME test_c26_god_functions COMMAND test_c26_god_functions)
 add_test(NAME GodFunctionsTest COMMAND test_c26_god_functions)
 
 
-
