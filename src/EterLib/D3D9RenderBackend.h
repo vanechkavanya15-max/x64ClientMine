@@ -45,6 +45,7 @@ public:
 	virtual void EndFrame() override;
 	virtual const char* GetBackendName() const override;
 	virtual bool IsDeviceLost() const override;
+	virtual bool CaptureFrame(const char* szFilename) override;
 
 	void OnLostDevice();
 	void OnResetDevice();

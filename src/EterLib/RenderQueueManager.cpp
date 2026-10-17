@@ -1,13 +1,41 @@
 #include "StdAfx.h"
 #include "RenderQueueManager.h"
-#include "D3D9RenderBackend.h"
-#include "StateManager.h"
-#include "SpeedTreeLib/SpeedTreeWrapper.h"
+#include "IRenderBackend.h"
 #include <cstdio>
 #include <algorithm>
 
 static constexpr size_t DEFAULT_PARTICLE_POOL_CAPACITY = 65536;
 static constexpr size_t DEFAULT_SPEEDTREE_POOL_CAPACITY = 16384;
+
+std::vector<std::pair<std::string, size_t>> CRenderQueueManager::GetPacketSizes()
+{
+	return {
+		{ "TRenderFrameUniforms", sizeof(TRenderFrameUniforms) },
+		{ "TTerrainSectorPacket", sizeof(TTerrainSectorPacket) },
+		{ "TActorRenderPacket", sizeof(TActorRenderPacket) },
+		{ "TWaterPacket", sizeof(TWaterPacket) },
+		{ "TSkyBoxPacket", sizeof(TSkyBoxPacket) },
+		{ "TSpeedTreeInstanceData", sizeof(TSpeedTreeInstanceData) },
+		{ "TSpeedTreePacket", sizeof(TSpeedTreePacket) },
+		{ "TParticleInstanceData", sizeof(TParticleInstanceData) },
+		{ "TEffectInstancePacket", sizeof(TEffectInstancePacket) },
+		{ "TUIVertex", sizeof(TUIVertex) },
+		{ "TUIBatchPacket", sizeof(TUIBatchPacket) },
+		{ "TDungeonBlockPacket", sizeof(TDungeonBlockPacket) },
+		{ "TRenderFramePacket", sizeof(TRenderFramePacket) }
+	};
+}
+
+std::map<std::string, size_t> CRenderQueueManager::GetPacketSizeMap()
+{
+	const auto list = GetPacketSizes();
+	std::map<std::string, size_t> mapSizes;
+	for (const auto& kv : list)
+	{
+		mapSizes[kv.first] = kv.second;
+	}
+	return mapSizes;
+}
 
 CRenderQueueManager::CRenderQueueManager()
 {
@@ -26,13 +54,13 @@ CRenderQueueManager::CRenderQueueManager()
 	m_speedTreeInstancePool.resize(DEFAULT_SPEEDTREE_POOL_CAPACITY);
 	m_speedTreeInstanceOffset = 0;
 
+	m_droppedParticles = 0;
+	m_droppedSpeedTree = 0;
+
 	memset(&m_frameUniforms, 0, sizeof(TRenderFrameUniforms));
 }
 
-CRenderQueueManager::~CRenderQueueManager()
-{
-	Clear();
-}
+CRenderQueueManager::~CRenderQueueManager() = default;
 
 void CRenderQueueManager::BeginFrame()
 {
@@ -48,6 +76,8 @@ void CRenderQueueManager::BeginFrame()
 	m_flushedUIOffset = 0;
 	m_particleDataOffset = 0;
 	m_speedTreeInstanceOffset = 0;
+	m_droppedParticles = 0;
+	m_droppedSpeedTree = 0;
 }
 
 void CRenderQueueManager::EndFrame()
@@ -58,22 +88,6 @@ void CRenderQueueManager::EndFrame()
 		CaptureReferenceScreenshot("cpp_reference.png");
 		ClearPendingFrameDump();
 	}
-}
-
-void CRenderQueueManager::Clear()
-{
-	m_speedTreePackets.clear();
-	m_uiPackets.clear();
-	m_actorPackets.clear();
-	m_terrainPackets.clear();
-	m_effectPackets.clear();
-	m_waterPackets.clear();
-	m_skyBoxPackets.clear();
-	m_dungeonPackets.clear();
-	m_flushedSpeedTreeOffset = 0;
-	m_flushedUIOffset = 0;
-	m_particleDataOffset = 0;
-	m_speedTreeInstanceOffset = 0;
 }
 
 void CRenderQueueManager::SetFrameUniforms(const TRenderFrameUniforms& uniforms)
@@ -174,22 +188,6 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 	pBackend->EndFrame();
 }
 
-void CRenderQueueManager::FlushSpeedTree()
-{
-	if (m_flushedSpeedTreeOffset >= m_speedTreePackets.size())
-		return;
-
-	IRenderBackend* pBackend = GetActiveBackend();
-	if (pBackend)
-	{
-		pBackend->RenderSpeedTree(
-			m_speedTreePackets.data() + m_flushedSpeedTreeOffset,
-			static_cast<unsigned int>(m_speedTreePackets.size() - m_flushedSpeedTreeOffset)
-		);
-	}
-	m_flushedSpeedTreeOffset = m_speedTreePackets.size();
-}
-
 void CRenderQueueManager::FlushUI()
 {
 	if (m_flushedUIOffset >= m_uiPackets.size())
@@ -246,11 +244,6 @@ const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonPackets()
 	return m_dungeonPackets;
 }
 
-const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonBlockPackets() const
-{
-	return m_dungeonPackets;
-}
-
 size_t CRenderQueueManager::GetTotalPacketCount() const
 {
 	return m_speedTreePackets.size() + m_uiPackets.size() + m_actorPackets.size() +
@@ -264,16 +257,16 @@ TParticleInstanceData* CRenderQueueManager::AllocateParticleData(size_t count)
 		return nullptr;
 
 	if (m_particleDataOffset + count > m_particleDataPool.size())
+	{
+		m_droppedParticles += count;
+		TraceError("CRenderQueueManager::AllocateParticleData: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
+			count, m_particleDataPool.size() - m_particleDataOffset, m_particleDataPool.size(), m_droppedParticles);
 		return nullptr;
+	}
 
 	TParticleInstanceData* pResult = &m_particleDataPool[m_particleDataOffset];
 	m_particleDataOffset += count;
 	return pResult;
-}
-
-void CRenderQueueManager::ClearParticleData()
-{
-	m_particleDataOffset = 0;
 }
 
 TSpeedTreeInstanceData* CRenderQueueManager::AllocateSpeedTreeInstanceData(size_t count)
@@ -282,16 +275,16 @@ TSpeedTreeInstanceData* CRenderQueueManager::AllocateSpeedTreeInstanceData(size_
 		return nullptr;
 
 	if (m_speedTreeInstanceOffset + count > m_speedTreeInstancePool.size())
+	{
+		m_droppedSpeedTree += count;
+		TraceError("CRenderQueueManager::AllocateSpeedTreeInstanceData: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
+			count, m_speedTreeInstancePool.size() - m_speedTreeInstanceOffset, m_speedTreeInstancePool.size(), m_droppedSpeedTree);
 		return nullptr;
+	}
 
 	TSpeedTreeInstanceData* pResult = &m_speedTreeInstancePool[m_speedTreeInstanceOffset];
 	m_speedTreeInstanceOffset += count;
 	return pResult;
-}
-
-void CRenderQueueManager::ClearSpeedTreeInstanceData()
-{
-	m_speedTreeInstanceOffset = 0;
 }
 
 bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
@@ -440,23 +433,11 @@ bool CRenderQueueManager::CaptureReferenceScreenshot(const char* c_pszFileName) 
 	if (!c_pszFileName)
 		return false;
 
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
+	IRenderBackend* pBackend = GetActiveBackend();
+	if (!pBackend)
 		return false;
 
-	LPDIRECT3DSURFACE9 pBackBuffer = nullptr;
-	if (FAILED(dev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer)) || !pBackBuffer)
-		return false;
-
-	std::string fileName = c_pszFileName;
-	if (fileName.length() < 4 || (fileName.compare(fileName.length() - 4, 4, ".png") != 0 && fileName.compare(fileName.length() - 4, 4, ".PNG") != 0))
-	{
-		fileName += ".png";
-	}
-
-	HRESULT hr = D3DXSaveSurfaceToFileA(fileName.c_str(), D3DXIFF_PNG, pBackBuffer, nullptr, nullptr);
-	pBackBuffer->Release();
-	return SUCCEEDED(hr);
+	return pBackend->CaptureFrame(c_pszFileName);
 }
 
 void CRenderQueueManager::SetActiveBackend(IRenderBackend* pBackend)
@@ -466,6 +447,5 @@ void CRenderQueueManager::SetActiveBackend(IRenderBackend* pBackend)
 
 IRenderBackend* CRenderQueueManager::GetActiveBackend() const
 {
-	return m_pActiveBackend ? m_pActiveBackend : &CD3D9RenderBackend::Instance();
+	return m_pActiveBackend;
 }
-

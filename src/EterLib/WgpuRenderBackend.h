@@ -31,6 +31,7 @@ public:
 	void EndFrame() override;
 	const char* GetBackendName() const override;
 	bool IsDeviceLost() const override;
+	bool CaptureFrame(const char* szFilename) override;
 
 	bool IsDllLoaded() const noexcept;
 	static bool IsConfiguredInConfigJson();

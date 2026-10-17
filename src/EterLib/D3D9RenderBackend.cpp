@@ -742,3 +742,27 @@ bool CD3D9RenderBackend::IsDeviceLost() const
 	HRESULT hr = pD3DDevice->TestCooperativeLevel();
 	return (hr == D3DERR_DEVICELOST || hr == D3DERR_DEVICENOTRESET);
 }
+
+bool CD3D9RenderBackend::CaptureFrame(const char* szFilename)
+{
+	if (!szFilename)
+		return false;
+
+	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
+	if (!dev)
+		return false;
+
+	LPDIRECT3DSURFACE9 pBackBuffer = nullptr;
+	if (FAILED(dev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer)) || !pBackBuffer)
+		return false;
+
+	std::string fileName = szFilename;
+	if (fileName.length() < 4 || (fileName.compare(fileName.length() - 4, 4, ".png") != 0 && fileName.compare(fileName.length() - 4, 4, ".PNG") != 0))
+	{
+		fileName += ".png";
+	}
+
+	HRESULT hr = D3DXSaveSurfaceToFileA(fileName.c_str(), D3DXIFF_PNG, pBackBuffer, nullptr, nullptr);
+	pBackBuffer->Release();
+	return SUCCEEDED(hr);
+}
