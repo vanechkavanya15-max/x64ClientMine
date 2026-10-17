@@ -35,6 +35,8 @@ class CCamera
 		virtual ~CCamera();
 
 		static void SetCameraMaxDistance(float fMax);
+		static float GetCameraMinDistance() { return CAMERA_MIN_DISTANCE; }
+		static float GetCameraMaxDistance() { return CAMERA_MAX_DISTANCE; }
 
 		void Lock();
 		void Unlock();
