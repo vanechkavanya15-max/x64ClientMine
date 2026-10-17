@@ -225,9 +225,10 @@ void CPythonMiniMap::BuildMiniMapTerrainPass(SMiniMapTerrainPass* pOutPass) cons
 
 	pOutPass->dwTextureFactor = 0xFF000000;
 
-	if (m_MiniMapFilterGraphicImageInstance.GetTexturePointer())
+	CGraphicImageInstance& rFilter = const_cast<CGraphicImageInstance&>(m_MiniMapFilterGraphicImageInstance);
+	if (rFilter.GetTexturePointer())
 	{
-		LPDIRECT3DTEXTURE9 pFilterD3D = m_MiniMapFilterGraphicImageInstance.GetTexturePointer()->GetD3DTexture();
+		LPDIRECT3DTEXTURE9 pFilterD3D = rFilter.GetTexturePointer()->GetD3DTexture();
 		pOutPass->pFilterTexture = pFilterD3D;
 		if (pFilterD3D && CRenderResourceRegistry::InstancePtr())
 			pOutPass->hFilterTexture = CRenderResourceRegistry::Instance().FindTextureHandle(pFilterD3D);
