@@ -20,8 +20,10 @@ namespace EterLib::Render
     class DynamicQuadBatcher
     {
     public:
-        static constexpr size_t DEFAULT_VERTEX_CAPACITY = 65536;
-        static constexpr size_t DEFAULT_BATCH_CAPACITY = 512;
+        static constexpr size_t DEFAULT_VERTEX_CAPACITY = 262144; // 262144 wierzcholkow = 65536 quadow
+        static constexpr size_t DEFAULT_BATCH_CAPACITY = 1024;
+        static constexpr size_t MAX_QUADS_PER_BATCH = 16380;
+        static constexpr size_t MAX_VERTICES_PER_BATCH = MAX_QUADS_PER_BATCH * 4; // 65520 wierzcholkow
 
         static DynamicQuadBatcher& Instance();
 
@@ -41,6 +43,9 @@ namespace EterLib::Render
         void FlushToQueue(CRenderQueueManager& queue);
         void Clear() noexcept;
         bool IsBatching() const noexcept { return true; }
+
+        // Rezerwacja bufora poza cyklem rysowania klatki
+        void Reserve(size_t vertexCapacity, size_t batchCapacity = 0);
 
         // Konfiguracja stanu Scissor Rect
         void SetScissorRect(const RECT& rect, bool bEnable) noexcept;
@@ -76,9 +81,15 @@ namespace EterLib::Render
                               float width, float height, uint32_t diffuseColor = 0xFFFFFFFF);
 
         // Metryki i diagnostyka
-        [[nodiscard]] size_t GetVertexCount() const noexcept { return m_frameVertexOffset; }
+        [[nodiscard]] size_t GetVertexCount() const noexcept { return m_activeVertexCount; }
+        [[nodiscard]] size_t GetTotalVertexCount() const noexcept { return m_frameVertexOffset; }
         [[nodiscard]] size_t GetBatchCount() const noexcept { return m_activeBatchCount; }
-        [[nodiscard]] size_t GetVertexCapacity() const noexcept { return m_frameVertexBuffer.capacity(); }
+        [[nodiscard]] size_t GetVertexCapacity() const noexcept { return m_frameVertexBuffer.size(); }
+        [[nodiscard]] size_t GetBatchCapacity() const noexcept { return m_batchPool.size(); }
+        [[nodiscard]] size_t GetOverflowQuads() const noexcept { return m_overflowQuads; }
+        [[nodiscard]] size_t GetOverflowVertices() const noexcept { return m_overflowVertices; }
+        [[nodiscard]] size_t GetOverflowCount() const noexcept { return m_overflowQuads; }
+        [[nodiscard]] const TUIVertex* GetVertexBufferData() const noexcept { return m_frameVertexBuffer.data(); }
 
     private:
         struct BatchEntry
@@ -97,9 +108,13 @@ namespace EterLib::Render
         // Monotoniczny bufor klatki (Frame Ring-Buffer) - zero alokacji i zwalniania w trakcie klatki
         std::vector<TUIVertex> m_frameVertexBuffer;
         size_t m_frameVertexOffset{ 0 };
+        size_t m_activeVertexCount{ 0 };
 
         std::vector<BatchEntry> m_batchPool;
         size_t m_activeBatchCount{ 0 };
+
+        size_t m_overflowQuads{ 0 };
+        size_t m_overflowVertices{ 0 };
 
         RECT m_currentScissorRect{ 0, 0, 0, 0 };
         bool m_bScissorEnable{ false };
