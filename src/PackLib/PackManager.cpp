@@ -307,7 +307,7 @@ bool CPackManager::GetFileWithPool(std::string_view path, TPackFile& result, CBu
 		return false;
 	};
 
-	// 1. Transparent migration: gdy proszony jest stary format .gr2, preferuj nowoczesny model .glb
+	// 1. Transparent migration: gdy proszony jest stary format .gr2, laduj wylacznie nowoczesny model .glb
 	if (buf.size() > 4 && buf.ends_with(".gr2")) {
 		std::string preferredPack;
 		auto it = m_entries.find(buf);
@@ -315,25 +315,17 @@ bool CPackManager::GetFileWithPool(std::string_view path, TPackFile& result, CBu
 			preferredPack = it->second.first->GetPackName();
 		}
 		std::string glbPath = buf.substr(0, buf.size() - 4) + ".glb";
-		if (tryLoad(glbPath, preferredPack)) {
-			return true;
-		}
-		// Fallback do oryginalnego .gr2 gdy .glb nie istnieje
-		return tryLoad(buf, preferredPack);
+		return tryLoad(glbPath, preferredPack);
 	}
 
-	// 2. Gdy proszony jest .glb, najpierw laduj .glb, z fallbackiem do .gr2
+	// 2. Gdy proszony jest .glb, laduj wylacznie .glb (brak fallbacku do legacy .gr2)
 	if (buf.size() > 4 && buf.ends_with(".glb")) {
-		std::string gr2Path = buf.substr(0, buf.size() - 4) + ".gr2";
 		std::string preferredPack;
-		auto it = m_entries.find(gr2Path);
+		auto it = m_entries.find(buf);
 		if (it != m_entries.end() && it->second.first) {
 			preferredPack = it->second.first->GetPackName();
 		}
-		if (tryLoad(buf, preferredPack)) {
-			return true;
-		}
-		return tryLoad(gr2Path, preferredPack);
+		return tryLoad(buf, preferredPack);
 	}
 
 	// 3. Transparent fallback dla tekstur (.dds <-> .tga <-> .png <-> .jpg)
@@ -391,7 +383,7 @@ bool CPackManager::IsExist(std::string_view path) const
 		return !diskPath.empty();
 	};
 
-	// 1. Transparent migration check dla .gr2
+	// 1. Transparent migration check dla .gr2: sprawdzaj wylacznie .glb
 	if (buf.size() > 4 && buf.ends_with(".gr2")) {
 		std::string preferredPack;
 		auto it = m_entries.find(buf);
@@ -399,22 +391,17 @@ bool CPackManager::IsExist(std::string_view path) const
 			preferredPack = it->second.first->GetPackName();
 		}
 		std::string glbPath = buf.substr(0, buf.size() - 4) + ".glb";
-		if (checkExist(glbPath, preferredPack))
-			return true;
-		return checkExist(buf, preferredPack);
+		return checkExist(glbPath, preferredPack);
 	}
 
-	// 2. Transparent migration check dla .glb
+	// 2. Transparent migration check dla .glb: sprawdzaj wylacznie .glb (brak fallbacku do .gr2)
 	if (buf.size() > 4 && buf.ends_with(".glb")) {
-		std::string gr2Path = buf.substr(0, buf.size() - 4) + ".gr2";
 		std::string preferredPack;
-		auto it = m_entries.find(gr2Path);
+		auto it = m_entries.find(buf);
 		if (it != m_entries.end() && it->second.first) {
 			preferredPack = it->second.first->GetPackName();
 		}
-		if (checkExist(buf, preferredPack))
-			return true;
-		return checkExist(gr2Path, preferredPack);
+		return checkExist(buf, preferredPack);
 	}
 
 	// 3. Transparent fallback dla tekstur (.dds <-> .tga <-> .png <-> .jpg)
