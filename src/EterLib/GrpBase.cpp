@@ -4,6 +4,7 @@
 #include "GrpBase.h"
 #include "Camera.h"
 #include "StateManager.h"
+#include <algorithm>
 
 void PixelPositionToD3DXVECTOR3(const D3DXVECTOR3& c_rkPPosSrc, D3DXVECTOR3* pv3Dst)
 {
@@ -150,7 +151,8 @@ bool CGraphicBase::SetPDTStream(SPDTVertexRaw* pSrcVertices, UINT uVtxCount)
 	++s_dwVBPos;
 
 	assert(PDT_VERTEX_NUM>=uVtxCount);
-	if (uVtxCount >= PDT_VERTEX_NUM)
+	assert(uVtxCount <= 16);
+	if (uVtxCount > PDT_VERTEX_NUM)
 		return false;
 
 	TPDTVertex* pDstVertices;
@@ -428,15 +430,17 @@ void CGraphicBase::PopMatrix()
 
 DWORD CGraphicBase::GetColor(float r, float g, float b, float a)
 {
-	BYTE argb[4] =
-	{
-		(BYTE) (255.0f * b),
-		(BYTE) (255.0f * g),
-		(BYTE) (255.0f * r),
-		(BYTE) (255.0f * a)
-	};
+	float cr = std::clamp(r, 0.0f, 1.0f);
+	float cg = std::clamp(g, 0.0f, 1.0f);
+	float cb = std::clamp(b, 0.0f, 1.0f);
+	float ca = std::clamp(a, 0.0f, 1.0f);
 
-	return *((DWORD *) argb);
+	DWORD dwR = static_cast<DWORD>(cr * 255.0f);
+	DWORD dwG = static_cast<DWORD>(cg * 255.0f);
+	DWORD dwB = static_cast<DWORD>(cb * 255.0f);
+	DWORD dwA = static_cast<DWORD>(ca * 255.0f);
+
+	return (dwA << 24) | (dwR << 16) | (dwG << 8) | dwB;
 }
 
 void CGraphicBase::InitScreenEffect()

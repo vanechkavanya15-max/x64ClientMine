@@ -74,8 +74,8 @@ CLensFlare::CLensFlare() :
 {
 	m_afFlarePos[0] = m_afFlarePos[1] = 0.0f;
 	m_afFlareWinPos[0] = m_afFlareWinPos[1] = 0.0f;
-	m_pControlPixels = new float[c_nDepthTestDimension * c_nDepthTestDimension];
-	m_pTestPixels = new float[c_nDepthTestDimension * c_nDepthTestDimension];
+	m_pControlPixels = new float[c_nDepthTestDimension * c_nDepthTestDimension]();
+	m_pTestPixels = new float[c_nDepthTestDimension * c_nDepthTestDimension]();
 	m_afColor[0] = m_afColor[1] = m_afColor[2] = 1.0f;
 	m_afColor[3] = 1.0f;
 }

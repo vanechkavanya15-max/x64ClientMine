@@ -257,6 +257,9 @@ void CScreen::RenderGradationBar2d(float sx, float sy, float ex, float ey, DWORD
 
 void CScreen::RenderCircle2d(float fx, float fy, float fz, float fRadius, int iStep)
 {
+	if (iStep < 3)
+		return;
+
 	int count;
 	float theta, delta;
 	float x, y, z;
@@ -287,6 +290,9 @@ void CScreen::RenderCircle2d(float fx, float fy, float fz, float fRadius, int iS
 
 void CScreen::RenderCircle3d(float fx, float fy, float fz, float fRadius, int iStep)
 {
+	if (iStep < 3)
+		return;
+
 	int count;
 	float theta, delta;
 	std::vector<D3DXVECTOR3> pts;
@@ -322,12 +328,12 @@ public:
 	
 	CD3DXMeshRenderingOption(D3DFILLMODE d3dFillMode, const D3DXMATRIX & c_rmatWorld)
 	{
-		ms_lpd3dDevice->GetFVF(&m_dwVS);
+		STATEMANAGER.GetFVF(&m_dwVS);
 
 		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
 		STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 		STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		STATEMANAGER.SetRenderState(D3DRS_FILLMODE, d3dFillMode);
+		STATEMANAGER.SaveRenderState(D3DRS_FILLMODE, d3dFillMode);
 		STATEMANAGER.SaveTransform(D3DTS_WORLD, &c_rmatWorld);
 
 		STATEMANAGER.SetTexture(0, NULL);
@@ -336,18 +342,21 @@ public:
 	
 	virtual ~CD3DXMeshRenderingOption()
 	{
-		ms_lpd3dDevice->SetFVF(m_dwVS);
+		STATEMANAGER.SetFVF(m_dwVS);
 
 		STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
 		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
 		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
-		STATEMANAGER.SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+		STATEMANAGER.RestoreRenderState(D3DRS_FILLMODE);
 	}
 };
 
 void CScreen::RenderD3DXMesh(LPD3DXMESH lpMesh, const D3DXMATRIX * c_pmatWorld, float fx, float fy, float fz, float fRadius, D3DFILLMODE d3dFillMode)
 {
+	if (!lpMesh)
+		return;
+
 	D3DXMATRIX matTranslation;
 	D3DXMATRIX matScaling;
 
@@ -363,14 +372,24 @@ void CScreen::RenderD3DXMesh(LPD3DXMESH lpMesh, const D3DXMATRIX * c_pmatWorld, 
 	}
 
 	CD3DXMeshRenderingOption SetRenderingOption(d3dFillMode, matWorld);
-	LPDIRECT3DINDEXBUFFER9 lpIndexBuffer;
-	LPDIRECT3DVERTEXBUFFER9 lpVertexBuffer;
+	LPDIRECT3DINDEXBUFFER9 lpIndexBuffer = NULL;
+	LPDIRECT3DVERTEXBUFFER9 lpVertexBuffer = NULL;
 	lpMesh->GetIndexBuffer(&lpIndexBuffer);
 	lpMesh->GetVertexBuffer(&lpVertexBuffer);
 	STATEMANAGER.SetFVF(lpMesh->GetFVF());
 	STATEMANAGER.SetIndices(lpIndexBuffer, 0);
-	STATEMANAGER.SetStreamSource(0, lpVertexBuffer, 24);
+	STATEMANAGER.SetStreamSource(0, lpVertexBuffer, lpMesh->GetNumBytesPerVertex());
 	STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, lpMesh->GetNumVertices(), 0, lpMesh->GetNumFaces());
+	if (lpIndexBuffer)
+	{
+		lpIndexBuffer->Release();
+		lpIndexBuffer = NULL;
+	}
+	if (lpVertexBuffer)
+	{
+		lpVertexBuffer->Release();
+		lpVertexBuffer = NULL;
+	}
 }
 
 void CScreen::RenderSphere(const D3DXMATRIX * c_pmatWorld, float fx, float fy, float fz, float fRadius, D3DFILLMODE d3dFillMode)

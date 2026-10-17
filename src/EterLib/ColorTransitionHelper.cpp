@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "ColorTransitionHelper.h"
+#include <algorithm>
 
 void CColorTransitionHelper::Clear(const float & c_rfRed,
 								   const float & c_rfGreen,
@@ -58,19 +59,29 @@ bool CColorTransitionHelper::Update()
 //	if (!m_bTransitionStarted)
 //		return false;
 
-	DWORD dwCurTime = GetCurrentTime();
-	DWORD dwElapsedTime = dwCurTime - m_dwStartTime;
+	float fpercent = 1.0f;
+	if (m_dwDuration > 0)
+	{
+		DWORD dwCurTime = GetCurrentTime();
+		DWORD dwElapsedTime = dwCurTime - m_dwStartTime;
 
-	float fpercent = (float)(dwElapsedTime) / (float)(m_dwDuration);
-	if (fpercent <= 0.0f)
-		fpercent = 0.0f;
-	if (fpercent >= 1.0f)
-		fpercent = 1.0f;
+		fpercent = (float)(dwElapsedTime) / (float)(m_dwDuration);
+		if (fpercent < 0.0f)
+			fpercent = 0.0f;
+		else if (fpercent > 1.0f)
+			fpercent = 1.0f;
+	}
+
 	float fCurRed, fCurGreen, fCurBlue, fCurAlpha;
 	fCurRed		= m_fSrcRed + (m_fDstRed - m_fSrcRed) * fpercent;
 	fCurGreen	= m_fSrcGreen + (m_fDstGreen - m_fSrcGreen) * fpercent;
 	fCurBlue	= m_fSrcBlue + (m_fDstBlue - m_fSrcBlue) * fpercent;
 	fCurAlpha	= m_fSrcAlpha + (m_fDstAlpha - m_fSrcAlpha) * fpercent;
+
+	fCurRed		= std::clamp(fCurRed, 0.0f, 1.0f);
+	fCurGreen	= std::clamp(fCurGreen, 0.0f, 1.0f);
+	fCurBlue	= std::clamp(fCurBlue, 0.0f, 1.0f);
+	fCurAlpha	= std::clamp(fCurAlpha, 0.0f, 1.0f);
 
 // 	Tracef("%f, %f, %f, %f\n", fCurRed, fCurGreen, fCurBlue, fCurAlpha);
 
@@ -79,7 +90,7 @@ bool CColorTransitionHelper::Update()
 		(((DWORD)(fCurGreen * 255.0f)&0xff) << 8) |
 		((DWORD)(fCurBlue * 255.0f)&0xff);
 
-	if ( (1.0f == fpercent) && (fCurAlpha == m_fDstAlpha) && (fCurRed == m_fDstRed) && (fCurGreen == m_fDstGreen) && (fCurBlue == m_fDstBlue) )
+	if (1.0f == fpercent)
 	{
 		m_bTransitionStarted = false;
 		return false;

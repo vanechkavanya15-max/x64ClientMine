@@ -112,8 +112,8 @@ private:
 	bool        	m_bFlareVisible, m_bDrawFlare, m_bDrawBrightScreen;
 	float			m_fSunSize;
 	CFlare			m_cFlare;
-	float *			m_pControlPixels;
-	float *			m_pTestPixels;
+	float *			m_pControlPixels = nullptr;
+	float *			m_pTestPixels = nullptr;
 	bool			m_bEnabled;
 	bool			m_bShowMainFlare;
 	float			m_fMaxBrightness;

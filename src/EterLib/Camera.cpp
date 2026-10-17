@@ -768,17 +768,24 @@ CCamera * CCameraManager::GetCurrentCamera()
 
 void CCameraManager::SetCurrentCamera(unsigned char ucCameraNum)
 {
-	if (m_pCurrentCamera != m_CameraMap[ucCameraNum])
+	TCameraMap::iterator itor = m_CameraMap.find(ucCameraNum);
+	if (itor == m_CameraMap.end())
+		return;
+
+	CCamera * pNewCamera = itor->second;
+	if (m_pCurrentCamera != pNewCamera)
 		m_pPreviousCamera = m_pCurrentCamera;
 
-	m_pCurrentCamera = m_CameraMap[ucCameraNum];
+	m_pCurrentCamera = pNewCamera;
 }
 
 bool CCameraManager::isCurrentCamera(unsigned char ucCameraNum)
 {
-	if (m_CameraMap[ucCameraNum] == m_pCurrentCamera)
-		return true;
-	return false;
+	TCameraMap::iterator itor = m_CameraMap.find(ucCameraNum);
+	if (itor == m_CameraMap.end())
+		return false;
+
+	return (itor->second == m_pCurrentCamera);
 }
 
 // 잡스러운 함수들...

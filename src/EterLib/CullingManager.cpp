@@ -141,6 +141,7 @@ void CCullingManager::Unregister(CullingHandle h)
 }
 
 CCullingManager::CCullingManager()
+	: m_RayFarDistance(-1.0f)
 {
 	m_Factory = new SpherePackFactory(
 		10000,	// maximum count
