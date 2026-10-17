@@ -3,6 +3,8 @@
 #include "EterLib/GrpSubImage.h"
 #include "EterLib/Camera.h"
 #include "EterLib/RenderOwnership.h"
+#include "EterLib/RenderBypassGuard.h"
+#include "EterLib/RenderResourceRegistry.h"
 #include "PackLib/PackManager.h"
 
 #include "PythonMiniMap.h"
@@ -203,65 +205,89 @@ void CPythonMiniMap::Update(float fCenterX, float fCenterY)
 }
 
 
-void CPythonMiniMap::Render(float fScreenX, float fScreenY)
+void CPythonMiniMap::BuildMiniMapTerrainPass(SMiniMapTerrainPass* pOutPass) const
 {
-	CPythonBackground& rkBG=CPythonBackground::Instance();
-	if (!rkBG.IsMapOutdoor())
+	if (!pOutPass)
 		return;
 
-	if (!m_bShow)
-		return;
+	pOutPass->passDesc.passType = RENDER_PASS_MINIMAP;
+	pOutPass->passDesc.targetHandle = 0;
+	pOutPass->passDesc.clearColor = 0;
+	pOutPass->passDesc.bClearTarget = 0;
 
-	if (!rkBG.IsMapReady())
-		return;
+	pOutPass->matWorld = m_matWorld;
+	pOutPass->matCover = m_matMiniMapCover;
+	pOutPass->fScreenX = m_fScreenX;
+	pOutPass->fScreenY = m_fScreenY;
+	pOutPass->fMiniMapWidth = m_fWidth;
+	pOutPass->fMiniMapHeight = m_fHeight;
+	pOutPass->fScale = m_fScale;
 
-	if (m_fScreenX != fScreenX || m_fScreenY != fScreenY)
+	pOutPass->dwTextureFactor = 0xFF000000;
+
+	if (m_MiniMapFilterGraphicImageInstance.GetTexturePointer())
 	{
-		m_fScreenX = fScreenX;
-		m_fScreenY = fScreenY;
+		LPDIRECT3DTEXTURE9 pFilterD3D = m_MiniMapFilterGraphicImageInstance.GetTexturePointer()->GetD3DTexture();
+		pOutPass->pFilterTexture = pFilterD3D;
+		if (pFilterD3D && CRenderResourceRegistry::InstancePtr())
+			pOutPass->hFilterTexture = CRenderResourceRegistry::Instance().FindTextureHandle(pFilterD3D);
 	}
 
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+	for (size_t i = 0; i < AROUND_AREA_NUM; ++i)
+	{
+		pOutPass->pTerrainTextures[i] = m_lpMiniMapTexture[i];
+		if (m_lpMiniMapTexture[i] && CRenderResourceRegistry::InstancePtr())
+			pOutPass->hTerrainTextures[i] = CRenderResourceRegistry::Instance().FindTextureHandle(m_lpMiniMapTexture[i]);
+		else
+			pOutPass->hTerrainTextures[i] = 0;
+	}
+}
 
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+void CPythonMiniMap::RenderTerrainPass(const SMiniMapTerrainPass& pass)
+{
+	CRenderCategoryScope categoryScope(RenderOwnership::ERenderCategory::MiniMap);
+
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MIPFILTER, pass.filterSamplerMip);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MINFILTER, pass.filterSamplerMin);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MAGFILTER, pass.filterSamplerMag);
+
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, pass.addressModeU);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, pass.addressModeV);
 
 	STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 	STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-	STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-	STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+	STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSU, pass.addressModeU);
+	STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSV, pass.addressModeV);
 
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, pass.colorOpStage0);
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, pass.alphaOpStage0);
 
 	STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 	STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
-	STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLOROP, pass.colorOpStage1);
 	STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 	STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
-	STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAOP, pass.alphaOpStage1);
 
-	STATEMANAGER.SaveRenderState(D3DRS_TEXTUREFACTOR, 0xFF000000);
+	STATEMANAGER.SaveRenderState(D3DRS_TEXTUREFACTOR, pass.dwTextureFactor);
 
-	STATEMANAGER.SetTexture(1, m_MiniMapFilterGraphicImageInstance.GetTexturePointer()->GetD3DTexture());
-	STATEMANAGER.SetTransform(D3DTS_TEXTURE1, &m_matMiniMapCover);
+	STATEMANAGER.SetTexture(1, static_cast<LPDIRECT3DTEXTURE9>(pass.pFilterTexture));
+	STATEMANAGER.SetTransform(D3DTS_TEXTURE1, &pass.matCover);
 
 	STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
 	STATEMANAGER.SetStreamSource(0, m_VertexBuffer.GetD3DVertexBuffer(), 20);
 	STATEMANAGER.SetIndices(m_IndexBuffer.GetD3DIndexBuffer(), 0);
-	STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorld);
+	STATEMANAGER.SetTransform(D3DTS_WORLD, &pass.matWorld);
 
 	if (RenderOwnership::LegacyDraws(ERenderCategory::MiniMap))
 	{
 		for (BYTE byTerrainNum = 0; byTerrainNum < AROUND_AREA_NUM; ++byTerrainNum)
 		{
-			LPDIRECT3DTEXTURE9 pMiniMapTexture = m_lpMiniMapTexture[byTerrainNum];
+			LPDIRECT3DTEXTURE9 pMiniMapTexture = static_cast<LPDIRECT3DTEXTURE9>(pass.pTerrainTextures[byTerrainNum]);
 			STATEMANAGER.SetTexture(0, pMiniMapTexture);
 			if (pMiniMapTexture)
 			{
@@ -299,6 +325,29 @@ void CPythonMiniMap::Render(float fScreenX, float fScreenY)
 	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS);
 	STATEMANAGER.RestoreSamplerState(1, D3DSAMP_ADDRESSU);
 	STATEMANAGER.RestoreSamplerState(1, D3DSAMP_ADDRESSV);
+}
+
+void CPythonMiniMap::Render(float fScreenX, float fScreenY)
+{
+	CPythonBackground& rkBG=CPythonBackground::Instance();
+	if (!rkBG.IsMapOutdoor())
+		return;
+
+	if (!m_bShow)
+		return;
+
+	if (!rkBG.IsMapReady())
+		return;
+
+	if (m_fScreenX != fScreenX || m_fScreenY != fScreenY)
+	{
+		m_fScreenX = fScreenX;
+		m_fScreenY = fScreenY;
+	}
+
+	SMiniMapTerrainPass terrainPass;
+	BuildMiniMapTerrainPass(&terrainPass);
+	RenderTerrainPass(terrainPass);
 
 	SetDiffuseOperation();
 	STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matIdentity);

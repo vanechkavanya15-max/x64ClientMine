@@ -75,9 +75,55 @@ struct STerrainSplatPass
 	bool bShadowPass{ false };
 };
 
+struct SMiniMapTerrainPass
+{
+	TRenderPassDesc passDesc{};
+	D3DXMATRIX matWorld{};
+	D3DXMATRIX matCover{};
+	float fScreenX{ 0.0f };
+	float fScreenY{ 0.0f };
+	float fMiniMapWidth{ 128.0f };
+	float fMiniMapHeight{ 128.0f };
+	float fScale{ 1.0f };
+
+	uint32_t dwTextureFactor{ 0xFF000000 };
+	uint32_t hFilterTexture{ 0 };
+	void* pFilterTexture{ nullptr };
+	uint32_t hTerrainTextures[9]{ 0 };
+	void* pTerrainTextures[9]{ nullptr };
+
+	// Jawne stany samplera i etapow tekstur
+	uint32_t filterSamplerMin{ D3DTEXF_POINT };
+	uint32_t filterSamplerMag{ D3DTEXF_POINT };
+	uint32_t filterSamplerMip{ D3DTEXF_POINT };
+	uint32_t addressModeU{ D3DTADDRESS_CLAMP };
+	uint32_t addressModeV{ D3DTADDRESS_CLAMP };
+	uint32_t colorOpStage0{ D3DTOP_SELECTARG1 };
+	uint32_t colorOpStage1{ D3DTOP_MODULATE };
+	uint32_t alphaOpStage0{ D3DTOP_SELECTARG1 };
+	uint32_t alphaOpStage1{ D3DTOP_SELECTARG1 };
+
+	static D3DXMATRIX ComputeCoverMatrix(float fScreenX, float fScreenY, float fFilterWidth, float fFilterHeight)
+	{
+		D3DXMATRIX matCover;
+		D3DXMatrixIdentity(&matCover);
+		if (fFilterWidth > 0.0f && fFilterHeight > 0.0f)
+		{
+			matCover._11 = 1.0f / fFilterWidth;
+			matCover._22 = 1.0f / fFilterHeight;
+			matCover._33 = 0.0f;
+			matCover._41 = -fScreenX / fFilterWidth;
+			matCover._42 = -fScreenY / fFilterHeight;
+		}
+		return matCover;
+	}
+};
+
 // Twarde asercje ABI x64 - musza byc identyczne z const assert! w E:\metin2ToRust\crates\m2-client-render\src\packets.rs
 #if defined(_WIN64)
 #include <cstddef>
+static_assert(sizeof(TRenderPassDesc) == 144, "ABI: TRenderPassDesc == 144");
+static_assert(sizeof(TShadowPassData) == 272, "ABI: TShadowPassData == 272");
 static_assert(sizeof(TTerrainSectorPacket) == 176, "ABI: TTerrainSectorPacket != packets.rs");
 static_assert(sizeof(TDebugLinePacket) == 32, "ABI: TDebugLinePacket == 32");
 static_assert(sizeof(TActorRenderPacket) == 5008, "ABI: TActorRenderPacket != packets.rs");

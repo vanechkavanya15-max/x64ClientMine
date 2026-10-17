@@ -5,6 +5,8 @@
 #include "stdafx.h"
 #include "EterLib/CullingManager.h"
 #include "EterLib/Camera.h"
+#include "EterLib/RenderOwnership.h"
+#include "EterLib/RenderBypassGuard.h"
 #include "PackLib/PackManager.h"
 #include "GameLib/MapOutDoor.h"
 #include "GameLib/PropertyLoader.h"
@@ -506,6 +508,8 @@ void CPythonBackground::RenderCharacterShadowToTexture()
 
 	if (!IsMapReady())
 		return;
+
+	CRenderCategoryScope categoryScope(RenderOwnership::ERenderCategory::Shadow);
 
 	CMapOutdoor& rkMap=GetMapOutdoorRef();
 	DWORD t1=ELTimer_GetMSec();

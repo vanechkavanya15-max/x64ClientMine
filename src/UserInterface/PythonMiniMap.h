@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PythonBackground.h"
+#include "EterLib/RenderPacketTypes.h"
 #include "MiniMap/MiniMapWaypointTracker.h"
 
 class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
@@ -50,6 +51,8 @@ class CPythonMiniMap : public CScreen, public CSingleton<CPythonMiniMap>
 
 		void Update(float fCenterX, float fCenterY);
 		void Render(float fScreenX, float fScreenY);
+		void RenderTerrainPass(const SMiniMapTerrainPass& pass);
+		void BuildMiniMapTerrainPass(SMiniMapTerrainPass* pOutPass) const;
 
 		void Show();
 		void Hide();
