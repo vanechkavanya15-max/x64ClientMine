@@ -5,8 +5,26 @@
 #include <vector>
 #include <regex>
 
-static bool CheckFileNoBareEndifTokens(const std::string& filePath)
+static std::string ResolveFilePath(const std::string& relPath)
 {
+    std::vector<std::string> candidates = {
+        "src/" + relPath,
+        "../src/" + relPath,
+        "../../src/" + relPath,
+        "E:/m2dev client backlup/src/" + relPath
+    };
+    for (const auto& cand : candidates)
+    {
+        std::ifstream f(cand);
+        if (f.is_open())
+            return cand;
+    }
+    return relPath;
+}
+
+static bool CheckFileNoBareEndifTokens(const std::string& relPath)
+{
+    std::string filePath = ResolveFilePath(relPath);
     std::ifstream file(filePath);
     if (!file.is_open())
         return true;
@@ -21,8 +39,9 @@ static bool CheckFileNoBareEndifTokens(const std::string& filePath)
     return true;
 }
 
-static bool CheckFileNoMojibakeMarkers(const std::string& filePath)
+static bool CheckFileNoMojibakeMarkers(const std::string& relPath)
 {
+    std::string filePath = ResolveFilePath(relPath);
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open())
         return true;
@@ -40,14 +59,14 @@ static bool CheckFileNoMojibakeMarkers(const std::string& filePath)
 TEST_CASE("CommentCleanliness: No bare endif tokens in key headers")
 {
     std::vector<std::string> headersToCheck = {
-        "../src/EterLib/StateManager.h",
-        "../src/EterLib/GrpBase.h",
-        "../src/EterLib/RenderQueueManager.h",
-        "../src/EterLib/RenderConventions.h",
-        "../src/GameLib/MapOutdoor.h",
-        "../src/GameLib/MapOutdoorCharacterShadow.h",
-        "../src/GameLib/MapOutdoorWater.h",
-        "../src/UserInterface/PythonApplication.h"
+        "EterLib/StateManager.h",
+        "EterLib/GrpBase.h",
+        "EterLib/RenderQueueManager.h",
+        "EterLib/RenderConventions.h",
+        "GameLib/MapOutdoor.h",
+        "GameLib/MapOutdoorCharacterShadow.h",
+        "GameLib/MapOutdoorWater.h",
+        "UserInterface/PythonApplication.h"
     };
 
     for (const auto& path : headersToCheck)
@@ -58,7 +77,7 @@ TEST_CASE("CommentCleanliness: No bare endif tokens in key headers")
 
 TEST_CASE("CommentCleanliness: Mojibake eliminated in PythonApplication and GrpBase")
 {
-    CHECK(CheckFileNoMojibakeMarkers("../src/UserInterface/PythonApplication.cpp"));
-    CHECK(CheckFileNoMojibakeMarkers("../src/EterLib/GrpBase.cpp"));
-    CHECK(CheckFileNoMojibakeMarkers("../src/SpeedTreeLib/SpeedTreeForestDirectX.cpp"));
+    CHECK(CheckFileNoMojibakeMarkers("UserInterface/PythonApplication.cpp"));
+    CHECK(CheckFileNoMojibakeMarkers("EterLib/GrpBase.cpp"));
+    CHECK(CheckFileNoMojibakeMarkers("SpeedTreeLib/SpeedTreeForestDirectX.cpp"));
 }
