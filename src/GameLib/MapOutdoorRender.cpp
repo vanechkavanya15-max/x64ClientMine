@@ -291,7 +291,6 @@ struct FAreaRenderShadow
 	void operator () (CGraphicObjectInstance * pInstance)
 	{
 		pInstance->RenderShadow();
-		pInstance->Hide();
 	}
 };
 

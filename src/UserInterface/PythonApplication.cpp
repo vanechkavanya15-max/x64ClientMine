@@ -1090,6 +1090,7 @@ bool CPythonApplication::Create(PyObject * poSelf, const char * c_szName, int wi
 		if (!m_grpDevice.IsFastTNL())
 			CGrannyLODController::SetMinLODMode(true);
 
+		m_RaceManager.Create();
 		m_pyItem.Create();
 
 		// Other Modules

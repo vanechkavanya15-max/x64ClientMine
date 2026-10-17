@@ -55,12 +55,19 @@ DWORD CActorInstance::GetRace()
 
 bool CActorInstance::SetRace(DWORD eRace)
 {
-	CRaceData * pRaceData;
+	CRaceData * pRaceData = nullptr;
 	if (!CRaceManager::Instance().GetRaceDataPointer(eRace, &pRaceData))
 	{
-		m_eRace=0;
-		m_pkCurRaceData=NULL;
-		return false;
+		if (eRace != 0 && CRaceManager::Instance().GetRaceDataPointer(0, &pRaceData))
+		{
+			TraceError("CActorInstance::SetRace: Race %u not found, falling back to race 0", eRace);
+		}
+		else
+		{
+			m_eRace=0;
+			m_pkCurRaceData=NULL;
+			return false;
+		}
 	}
 
 	m_eRace=eRace;

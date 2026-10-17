@@ -864,7 +864,7 @@ void CGrannyLODController::RenderShadow()
 	{
 		if (m_pGltfModelInstance)
 		{
-			RenderGltfModel(EModelPass::ShadowDepth);
+			RenderGltfModel(EModelPass::Opaque);
 			return;
 		}
 
