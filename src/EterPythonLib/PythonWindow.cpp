@@ -1321,7 +1321,10 @@ namespace UI
 	void CTextLine::OnRender()
 	{
 		if (IsShow())
+		{
+			EterLib::Render::DynamicQuadBatcher::Instance().FlushPendingUI();
 			m_TextInstance.Render();
+		}
 	}
 
 	void CTextLine::OnChangePosition()

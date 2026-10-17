@@ -765,7 +765,6 @@ namespace UI
 	void CWindowManager::Render()
 	{
 		m_pRootWindow->Render();
-		EterLib::Render::DynamicQuadBatcher::Instance().FlushToQueue(CRenderQueueManager::Instance());
 	}
 
 	CWindow * CWindowManager::__PickWindow(long x, long y)

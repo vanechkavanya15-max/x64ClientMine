@@ -528,6 +528,7 @@ bool CPythonApplication::Process()
 
 				OnUIRender();
 				OnMouseRender();
+				FlushFrameUI();
 				UserInterface::FastBoot::FastBootOverlay::Instance().Render();
 				/////////////////////
 
@@ -1354,3 +1355,10 @@ bool CPythonApplication::SaveScreenShot(const char* c_szFileName)
 
 	return stbi_write_png(c_szFileName, desc.Width, desc.Height, 4, rgba.data(), desc.Width * 4) != 0;
 }
+
+void CPythonApplication::FlushFrameUI()
+{
+	CDynamicQuadBatcher::Instance().FlushToQueue();
+	CRenderQueueManager::Instance().FlushUI();
+}
+

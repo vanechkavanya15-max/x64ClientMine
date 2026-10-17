@@ -282,6 +282,7 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 
 		void OnMouseUpdate();
 		void OnMouseRender();
+		void FlushFrameUI();
 
 		void OnMouseWheel(int nLen);
 		void OnMouseMove(int x, int y);

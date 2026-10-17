@@ -24,7 +24,6 @@ void CPythonApplication::OnUIRender()
 {
 	UI::CWindowManager& rkUIMgr=UI::CWindowManager::Instance();
 	rkUIMgr.Render();
-	CRenderQueueManager::Instance().FlushUI();
 }
 
 void CPythonApplication::OnSizeChange(int width, int height)
