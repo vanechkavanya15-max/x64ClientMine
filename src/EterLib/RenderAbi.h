@@ -91,6 +91,47 @@ typedef enum EEffectBlendMode
     EFFECT_BLEND_ADDITIVE = 1
 } EEffectBlendMode;
 
+typedef enum ERenderBlendFactor
+{
+    BLEND_FACTOR_ZERO = 1,
+    BLEND_FACTOR_ONE = 2,
+    BLEND_FACTOR_SRC_COLOR = 3,
+    BLEND_FACTOR_INV_SRC_COLOR = 4,
+    BLEND_FACTOR_SRC_ALPHA = 5,
+    BLEND_FACTOR_INV_SRC_ALPHA = 6,
+    BLEND_FACTOR_DEST_ALPHA = 7,
+    BLEND_FACTOR_INV_DEST_ALPHA = 8,
+    BLEND_FACTOR_DEST_COLOR = 9,
+    BLEND_FACTOR_INV_DEST_COLOR = 10,
+    BLEND_FACTOR_SRC_ALPHA_SAT = 11,
+    BLEND_FACTOR_BOTH_SRC_ALPHA = 12,
+    BLEND_FACTOR_BOTH_INV_SRC_ALPHA = 13,
+    BLEND_FACTOR_BLEND_FACTOR = 14,
+    BLEND_FACTOR_INV_BLEND_FACTOR = 15,
+
+    RENDER_BLEND_ZERO = 1,
+    RENDER_BLEND_ONE = 2,
+    RENDER_BLEND_SRC_COLOR = 3,
+    RENDER_BLEND_INV_SRC_COLOR = 4,
+    RENDER_BLEND_SRC_ALPHA = 5,
+    RENDER_BLEND_INV_SRC_ALPHA = 6,
+    RENDER_BLEND_DEST_ALPHA = 7,
+    RENDER_BLEND_INV_DEST_ALPHA = 8,
+    RENDER_BLEND_DEST_COLOR = 9,
+    RENDER_BLEND_INV_DEST_COLOR = 10,
+    RENDER_BLEND_SRC_ALPHA_SAT = 11
+} ERenderBlendFactor;
+
+typedef enum EParticleBillboardType
+{
+    PARTICLE_BILLBOARD_ALL = 1,
+    PARTICLE_BILLBOARD_Y = 2,
+    PARTICLE_BILLBOARD_LIE = 3,
+    PARTICLE_BILLBOARD_2FACE = 4,
+    PARTICLE_BILLBOARD_3FACE = 5,
+    PARTICLE_BILLBOARD_STRETCH = 6
+} EParticleBillboardType;
+
 typedef enum EUIBlendMode
 {
     UI_BLEND_NORMAL = 0,
@@ -455,7 +496,17 @@ typedef struct RENDER_ABI_ALIGN(16) TEffectInstancePacket
 {
     uint32_t dwEffectID;
     uintptr_t dwTextureID;
-    uint32_t dwBlendMode;
+    union
+    {
+        uint32_t dwBlendMode;
+        struct
+        {
+            uint8_t srcBlend;
+            uint8_t destBlend;
+            uint8_t billboardMode;
+            uint8_t bStretch;
+        };
+    };
     uint32_t dwParticleCount;
     const TParticleInstanceData* pParticles;
     float fPad[2];
@@ -633,6 +684,37 @@ typedef struct TRenderPassDesc
     TRenderMatrix4x4 matProj;
 } TRenderPassDesc;
 
+/* 21. TParticlePacket: 96 bajtow, wyrownanie 16B (v2 pakiet czasteczki z pelna wiernoscia parametrow) */
+typedef struct RENDER_ABI_ALIGN(16) TParticlePacket
+{
+    RENDER_VEC3_TYPE vPosition;
+    float fHalfWidth;
+    RENDER_VEC3_TYPE vVelocity;
+    float fHalfHeight;
+    RENDER_COLOR4_TYPE vColor;
+    RENDER_VEC4_TYPE vTexCoordRect;
+    float fRotation;
+    uint8_t srcBlend;
+    uint8_t destBlend;
+    uint8_t billboardMode;
+    uint8_t bStretch;
+    uint32_t dwEffectID;
+    float fPad0;
+    uintptr_t dwTextureID;
+    float fPad1[2];
+
+#ifdef __cplusplus
+    TParticlePacket()
+    {
+        std::memset(this, 0, sizeof(*this));
+        vTexCoordRect.x = 0.0f;
+        vTexCoordRect.y = 0.0f;
+        vTexCoordRect.z = 1.0f;
+        vTexCoordRect.w = 1.0f;
+    }
+#endif
+} TParticlePacket;
+
 /* Statyczne asercje rozmiarow i wyrownan struktur pakietowych C-ABI */
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderMatrix4x4) == 64, "ABI: TRenderMatrix4x4 == 64B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderVec2) == 8, "ABI: TRenderVec2 == 8B");
@@ -661,6 +743,7 @@ RENDER_ABI_STATIC_ASSERT(sizeof(TModelDrawItem) == 96, "ABI: TModelDrawItem == 9
 RENDER_ABI_STATIC_ASSERT(sizeof(TWeaponTracePacket) == 24, "ABI: TWeaponTracePacket == 24B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TDebugLinePacket) == 32, "ABI: TDebugLinePacket == 32B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderPassDesc) == 144, "ABI: TRenderPassDesc == 144B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TParticlePacket) == 96, "ABI: TParticlePacket == 96B");
 
 #ifdef __cplusplus
 }

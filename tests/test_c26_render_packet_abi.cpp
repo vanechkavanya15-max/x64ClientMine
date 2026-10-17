@@ -155,6 +155,7 @@ TEST_CASE("RenderPacketABI - Exact Sizes Check")
 	CHECK(sizeof(TPNT2Vertex) == 40u);
 	CHECK(sizeof(TDungeonBlockPacket) == 160u);
 	CHECK(sizeof(TRenderFramePacket) == 416u);
+	CHECK(sizeof(TParticlePacket) == 96u);
 }
 
 TEST_CASE("RenderPacketABI - TDungeonBlockPacket Independence and Zero-Init")
