@@ -7,10 +7,7 @@
 
 #include <stb_image.h>
 
-#if defined(_M_IX86) || defined(_M_X64)
-#include <emmintrin.h> // SSE2
-#include <tmmintrin.h> // SSSE3 (for _mm_shuffle_epi8)
-#endif
+
 
 bool CGraphicImageTexture::Lock(int* pRetPitch, void** ppRetPixels, int level)
 {
@@ -145,58 +142,24 @@ bool CGraphicImageTexture::CreateFromSTB(UINT bufSize, const void* c_pvBuf)
 
 	int width, height, channels;
 	unsigned char* data = stbi_load_from_memory((stbi_uc*)c_pvBuf, bufSize, &width, &height, &channels, 4); // force RGBA
-	if (data) {
-		LPDIRECT3DTEXTURE9 texture;
-		if (SUCCEEDED(ms_lpd3dDevice->CreateTexture(width, height, 1, 0, channels == 4 ? D3DFMT_A8R8G8B8 : D3DFMT_X8R8G8B8, D3DPOOL_MANAGED, &texture, nullptr))) {
-			D3DLOCKED_RECT rect;
-			if (SUCCEEDED(texture->LockRect(0, &rect, nullptr, 0))) {
-				uint8_t* dstData = (uint8_t*)rect.pBits;
-				uint8_t* srcData = (uint8_t*)data;
-				size_t pixelCount = width * height;
+	if (!data)
+		return false;
 
-				#if defined(_M_IX86) || defined(_M_X64)
-				{
-					size_t simdPixels = pixelCount & ~3;
-					__m128i shuffle_mask = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
-
-					for (size_t i = 0; i < simdPixels; i += 4) {
-						__m128i pixels = _mm_loadu_si128((__m128i*)(srcData + i * 4));
-						pixels = _mm_shuffle_epi8(pixels, shuffle_mask);
-						_mm_storeu_si128((__m128i*)(dstData + i * 4), pixels);
-					}
-
-					for (size_t i = simdPixels; i < pixelCount; ++i) {
-						size_t idx = i * 4;
-						dstData[idx + 0] = srcData[idx + 2];
-						dstData[idx + 1] = srcData[idx + 1];
-						dstData[idx + 2] = srcData[idx + 0];
-						dstData[idx + 3] = srcData[idx + 3];
-					}
-				}
-				#else
-				for (size_t i = 0; i < pixelCount; ++i) {
-					size_t idx = i * 4;
-					dstData[idx + 0] = srcData[idx + 2];
-					dstData[idx + 1] = srcData[idx + 1];
-					dstData[idx + 2] = srcData[idx + 0];
-					dstData[idx + 3] = srcData[idx + 3];
-				}
-				#endif
-
-				texture->UnlockRect(0);
-				m_width = width;
-				m_height = height;
-				m_bEmpty = false;
-				m_lpd3dTexture = texture;
-			}
-			else {
-				texture->Release();
-			}
-		}
+	D3DFORMAT format = (channels == 4) ? D3DFMT_A8R8G8B8 : D3DFMT_X8R8G8B8;
+	LPDIRECT3DTEXTURE9 texture = nullptr;
+	if (!CreateTextureFromRGBA(ms_lpd3dDevice, width, height, format, data, width * 4, &texture))
+	{
 		stbi_image_free(data);
+		TraceError("CreateFromSTB: Failed to create staged texture (%s, %dx%d)", m_stFileName.c_str(), width, height);
+		return false;
 	}
 
-	return !m_bEmpty;
+	stbi_image_free(data);
+	m_width = width;
+	m_height = height;
+	m_bEmpty = false;
+	m_lpd3dTexture = texture;
+	return true;
 }
 
 bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize, const void * c_pvBuf, D3DFORMAT d3dFmt, DWORD dwFilter)
@@ -341,74 +304,25 @@ bool CGraphicImageTexture::CreateFromDecodedData(const TDecodedImageData& decode
 	{
 		// DDS format - use DirectX loader
 		if (!CreateFromDDSTexture(decodedImage.pixels.size(), decodedImage.pixels.data()))
+		{
+			TraceError("CreateFromDecodedData: Failed to create DDS texture");
 			return false;
+		}
 	}
 	else if (decodedImage.format == TDecodedImageData::FORMAT_RGBA8)
 	{
-		LPDIRECT3DTEXTURE9 texture;
 		D3DFORMAT format = D3DFMT_A8R8G8B8;
-
-		if (FAILED(ms_lpd3dDevice->CreateTexture(
-			decodedImage.width,
-			decodedImage.height,
-			1,
-			0,
-			format,
-			D3DPOOL_MANAGED,
-			&texture,
-			nullptr)))
+		LPDIRECT3DTEXTURE9 texture = nullptr;
+		if (!CreateTextureFromRGBA(ms_lpd3dDevice, decodedImage.width, decodedImage.height, format, decodedImage.pixels.data(), decodedImage.width * 4, &texture))
 		{
+			TraceError("CreateFromDecodedData: Failed to create staged texture (%ux%u)", decodedImage.width, decodedImage.height);
 			return false;
 		}
 
-		D3DLOCKED_RECT rect;
-		if (SUCCEEDED(texture->LockRect(0, &rect, nullptr, 0)))
-		{
-			uint8_t* dstData = (uint8_t*)rect.pBits;
-			const uint8_t* srcData = decodedImage.pixels.data();
-			size_t pixelCount = decodedImage.width * decodedImage.height;
-
-			#if defined(_M_IX86) || defined(_M_X64)
-			{
-				size_t simdPixels = pixelCount & ~3;
-				__m128i shuffle_mask = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
-
-				for (size_t i = 0; i < simdPixels; i += 4) {
-					__m128i pixels = _mm_loadu_si128((__m128i*)(srcData + i * 4));
-					pixels = _mm_shuffle_epi8(pixels, shuffle_mask);
-					_mm_storeu_si128((__m128i*)(dstData + i * 4), pixels);
-				}
-
-				for (size_t i = simdPixels; i < pixelCount; ++i) {
-					size_t idx = i * 4;
-					dstData[idx + 0] = srcData[idx + 2];
-					dstData[idx + 1] = srcData[idx + 1];
-					dstData[idx + 2] = srcData[idx + 0];
-					dstData[idx + 3] = srcData[idx + 3];
-				}
-			}
-			#else
-			for (size_t i = 0; i < pixelCount; ++i) {
-				size_t idx = i * 4;
-				dstData[idx + 0] = srcData[idx + 2];
-				dstData[idx + 1] = srcData[idx + 1];
-				dstData[idx + 2] = srcData[idx + 0];
-				dstData[idx + 3] = srcData[idx + 3];
-			}
-			#endif
-
-			texture->UnlockRect(0);
-
-			m_width = decodedImage.width;
-			m_height = decodedImage.height;
-			m_lpd3dTexture = texture;
-			m_bEmpty = false;
-		}
-		else
-		{
-			texture->Release();
-			return false;
-		}
+		m_width = decodedImage.width;
+		m_height = decodedImage.height;
+		m_lpd3dTexture = texture;
+		m_bEmpty = false;
 	}
 	else
 	{
