@@ -32,7 +32,7 @@ C_STATIC_ASSERT(sizeof(TPNT2Vertex) == 40, "Size: TPNT2Vertex");
 C_STATIC_ASSERT(sizeof(TRenderFrameUniforms) == 288, "Size: TRenderFrameUniforms");
 C_STATIC_ASSERT(sizeof(TTerrainSectorPacket) == 176, "Size: TTerrainSectorPacket");
 C_STATIC_ASSERT(sizeof(TActorRenderPacket) == 5008, "Size: TActorRenderPacket");
-C_STATIC_ASSERT(sizeof(TWaterPacket) == 112, "Size: TWaterPacket");
+C_STATIC_ASSERT(sizeof(TWaterPacket) == 176, "Size: TWaterPacket");
 C_STATIC_ASSERT(sizeof(TSpeedTreeInstanceData) == 112, "Size: TSpeedTreeInstanceData");
 C_STATIC_ASSERT(sizeof(TSpeedTreePacket) == 48, "Size: TSpeedTreePacket");
 C_STATIC_ASSERT(sizeof(TParticleInstanceData) == 64, "Size: TParticleInstanceData");
@@ -154,7 +154,11 @@ C_STATIC_ASSERT(offsetof(TWaterPacket, dwVertexCount) == 76, "TWaterPacket::dwVe
 C_STATIC_ASSERT(offsetof(TWaterPacket, pVertexBuffer) == 80, "TWaterPacket::pVertexBuffer");
 C_STATIC_ASSERT(offsetof(TWaterPacket, dwFaceCount) == 88, "TWaterPacket::dwFaceCount");
 C_STATIC_ASSERT(offsetof(TWaterPacket, patchNum) == 92, "TWaterPacket::patchNum");
-C_STATIC_ASSERT(offsetof(TWaterPacket, fPad) == 96, "TWaterPacket::fPad");
+C_STATIC_ASSERT(offsetof(TWaterPacket, bFarPass) == 96, "TWaterPacket::bFarPass");
+C_STATIC_ASSERT(offsetof(TWaterPacket, bAlphaBlend) == 97, "TWaterPacket::bAlphaBlend");
+C_STATIC_ASSERT(offsetof(TWaterPacket, fFogDistance) == 100, "TWaterPacket::fFogDistance");
+C_STATIC_ASSERT(offsetof(TWaterPacket, fPad) == 104, "TWaterPacket::fPad");
+C_STATIC_ASSERT(offsetof(TWaterPacket, matTexTransformWater) == 112, "TWaterPacket::matTexTransformWater");
 
 /* === 7. TSkyBoxPacket === */
 C_STATIC_ASSERT(offsetof(TSkyBoxPacket, matWorld) == 0, "TSkyBoxPacket::matWorld");
@@ -388,7 +392,11 @@ int main(void)
     assert(offsetof(TWaterPacket, pVertexBuffer) == 80);
     assert(offsetof(TWaterPacket, dwFaceCount) == 88);
     assert(offsetof(TWaterPacket, patchNum) == 92);
-    assert(offsetof(TWaterPacket, fPad) == 96);
+    assert(offsetof(TWaterPacket, bFarPass) == 96);
+    assert(offsetof(TWaterPacket, bAlphaBlend) == 97);
+    assert(offsetof(TWaterPacket, fFogDistance) == 100);
+    assert(offsetof(TWaterPacket, fPad) == 104);
+    assert(offsetof(TWaterPacket, matTexTransformWater) == 112);
 
     /* 7. TSkyBoxPacket */
     assert(offsetof(TSkyBoxPacket, matWorld) == 0);

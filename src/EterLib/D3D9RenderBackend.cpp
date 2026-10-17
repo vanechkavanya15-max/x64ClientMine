@@ -5,6 +5,7 @@
 #include "RenderOwnership.h"
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include "Render/TerrainShaderPipeline.h"
+#include "RenderResourceRegistry.h"
 #include "CFrameSnapshot.h"
 
 CD3D9RenderBackend::CD3D9RenderBackend()
@@ -229,6 +230,105 @@ void CD3D9RenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int 
 
 	if (RenderOwnership::Owner(ERenderCategory::Water) != ERenderOwner::D3D9Backend)
 		return;
+
+	LPDIRECT3DDEVICE9 pD3DDevice = STATEMANAGER.GetDevice();
+	if (!pD3DDevice)
+		return;
+
+	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	STATEMANAGER.SaveRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+	STATEMANAGER.SaveRenderState(D3DRS_COLORVERTEX, TRUE);
+
+	STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_ANISOTROPIC);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_ANISOTROPIC);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+
+	STATEMANAGER.SetTexture(1, NULL);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+	int currentPass = -1; // 0: Near, 1: Far
+	float currentHeight = 0.0f;
+	D3DXMATRIX matWorldWater;
+	D3DXMatrixIdentity(&matWorldWater);
+
+	for (unsigned int idx = 0; idx < count; ++idx)
+	{
+		const TWaterPacket& pkt = pPackets[idx];
+		if (!pkt.pVertexBuffer || pkt.dwFaceCount == 0)
+			continue;
+
+		int packetPass = pkt.bFarPass ? 1 : 0;
+		if (packetPass != currentPass)
+		{
+			currentPass = packetPass;
+			if (currentPass == 0)
+			{
+				LPDIRECT3DTEXTURE9 pTex = reinterpret_cast<LPDIRECT3DTEXTURE9>(pkt.pWaterTexture);
+				if (!pTex && pkt.dwWaterTextureID != kInvalidTextureHandle)
+				{
+					pTex = CRenderResourceRegistry::SafeResolveTexture(pkt.dwWaterTextureID);
+				}
+				STATEMANAGER.SetTexture(0, pTex);
+				STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+				STATEMANAGER.SaveTransform(D3DTS_TEXTURE0, &pkt.matTexTransformWater);
+			}
+			else
+			{
+				STATEMANAGER.SetTexture(0, NULL);
+				STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+			}
+		}
+
+		if (idx == 0 || pkt.fWaterHeight != currentHeight)
+		{
+			currentHeight = pkt.fWaterHeight;
+			matWorldWater._43 = currentHeight;
+			STATEMANAGER.SetTransform(D3DTS_WORLD, &matWorldWater);
+		}
+
+		auto* pVB = reinterpret_cast<LPDIRECT3DVERTEXBUFFER9>(pkt.pVertexBuffer);
+		STATEMANAGER.SetStreamSource(0, pVB, sizeof(float) * 4);
+		STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, pkt.dwFaceCount);
+	}
+
+	D3DXMatrixIdentity(&matWorldWater);
+	STATEMANAGER.SetTransform(D3DTS_WORLD, &matWorldWater);
+	STATEMANAGER.SetStreamSource(0, NULL, 0);
+	STATEMANAGER.SetTexture(0, NULL);
+
+	if (currentPass == 0)
+	{
+		STATEMANAGER.RestoreTransform(D3DTS_TEXTURE0);
+	}
+
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MINFILTER);
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MAGFILTER);
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MIPFILTER);
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSU);
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSV);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_TEXCOORDINDEX);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS);
+
+	STATEMANAGER.RestoreRenderState(D3DRS_DIFFUSEMATERIALSOURCE);
+	STATEMANAGER.RestoreRenderState(D3DRS_COLORVERTEX);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
 }
 
 void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsigned int count)

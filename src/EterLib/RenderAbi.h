@@ -313,7 +313,7 @@ typedef struct RENDER_ABI_ALIGN(16) TActorRenderPacket
 #endif
 } TActorRenderPacket;
 
-/* 6. TWaterPacket: 112 bajtow, wyrownanie 16B */
+/* 6. TWaterPacket: 176 bajtow, wyrownanie 16B (ABI v2 z macierza UV i pasmem near/far) */
 typedef struct RENDER_ABI_ALIGN(16) TWaterPacket
 {
     float fWorldPosX;
@@ -329,13 +329,24 @@ typedef struct RENDER_ABI_ALIGN(16) TWaterPacket
     RENDER_COLOR4_TYPE vWaterColor;
     float fAlpha;
     uint32_t dwWaterTextureID;
+    uint32_t dwPadTexture;
     void* pWaterTexture;
     uint32_t dwCellCount;
     uint32_t dwVertexCount;
     void* pVertexBuffer;
     uint32_t dwFaceCount;
     uint32_t patchNum;
+    uint8_t bFarPass;
+    uint8_t bAlphaBlend;
+    uint8_t bPadWater[2];
+    float fFogDistance;
     float fPad;
+    uint32_t dwPadAlign16;
+    union
+    {
+        RENDER_MATRIX_TYPE matTexTransformWater;
+        RENDER_MATRIX_TYPE matUV;
+    };
 
 #ifdef __cplusplus
     TWaterPacket()
@@ -349,6 +360,8 @@ typedef struct RENDER_ABI_ALIGN(16) TWaterPacket
         vWaterColor.r = 0.2f; vWaterColor.g = 0.5f; vWaterColor.b = 0.7f; vWaterColor.a = 0.6f;
 #endif
         fAlpha = 0.6f;
+        bAlphaBlend = 1;
+        bFarPass = 0;
     }
 #endif
 } TWaterPacket;
@@ -637,7 +650,7 @@ RENDER_ABI_STATIC_ASSERT(sizeof(TPNT2Vertex) == 40, "ABI: TPNT2Vertex == 40B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderFrameUniforms) == 288, "ABI: TRenderFrameUniforms == 288B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TTerrainSectorPacket) == 176, "ABI: TTerrainSectorPacket == 176B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TActorRenderPacket) == 5008, "ABI: TActorRenderPacket == 5008B");
-RENDER_ABI_STATIC_ASSERT(sizeof(TWaterPacket) == 112, "ABI: TWaterPacket == 112B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TWaterPacket) == 176, "ABI: TWaterPacket == 176B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TSpeedTreeInstanceData) == 112, "ABI: TSpeedTreeInstanceData == 112B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TSpeedTreePacket) == 48, "ABI: TSpeedTreePacket == 48B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TParticleInstanceData) == 64, "ABI: TParticleInstanceData == 64B");

@@ -16,8 +16,14 @@ static_assert(alignof(TTerrainSectorPacket) == 16, "ABI align: TTerrainSectorPac
 static_assert(sizeof(TActorRenderPacket) == 5008, "ABI size: TActorRenderPacket");
 static_assert(alignof(TActorRenderPacket) == 16, "ABI align: TActorRenderPacket");
 
-static_assert(sizeof(TWaterPacket) == 112, "ABI size: TWaterPacket");
+static_assert(sizeof(TWaterPacket) == 176, "ABI size: TWaterPacket");
 static_assert(alignof(TWaterPacket) == 16, "ABI align: TWaterPacket");
+static_assert(offsetof(TWaterPacket, dwWaterTextureID) == 56, "Offset: water dwWaterTextureID");
+static_assert(offsetof(TWaterPacket, pWaterTexture) == 64, "Offset: water pWaterTexture");
+static_assert(offsetof(TWaterPacket, bFarPass) == 96, "Offset: water bFarPass");
+static_assert(offsetof(TWaterPacket, bAlphaBlend) == 97, "Offset: water bAlphaBlend");
+static_assert(offsetof(TWaterPacket, fFogDistance) == 100, "Offset: water fFogDistance");
+static_assert(offsetof(TWaterPacket, matTexTransformWater) == 112, "Offset: water matTexTransformWater");
 
 static_assert(sizeof(TSpeedTreeInstanceData) == 112, "ABI size: TSpeedTreeInstanceData");
 static_assert(alignof(TSpeedTreeInstanceData) == 16, "ABI align: TSpeedTreeInstanceData");
@@ -138,7 +144,7 @@ TEST_CASE("RenderPacketABI - Exact Sizes Check")
 	CHECK(sizeof(TRenderFrameUniforms) == 288u);
 	CHECK(sizeof(TTerrainSectorPacket) == 176u);
 	CHECK(sizeof(TActorRenderPacket) == 5008u);
-	CHECK(sizeof(TWaterPacket) == 112u);
+	CHECK(sizeof(TWaterPacket) == 176u);
 	CHECK(sizeof(TSpeedTreeInstanceData) == 112u);
 	CHECK(sizeof(TSpeedTreePacket) == 48u);
 	CHECK(sizeof(TParticleInstanceData) == 64u);
@@ -148,7 +154,7 @@ TEST_CASE("RenderPacketABI - Exact Sizes Check")
 	CHECK(sizeof(TSkyBoxPacket) == 112u);
 	CHECK(sizeof(TPNT2Vertex) == 40u);
 	CHECK(sizeof(TDungeonBlockPacket) == 160u);
-	CHECK(sizeof(TRenderFramePacket) == 400u);
+	CHECK(sizeof(TRenderFramePacket) == 416u);
 }
 
 TEST_CASE("RenderPacketABI - TDungeonBlockPacket Independence and Zero-Init")

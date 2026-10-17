@@ -3,6 +3,8 @@
 #include "EterLib/ResourceManager.h"
 #include "EterLib/RenderQueueManager.h"
 #include "EterLib/RenderOwnership.h"
+#include "EterLib/RenderResourceRegistry.h"
+#include "EterLib/RenderConventions.h"
 
 #include "MapOutdoor.h"
 #include "MapOutdoorWater.h"
@@ -36,106 +38,131 @@ void CMapOutdoor::RenderWater()
 	if (!IsVisiblePart(PART_WATER))
 		return;
 
-	//////////////////////////////////////////////////////////////////////////
-	// RenderState
-	D3DXMATRIX matTexTransformWater;
-	
-	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	STATEMANAGER.SaveRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
-	STATEMANAGER.SaveRenderState(D3DRS_COLORVERTEX, TRUE);
-
-	const DWORD dwWaterFrame = (ELTimer_GetMSec() / 70) % 30;
-	CGraphicImageInstance* pWaterInstance = &m_WaterInstances[dwWaterFrame];
-	CGraphicTexture* pWaterTexture = pWaterInstance ? pWaterInstance->GetTexturePointer() : NULL;
-	if (pWaterTexture && pWaterTexture->GetD3DTexture())
-		STATEMANAGER.SetTexture(0, pWaterTexture->GetD3DTexture());
-	else
-		STATEMANAGER.SetTexture(0, NULL);
-
-	D3DXMatrixScaling(&matTexTransformWater, m_fWaterTexCoordBase, -m_fWaterTexCoordBase, 0.0f);
-	D3DXMatrixMultiply(&matTexTransformWater, &m_matViewInverse, &matTexTransformWater);
-	
-	STATEMANAGER.SaveTransform(D3DTS_TEXTURE0, &matTexTransformWater);
-	STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);
-
-	STATEMANAGER.SaveTextureStageState(0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-	STATEMANAGER.SaveTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_ANISOTROPIC);
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_ANISOTROPIC);
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-	STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-	
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-	
-
-	STATEMANAGER.SetTexture(1,NULL);
-	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-
-	// RenderState
-	//////////////////////////////////////////////////////////////////////////
-
-	// Plynne, harmoniczne falowanie tafli wody bez skokowych zmian wysokosci
 	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
 	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
 	const float fWaterHeightCurrent = CalculateWaterWaveHeight(0.0f, 0.0f, fTimeSec);
-	m_matWorldForCommonUse._43 = fWaterHeightCurrent;
 
-	m_matWorldForCommonUse._41 = 0.0f;
-	m_matWorldForCommonUse._42 = 0.0f;
-	STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorldForCommonUse);
-	
-	float fFogDistance = __GetFogDistance();
+	const DWORD dwWaterFrame = CalculateWaterAnimationFrameIndex(ELTimer_GetMSec());
+	CGraphicImageInstance* pWaterInstance = &m_WaterInstances[dwWaterFrame];
+	CGraphicTexture* pWaterTexture = pWaterInstance ? pWaterInstance->GetTexturePointer() : NULL;
+	LPDIRECT3DTEXTURE9 pD3DTexture = (pWaterTexture && pWaterTexture->GetD3DTexture()) ? pWaterTexture->GetD3DTexture() : NULL;
+	const TRenderTextureHandle hWaterTexture = CRenderResourceRegistry::SafeRegisterTexture(pD3DTexture, "water_anim");
 
-	std::vector<std::pair<float, long> >::iterator i;
+	D3DXMATRIX matTexTransformWater;
+	BuildWaterUVTransformMatrix(&matTexTransformWater, m_matViewInverse, m_fWaterTexCoordBase);
 
-	for(i = m_PatchVector.begin();i != m_PatchVector.end(); ++i)
+	const float fFogDistance = __GetFogDistance();
+
+	const bool bLegacyDraws = RenderOwnership::LegacyDraws(ERenderCategory::Water);
+
+	if (bLegacyDraws)
 	{
-		if (i->first<fFogDistance)	
-			DrawWater(i->second);
+		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+		STATEMANAGER.SaveRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+		STATEMANAGER.SaveRenderState(D3DRS_COLORVERTEX, TRUE);
+
+		if (pD3DTexture)
+			STATEMANAGER.SetTexture(0, pD3DTexture);
+		else
+			STATEMANAGER.SetTexture(0, NULL);
+
+		STATEMANAGER.SaveTransform(D3DTS_TEXTURE0, &matTexTransformWater);
+		STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
+		STATEMANAGER.SaveTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+
+		STATEMANAGER.SaveSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_ANISOTROPIC);
+		STATEMANAGER.SaveSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_ANISOTROPIC);
+		STATEMANAGER.SaveSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+		STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+		STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+
+		STATEMANAGER.SetTexture(1, NULL);
+		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+		m_matWorldForCommonUse._43 = fWaterHeightCurrent;
+		m_matWorldForCommonUse._41 = 0.0f;
+		m_matWorldForCommonUse._42 = 0.0f;
+		STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorldForCommonUse);
 	}
 
-	STATEMANAGER.SetTexture(0, NULL);
-	STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-
-	for(i = m_PatchVector.begin();i != m_PatchVector.end(); ++i)
+	for (auto i = m_PatchVector.begin(); i != m_PatchVector.end(); ++i)
 	{
-		if (i->first>=fFogDistance)	
-			DrawWater(i->second);
+		if (i->first < fFogDistance)
+			DrawWater(i->second, false, hWaterTexture, pD3DTexture, matTexTransformWater, fWaterHeightCurrent, fTimeSec, fFogDistance);
 	}
 
-	// 렌더링 한 후에는 물 z 위치를 복구
-	m_matWorldForCommonUse._43 = 0.0f;
+	if (bLegacyDraws)
+	{
+		STATEMANAGER.SetTexture(0, NULL);
+		STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+	}
 
-	// Oczyszczenie zrodla strumienia, aby zapobiec wiszacym referencjom COM do buforow wierzcholkow
-	STATEMANAGER.SetStreamSource(0, NULL, 0);
+	for (auto i = m_PatchVector.begin(); i != m_PatchVector.end(); ++i)
+	{
+		if (i->first >= fFogDistance)
+			DrawWater(i->second, true, hWaterTexture, pD3DTexture, matTexTransformWater, fWaterHeightCurrent, fTimeSec, fFogDistance);
+	}
 
-	//////////////////////////////////////////////////////////////////////////
-	// RenderState
-	STATEMANAGER.RestoreTransform(D3DTS_TEXTURE0);
-	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MINFILTER);
-	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MAGFILTER);
-	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MIPFILTER);
-	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSU);
-	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSV);
-	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_TEXCOORDINDEX);
-	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS);
-	
-	STATEMANAGER.RestoreRenderState(D3DRS_DIFFUSEMATERIALSOURCE);
-	STATEMANAGER.RestoreRenderState(D3DRS_COLORVERTEX);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);	
+	if (bLegacyDraws)
+	{
+		m_matWorldForCommonUse._43 = 0.0f;
+		STATEMANAGER.SetStreamSource(0, NULL, 0);
+
+		STATEMANAGER.RestoreTransform(D3DTS_TEXTURE0);
+		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MINFILTER);
+		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MAGFILTER);
+		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MIPFILTER);
+		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSU);
+		STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSV);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_TEXCOORDINDEX);
+		STATEMANAGER.RestoreTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS);
+
+		STATEMANAGER.RestoreRenderState(D3DRS_DIFFUSEMATERIALSOURCE);
+		STATEMANAGER.RestoreRenderState(D3DRS_COLORVERTEX);
+		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+	}
 }
 
 void CMapOutdoor::DrawWater(long patchnum)
+{
+	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
+	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
+	const float fWaterHeightCurrent = CalculateWaterWaveHeight(0.0f, 0.0f, fTimeSec);
+
+	const DWORD dwWaterFrame = CalculateWaterAnimationFrameIndex(ELTimer_GetMSec());
+	CGraphicImageInstance* pWaterInstance = &m_WaterInstances[dwWaterFrame];
+	CGraphicTexture* pWaterTexture = pWaterInstance ? pWaterInstance->GetTexturePointer() : NULL;
+	LPDIRECT3DTEXTURE9 pD3DTexture = (pWaterTexture && pWaterTexture->GetD3DTexture()) ? pWaterTexture->GetD3DTexture() : NULL;
+	const TRenderTextureHandle hWaterTexture = CRenderResourceRegistry::SafeRegisterTexture(pD3DTexture, "water_anim");
+
+	D3DXMATRIX matTexTransformWater;
+	BuildWaterUVTransformMatrix(&matTexTransformWater, m_matViewInverse, m_fWaterTexCoordBase);
+
+	DrawWater(patchnum, false, hWaterTexture, pD3DTexture, matTexTransformWater, fWaterHeightCurrent, fTimeSec, __GetFogDistance());
+}
+
+void CMapOutdoor::DrawWater(
+	long patchnum,
+	bool bFarPass,
+	uint32_t hWaterTexture,
+	LPDIRECT3DTEXTURE9 pD3DTexture,
+	const D3DXMATRIX& matTexTransformWater,
+	float fWaterHeightCurrent,
+	float fTimeSec,
+	float fFogDistance
+)
 {
 	if (!m_pTerrainPatchProxyList)
 		return;
@@ -146,16 +173,13 @@ void CMapOutdoor::DrawWater(long patchnum)
 
 	CTerrainPatchProxy& rkTerrainPatchProxy = m_pTerrainPatchProxyList[patchnum];
 
-	if (!rkTerrainPatchProxy.isUsed())
-		return;
-
-	if (!rkTerrainPatchProxy.isWaterExists())
+	if (!rkTerrainPatchProxy.isUsed() || !rkTerrainPatchProxy.isWaterExists())
 		return;
 
 	CGraphicVertexBuffer* pkVB = rkTerrainPatchProxy.GetWaterVertexBufferPointer();
 	if (!pkVB)
 		return;
-	
+
 	LPDIRECT3DVERTEXBUFFER9 lpd3dVB = pkVB->GetD3DVertexBuffer();
 	if (!lpd3dVB)
 		return;
@@ -163,11 +187,6 @@ void CMapOutdoor::DrawWater(long patchnum)
 	UINT uPriCount = rkTerrainPatchProxy.GetWaterFaceCount();
 	if (!uPriCount)
 		return;
-
-	// Obliczenie harmonicznego ukladu fal (zero alokacji)
-	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
-	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
-	const float fWaterHeightCurrent = CalculateWaterWaveHeight(0.0f, 0.0f, fTimeSec);
 
 	// Emisja pakietu do CRenderQueueManager
 	TWaterPacket kWaterPacket{};
@@ -187,12 +206,21 @@ void CMapOutdoor::DrawWater(long patchnum)
 
 	kWaterPacket.fWaveTime = fTimeSec;
 	kWaterPacket.fWaterHeight = fWaterHeightCurrent;
+	kWaterPacket.fWaveFrequency = 1.5f;
+	kWaterPacket.fWaveAmplitude = 5.0f;
 	kWaterPacket.pVertexBuffer = static_cast<void*>(lpd3dVB);
 	kWaterPacket.dwVertexCount = uPriCount * 3;
 	kWaterPacket.dwFaceCount = uPriCount;
 
+	kWaterPacket.bFarPass = bFarPass ? 1 : 0;
+	kWaterPacket.bAlphaBlend = bFarPass ? 0 : 1;
+	kWaterPacket.fFogDistance = fFogDistance;
+	kWaterPacket.dwWaterTextureID = bFarPass ? kInvalidTextureHandle : hWaterTexture;
+	kWaterPacket.pWaterTexture = bFarPass ? nullptr : static_cast<void*>(pD3DTexture);
+	kWaterPacket.matTexTransformWater = matTexTransformWater;
+
 	CRenderQueueManager::Instance().SubmitWater(kWaterPacket);
-	
+
 	if (RenderOwnership::LegacyDraws(ERenderCategory::Water))
 	{
 		STATEMANAGER.SetStreamSource(0, lpd3dVB, sizeof(SWaterVertex));
