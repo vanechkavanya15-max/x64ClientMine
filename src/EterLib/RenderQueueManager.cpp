@@ -190,12 +190,6 @@ void CRenderQueueManager::SubmitDebugLines(const TDebugLinePacket* pPackets, siz
 	m_debugLinePackets.insert(m_debugLinePackets.end(), pPackets, pPackets + count);
 }
 
-const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() const
-{
-	return m_debugLinePackets;
-}
-}
-
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
 	if (!pBackend)

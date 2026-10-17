@@ -6655,3 +6655,34 @@ target_include_directories(test_c26_particle_quad PRIVATE
 target_link_libraries(test_c26_particle_quad PRIVATE EterLib EterBase DirectX doctest)
 add_test(NAME test_c26_particle_quad COMMAND test_c26_particle_quad)
 
+add_executable(test_c26_gltf_render_passes test_c26_gltf_render_passes.cpp)
+target_include_directories(test_c26_gltf_render_passes PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_gltf_render_passes PRIVATE
+    EterGrnLib
+    EterModelLib
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    DirectX
+    Dbghelp
+    sodium
+    freetype
+    libzstd_static
+    lzo2
+    mio
+    ws2_32
+    doctest
+)
+add_test(NAME test_c26_gltf_render_passes COMMAND test_c26_gltf_render_passes)
+
+

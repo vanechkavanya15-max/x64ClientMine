@@ -638,18 +638,73 @@ typedef struct TEffectMeshPacket
     uint32_t vertexCount;
 } TEffectMeshPacket;
 
+#ifndef _EMODELPASS_DEFINED_
+#define _EMODELPASS_DEFINED_
+#ifdef __cplusplus
+enum class EModelPass : uint32_t
+{
+    Opaque = 0,
+    Blend = 1,
+    ShadowDepth = 2
+};
+#else
+typedef enum EModelPass
+{
+    MODEL_PASS_OPAQUE = 0,
+    MODEL_PASS_BLEND = 1,
+    MODEL_PASS_SHADOW_DEPTH = 2
+} EModelPass;
+#endif
+#endif
+
 /* 17. TModelDrawItem: 96 bajtow */
 typedef struct TModelDrawItem
 {
-    uint32_t modelId;
-    uint32_t subMeshIndex;
+    union
+    {
+        uint32_t modelId;
+        uint32_t model;
+    };
+    union
+    {
+        uint32_t subMeshIndex;
+        uint32_t submeshIndex;
+    };
     uint32_t materialHandle;
-    uint32_t passType;
+    union
+    {
+        uint32_t passType;
+#ifdef __cplusplus
+        EModelPass pass;
+#endif
+    };
     TRenderMatrix4x4 matWorld;
     float fAlpha;
     uint32_t addColor;
     uint32_t materialColor;
-    uint32_t dwPad;
+    union
+    {
+        uint32_t dwPad;
+        struct
+        {
+            uint8_t bTwoSided;
+            uint8_t bPad[3];
+        };
+    };
+
+#ifdef __cplusplus
+    TModelDrawItem()
+    {
+        std::memset(this, 0, sizeof(*this));
+        matWorld._11 = 1.0f;
+        matWorld._22 = 1.0f;
+        matWorld._33 = 1.0f;
+        matWorld._44 = 1.0f;
+        fAlpha = 1.0f;
+        materialColor = 0xffffffff;
+        pass = EModelPass::Opaque;
+    }
+#endif
 } TModelDrawItem;
 
 /* 18. TWeaponTracePacket: 24 bajty */
