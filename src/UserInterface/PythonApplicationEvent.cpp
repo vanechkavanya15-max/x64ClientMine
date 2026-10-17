@@ -140,7 +140,6 @@ void CPythonApplication::OnKeyDown(int iIndex)
 	else if (DIK_F11 == iIndex)
 	{
 		CRenderQueueManager::Instance().RequestFrameDump("frame_dump.bin");
-		CPythonGraphic::Instance().SaveScreenShot("cpp_reference.png");
 	}
 
 	rkWndMgr.RunKeyDown(iIndex);

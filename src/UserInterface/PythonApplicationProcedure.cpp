@@ -125,8 +125,6 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 		case WM_KEYDOWN:
 			if (wParam == VK_ESCAPE && IsUserMovingMainWindow())
 				SetUserMovingMainWindow(false);
-			if (wParam == VK_F11)
-				CRenderQueueManager::Instance().RequestFrameDump("frame_dump.bin");
 			OnIMEKeyDown(LOWORD(wParam));
 			break;
 
