@@ -5,6 +5,7 @@
 #include "PackLib/PackManager.h"
 #include "PythonMiniMap.h"
 #include "AbstractApplication.h"
+#include "EterLib/Render/DynamicQuadBatcher.h"
 
 #include "GameLib/ItemData.h"
 #include "GameLib/ItemManager.h"
@@ -799,6 +800,8 @@ void CPythonEventManager::RenderEventSet(int iIndex)
 	TEventSet * pEventSet = m_EventSetVector[iIndex];
 	if (!pEventSet)
 		return;
+
+	EterLib::Render::DynamicQuadBatcher::Instance().FlushPendingUI();
 
 	int iCount = 0;
 

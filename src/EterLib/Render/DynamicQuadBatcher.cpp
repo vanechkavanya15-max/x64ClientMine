@@ -294,6 +294,25 @@ namespace EterLib::Render
         FlushToQueue(CRenderQueueManager::Instance());
     }
 
+    void DynamicQuadBatcher::FlushToQueue()
+    {
+        FlushToQueue(CRenderQueueManager::Instance());
+    }
+
+    void DynamicQuadBatcher::FlushPendingUI()
+    {
+        FlushPendingUI(CRenderQueueManager::Instance());
+    }
+
+    void DynamicQuadBatcher::FlushPendingUI(CRenderQueueManager& queue)
+    {
+        if (m_activeVertexCount > 0)
+        {
+            FlushToQueue(queue);
+            queue.FlushUI();
+        }
+    }
+
     void DynamicQuadBatcher::FlushToQueue(CRenderQueueManager& queue)
     {
         for (size_t i = 0; i < m_activeBatchCount; ++i)

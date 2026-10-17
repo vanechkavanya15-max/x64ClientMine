@@ -40,7 +40,10 @@ namespace EterLib::Render
         void BeginFrame() noexcept;
         void Begin() noexcept { BeginFrame(); }
         void Flush();
+        void FlushToQueue();
         void FlushToQueue(CRenderQueueManager& queue);
+        void FlushPendingUI();
+        void FlushPendingUI(CRenderQueueManager& queue);
         void Clear() noexcept;
         bool IsBatching() const noexcept { return true; }
 

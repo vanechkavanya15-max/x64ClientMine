@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/JpegFile.h"
+#include "EterLib/Render/DynamicQuadBatcher.h"
 #include "PythonGraphic.h"
 #include <utf8.h>
 
@@ -520,6 +521,8 @@ void CPythonGraphic::RenderCoolTimeBox(float fxCenter, float fyCenter, float fRa
 		return;
 
 	fTime = std::max(0.0f, fTime);
+
+	EterLib::Render::DynamicQuadBatcher::Instance().FlushPendingUI();
 
 	static D3DXCOLOR color = D3DXCOLOR(0.0f, 0.0f, 0.0f, 0.5f);
 	static WORD s_wBoxIndicies[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
