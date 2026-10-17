@@ -6381,3 +6381,13 @@ target_include_directories(test_c26_render_ownership PRIVATE
 )
 target_link_libraries(test_c26_render_ownership PRIVATE EterLib EterBase doctest)
 add_test(NAME RenderOwnershipTest COMMAND test_c26_render_ownership)
+
+add_executable(test_c26_render_queue_manager test_c26_render_queue_manager.cpp)
+target_include_directories(test_c26_render_queue_manager PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_render_queue_manager PRIVATE EterLib EterBase doctest)
+add_test(NAME RenderQueueManagerTest COMMAND test_c26_render_queue_manager)
+

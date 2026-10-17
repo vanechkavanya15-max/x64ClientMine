@@ -3,13 +3,24 @@
 #include "RenderPacketTypes.h"
 #include <vector>
 #include <string>
+#include <map>
+#include <utility>
 #include <cstddef>
+#include <cstdint>
 
 class IRenderBackend;
+
+constexpr uint32_t M2_RENDER_ABI_VERSION = 1;
 
 class CRenderQueueManager
 {
 public:
+	static constexpr uint32_t ABI_VERSION = M2_RENDER_ABI_VERSION;
+	static uint32_t GetABIVersion() { return M2_RENDER_ABI_VERSION; }
+
+	static std::vector<std::pair<std::string, size_t>> GetPacketSizes();
+	static std::map<std::string, size_t> GetPacketSizeMap();
+
 	static CRenderQueueManager& Instance()
 	{
 		static CRenderQueueManager s_instance;
@@ -21,7 +32,6 @@ public:
 
 	void BeginFrame();
 	void EndFrame();
-	void Clear();
 
 	void SetFrameUniforms(const TRenderFrameUniforms& uniforms);
 	const TRenderFrameUniforms& GetFrameUniforms() const;
@@ -35,8 +45,7 @@ public:
 	void SubmitSkyBox(const TSkyBoxPacket& packet);
 	void SubmitDungeonBlock(const TDungeonBlockPacket& packet);
 
-	void Flush(IRenderBackend* pBackend);
-	void FlushSpeedTree();
+	void Flush(IRenderBackend* pBackend = nullptr);
 	void FlushUI();
 
 	const std::vector<TSpeedTreePacket>& GetSpeedTreePackets() const;
@@ -47,15 +56,20 @@ public:
 	const std::vector<TWaterPacket>& GetWaterPackets() const;
 	const std::vector<TSkyBoxPacket>& GetSkyBoxPackets() const;
 	const std::vector<TDungeonBlockPacket>& GetDungeonPackets() const;
-	const std::vector<TDungeonBlockPacket>& GetDungeonBlockPackets() const;
 
 	size_t GetTotalPacketCount() const;
 
 	TParticleInstanceData* AllocateParticleData(size_t count);
-	void ClearParticleData();
-
 	TSpeedTreeInstanceData* AllocateSpeedTreeInstanceData(size_t count);
-	void ClearSpeedTreeInstanceData();
+
+	size_t GetDroppedParticles() const { return m_droppedParticles; }
+	size_t GetDroppedSpeedTree() const { return m_droppedSpeedTree; }
+	void ResetDroppedCounters() { m_droppedParticles = 0; m_droppedSpeedTree = 0; }
+
+	size_t GetParticlePoolCapacity() const { return m_particleDataPool.size(); }
+	size_t GetSpeedTreePoolCapacity() const { return m_speedTreeInstancePool.size(); }
+	size_t GetParticleDataOffset() const { return m_particleDataOffset; }
+	size_t GetSpeedTreeInstanceOffset() const { return m_speedTreeInstanceOffset; }
 
 	// Golden Master Frame Dumper (Faza 6) & Backend Switcher (Faza 8)
 	bool ExportFrameToBinary(const char* c_pszFileName) const;
@@ -92,7 +106,20 @@ private:
 	std::vector<TSpeedTreeInstanceData> m_speedTreeInstancePool;
 	size_t m_speedTreeInstanceOffset{ 0 };
 
+	size_t m_droppedParticles{ 0 };
+	size_t m_droppedSpeedTree{ 0 };
+
 	IRenderBackend* m_pActiveBackend{ nullptr };
 	bool m_bPendingDump{ false };
 	std::string m_strPendingDumpPath;
 };
+
+inline std::vector<std::pair<std::string, size_t>> GetRenderPacketSizes()
+{
+	return CRenderQueueManager::GetPacketSizes();
+}
+
+inline std::map<std::string, size_t> GetRenderPacketSizeMap()
+{
+	return CRenderQueueManager::GetPacketSizeMap();
+}

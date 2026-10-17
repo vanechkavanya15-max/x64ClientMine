@@ -25,4 +25,5 @@ public:
 	virtual void EndFrame() = 0;
 	virtual const char* GetBackendName() const = 0;
 	virtual bool IsDeviceLost() const = 0;
+	virtual bool CaptureFrame(const char* szFilename) = 0;
 };

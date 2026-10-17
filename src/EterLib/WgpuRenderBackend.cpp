@@ -165,3 +165,8 @@ bool CWgpuRenderBackend::IsConfiguredInConfigJson()
 	return RenderOwnership::IsWgpuConfigured();
 }
 
+bool CWgpuRenderBackend::CaptureFrame(const char* szFilename)
+{
+	return CD3D9RenderBackend::Instance().CaptureFrame(szFilename);
+}
+
