@@ -609,11 +609,13 @@ bool CMapOutdoor::GetWaterHeight(int iX, int iY, long * plWaterHeight)
 
 bool CMapOutdoor::GetTerrainNumFromCoord(WORD wCoordX, WORD wCoordY, BYTE * pbyTerrainNum)
 {
-	*pbyTerrainNum = (wCoordY - m_CurCoordinate.m_sTerrainCoordY + LOAD_SIZE_WIDTH) * 3 + 
+	int iTerrainNum = (wCoordY - m_CurCoordinate.m_sTerrainCoordY + LOAD_SIZE_WIDTH) * 3 + 
 		(wCoordX - m_CurCoordinate.m_sTerrainCoordX + LOAD_SIZE_WIDTH);
 	
-	if (*pbyTerrainNum < 0 || *pbyTerrainNum > AROUND_AREA_NUM)
+	if (iTerrainNum < 0 || iTerrainNum >= AROUND_AREA_NUM)
 		return false;
+
+	*pbyTerrainNum = (BYTE)iTerrainNum;
 	return true;
 }
 

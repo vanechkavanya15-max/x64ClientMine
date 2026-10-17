@@ -226,24 +226,27 @@ void CArea::Render()
 		pkThingInst=*i++;
 		if (pkThingInst->Render())
 		{
-			aGraphicThingInstanceCRCMapIterator = m_GraphicThingInstanceCRCMap.find(pkThingInst);
-			DWORD dwCRC = (*aGraphicThingInstanceCRCMapIterator).second;
-
 			m_kRenderedGrapphicThingInstanceVector.push_back(pkThingInst);
 
-			TCRCWithNumberVector::iterator aCRCWithNumberVectorIterator = std::find_if(m_kRenderedThingInstanceCRCWithNumberVector.begin(), m_kRenderedThingInstanceCRCWithNumberVector.end(), FFindIfCRC(dwCRC));
-			
-			if ( m_kRenderedThingInstanceCRCWithNumberVector.end() == aCRCWithNumberVectorIterator)
+			aGraphicThingInstanceCRCMapIterator = m_GraphicThingInstanceCRCMap.find(pkThingInst);
+			if (aGraphicThingInstanceCRCMapIterator != m_GraphicThingInstanceCRCMap.end())
 			{
-				TCRCWithNumber aCRCWithNumber;
-				aCRCWithNumber.dwCRC = dwCRC;
-				aCRCWithNumber.dwNumber = 1;
-				m_kRenderedThingInstanceCRCWithNumberVector.push_back(aCRCWithNumber);
-			}
-			else
-			{
-				TCRCWithNumber & rCRCWithNumber = *aCRCWithNumberVectorIterator;
-				rCRCWithNumber.dwNumber += 1;
+				DWORD dwCRC = aGraphicThingInstanceCRCMapIterator->second;
+
+				TCRCWithNumberVector::iterator aCRCWithNumberVectorIterator = std::find_if(m_kRenderedThingInstanceCRCWithNumberVector.begin(), m_kRenderedThingInstanceCRCWithNumberVector.end(), FFindIfCRC(dwCRC));
+				
+				if ( m_kRenderedThingInstanceCRCWithNumberVector.end() == aCRCWithNumberVectorIterator)
+				{
+					TCRCWithNumber aCRCWithNumber;
+					aCRCWithNumber.dwCRC = dwCRC;
+					aCRCWithNumber.dwNumber = 1;
+					m_kRenderedThingInstanceCRCWithNumberVector.push_back(aCRCWithNumber);
+				}
+				else
+				{
+					TCRCWithNumber & rCRCWithNumber = *aCRCWithNumberVectorIterator;
+					rCRCWithNumber.dwNumber += 1;
+				}
 			}
 		}
 	}
@@ -327,7 +330,7 @@ void CArea::RenderDungeon()
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,	D3DTOP_SELECTARG1);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1,	D3DTA_TEXTURE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,	D3DTOP_SELECTARG1);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP,	D3DTOP_SELECTARG1);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG2,	D3DTA_CURRENT);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP,	D3DTOP_MODULATE);

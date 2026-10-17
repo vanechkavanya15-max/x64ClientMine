@@ -151,8 +151,15 @@ bool CDungeonBlock::OnGetObjectHeight(float fX, float fY, float * pfHeight)
 
 void CDungeonBlock::BuildBoundingSphere()
 {
+	if (m_ModelInstanceContainer.empty())
+	{
+		m_v3Center = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+		m_fRadius = 0.0f;
+		return;
+	}
+
 	D3DXVECTOR3 v3Min, v3Max;
-	for_each(m_ModelInstanceContainer.begin(), m_ModelInstanceContainer.end(), FBoundBox(&v3Min, &v3Max));
+	GetBoundBox(&v3Min, &v3Max);
 
 	m_v3Center = (v3Min+v3Max) * 0.5f;
 	const auto vv = (v3Max - v3Min);
@@ -174,6 +181,13 @@ bool CDungeonBlock::Intersect(float * pfu, float * pfv, float * pft)
 
 void CDungeonBlock::GetBoundBox(D3DXVECTOR3 * pv3Min, D3DXVECTOR3 * pv3Max)
 {
+	if (m_ModelInstanceContainer.empty())
+	{
+		*pv3Min = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+		*pv3Max = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+		return;
+	}
+
 	pv3Min->x = +10000000.0f;
 	pv3Min->y = +10000000.0f;
 	pv3Min->z = +10000000.0f;
@@ -191,11 +205,11 @@ void CDungeonBlock::GetBoundBox(D3DXVECTOR3 * pv3Min, D3DXVECTOR3 * pv3Max)
 		pInstance->GetBoundBox(&v3Min, &v3Max);
 
 		pv3Min->x = std::min(v3Min.x, pv3Min->x);
-		pv3Min->y = std::min(v3Min.x, pv3Min->y);
-		pv3Min->z = std::min(v3Min.x, pv3Min->z);
+		pv3Min->y = std::min(v3Min.y, pv3Min->y);
+		pv3Min->z = std::min(v3Min.z, pv3Min->z);
 		pv3Max->x = std::max(v3Max.x, pv3Max->x);
-		pv3Max->y = std::max(v3Max.x, pv3Max->y);
-		pv3Max->z = std::max(v3Max.x, pv3Max->z);
+		pv3Max->y = std::max(v3Max.y, pv3Max->y);
+		pv3Max->z = std::max(v3Max.z, pv3Max->z);
 	}
 }
 
