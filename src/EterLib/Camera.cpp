@@ -12,6 +12,9 @@
 
 const float c_fDefaultResistance = 0.3f;
 
+float CCamera::CAMERA_MIN_DISTANCE = 200.0f;
+float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
+
 CCameraManager aCameraManager;	// CCameraManager Instance
 
 float CCamera::GetDeltaTime()

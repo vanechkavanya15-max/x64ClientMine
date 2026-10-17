@@ -2,9 +2,6 @@
 #include "doctest.h"
 #include "EterLib/Render/DynamicQuadBatcher.h"
 #include "EterLib/RenderQueueManager.h"
-#include "EterLib/Camera.h"
-
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
 
 using namespace EterLib::Render;
 
@@ -19,7 +16,7 @@ TEST_CASE("UIFlushBarrier - FlushPendingUIBehavior")
     // 1. Gdy nie ma wierzcholkow, FlushPendingUI nie tworzy pakietow
     batcher.FlushPendingUI(queue);
     CHECK(batcher.GetVertexCount() == 0u);
-    CHECK(queue.GetUIQueueCount() == 0u);
+    CHECK(queue.GetUIPackets().empty());
 
     // 2. Dodajemy quady
     batcher.AddQuad(0.0f, 0.0f, 32.0f, 32.0f, 0xFFFFFFFF, 1);

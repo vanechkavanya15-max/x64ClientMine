@@ -6500,7 +6500,23 @@ target_include_directories(test_c26_ui_flush_barrier PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/include
 )
-target_link_libraries(test_c26_ui_flush_barrier PRIVATE EterLib EterBase doctest)
+target_link_libraries(test_c26_ui_flush_barrier PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
 add_test(NAME UiFlushBarrierTest COMMAND test_c26_ui_flush_barrier)
 
 
