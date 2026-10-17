@@ -7066,3 +7066,20 @@ target_link_libraries(test_c26_frame_double_buffer PRIVATE
 add_test(NAME test_c26_frame_double_buffer COMMAND test_c26_frame_double_buffer)
 add_test(NAME FrameDoubleBufferTest COMMAND test_c26_frame_double_buffer)
 
+# --- S8.4 Pure functions and outdoor state encapsulation test ---
+add_executable(test_c26_pure_functions test_c26_pure_functions.cpp)
+target_include_directories(test_c26_pure_functions PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_pure_functions PRIVATE
+    DirectX
+    doctest
+)
+add_test(NAME test_c26_pure_functions COMMAND test_c26_pure_functions)
+add_test(NAME PureFunctionsTest COMMAND test_c26_pure_functions)
+
+
