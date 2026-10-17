@@ -4,7 +4,7 @@
 #include "PythonWindow.h"
 #include "PythonSlotWindow.h"
 #include "PythonInternedStrings.h"
-#include "EterLib/Render/UIQuadBatcher.h"
+#include "EterLib/Render/DynamicQuadBatcher.h"
 
 #include "UserInterface/PythonSkill.h"
 #include "UserInterface/PythonPlayer.h"
@@ -1191,14 +1191,14 @@ void CSlotWindow::OnRender()
 	for (itor = m_SlotList.begin(); itor != m_SlotList.end(); ++itor)
 	{
 		TSlot & rSlot = *itor;
-		EterLib::Render::UIQuadBatcher::Instance().AddBox(
+		EterLib::Render::DynamicQuadBatcher::Instance().AddBox(
 			static_cast<float>(m_rect.left + rSlot.ixPosition),
 			static_cast<float>(m_rect.top + rSlot.iyPosition),
 			static_cast<float>(rSlot.ixCellSize),
 			static_cast<float>(rSlot.iyCellSize),
 			0xFF808080);
 	}
-	EterLib::Render::UIQuadBatcher::Instance().AddBox(
+	EterLib::Render::DynamicQuadBatcher::Instance().AddBox(
 		static_cast<float>(m_rect.left),
 		static_cast<float>(m_rect.top),
 		static_cast<float>(m_rect.right - m_rect.left),
@@ -1214,7 +1214,7 @@ void CSlotWindow::OnRender()
 		if (rSlot.pInstance)
 		{
 			rSlot.pInstance->SetPosition(m_rect.left + rSlot.ixPosition, m_rect.top + rSlot.iyPosition);
-			EterLib::Render::UIQuadBatcher::Instance().AddImageInstance(
+			EterLib::Render::DynamicQuadBatcher::Instance().AddImageInstance(
 				rSlot.pInstance,
 				static_cast<float>(m_rect.left + rSlot.ixPosition),
 				static_cast<float>(m_rect.top + rSlot.iyPosition));
@@ -1235,7 +1235,7 @@ void CSlotWindow::OnRender()
 
 		if (IS_SET(rSlot.dwState, SLOT_STATE_DISABLE))
 		{
-			EterLib::Render::UIQuadBatcher::Instance().AddBar(
+			EterLib::Render::DynamicQuadBatcher::Instance().AddBar(
 				static_cast<float>(m_rect.left + rSlot.ixPosition),
 				static_cast<float>(m_rect.top + rSlot.iyPosition),
 				static_cast<float>(rSlot.ixCellSize),
@@ -1278,7 +1278,7 @@ void CSlotWindow::OnRender()
 	RenderLockedSlot();
 
 	// Flush UI batcher quads (base slot images, item icons, selection bars, locked bars)
-	EterLib::Render::UIQuadBatcher::Instance().Flush();
+	EterLib::Render::DynamicQuadBatcher::Instance().Flush();
 }
 
 void CSlotWindow::RenderSlotBaseImage()
@@ -1294,7 +1294,7 @@ void CSlotWindow::RenderSlotBaseImage()
 			continue;
 
 		m_pBaseImageInstance->SetPosition(m_rect.left + rSlot.ixPosition, m_rect.top + rSlot.iyPosition);
-		EterLib::Render::UIQuadBatcher::Instance().AddImageInstance(
+		EterLib::Render::DynamicQuadBatcher::Instance().AddImageInstance(
 			m_pBaseImageInstance,
 			static_cast<float>(m_rect.left + rSlot.ixPosition),
 			static_cast<float>(m_rect.top + rSlot.iyPosition));
@@ -1310,7 +1310,7 @@ void CSlotWindow::OnRenderPickingSlot()
 	if (!GetSelectedSlotPointer(&pSlot))
 		return;
 
-	EterLib::Render::UIQuadBatcher::Instance().AddBar(
+	EterLib::Render::DynamicQuadBatcher::Instance().AddBar(
 		static_cast<float>(m_rect.left + pSlot->ixPosition),
 		static_cast<float>(m_rect.top + pSlot->iyPosition),
 		static_cast<float>(pSlot->ixCellSize),
@@ -1327,7 +1327,7 @@ void CSlotWindow::OnRenderSelectedSlot()
 		if (!GetSlotPointer(*itor, &pSlot))
 			continue;
 
-		EterLib::Render::UIQuadBatcher::Instance().AddBar(
+		EterLib::Render::DynamicQuadBatcher::Instance().AddBar(
 			static_cast<float>(m_rect.left + pSlot->ixPosition),
 			static_cast<float>(m_rect.top + pSlot->iyPosition),
 			static_cast<float>(pSlot->ixCellSize),
@@ -1347,7 +1347,7 @@ void CSlotWindow::RenderLockedSlot()
 
 		if (rSlot.dwState & SLOT_STATE_LOCK)
 		{
-			EterLib::Render::UIQuadBatcher::Instance().AddBar(
+			EterLib::Render::DynamicQuadBatcher::Instance().AddBar(
 				static_cast<float>(m_rect.left + rSlot.ixPosition),
 				static_cast<float>(m_rect.top  + rSlot.iyPosition),
 				static_cast<float>(rSlot.ixCellSize),

@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "EterBase/CRC32.h"
 #include "PythonGridSlotWindow.h"
-#include "EterLib/Render/UIQuadBatcher.h"
+#include "EterLib/Render/DynamicQuadBatcher.h"
 
 using namespace UI;
 
@@ -29,7 +29,7 @@ void CGridSlotWindow::OnRenderPickingSlot()
 			if (pCenterSlot->isItem)
 			{
 				const uint32_t color = m_isUsableItem ? 0x80FFFF00 : 0x80FF0000;
-				EterLib::Render::UIQuadBatcher::Instance().AddBar(
+				EterLib::Render::DynamicQuadBatcher::Instance().AddBar(
 					static_cast<float>(m_rect.left + pCenterSlot->ixPosition),
 					static_cast<float>(m_rect.top + pCenterSlot->iyPosition),
 					static_cast<float>(pCenterSlot->byxPlacedItemSize * ITEM_WIDTH),
@@ -57,7 +57,7 @@ void CGridSlotWindow::OnRenderPickingSlot()
 			Rect.bottom = std::max(Rect.bottom, m_rect.top + pSlot->iyPosition + pSlot->byxPlacedItemSize*ITEM_HEIGHT);
 		}
 
-		EterLib::Render::UIQuadBatcher::Instance().AddBar(
+		EterLib::Render::DynamicQuadBatcher::Instance().AddBar(
 			static_cast<float>(Rect.left),
 			static_cast<float>(Rect.top),
 			static_cast<float>(Rect.right - Rect.left),

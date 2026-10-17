@@ -1113,9 +1113,9 @@ void CGraphicTextInstance::SetMultiLine(bool Value)
 	m_isMultiLine = Value;
 }
 
-void CGraphicTextInstance::SetHorizonalAlign(int hAlign)
+void CGraphicTextInstance::SetHorizontalAlign(int iType)
 {
-	m_hAlign = hAlign;
+	m_hAlign = iType;
 }
 
 void CGraphicTextInstance::SetVerticalAlign(int vAlign)
