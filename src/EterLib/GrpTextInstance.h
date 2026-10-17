@@ -3,6 +3,38 @@
 
 #include "Pool.h"
 #include "GrpText.h"
+#include <vector>
+#include <unordered_map>
+#include <cstdint>
+
+enum class ETextQuadLayer : uint8_t
+{
+	Outline,
+	Main,
+	Selection,
+	Cursor,
+	Underline
+};
+
+struct STextQuad
+{
+	uintptr_t hTexture{ 0 };
+	float x{ 0.0f };
+	float y{ 0.0f };
+	float w{ 0.0f };
+	float h{ 0.0f };
+	float u0{ 0.0f };
+	float v0{ 0.0f };
+	float u1{ 0.0f };
+	float v1{ 0.0f };
+	uint32_t color{ 0xFFFFFFFF };
+	ETextQuadLayer layer{ ETextQuadLayer::Main };
+
+	float Left() const noexcept { return x; }
+	float Top() const noexcept { return y; }
+	float Right() const noexcept { return x + w; }
+	float Bottom() const noexcept { return y + h; }
+};
 
 class CGraphicTextInstance
 {
@@ -93,6 +125,16 @@ class CGraphicTextInstance
 		int PixelPositionToCharacterPosition(int iPixelPosition);
 		int GetHorizontalAlign();
 
+		struct STextAlignment
+		{
+			float offsetX{ 0.0f };
+			float offsetY{ 0.0f };
+		};
+
+		STextAlignment ComputeAlignmentOffset() const;
+		const std::vector<STextQuad>& LayoutGlyphs(RECT* pClipRect = nullptr);
+		const std::vector<STextQuad>& GetLayoutQuads() const { return m_layoutQuads; }
+
 	protected:
 		void __Initialize();
 		int  __DrawCharacter(CGraphicFontTexture * pFontTexture, wchar_t text, DWORD dwColor, wchar_t prevChar = 0);
@@ -136,7 +178,6 @@ class CGraphicTextInstance
 		std::string m_stText;
 		D3DXVECTOR3 m_v3Position;
 
-	private:
 		bool m_isUpdate;
 		bool m_computedRTL;  // Result of BiDi analysis (used when m_direction == Auto)
 		bool m_isChatMessage;  // True if this text was set via SetChatValue (has separated name/message)
@@ -151,6 +192,20 @@ class CGraphicTextInstance
 		std::vector<int> m_logicalToVisualPos; // Maps logical cursor pos (UTF-16 with tags) to visual pos (rendered chars)
 		std::vector<int> m_visualToLogicalPos; // Reverse mapping: visual pos -> logical pos
 		ETextDirection m_direction = ETextDirection::Auto; // Will be overwritten by __Initialize()
+
+		// Bufor wynikowy czystego ukladu CPU
+		std::vector<STextQuad> m_layoutQuads;
+
+		// Pola instancji zastepujace bufory static (F-NEW-056)
+		std::vector<wchar_t> m_wTextBuf;
+		std::vector<wchar_t> m_currentSegment;
+		std::vector<CGraphicFontTexture::TCharacterInfomation*> m_newCharInfos;
+		std::vector<DWORD> m_newColors;
+		std::vector<float> m_newKerns;
+		std::vector<wchar_t> m_visibleToRender;
+		std::vector<wchar_t> m_content;
+		std::unordered_map<LPDIRECT3DTEXTURE9, std::vector<SVertex>> m_outlineBatches;
+		std::unordered_map<LPDIRECT3DTEXTURE9, std::vector<SVertex>> m_mainBatches;
 
 	public:
 		static void CreateSystem(UINT uCapacity);

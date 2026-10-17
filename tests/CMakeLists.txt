@@ -4136,11 +4136,20 @@ target_link_libraries(test_c26_text_layout PRIVATE
     Client2026
     EterLib
     EterBase
+    EterLocale
+    EterImageLib
+    PackLib
+    SphereLib
+    SpeedTreeLib
+    SpeedTree
+    DirectX
+    freetype
     libzstd_static
     sodium
     lzo2
     mio
     ws2_32
+    version
 )
 add_test(NAME test_c26_text_layout COMMAND test_c26_text_layout)
 

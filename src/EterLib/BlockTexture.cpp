@@ -5,6 +5,8 @@
 #include "Eterbase/Stl.h"
 #include "Eterlib/StateManager.h"
 #include "RenderConventions.h"
+#include "Render/DynamicQuadBatcher.h"
+#include "RenderOwnership.h"
 
 void CBlockTexture::SetClipRect(const RECT & c_rRect)
 {
@@ -88,23 +90,32 @@ void CBlockTexture::Render(int ix, int iy)
 	vertices[3].texCoord	= TTextureCoordinate(eu, ev);	
 	vertices[3].diffuse		= 0xffffffff;
 
-	if (CGraphicBase::SetPDTStream(vertices, 4))
+	uintptr_t dwTexId = reinterpret_cast<uintptr_t>(m_lpd3dTexture);
+	CDynamicQuadBatcher::Instance().AddQuad(
+		static_cast<float>(isx), static_cast<float>(isy),
+		static_cast<float>(iex - isx), static_cast<float>(iey - isy),
+		0xFFFFFFFF, dwTexId, su, sv, eu, ev, 0);
+
+	if (RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI))
 	{
-		CGraphicBase::SetDefaultIndexBuffer(CGraphicBase::DEFAULT_IB_FILL_RECT);
+		if (CGraphicBase::SetPDTStream(vertices, 4))
+		{
+			CGraphicBase::SetDefaultIndexBuffer(CGraphicBase::DEFAULT_IB_FILL_RECT);
 
-		STATEMANAGER.SetTexture(0, m_lpd3dTexture);
-		STATEMANAGER.SetTexture(1, NULL);
-		STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_TEX1|D3DFVF_DIFFUSE);
+			STATEMANAGER.SetTexture(0, m_lpd3dTexture);
+			STATEMANAGER.SetTexture(1, NULL);
+			STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_TEX1|D3DFVF_DIFFUSE);
 
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-		STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-		STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+			STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+			STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+			STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 
-		STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 4, 0, 2);
+			STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 4, 0, 2);
 
-		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+			STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+			STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+			STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+		}
 	}
 }
 
@@ -162,6 +173,9 @@ void CBlockTexture::InvalidateRect(const RECT & c_rsrcRect)
 
 bool CBlockTexture::Create(CGraphicDib * pDIB, const RECT & c_rRect, DWORD dwWidth, DWORD dwHeight)
 {	
+	if (!ms_lpd3dDevice)
+		return false;
+
 	if (FAILED(ms_lpd3dDevice->CreateTexture(dwWidth, dwHeight, 0, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_lpd3dTexture, nullptr)))
 	{
 		Tracef("Failed to create block texture %u, %u\n", dwWidth, dwHeight);
