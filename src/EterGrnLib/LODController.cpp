@@ -83,38 +83,7 @@ void CGrannyLODController::SetMaterialImagePointer(const char* c_szImageName, CG
 
 	if (m_pGltfModelInstance && pImage && c_szImageName)
 	{
-		std::string targetName = c_szImageName;
-		CFileNameHelper::StringPath(targetName);
-		size_t lastSlash = targetName.find_last_of("/\\");
-		std::string baseTarget = (lastSlash != std::string::npos) ? targetName.substr(lastSlash + 1) : targetName;
-
-		const EterModelLib::CGltfModel* pModel = m_pGltfModelInstance->GetModel();
-		if (pModel)
-		{
-			const GltfModelData& modelData = pModel->GetModelData();
-			for (size_t m = 0; m < modelData.materials.size() && m < m_gltfMaterials.size(); ++m)
-			{
-				std::string diffName = modelData.materials[m].diffuseTexture;
-				CFileNameHelper::StringPath(diffName);
-				size_t diffSlash = diffName.find_last_of("/\\");
-				std::string baseDiff = (diffSlash != std::string::npos) ? diffName.substr(diffSlash + 1) : diffName;
-
-				auto stripExt = [](const std::string& s) -> std::string {
-					size_t d = s.rfind('.');
-					return (d != std::string::npos) ? s.substr(0, d) : s;
-				};
-				std::string baseDiffNoExt = stripExt(baseDiff);
-				std::string baseTargetNoExt = stripExt(baseTarget);
-
-				if (!_stricmp(diffName.c_str(), targetName.c_str()) ||
-					!_stricmp(baseDiff.c_str(), baseTarget.c_str()) ||
-					!_stricmp(baseDiffNoExt.c_str(), baseTargetNoExt.c_str()) ||
-					m_gltfMaterials.size() == 1)
-				{
-					m_gltfMaterials[m].roDiffuseImage.SetPointer(pImage);
-				}
-			}
-		}
+		m_gltfRenderer.SetMaterialImagePointer(m_pGltfModelInstance, c_szImageName, pImage);
 	}
 }
 
@@ -197,11 +166,7 @@ CGrannyLODController::CGrannyLODController() :
 	m_dwLODAniFPS(CGrannyModelInstance::ANIFPS_MAX),
 	m_pkSharedDeformableVertexBuffer(NULL),
 	m_dwModelID(0),
-	m_pGltfModelInstance(NULL),
-	m_pGltfStaticVB(NULL),
-	m_pGltfStaticIB(NULL),
-	m_dwGltfStaticVertexCount(0),
-	m_dwGltfStaticIndexCount(0)
+	m_pGltfModelInstance(NULL)
 	/////////////////////////////////////////////////////
 {
 	D3DXMatrixIdentity(&m_matWorld);
@@ -232,7 +197,7 @@ CGrannyLODController::~CGrannyLODController()
 void CGrannyLODController::Clear()
 {
 	ReleaseGltfStaticGpuBuffers();
-	m_gltfMaterials.clear();
+	m_gltfRenderer.Clear();
 	m_dwSampleFrameCounter = 0;
 
 	if (m_pGltfModelInstance)
@@ -604,18 +569,8 @@ void CGrannyLODController::BlendRenderWithTwoTexture()
 bool CGrannyLODController::HaveBlendThing()
 {
 	if (m_pGltfModelInstance)
-	{
-		if (!m_gltfMaterials.empty())
-		{
-			for (const auto& matState : m_gltfMaterials)
-			{
-				if (matState.isBlend)
-					return true;
-			}
-			return false;
-		}
-		return m_pGltfModelInstance->HaveBlendThing();
-	}
+		return m_gltfRenderer.HaveBlendThing(m_pGltfModelInstance);
+
 	return (0 != GetModelInstance()) ? GetModelInstance()->HaveBlendThing() : false;
 }
 
@@ -1113,353 +1068,38 @@ DWORD CGrannyLODController::GetVertexCount() const
 	return 0;
 }
 
+LPDIRECT3DVERTEXBUFFER9 CGrannyLODController::GetGltfStaticVertexBuffer() const
+{
+	return m_gltfRenderer.GetStaticVertexBuffer(m_pGltfModelInstance);
+}
+
+LPDIRECT3DINDEXBUFFER9 CGrannyLODController::GetGltfStaticIndexBuffer() const
+{
+	return m_gltfRenderer.GetStaticIndexBuffer(m_pGltfModelInstance);
+}
+
 void CGrannyLODController::InitGltfMaterials()
 {
-	m_gltfMaterials.clear();
-	if (!m_pGltfModelInstance)
-		return;
-
-	const EterModelLib::CGltfModel* pModel = m_pGltfModelInstance->GetModel();
-	if (!pModel)
-		return;
-
-	const GltfModelData& modelData = pModel->GetModelData();
-	m_gltfMaterials.resize(modelData.materials.size());
-
-	// Klasyfikacja isBlend oraz isTwoSided raz dla wszystkich materialow glTF
-	for (size_t i = 0; i < modelData.materials.size(); ++i)
-	{
-		const GltfMaterial& mat = modelData.materials[i];
-		m_gltfMaterials[i].isTwoSided = mat.doubleSided;
-		m_gltfMaterials[i].isBlend = (!mat.opacityTexture.empty() || (!mat.name.empty() && !_strnicmp(mat.name.c_str(), "blend", 5)));
-	}
-
-	std::string localPath;
-	if (!pModel->GetName().empty())
-	{
-		const std::string& modelName = pModel->GetName();
-		size_t sepPos = modelName.find_last_of("\\/");
-		if (sepPos != std::string::npos)
-			localPath = modelName.substr(0, sepPos + 1);
-	}
-	if (localPath.empty())
-	{
-		extern const std::string& GetModelLocalPath();
-		localPath = GetModelLocalPath();
-	}
-
-	CResourceManager* pResMgr = CResourceManager::InstancePtr();
-	if (!pResMgr)
-		return;
-
-	CResourceManager& resMgr = *pResMgr;
-
-	auto ResolveImagePointer = [&](const std::string& texPath) -> CGraphicImage*
-	{
-		if (texPath.empty())
-			return nullptr;
-
-		auto SafeCastImage = [](CResource* pRes) -> CGraphicImage*
-		{
-			if (pRes && pRes->IsType(CGraphicImage::Type()))
-				return static_cast<CGraphicImage*>(pRes);
-			return nullptr;
-		};
-
-		// 1. Proba bezposrednia
-		CResource* pRes = resMgr.GetResourcePointer(texPath.c_str());
-		if (pRes)
-		{
-			CGraphicImage* pImg = SafeCastImage(pRes);
-			if (pImg)
-				return pImg;
-		}
-
-		// 2. Sciezka lokalna wzgledem modelu
-		if (!localPath.empty())
-		{
-			std::string localTex = localPath + texPath;
-			pRes = resMgr.GetResourcePointer(localTex.c_str());
-			if (pRes)
-			{
-				CGraphicImage* pImg = SafeCastImage(pRes);
-				if (pImg)
-					return pImg;
-			}
-
-			// 3. Sama nazwa pliku w katalogu lokalnym
-			size_t lastSlash = texPath.find_last_of("/\\");
-			if (lastSlash != std::string::npos)
-			{
-				std::string fileNameOnly = texPath.substr(lastSlash + 1);
-				std::string localFile = localPath + fileNameOnly;
-				pRes = resMgr.GetResourcePointer(localFile.c_str());
-				if (pRes)
-				{
-					CGraphicImage* pImg = SafeCastImage(pRes);
-					if (pImg)
-						return pImg;
-				}
-			}
-		}
-
-		return nullptr;
-	};
-
-	for (size_t i = 0; i < modelData.materials.size(); ++i)
-	{
-		const GltfMaterial& mat = modelData.materials[i];
-		if (!mat.diffuseTexture.empty())
-		{
-			CGraphicImage* pDiff = ResolveImagePointer(mat.diffuseTexture);
-			if (pDiff)
-				m_gltfMaterials[i].roDiffuseImage.SetPointer(pDiff);
-		}
-
-		if (!mat.opacityTexture.empty())
-		{
-			CGraphicImage* pOpac = ResolveImagePointer(mat.opacityTexture);
-			if (pOpac)
-				m_gltfMaterials[i].roOpacityImage.SetPointer(pOpac);
-		}
-	}
+	m_gltfRenderer.InitMaterials(m_pGltfModelInstance);
 }
 
 void CGrannyLODController::ReleaseGltfStaticGpuBuffers()
 {
-	// Bufory naleza do wspoldzielonego modelu CGltfModel i sa zwalniane w modelu.
-	m_pGltfStaticVB = NULL;
-	m_pGltfStaticIB = NULL;
-	m_dwGltfStaticVertexCount = 0;
-	m_dwGltfStaticIndexCount = 0;
+	// Zarzadzane bezposrednio w CGltfModel
 }
 
 bool CGrannyLODController::EnsureGltfStaticGpuBuffers()
 {
-	if (m_pGltfStaticVB && m_pGltfStaticIB)
-		return true;
-
-	if (!ms_lpd3dDevice || !m_pGltfModelInstance)
-		return false;
-
-	const EterModelLib::CGltfModel* pModel = m_pGltfModelInstance->GetModel();
-	if (!pModel || !pModel->IsLoaded())
-		return false;
-
-	if (!pModel->EnsureGpuBuffers(ms_lpd3dDevice))
-		return false;
-
-	m_pGltfStaticVB = pModel->GetVertexBuffer();
-	m_pGltfStaticIB = pModel->GetIndexBuffer();
-	m_dwGltfStaticVertexCount = static_cast<DWORD>(pModel->GetVertexCount());
-	m_dwGltfStaticIndexCount = static_cast<DWORD>(pModel->GetIndexCount());
-	return (m_pGltfStaticVB != NULL && m_pGltfStaticIB != NULL);
+	return m_gltfRenderer.EnsureStaticGpuBuffers(ms_lpd3dDevice, m_pGltfModelInstance);
 }
 
 void CGrannyLODController::RenderGltfModel(EModelPass pass)
 {
-	if (!m_pGltfModelInstance)
-		return;
-
-	const EterModelLib::CGltfModel* pModel = m_pGltfModelInstance->GetModel();
-	if (!pModel || !pModel->IsLoaded())
-		return;
-
-	const GltfModelData& modelData = pModel->GetModelData();
-	if (modelData.vertices.empty() || modelData.indices.empty())
-		return;
-
-	if (!EnsureGltfStaticGpuBuffers())
-		return;
-
-	if (m_gltfMaterials.empty() && !modelData.materials.empty())
-	{
-		InitGltfMaterials();
-	}
-
 	s_pCurrentActiveController = this;
-
-	auto& pipeline = EterLib::Render::ActorSkinningPipeline::Instance();
-	if (!pipeline.IsInitialized() && ms_lpd3dDevice)
-	{
-		pipeline.Initialize(ms_lpd3dDevice);
-	}
-
-	D3DXMATRIX matView, matProj, matViewProj;
-	STATEMANAGER.GetTransform(D3DTS_VIEW, &matView);
-	STATEMANAGER.GetTransform(D3DTS_PROJECTION, &matProj);
-	D3DXMatrixMultiply(&matViewProj, &matView, &matProj);
-
-	const bool bUsingShader = pipeline.Begin(m_matWorld, matViewProj, nullptr);
-	if (bUsingShader)
-	{
-		const auto& skinMatrices = m_pGltfModelInstance->GetSkinningMatrices();
-		pipeline.UploadBonePalette(
-			skinMatrices.empty() ? nullptr : skinMatrices.data(),
-			(UINT)skinMatrices.size());
-	}
-	else
-	{
-		STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorld);
-	}
-
-	STATEMANAGER.SetStreamSource(0, m_pGltfStaticVB, sizeof(EterLib::Render::GpuSkinnedVertex));
-	STATEMANAGER.SetIndices(m_pGltfStaticIB, 0);
-
-	for (size_t s = 0; s < modelData.submeshes.size(); ++s)
-	{
-		const GltfSubmesh& submesh = modelData.submeshes[s];
-		if (submesh.indexCount == 0)
-			continue;
-
-		UINT primitiveCount = submesh.indexCount / 3;
-		if (primitiveCount == 0 || (submesh.indexOffset + submesh.indexCount) > modelData.indices.size())
-			continue;
-
-		bool isBlend = false;
-		bool isTwoSided = false;
-
-		if (submesh.materialIndex >= 0 && submesh.materialIndex < (int)m_gltfMaterials.size())
-		{
-			const SGltfMaterialState& state = m_gltfMaterials[submesh.materialIndex];
-			isBlend = state.isBlend;
-			isTwoSided = state.isTwoSided;
-		}
-
-		// Filtr submeshy per pass (wg DEC-4: eliminacja podwojnego rysowania opaque submeshy)
-		if (pass == EModelPass::Opaque && isBlend)
-			continue;
-		if (pass == EModelPass::Blend && !isBlend)
-			continue;
-
-		TModelDrawItem item{};
-		item.modelId = m_dwModelID;
-		item.submeshIndex = static_cast<uint32_t>(s);
-		item.pass = pass;
-		item.matWorld = ToAbi(m_matWorld);
-		item.bTwoSided = isTwoSided ? 1 : 0;
-		item.fAlpha = 1.0f;
-		item.materialColor = 0xffffffff;
-
-		ExecuteModelDrawItemD3D9(item);
-	}
-
-	if (bUsingShader)
-	{
-		pipeline.End();
-	}
+	m_gltfRenderer.Render(ms_lpd3dDevice, m_pGltfModelInstance, m_matWorld, m_dwModelID, pass);
 }
 
 void CGrannyLODController::ExecuteModelDrawItemD3D9(const TModelDrawItem& item)
 {
-	if (!m_pGltfModelInstance)
-		return;
-
-	const EterModelLib::CGltfModel* pModel = m_pGltfModelInstance->GetModel();
-	if (!pModel || !pModel->IsLoaded())
-		return;
-
-	const GltfModelData& modelData = pModel->GetModelData();
-	if (item.submeshIndex >= modelData.submeshes.size())
-		return;
-
-	const GltfSubmesh& submesh = modelData.submeshes[item.submeshIndex];
-	if (submesh.indexCount == 0)
-		return;
-
-	UINT primitiveCount = submesh.indexCount / 3;
-	if (primitiveCount == 0 || (submesh.indexOffset + submesh.indexCount) > modelData.indices.size())
-		return;
-
-	EnsureGltfStaticGpuBuffers();
-	if (m_pGltfStaticVB && m_pGltfStaticIB)
-	{
-		STATEMANAGER.SetStreamSource(0, m_pGltfStaticVB, sizeof(EterLib::Render::GpuSkinnedVertex));
-		STATEMANAGER.SetIndices(m_pGltfStaticIB, 0);
-	}
-
-	LPDIRECT3DTEXTURE9 pD3DTexture = NULL;
-	if (submesh.materialIndex >= 0 && submesh.materialIndex < (int)m_gltfMaterials.size())
-	{
-		const SGltfMaterialState& state = m_gltfMaterials[submesh.materialIndex];
-		if (!state.roDiffuseImage.IsNull())
-		{
-			CGraphicImage* pImg = state.roDiffuseImage.GetPointer();
-			if (pImg && !pImg->IsEmpty() && pImg->GetTexturePointer())
-			{
-				pD3DTexture = pImg->GetTexturePointer()->GetD3DTexture();
-			}
-		}
-	}
-
-	// 1. Izolacja stanu cull mode (zachowanie i przywrocenie stanu wolajacego)
-	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-
-	// 2. Izolacja stanow specyficznych dla passu
-	const EModelPass pass = item.pass;
-	if (pass == EModelPass::Blend)
-	{
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-		STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-		STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x01);
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
-	}
-	else if (pass == EModelPass::ShadowDepth)
-	{
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
-	}
-	else // EModelPass::Opaque
-	{
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-	}
-
-	// 3. Izolacja tekstur
-	STATEMANAGER.SaveTexture(0, pD3DTexture);
-	STATEMANAGER.SaveTexture(1, NULL);
-
-	// 4. Rysowanie prymitywow
-	UINT minVertexIndex = submesh.vertexOffset;
-	UINT numVertices = submesh.vertexCount > 0 ? submesh.vertexCount : (UINT)m_dwGltfStaticVertexCount;
-
-	STATEMANAGER.DrawIndexedPrimitive(
-		D3DPT_TRIANGLELIST,
-		minVertexIndex,
-		numVertices,
-		submesh.indexOffset,
-		primitiveCount
-	);
-
-	// 5. Przywrocenie tekstur
-	STATEMANAGER.RestoreTexture(1);
-	STATEMANAGER.RestoreTexture(0);
-
-	// 6. Przywrocenie stanow passu
-	if (pass == EModelPass::Blend)
-	{
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
-		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-	}
-	else if (pass == EModelPass::ShadowDepth)
-	{
-		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-	}
-	else // Opaque
-	{
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-	}
-
-	// 7. Przywrocenie stanu cull mode
-	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+	m_gltfRenderer.ExecuteDrawItemD3D9(ms_lpd3dDevice, m_pGltfModelInstance, item);
 }

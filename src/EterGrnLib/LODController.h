@@ -8,6 +8,7 @@
 #include "ModelDrawItem.h"
 #include "Eterlib/GrpCollisionObject.h"
 #include "EterModelLib/GltfTypes.h"
+#include "EterModelLib/GltfModelRenderer.h"
 
 namespace EterModelLib
 {
@@ -300,8 +301,8 @@ class CGrannyLODController : public CGraphicCollisionObject
 		DWORD					GetModelID() const { return m_dwModelID; }
 
 		bool					EnsureGltfStaticGpuBuffers();
-		LPDIRECT3DVERTEXBUFFER9 GetGltfStaticVertexBuffer() const { return m_pGltfStaticVB; }
-		LPDIRECT3DINDEXBUFFER9  GetGltfStaticIndexBuffer() const { return m_pGltfStaticIB; }
+		LPDIRECT3DVERTEXBUFFER9 GetGltfStaticVertexBuffer() const;
+		LPDIRECT3DINDEXBUFFER9  GetGltfStaticIndexBuffer() const;
 
 		static void				RegisterLODController(uint32_t modelId, CGrannyLODController* pController);
 		static void				UnregisterLODController(uint32_t modelId);
@@ -344,23 +345,13 @@ class CGrannyLODController : public CGraphicCollisionObject
 		DWORD								m_dwModelID;
 		EterModelLib::CGltfModelInstance *	m_pGltfModelInstance;
 		D3DXMATRIX							m_matWorld;
-		LPDIRECT3DVERTEXBUFFER9				m_pGltfStaticVB;
-		LPDIRECT3DINDEXBUFFER9				m_pGltfStaticIB;
-		DWORD								m_dwGltfStaticVertexCount;
-		DWORD								m_dwGltfStaticIndexCount;
+		EterModelLib::GltfModelRenderer		m_gltfRenderer;
 
 	public:
-		struct SGltfMaterialState
-		{
-			CGraphicImage::TRef roDiffuseImage;
-			CGraphicImage::TRef roOpacityImage;
-			bool isBlend{ false };
-			bool isTwoSided{ false };
-		};
-		const std::vector<SGltfMaterialState>& GetGltfMaterialStates() const { return m_gltfMaterials; }
-
-	protected:
-		std::vector<SGltfMaterialState>		m_gltfMaterials;
+		using SGltfMaterialState = EterModelLib::SGltfMaterialState;
+		const std::vector<SGltfMaterialState>& GetGltfMaterialStates() const { return m_gltfRenderer.GetMaterialStates(); }
+		EterModelLib::GltfModelRenderer& GetGltfRenderer() { return m_gltfRenderer; }
+		const EterModelLib::GltfModelRenderer& GetGltfRenderer() const { return m_gltfRenderer; }
 };
 
 using CModelLODController = CGrannyLODController;

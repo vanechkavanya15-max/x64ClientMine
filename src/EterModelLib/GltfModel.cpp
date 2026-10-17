@@ -35,12 +35,19 @@ bool CGltfModel::LoadFromFile(const std::string& filename)
     GltfLoader loader;
     if (!loader.LoadFromFile(filename, m_modelData))
     {
+        TraceErrorOnce("CGltfModel::LoadFromFile: Failed to load glTF model from file '%s'", filename.c_str());
         return false;
     }
 
     if (m_modelData.name.empty())
     {
         m_modelData.name = filename;
+    }
+
+    if (m_modelData.vertices.empty() || m_modelData.indices.empty())
+    {
+        TraceErrorOnce("CGltfModel::LoadFromFile: Model '%s' loaded with empty geometry (vertices=%zu, indices=%zu)",
+            m_modelData.name.c_str(), m_modelData.vertices.size(), m_modelData.indices.size());
     }
 
     m_bLoaded = true;
@@ -53,6 +60,8 @@ bool CGltfModel::LoadFromMemory(const void* data, size_t size, const std::string
     GltfLoader loader;
     if (!loader.LoadFromMemory(data, size, m_modelData))
     {
+        TraceErrorOnce("CGltfModel::LoadFromMemory: Failed to load glTF model '%s' (data=%p, size=%zu)",
+            modelName.c_str(), data, size);
         return false;
     }
 
@@ -146,7 +155,16 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
         return true;
 
     if (!pDevice || m_modelData.vertices.empty() || m_modelData.indices.empty())
+    {
+        TRACE_ERROR_ONCE_KEYED(
+            reinterpret_cast<uintptr_t>(this),
+            "CGltfModel::EnsureGpuBuffers: Invalid state for model '{}' (pDevice={:#x}, vertices={}, indices={})",
+            m_modelData.name,
+            reinterpret_cast<uintptr_t>(pDevice),
+            m_modelData.vertices.size(),
+            m_modelData.indices.size());
         return false;
+    }
 
     ReleaseGpuBuffers();
 

@@ -3,6 +3,7 @@
 #endif
 
 #include "TerrainShaderPipeline.h"
+#include "../StateManager.h"
 #include <d3dx9.h>
 #include <string_view>
 
@@ -170,31 +171,31 @@ void TerrainShaderPipeline::BeginFrame(
     const float (&fogColorAndRange)[4]) noexcept {
     if (!dev || !IsReady()) return;
 
-    dev->SetVertexDeclaration(m_vertexDecl);
-    dev->SetVertexShader(m_vertexShader);
-    dev->SetPixelShader(m_pixelShader);
+    STATEMANAGER.SetVertexDeclaration(m_vertexDecl);
+    STATEMANAGER.SetVertexShader(m_vertexShader);
+    STATEMANAGER.SetPixelShader(m_pixelShader);
 
-    dev->SetVertexShaderConstantF(0, reinterpret_cast<const float*>(&viewProj), 4);
+    STATEMANAGER.SetVertexShaderConstant(0, reinterpret_cast<const float*>(&viewProj), 4);
 
     const float lightData[4] = {lightDir.x, lightDir.y, lightDir.z, 0.0f};
     const float ambientData[4] = {ambientColor.x, ambientColor.y, ambientColor.z, 1.0f};
-    dev->SetPixelShaderConstantF(0, lightData, 1);
-    dev->SetPixelShaderConstantF(1, ambientData, 1);
-    dev->SetPixelShaderConstantF(2, fogColorAndRange, 1);
+    STATEMANAGER.SetPixelShaderConstant(0, lightData, 1);
+    STATEMANAGER.SetPixelShaderConstant(1, ambientData, 1);
+    STATEMANAGER.SetPixelShaderConstant(2, fogColorAndRange, 1);
 
     // Sampler s0: Splatmapa (CLAMP)
-    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-    dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-    dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 
     // Samplery s1..s4: Warstwy szczegolowe (WRAP)
     for (DWORD i = 1; i <= 4; ++i) {
-        dev->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-        dev->SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-        dev->SetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-        dev->SetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-        dev->SetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+        STATEMANAGER.SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+        STATEMANAGER.SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+        STATEMANAGER.SetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+        STATEMANAGER.SetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        STATEMANAGER.SetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
     }
 }
 
@@ -207,14 +208,14 @@ void TerrainShaderPipeline::BindSector(LPDIRECT3DDEVICE9 dev, const TerrainSecto
         desc.invSectorSize,
         desc.detailTileScale
     };
-    dev->SetVertexShaderConstantF(8, sectorParams, 1);
+    STATEMANAGER.SetVertexShaderConstant(8, sectorParams, 1);
 
     LPDIRECT3DTEXTURE9 splatTex = desc.splatTexture ? desc.splatTexture : m_fallbackWhiteTex;
-    dev->SetTexture(0, splatTex);
+    STATEMANAGER.SetTexture(0, splatTex);
 
     for (DWORD i = 0; i < 4; ++i) {
         LPDIRECT3DTEXTURE9 layerTex = desc.layerTextures[i] ? desc.layerTextures[i] : m_fallbackWhiteTex;
-        dev->SetTexture(i + 1, layerTex);
+        STATEMANAGER.SetTexture(i + 1, layerTex);
     }
 }
 
@@ -222,11 +223,13 @@ void TerrainShaderPipeline::EndFrame(LPDIRECT3DDEVICE9 dev) noexcept {
     if (!dev) return;
 
     for (DWORD i = 0; i < 5; ++i) {
-        dev->SetTexture(i, nullptr);
+        STATEMANAGER.SetTexture(i, nullptr);
+        STATEMANAGER.SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+        STATEMANAGER.SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
     }
-    dev->SetVertexShader(nullptr);
-    dev->SetPixelShader(nullptr);
-    dev->SetVertexDeclaration(nullptr);
+    STATEMANAGER.SetVertexShader(nullptr);
+    STATEMANAGER.SetPixelShader(nullptr);
+    STATEMANAGER.SetVertexDeclaration(nullptr);
 }
 
 } // namespace EterLib::Render

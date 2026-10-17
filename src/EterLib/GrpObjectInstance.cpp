@@ -209,7 +209,7 @@ void CGraphicObjectInstance::ReleaseAlwaysHidden() {
 	m_isAlwaysHidden = false;
 }
 
-bool CGraphicObjectInstance::isShow()
+bool CGraphicObjectInstance::isShow() const
 {
 	return m_isVisible;
 }

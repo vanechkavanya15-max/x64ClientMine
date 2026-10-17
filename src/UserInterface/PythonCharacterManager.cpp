@@ -244,12 +244,17 @@ void CPythonCharacterManager::Update()
 {
 	CInstanceBase::ResetPerformanceCounter();
 
-	TCharacterInstanceMap::iterator i = m_aliveActorsMap.begin();
-	while (m_aliveActorsMap.end() != i)
+	// LUKA 3: Zabezpieczenie przed Use-After-Free poprzez snapshot identyfikatorow VID
+	std::vector<DWORD> activeVids;
+	activeVids.reserve(m_aliveActorsMap.size());
+	for (const auto& pair : m_aliveActorsMap)
 	{
-		TCharacterInstanceMap::iterator c = i++;
+		activeVids.push_back(pair.first);
+	}
 
-		CInstanceBase* pkInstEach = c->second;
+	for (DWORD vid : activeVids)
+	{
+		CInstanceBase* pkInstEach = m_subsystemActorRegistry.FindActor(vid);
 		if (!pkInstEach)
 			continue;
 
@@ -276,8 +281,17 @@ void CPythonCharacterManager::Update()
 			pkInstEach->GetGraphicThingInstanceRef().ShowAllAttachingEffect();
 		}
 		// MR-3: -- END OF -- Invisibility fix
+	}
 
-		// Synchronize spatial grid, world actor registry, and ECS transform table
+	UpdateTransform();
+
+	// LUKA 2: Synchronizacja siatki przestrzennej i rejestru swiata PO UpdateTransform() (kolizje terenu i fizyka)
+	for (const auto& pair : m_aliveActorsMap)
+	{
+		CInstanceBase* pkInstEach = pair.second;
+		if (!pkInstEach)
+			continue;
+
 		if (pkInstEach->GetGraphicThingInstanceRef().IsMovement())
 		{
 			TPixelPosition curPos;
@@ -292,7 +306,6 @@ void CPythonCharacterManager::Update()
 		}
 	}
 
-	UpdateTransform();
 	m_sceneMgr.UpdateDeleting([this](DWORD vid) {
 		m_actorRegistry.UnregisterActor(EntityVid(vid));
 	});
@@ -453,6 +466,23 @@ bool CPythonCharacterManager::CentralRegisterActor(DWORD dwVID, CInstanceBase* p
 	if (m_subsystemActorRegistry.ContainsActor(dwVID))
 		return false;
 
+	// LUKA 5: Eliminacja kolizji VID przy wygaszaniu zwlok
+	for (CInstanceBase* pkDeadInst : m_sceneMgr.GetDeadInstances())
+	{
+		if (pkDeadInst && pkDeadInst->GetVirtualID() == dwVID)
+		{
+			if (pkDeadInst == m_boundActor)
+				m_boundActor = nullptr;
+			if (pkDeadInst == m_pickedActor)
+				m_pickedActor = nullptr;
+			std::erase(m_pickedInstances, pkDeadInst);
+			m_sceneMgr.RemoveDeadInstance(pkDeadInst);
+			m_actorRegistry.UnregisterActor(EntityVid(dwVID));
+			CInstanceBase::Delete(pkDeadInst);
+			break;
+		}
+	}
+
 	// 1. Rejestracja w glownym rejestrze domenowym instancji postaci (Single Source of Truth)
 	if (!m_subsystemActorRegistry.RegisterActor(dwVID, pInst))
 		return false;
@@ -464,9 +494,16 @@ bool CPythonCharacterManager::CentralRegisterActor(DWORD dwVID, CInstanceBase* p
 	m_sceneMgr.AddAliveInstance(pInst);
 
 	// 4. Rejestracja w rejestrze swiata Client::World::ActorRegistry
+	// LUKA 1: Pelen zestaw danych domenowych (pozycja Z, typ instancji, gildia, imperium)
 	float fPosX = pCreateData ? static_cast<float>(pCreateData->m_lPosX) : 0.0f;
 	float fPosY = pCreateData ? static_cast<float>(pCreateData->m_lPosY) : 0.0f;
 	float fPosZ = 0.0f;
+	if (pInst)
+	{
+		TPixelPosition pixelPos;
+		pInst->NEW_GetPixelPosition(&pixelPos);
+		fPosZ = pixelPos.z;
+	}
 	float fRot  = pCreateData ? pCreateData->m_fRot : 0.0f;
 	DWORD dwRace = pCreateData ? pCreateData->m_dwRace : 0;
 	std::string stName = (pCreateData && !pCreateData->m_stName.empty()) ? pCreateData->m_stName : "";
@@ -474,14 +511,14 @@ bool CPythonCharacterManager::CentralRegisterActor(DWORD dwVID, CInstanceBase* p
 	Client::World::ActorRecord record{
 		.vid = EntityVid(dwVID),
 		.race = dwRace,
-		.type = 0,
+		.type = pCreateData ? static_cast<uint8_t>(pCreateData->m_bType) : static_cast<uint8_t>(0),
 		.x = fPosX,
 		.y = fPosY,
 		.z = fPosZ,
 		.rotation = fRot,
 		.name = std::move(stName),
-		.guildId = 0,
-		.empire = 0,
+		.guildId = pCreateData ? pCreateData->m_dwGuildID : 0,
+		.empire = pCreateData ? static_cast<uint8_t>(pCreateData->m_dwEmpireID) : static_cast<uint8_t>(0),
 		.isDead = false
 	};
 	m_actorRegistry.RegisterActor(record);
@@ -667,10 +704,12 @@ void CPythonCharacterManager::CentralClearActors(bool bClearDead)
 	m_actorProviderAdapter.SetMainActorVID(0);
 	m_actorRegistry.SetMainActorVid(EntityVid(0));
 
+	// LUKA 4: Wyrejestrowanie zywych aktorow z m_actorRegistry przed wyczyszczeniem kontenerow
 	for (auto& pair : m_aliveActorsMap)
 	{
 		if (pair.second)
 		{
+			m_actorRegistry.UnregisterActor(EntityVid(pair.first));
 			CInstanceBase::Delete(pair.second);
 		}
 	}
@@ -688,14 +727,6 @@ void CPythonCharacterManager::CentralClearActors(bool bClearDead)
 		});
 		m_actorRegistry.Clear();
 	}
-	else
-	{
-		for (auto it = m_sceneMgr.GetAliveInstances().begin(); it != m_sceneMgr.GetAliveInstances().end(); ++it)
-		{
-			if (*it)
-				m_actorRegistry.UnregisterActor(EntityVid((*it)->GetVirtualID()));
-		}
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -710,17 +741,19 @@ CInstanceBase* CPythonCharacterManager::CreateInstance(const CInstanceBase::SCre
 	}
 
 	CInstanceBase* pCharacterInstance = CInstanceBase::New();
-	if (!CentralRegisterActor(c_rkCreateData.m_dwVID, pCharacterInstance, &c_rkCreateData)) [[unlikely]]
+
+	// LUKA 1: Create() wywolywane PRZED CentralRegisterActor - zapobiega smieceniu w rejestrach przy bledzie
+	if (!pCharacterInstance->Create(c_rkCreateData)) [[unlikely]]
 	{
-		TraceError("CPythonCharacterManager::CreateInstance: VID[%d] - Central registration failed\n", c_rkCreateData.m_dwVID);
+		TraceError("CPythonCharacterManager::CreateInstance VID[%d] Race[%d]", c_rkCreateData.m_dwVID, c_rkCreateData.m_dwRace);
 		CInstanceBase::Delete(pCharacterInstance);
 		return NULL;
 	}
 
-	if (!pCharacterInstance->Create(c_rkCreateData)) [[unlikely]]
+	if (!CentralRegisterActor(c_rkCreateData.m_dwVID, pCharacterInstance, &c_rkCreateData)) [[unlikely]]
 	{
-		TraceError("CPythonCharacterManager::CreateInstance VID[%d] Race[%d]", c_rkCreateData.m_dwVID, c_rkCreateData.m_dwRace);
-		CentralUnregisterActor(c_rkCreateData.m_dwVID, false);
+		TraceError("CPythonCharacterManager::CreateInstance: VID[%d] - Central registration failed\n", c_rkCreateData.m_dwVID);
+		CInstanceBase::Delete(pCharacterInstance);
 		return NULL;
 	}
 

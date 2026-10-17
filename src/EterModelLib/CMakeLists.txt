@@ -4,7 +4,12 @@ add_library(EterModelLib STATIC ${FILE_SOURCES})
 
 target_include_directories(EterModelLib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/extern/include
+)
+
+target_link_libraries(EterModelLib PUBLIC
+    mio
 )
 
 GroupSourcesByFolder(EterModelLib)

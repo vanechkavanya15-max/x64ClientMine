@@ -404,7 +404,10 @@ bool CGraphicThingInstance::SetModelInstance(int iDstModelInstance, int iSrcMode
 
 	CGrannyLODController * pController = m_LODControllerVector[iDstModelInstance];
 	if (!pController)
+	{
+		TraceErrorOnce("CGraphicThingInstance::SetModelInstance: m_LODControllerVector[%d] is NULL", iDstModelInstance);
 		return false;
+	}
 
 	// HAIR_LINK
 	CGrannyLODController * pSkelController = NULL;
@@ -417,7 +420,10 @@ bool CGraphicThingInstance::SetModelInstance(int iDstModelInstance, int iSrcMode
 		}
 		pSkelController = m_LODControllerVector[iSkelInstance];
 		if (!pSkelController)
+		{
+			TraceErrorOnce("CGraphicThingInstance::SetModelInstance: Skeleton m_LODControllerVector[%d] is NULL", iSkelInstance);
 			return false;
+		}
 	}
 	// END_OF_HAIR_LINK
 	
@@ -429,7 +435,11 @@ bool CGraphicThingInstance::SetModelInstance(int iDstModelInstance, int iSrcMode
 	for (DWORD i = 0; i < rModelThingSet.m_pLODThingRefVector.size(); ++i)
 	{
 		if (rModelThingSet.m_pLODThingRefVector[i]->IsNull())
+		{
+			TraceErrorOnce("CGraphicThingInstance::SetModelInstance: LODThingRef[%u] is NULL (iDstModelInstance=%d, iSrcModelThing=%d)",
+				i, iDstModelInstance, iSrcModelThing);
 			return false;
+		}
 
 		pController->AddModel(rModelThingSet.m_pLODThingRefVector[i]->GetPointer(), iSrcModel, pSkelController);
 	}
@@ -439,7 +449,12 @@ bool CGraphicThingInstance::SetModelInstance(int iDstModelInstance, int iSrcMode
 void CGraphicThingInstance::SetMaterialImagePointer(UINT ePart, const char* c_szImageName, CGraphicImage* pImage)
 {
 	if (!pImage || !c_szImageName)
+	{
+		CGraphicThing* pBase = GetBaseThingPtr();
+		TraceErrorOnce("CGraphicThingInstance::SetMaterialImagePointer: NULL argument (ePart=%u, c_szImageName=%s, pImage=%p, Thing=%s)",
+			ePart, c_szImageName ? c_szImageName : "<null>", pImage, pBase ? pBase->GetFileName() : "<null>");
 		return;
+	}
 
 	if (ePart>=m_LODControllerVector.size())
 	{
@@ -743,33 +758,43 @@ BOOL CGraphicThingInstance::GetCompositeBoneMatrix(DWORD dwModelInstanceIndex, D
 
 void CGraphicThingInstance::UpdateTransform(D3DXMATRIX * pMatrix, float fSecondsElapsed, int iModelInstanceIndex)
 {
-	//TraceError("%s",GetBaseThingPtr()->GetFileName());
-	int nLODCount=m_LODControllerVector.size();
-	if (iModelInstanceIndex>=nLODCount)
+	int nLODCount = static_cast<int>(m_LODControllerVector.size());
+	if (iModelInstanceIndex < 0 || iModelInstanceIndex >= nLODCount)
 	{
-		//TraceError("void CGraphicThingInstance::UpdateTransform(pMatrix, fSecondsElapsed=%f, iModelInstanceIndex=%d/nLODCount=%d)",
-		//	fSecondsElapsed, iModelInstanceIndex, nLODCount);
+		TRACE_ERROR_ONCE_KEYED(
+			static_cast<uint64_t>(iModelInstanceIndex),
+			"CGraphicThingInstance::UpdateTransform: iModelInstanceIndex={} out of range (nLODCount={})",
+			iModelInstanceIndex, nLODCount);
 		return;
 	}
 
-	CGrannyLODController* pkLODCtrl=m_LODControllerVector[iModelInstanceIndex];
+	CGrannyLODController* pkLODCtrl = m_LODControllerVector[iModelInstanceIndex];
 	if (!pkLODCtrl)
 	{
-		//TraceError("void CGraphicThingInstance::UpdateTransform(pMatrix, fSecondsElapsed=%f, iModelInstanceIndex=%d/nLODCount=%d) - m_LODControllerVector[iModelInstanceIndex] == NULL",
-		//	fSecondsElapsed, iModelInstanceIndex, nLODCount);
+		TRACE_ERROR_ONCE_KEYED(
+			static_cast<uint64_t>(iModelInstanceIndex),
+			"CGraphicThingInstance::UpdateTransform: m_LODControllerVector[{}] is NULL",
+			iModelInstanceIndex);
 		return;
 	}
 
 	if (pkLODCtrl->isGltfModelInstance())
 	{
+		if (!pMatrix)
+		{
+			TRACE_ERROR_ONCE_KEYED(reinterpret_cast<uintptr_t>(pkLODCtrl),
+				"CGraphicThingInstance::UpdateTransform: pMatrix is NULL for glTF instance");
+		}
 		return;
 	}
 
 	CGrannyModelInstance * pModelInstance = pkLODCtrl->GetModelInstance();
 	if (!pModelInstance)
 	{
-	/*	TraceError("void CGraphicThingInstance::UpdateTransform(pMatrix, fSecondsElapsed=%f, iModelInstanceIndex=%d/nLODCount=%d) - pkLODCtrl->GetModelInstance() == NULL",
-			fSecondsElapsed, iModelInstanceIndex, nLODCount);*/
+		TRACE_ERROR_ONCE_KEYED(
+			reinterpret_cast<uintptr_t>(pkLODCtrl),
+			"CGraphicThingInstance::UpdateTransform: pkLODCtrl->GetModelInstance() == NULL (idx={})",
+			iModelInstanceIndex);
 		return;
 	}
 
@@ -915,9 +940,15 @@ void CGraphicThingInstance::OnBlendRender()
 
 void CGraphicThingInstance::RenderWithOneTexture()
 {
-	//assert(m_bUpdated);
 	if (!m_bUpdated)
+	{
+		CGraphicThing* pBase = GetBaseThingPtr();
+		TRACE_ERROR_ONCE_KEYED(
+			reinterpret_cast<uintptr_t>(this),
+			"CGraphicThingInstance::RenderWithOneTexture: Skipped render because m_bUpdated == false (Thing={})",
+			pBase ? pBase->GetFileName() : "<null>");
 		return;
+	}
 
 	CGrannyLODController::FRenderWithOneTexture render;
 	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), render);
@@ -925,9 +956,15 @@ void CGraphicThingInstance::RenderWithOneTexture()
 
 void CGraphicThingInstance::BlendRenderWithOneTexture()
 {
-	//assert(m_bUpdated);
 	if (!m_bUpdated)
+	{
+		CGraphicThing* pBase = GetBaseThingPtr();
+		TRACE_ERROR_ONCE_KEYED(
+			reinterpret_cast<uintptr_t>(this),
+			"CGraphicThingInstance::BlendRenderWithOneTexture: Skipped blend render because m_bUpdated == false (Thing={})",
+			pBase ? pBase->GetFileName() : "<null>");
 		return;
+	}
 
 	CGrannyLODController::FBlendRenderWithOneTexture blendRender;
 	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), blendRender);
@@ -937,7 +974,12 @@ void CGraphicThingInstance::BlendRenderWithOneTexture()
 void CGraphicThingInstance::OnRenderToShadowMap()
 {
 	if (!m_bUpdated)
+	{
+		TRACE_ERROR_ONCE_KEYED(
+			reinterpret_cast<uintptr_t>(this),
+			"CGraphicThingInstance::OnRenderToShadowMap: Skipped shadow map render because m_bUpdated == false");
 		return;
+	}
 	
 	CGrannyLODController::FRenderToShadowMap RenderToShadowMap;
 	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), RenderToShadowMap);

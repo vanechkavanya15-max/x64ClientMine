@@ -9,6 +9,8 @@
 #include "EterLib/Camera.h"
 #include "EterLib/StateManager.h"
 
+#include <algorithm>
+#include <ranges>
 
 #define MAX_RENDER_SPALT 150
 
@@ -286,42 +288,48 @@ void CMapOutdoor::OnRender()
 #endif
 }
 
-struct FAreaRenderShadow
+namespace
 {
-	void operator () (CGraphicObjectInstance * pInstance)
+	struct FThingInstanceCameraDistanceOrder
 	{
-		pInstance->RenderShadow();
-	}
-};
+		D3DXVECTOR3 v3CameraEye{};
 
-struct FPCBlockerHide
-{
-	void operator () (CGraphicObjectInstance * pInstance)
-	{
-		pInstance->Hide();
-	}
-};
+		explicit FThingInstanceCameraDistanceOrder(const D3DXVECTOR3& eye) noexcept
+			: v3CameraEye(eye)
+		{
+		}
 
-struct FRenderPCBlocker
-{
-	void operator () (CGraphicObjectInstance * pInstance)
+		bool operator()(const CGraphicThingInstance* pkLeft, const CGraphicThingInstance* pkRight) const noexcept
+		{
+			if (!pkLeft || !pkRight)
+				return pkLeft != nullptr;
+
+			const D3DXVECTOR3 vLeftDiff = v3CameraEye - pkLeft->GetPosition();
+			const D3DXVECTOR3 vRightDiff = v3CameraEye - pkRight->GetPosition();
+
+			return D3DXVec3LengthSq(&vLeftDiff) < D3DXVec3LengthSq(&vRightDiff);
+		}
+	};
+
+	void RenderSingleCameraBlocker(CGraphicObjectInstance* pInstance)
 	{
-		pInstance->Show();
-		CGraphicThingInstance* pThingInstance = dynamic_cast <CGraphicThingInstance*> (pInstance);
-		if (pThingInstance != NULL)
+		if (!pInstance || !pInstance->isShow())
+			return;
+
+		if (auto* pThingInstance = dynamic_cast<CGraphicThingInstance*>(pInstance))
 		{
 			if (pThingInstance->HaveBlendThing())
 			{
-				STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
+				STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 				pThingInstance->BlendRender();
 				return;
 			}
 		}
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
 
+		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
 		pInstance->RenderPCBlocker();
 	}
-};
+}
 
 void CMapOutdoor::RenderEffect()
 {
@@ -337,50 +345,17 @@ void CMapOutdoor::RenderEffect()
 	}
 }
 
-struct CMapOutdoor_LessThingInstancePtrRenderOrder
-{
-	bool operator() (CGraphicThingInstance* pkLeft, CGraphicThingInstance* pkRight)
-	{
-		//TODO : Camera위치기반으로 소팅
-		CCamera * pCurrentCamera = CCameraManager::Instance().GetCurrentCamera();
-		const D3DXVECTOR3 & c_rv3CameraPos = pCurrentCamera->GetEye();
-		const D3DXVECTOR3 & c_v3LeftPos  = pkLeft->GetPosition();
-		const D3DXVECTOR3 & c_v3RightPos = pkRight->GetPosition();
-		const auto vv = D3DXVECTOR3(c_rv3CameraPos - c_v3RightPos);
-		const auto vv2 = D3DXVECTOR3(c_rv3CameraPos - c_v3LeftPos);
-		
-		return D3DXVec3LengthSq(&vv2) < D3DXVec3LengthSq(&vv);
-	}
-};
-
-struct CMapOutdoor_FOpaqueThingInstanceRender
-{
-	inline void operator () (CGraphicThingInstance * pkThingInst)
-	{
-		pkThingInst->Render();
-	}
-};
-struct CMapOutdoor_FBlendThingInstanceRender
-{
-	inline void operator () (CGraphicThingInstance * pkThingInst)
-	{
-		pkThingInst->BlendRender();
-	}
-};
-
 void CMapOutdoor::RenderArea(bool bRenderAmbience)
 {
 	if (!IsVisiblePart(PART_OBJECT))
 		return;
 
-	// Zabezpieczenie przed wyciekiem deklaracji wierzcholkow z modeli/obiektow
 	ScopedD3DVertexDeclGuard areaDeclGuard(nullptr, false);
 
 	m_dwRenderedCRCNum = 0;
 	m_dwRenderedGraphicThingInstanceNum = 0;
 	m_dwRenderedCRCWithNumberVector.clear();
 
-	// NOTE - 20041201.levites.던젼 그림자 추가
 	for (int j = 0; j < AROUND_AREA_NUM; ++j)
 	{
 		CArea * pArea;
@@ -390,11 +365,26 @@ void CMapOutdoor::RenderArea(bool bRenderAmbience)
 		}
 	}
 
-	// PCBlocker
-	std::for_each(m_PCBlockerVector.begin(), m_PCBlockerVector.end(), FPCBlockerHide());
+	// 1. Przygotowanie posortowanej tablicy wskaznikow blockerow kamery do niemutujacego filtrowania
+	m_sortedBlockerLookupScratch.clear();
+	if (!m_PCBlockerVector.empty())
+	{
+		m_sortedBlockerLookupScratch.reserve(m_PCBlockerVector.size());
+		std::ranges::copy_if(
+			m_PCBlockerVector,
+			std::back_inserter(m_sortedBlockerLookupScratch),
+			[](const CGraphicObjectInstance* pInst) noexcept { return pInst != nullptr && pInst->isShow(); }
+		);
+		std::ranges::sort(m_sortedBlockerLookupScratch);
+	}
 
-	// Shadow Receiver
-	if (m_bDrawShadow && m_bDrawChrShadow)
+	const auto isCameraBlocker = [this](const CGraphicObjectInstance* pInst) noexcept -> bool {
+		return !m_sortedBlockerLookupScratch.empty() &&
+			std::ranges::binary_search(m_sortedBlockerLookupScratch, pInst);
+	};
+
+	// 2. Renderowanie odbiornikow cieni (Shadow Receivers) bez mutowania widocznosci
+	if (m_bDrawShadow && m_bDrawChrShadow && !m_ShadowReceiverVector.empty())
 	{
 		if (mc_pEnvironmentData != NULL)
 			STATEMANAGER.SetRenderState(D3DRS_FOGCOLOR, 0xFFFFFFFF);
@@ -406,7 +396,6 @@ void CMapOutdoor::RenderArea(bool bRenderAmbience)
 		STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-		// Transform
 		STATEMANAGER.SaveTransform(D3DTS_TEXTURE1, &m_matDynamicShadow);
 		STATEMANAGER.SetTexture(1, m_lpCharacterShadowMapTexture);
 
@@ -418,7 +407,13 @@ void CMapOutdoor::RenderArea(bool bRenderAmbience)
 		STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_BORDER);
 		STATEMANAGER.SaveSamplerState(1, D3DSAMP_BORDERCOLOR, 0xFFFFFFFF);
 
-		std::for_each(m_ShadowReceiverVector.begin(), m_ShadowReceiverVector.end(), FAreaRenderShadow());
+		for (CGraphicObjectInstance* pReceiver : m_ShadowReceiverVector)
+		{
+			if (pReceiver && pReceiver->isShow() && !isCameraBlocker(pReceiver))
+			{
+				pReceiver->RenderShadow();
+			}
+		}
 
 		STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXCOORDINDEX);
 		STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS);
@@ -432,32 +427,47 @@ void CMapOutdoor::RenderArea(bool bRenderAmbience)
 			STATEMANAGER.SetRenderState(D3DRS_FOGCOLOR, mc_pEnvironmentData->FogColor);
 	}
 
+	// 3. Zbieranie i niemutujace filtrowanie obiektow nieprzezroczystych (m_opaqueInstances)
 	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
 
-	static std::vector<CGraphicThingInstance*> s_kVct_pkOpaqueThingInstSort;
-	s_kVct_pkOpaqueThingInstSort.clear();
-	s_kVct_pkOpaqueThingInstSort.reserve(512);  // Pre-allocate to avoid reallocations
+	m_rawAreaInstancesScratch.clear();
+	if (m_rawAreaInstancesScratch.capacity() < 512)
+		m_rawAreaInstancesScratch.reserve(512);
 
 	for (int i = 0; i < AROUND_AREA_NUM; ++i)
 	{
 		CArea * pArea;
 		if (GetAreaPointer(i, &pArea))
 		{
-			pArea->CollectRenderingObject(s_kVct_pkOpaqueThingInstSort);
+			pArea->CollectRenderingObject(m_rawAreaInstancesScratch);
 		}
-
 	}
 
-	std::sort(s_kVct_pkOpaqueThingInstSort.begin(), s_kVct_pkOpaqueThingInstSort.end(), CMapOutdoor_LessThingInstancePtrRenderOrder());
-	std::for_each(s_kVct_pkOpaqueThingInstSort.begin(), s_kVct_pkOpaqueThingInstSort.end(), CMapOutdoor_FOpaqueThingInstanceRender());
+	m_opaqueInstances.clear();
+	if (m_opaqueInstances.capacity() < m_rawAreaInstancesScratch.size())
+		m_opaqueInstances.reserve(m_rawAreaInstancesScratch.size());
+
+	std::ranges::copy_if(
+		m_rawAreaInstancesScratch,
+		std::back_inserter(m_opaqueInstances),
+		[&isCameraBlocker](const CGraphicThingInstance* pkThingInst) noexcept {
+			return pkThingInst != nullptr &&
+				pkThingInst->isShow() &&
+				!isCameraBlocker(static_cast<const CGraphicObjectInstance*>(pkThingInst));
+		}
+	);
+
+	if (CCamera* pCurrentCamera = CCameraManager::Instance().GetCurrentCamera())
+	{
+		std::ranges::sort(m_opaqueInstances, FThingInstanceCameraDistanceOrder(pCurrentCamera->GetEye()));
+	}
+
+	for (CGraphicThingInstance* pkThingInst : m_opaqueInstances)
+	{
+		pkThingInst->Render();
+	}
 
 	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
-
-	// Shadow Receiver
-	if (m_bDrawShadow && m_bDrawChrShadow)
-	{
-		std::for_each(m_ShadowReceiverVector.begin(), m_ShadowReceiverVector.end(), std::mem_fn(&CGraphicObjectInstance::Show));
-	}
 }
 
 void CMapOutdoor::RenderBlendArea()
@@ -465,126 +475,132 @@ void CMapOutdoor::RenderBlendArea()
 	if (!IsVisiblePart(PART_OBJECT))
 		return;
 
-	static std::vector<CGraphicThingInstance*> s_kVct_pkBlendThingInstSort;
-	s_kVct_pkBlendThingInstSort.clear();
-	s_kVct_pkBlendThingInstSort.reserve(256);  // Pre-allocate to avoid reallocations
+	m_rawAreaInstancesScratch.clear();
+	if (m_rawAreaInstancesScratch.capacity() < 256)
+		m_rawAreaInstancesScratch.reserve(256);
 
 	for (int i = 0; i < AROUND_AREA_NUM; ++i)
 	{
 		CArea * pArea;
 		if (GetAreaPointer(i, &pArea))
 		{
-			pArea->CollectBlendRenderingObject(s_kVct_pkBlendThingInstSort);
+			pArea->CollectBlendRenderingObject(m_rawAreaInstancesScratch);
 		}
 	}
 
-	if (s_kVct_pkBlendThingInstSort.size() != 0)
+	if (m_rawAreaInstancesScratch.empty())
+		return;
+
+	m_sortedBlockerLookupScratch.clear();
+	if (!m_PCBlockerVector.empty())
 	{
-
-		
-		//STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		//STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-		//STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-		//STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		//STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-		//STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-
-		//// Transform
-		//STATEMANAGER.SaveTransform(D3DTS_TEXTURE1, &m_matDynamicShadow);
-		//STATEMANAGER.SetTexture(1, m_lpCharacterShadowMapTexture);
-
-		//STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		//STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
-		//STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP,   D3DTOP_MODULATE);
-		//STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
-		//STATEMANAGER.SaveTextureStageState(1, D3DTSS_ADDRESSU, D3DTADDRESS_BORDER);
-		//STATEMANAGER.SaveTextureStageState(1, D3DTSS_ADDRESSV, D3DTADDRESS_BORDER);
-		//STATEMANAGER.SaveTextureStageState(1, D3DTSS_BORDERCOLOR, 0xFFFFFFFF);
-
-		////std::for_each(m_ShadowReceiverVector.begin(), m_ShadowReceiverVector.end(), FAreaRenderShadow());
-
-		//STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXCOORDINDEX);
-		//STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS);
-		//STATEMANAGER.RestoreTextureStageState(1, D3DTSS_ADDRESSU);
-		//STATEMANAGER.RestoreTextureStageState(1, D3DTSS_ADDRESSV);
-		//STATEMANAGER.RestoreTextureStageState(1, D3DTSS_BORDERCOLOR);
-
-		//STATEMANAGER.RestoreTransform(D3DTS_TEXTURE1);
-
-
-		std::sort(s_kVct_pkBlendThingInstSort.begin(), s_kVct_pkBlendThingInstSort.end(), CMapOutdoor_LessThingInstancePtrRenderOrder());
-
-		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-		STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-		STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP,   D3DTOP_SELECTARG1);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
-
-		std::for_each(s_kVct_pkBlendThingInstSort.begin(), s_kVct_pkBlendThingInstSort.end(), CMapOutdoor_FBlendThingInstanceRender());
-
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+		m_sortedBlockerLookupScratch.reserve(m_PCBlockerVector.size());
+		std::ranges::copy_if(
+			m_PCBlockerVector,
+			std::back_inserter(m_sortedBlockerLookupScratch),
+			[](const CGraphicObjectInstance* pInst) noexcept { return pInst != nullptr && pInst->isShow(); }
+		);
+		std::ranges::sort(m_sortedBlockerLookupScratch);
 	}
+
+	m_blendInstances.clear();
+	if (m_blendInstances.capacity() < m_rawAreaInstancesScratch.size())
+		m_blendInstances.reserve(m_rawAreaInstancesScratch.size());
+
+	std::ranges::copy_if(
+		m_rawAreaInstancesScratch,
+		std::back_inserter(m_blendInstances),
+		[this](const CGraphicThingInstance* pkThingInst) noexcept {
+			if (!pkThingInst || !pkThingInst->isShow())
+				return false;
+			return m_sortedBlockerLookupScratch.empty() ||
+				!std::ranges::binary_search(
+					m_sortedBlockerLookupScratch,
+					static_cast<const CGraphicObjectInstance*>(pkThingInst));
+		}
+	);
+
+	if (m_blendInstances.empty())
+		return;
+
+	if (CCamera* pCurrentCamera = CCameraManager::Instance().GetCurrentCamera())
+	{
+		std::ranges::sort(m_blendInstances, FThingInstanceCameraDistanceOrder(pCurrentCamera->GetEye()));
+	}
+
+	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP,   D3DTOP_SELECTARG1);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
+
+	for (CGraphicThingInstance* pkThingInst : m_blendInstances)
+	{
+		pkThingInst->BlendRender();
+	}
+
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
 }
 
 void CMapOutdoor::RenderPCBlocker()
 {
-	// PCBlocker
-	if (m_PCBlockerVector.size() != 0)
+	if (m_PCBlockerVector.empty())
+		return;
+
+	STATEMANAGER.SetTexture(0, NULL);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2,	D3DTA_CURRENT);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,	D3DTOP_MODULATE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1,	D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP,	D3DTOP_SELECTARG1);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP,	D3DTOP_SELECTARG1);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP,	D3DTOP_DISABLE);
+
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
+	STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSU,	D3DTADDRESS_CLAMP);
+	STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSV,	D3DTADDRESS_CLAMP);
+
+	STATEMANAGER.SaveTransform(D3DTS_TEXTURE1, &m_matBuildingTransparent);
+	LPDIRECT3DTEXTURE9 pTransparentTex = m_BuildingTransparentImageInstance.GetTexturePointer() ? m_BuildingTransparentImageInstance.GetTexturePointer()->GetD3DTexture() : NULL;
+	STATEMANAGER.SetTexture(1, pTransparentTex);
+
+	for (CGraphicObjectInstance* pBlocker : m_PCBlockerVector)
 	{
-		STATEMANAGER.SetTexture(0, NULL);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2,	D3DTA_CURRENT);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,	D3DTOP_MODULATE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1,	D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP,	D3DTOP_SELECTARG1);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP,	D3DTOP_SELECTARG1);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP,	D3DTOP_DISABLE);
-
-		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-		STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-		STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-		STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-		STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-		STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSU,	D3DTADDRESS_CLAMP);
-		STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSV,	D3DTADDRESS_CLAMP);
-
-		STATEMANAGER.SaveTransform(D3DTS_TEXTURE1, &m_matBuildingTransparent);
-		LPDIRECT3DTEXTURE9 pTransparentTex = m_BuildingTransparentImageInstance.GetTexturePointer() ? m_BuildingTransparentImageInstance.GetTexturePointer()->GetD3DTexture() : NULL;
-		STATEMANAGER.SetTexture(1, pTransparentTex);
-
-		std::for_each(m_PCBlockerVector.begin(), m_PCBlockerVector.end(), FRenderPCBlocker());
-
-		STATEMANAGER.SetTexture(1, NULL);
-		STATEMANAGER.RestoreTransform(D3DTS_TEXTURE1);
-
-		STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXCOORDINDEX);
-		STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		STATEMANAGER.RestoreSamplerState(1, D3DSAMP_ADDRESSU);
-		STATEMANAGER.RestoreSamplerState(1, D3DSAMP_ADDRESSV);
-		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-
-		std::for_each(m_PCBlockerVector.begin(), m_PCBlockerVector.end(), std::mem_fn(&CGraphicObjectInstance::Show));
+		RenderSingleCameraBlocker(pBlocker);
 	}
+
+	STATEMANAGER.SetTexture(1, NULL);
+	STATEMANAGER.RestoreTransform(D3DTS_TEXTURE1);
+
+	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXCOORDINDEX);
+	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+	STATEMANAGER.RestoreSamplerState(1, D3DSAMP_ADDRESSU);
+	STATEMANAGER.RestoreSamplerState(1, D3DSAMP_ADDRESSV);
+	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
 }
 
 void CMapOutdoor::SelectIndexBuffer(BYTE byLODLevel, WORD * pwPrimitiveCount, D3DPRIMITIVETYPE * pePrimitiveType)

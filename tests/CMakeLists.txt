@@ -6572,8 +6572,18 @@ target_include_directories(test_c26_gltf_gpu_skinning PRIVATE
 target_link_libraries(test_c26_gltf_gpu_skinning PRIVATE
     EterModelLib
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
     DirectX
+    Dbghelp
     ws2_32
     doctest
 )

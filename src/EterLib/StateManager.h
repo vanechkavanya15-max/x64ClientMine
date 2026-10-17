@@ -327,6 +327,13 @@ public:
 	RenderOwnership::ERenderCategory GetCurrentRenderCategory() const;
 	void RecordDrawCall(const char* siteName = nullptr);
 
+	// Diagnostic Hardware Verification
+#ifdef _DEBUG
+	void VerifyHardwareStateSync(const char* szCallSite = nullptr) const;
+#else
+	inline void VerifyHardwareStateSync(const char* = nullptr) const noexcept {}
+#endif
+
 private:
 	void SetDevice(LPDIRECT3DDEVICE9EX lpDevice);
 	void ClearStateStacks();

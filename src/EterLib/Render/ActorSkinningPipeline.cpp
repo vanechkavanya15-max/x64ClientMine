@@ -295,12 +295,20 @@ bool ActorSkinningPipeline::Begin(
     D3DXMatrixTranspose(&matVPTransposed, &matViewProj);
     D3DXMatrixTranspose(&matWorldTransposed, &matWorld);
 
-    m_device->SetVertexShaderConstantF(
+    auto SetVSConst = [&](DWORD reg, const float* data, DWORD count) {
+        if (CStateManager::InstancePtr()) {
+            STATEMANAGER.SetVertexShaderConstant(reg, data, count);
+        } else {
+            m_device->SetVertexShaderConstantF(reg, data, count);
+        }
+    };
+
+    SetVSConst(
         ActorSkinningShaderConstants::kRegViewProj,
         reinterpret_cast<const float*>(&matVPTransposed),
         4);
 
-    m_device->SetVertexShaderConstantF(
+    SetVSConst(
         ActorSkinningShaderConstants::kRegWorld,
         reinterpret_cast<const float*>(&matWorldTransposed),
         4);
@@ -308,23 +316,23 @@ bool ActorSkinningPipeline::Begin(
     ActorSkinningBindDesc defaultDesc;
     const ActorSkinningBindDesc& light = pOptionalLighting ? *pOptionalLighting : defaultDesc;
 
-    m_device->SetVertexShaderConstantF(
+    SetVSConst(
         ActorSkinningShaderConstants::kRegLightDir,
         reinterpret_cast<const float*>(&light.lightDir),
         1);
-    m_device->SetVertexShaderConstantF(
+    SetVSConst(
         ActorSkinningShaderConstants::kRegLightDiffuse,
         reinterpret_cast<const float*>(&light.lightDiffuse),
         1);
-    m_device->SetVertexShaderConstantF(
+    SetVSConst(
         ActorSkinningShaderConstants::kRegLightAmbient,
         reinterpret_cast<const float*>(&light.lightAmbient),
         1);
-    m_device->SetVertexShaderConstantF(
+    SetVSConst(
         ActorSkinningShaderConstants::kRegMaterialColor,
         reinterpret_cast<const float*>(&light.materialColor),
         1);
-    m_device->SetVertexShaderConstantF(
+    SetVSConst(
         ActorSkinningShaderConstants::kRegFogParams,
         reinterpret_cast<const float*>(&light.fogParams),
         1);
@@ -342,10 +350,17 @@ void ActorSkinningPipeline::UploadBonePalette(const void* pMatrices, UINT count)
     PackBonePaletteTo4x3Registers(pMatrices, count, packedRegisters);
 
     const UINT numBonesUploaded = static_cast<UINT>(packedRegisters.size() / 12);
-    m_device->SetVertexShaderConstantF(
-        ActorSkinningShaderConstants::kRegBonePalette,
-        packedRegisters.data(),
-        numBonesUploaded * ActorSkinningShaderConstants::kRegsPerBone);
+    if (CStateManager::InstancePtr()) {
+        STATEMANAGER.SetVertexShaderConstant(
+            ActorSkinningShaderConstants::kRegBonePalette,
+            packedRegisters.data(),
+            numBonesUploaded * ActorSkinningShaderConstants::kRegsPerBone);
+    } else {
+        m_device->SetVertexShaderConstantF(
+            ActorSkinningShaderConstants::kRegBonePalette,
+            packedRegisters.data(),
+            numBonesUploaded * ActorSkinningShaderConstants::kRegsPerBone);
+    }
 }
 
 void ActorSkinningPipeline::End() noexcept {

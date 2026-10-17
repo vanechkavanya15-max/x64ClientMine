@@ -1124,3 +1124,53 @@ void CStateManager::RecordDrawCall(const char* siteName)
 	}
 }
 
+#ifdef _DEBUG
+void CStateManager::VerifyHardwareStateSync(const char* szCallSite) const
+{
+	if (!m_lpD3DDev)
+		return;
+
+	// 1. Weryfikacja Vertex Shader
+	LPDIRECT3DVERTEXSHADER9 pHwVS = nullptr;
+	if (SUCCEEDED(m_lpD3DDev->GetVertexShader(&pHwVS)))
+	{
+		if (pHwVS) pHwVS->Release();
+		assert(pHwVS == m_CurrentState.m_dwVertexShader &&
+			   "STATE_DESYNC: Hardware VertexShader differs from CStateManager::m_CurrentState!");
+	}
+
+	// 2. Weryfikacja Pixel Shader
+	LPDIRECT3DPIXELSHADER9 pHwPS = nullptr;
+	if (SUCCEEDED(m_lpD3DDev->GetPixelShader(&pHwPS)))
+	{
+		if (pHwPS) pHwPS->Release();
+		assert(pHwPS == m_CurrentState.m_dwPixelShader &&
+			   "STATE_DESYNC: Hardware PixelShader differs from CStateManager::m_CurrentState!");
+	}
+
+	// 3. Weryfikacja Vertex Declaration
+	LPDIRECT3DVERTEXDECLARATION9 pHwDecl = nullptr;
+	if (SUCCEEDED(m_lpD3DDev->GetVertexDeclaration(&pHwDecl)))
+	{
+		if (pHwDecl) pHwDecl->Release();
+		if (m_CurrentState.m_dwVertexDeclaration != nullptr)
+		{
+			assert(pHwDecl == m_CurrentState.m_dwVertexDeclaration &&
+				   "STATE_DESYNC: Hardware VertexDeclaration differs from CStateManager::m_CurrentState!");
+		}
+	}
+
+	// 4. Weryfikacja tekstur na jednostkach s0..s4
+	for (DWORD stage = 0; stage < 5; ++stage)
+	{
+		LPDIRECT3DBASETEXTURE9 pHwTex = nullptr;
+		if (SUCCEEDED(m_lpD3DDev->GetTexture(stage, &pHwTex)))
+		{
+			if (pHwTex) pHwTex->Release();
+			assert(pHwTex == m_CurrentState.m_Textures[stage] &&
+				   "STATE_DESYNC: Hardware Texture differs from CStateManager::m_CurrentState!");
+		}
+	}
+}
+#endif
+

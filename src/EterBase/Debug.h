@@ -6,6 +6,8 @@
 #include <string_view>
 #include <string>
 #include <source_location>
+#include <atomic>
+#include <cstdint>
 
 #if defined(_DEBUG) && !defined(_PACKETDUMP)
 #define _PACKETDUMP
@@ -285,6 +287,159 @@ extern void OpenLogFile(bool bUseLogFile = true);
 extern void CloseLogFile();
 
 extern HWND g_PopupHwnd;
+
+// ============================================================================
+// LOCK-FREE DIAGNOSTYKA AI (FAZA 3: TraceErrorOnce / TraceErrorOnceKeyed)
+// ============================================================================
+namespace EterBase::Diagnostics
+{
+    inline constexpr uint64_t kFnvOffsetBasis = 14695981039346656037ULL;
+    inline constexpr uint64_t kFnvPrime       = 1099511628211ULL;
+
+    [[nodiscard]] constexpr uint64_t HashBytesFnv1a(const void* data, size_t len, uint64_t hash = kFnvOffsetBasis) noexcept
+    {
+        const auto* bytes = static_cast<const uint8_t*>(data);
+        for (size_t i = 0; i < len; ++i)
+        {
+            hash ^= static_cast<uint64_t>(bytes[i]);
+            hash *= kFnvPrime;
+        }
+        return hash;
+    }
+
+    [[nodiscard]] constexpr uint64_t HashStringFnv1a(std::string_view sv, uint64_t hash = kFnvOffsetBasis) noexcept
+    {
+        for (char c : sv)
+        {
+            hash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
+            hash *= kFnvPrime;
+        }
+        return hash;
+    }
+
+    [[nodiscard]] constexpr uint64_t HashCombine(uint64_t seed, uint64_t value) noexcept
+    {
+        seed ^= value + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
+        return seed;
+    }
+
+    [[nodiscard]] constexpr uint64_t HashSourceLocation(const std::source_location& loc) noexcept
+    {
+        uint64_t h = HashStringFnv1a(loc.file_name());
+        h = HashCombine(h, static_cast<uint64_t>(loc.line()));
+        h = HashCombine(h, static_cast<uint64_t>(loc.column()));
+        return h;
+    }
+
+    class CLockFreeOnceRegistry
+    {
+    public:
+        static constexpr size_t kCapacity = 8192; // Potega dwojki (64 KB w BSS)
+        static constexpr size_t kMask     = kCapacity - 1;
+        static constexpr size_t kMaxProbe = 16;
+
+        [[nodiscard]] static bool TryRegister(uint64_t keyHash) noexcept
+        {
+            if (keyHash == 0)
+                keyHash = 1;
+
+            const size_t startIdx = static_cast<size_t>(keyHash) & kMask;
+
+            for (size_t probe = 0; probe < kMaxProbe; ++probe)
+            {
+                const size_t idx = (startIdx + probe) & kMask;
+                uint64_t existing = ms_slots[idx].load(std::memory_order_relaxed);
+
+                if (existing == keyHash)
+                    return false;
+
+                if (existing == 0)
+                {
+                    uint64_t expected = 0;
+                    if (ms_slots[idx].compare_exchange_strong(
+                            expected, keyHash,
+                            std::memory_order_acq_rel,
+                            std::memory_order_relaxed))
+                    {
+                        return true;
+                    }
+                    if (expected == keyHash)
+                        return false;
+                }
+            }
+            return false;
+        }
+
+        static void ResetForTesting() noexcept
+        {
+            for (size_t i = 0; i < kCapacity; ++i)
+                ms_slots[i].store(0, std::memory_order_relaxed);
+        }
+
+    private:
+        inline static std::atomic<uint64_t> ms_slots[kCapacity]{};
+    };
+
+    inline void TraceErrorOnceImpl(const std::source_location& loc, const char* c_szFormat, ...) noexcept
+    {
+        if (!c_szFormat)
+            return;
+
+        char szBuffer[1024];
+        va_list args;
+        va_start(args, c_szFormat);
+        const int written = vsnprintf(szBuffer, sizeof(szBuffer), c_szFormat, args);
+        va_end(args);
+
+        if (written <= 0)
+            return;
+
+        const size_t len = (static_cast<size_t>(written) < sizeof(szBuffer))
+            ? static_cast<size_t>(written)
+            : (sizeof(szBuffer) - 1);
+
+        const uint64_t locHash = HashSourceLocation(loc);
+        const uint64_t msgHash = HashStringFnv1a(std::string_view(szBuffer, len), locHash);
+
+        if (CLockFreeOnceRegistry::TryRegister(msgHash))
+        {
+            char szFinal[1280];
+            _snprintf_s(szFinal, sizeof(szFinal), _TRUNCATE, "[ONCE][%s:%u] %s",
+                loc.function_name(), loc.line(), szBuffer);
+            TraceErrorRaw(szFinal, true);
+        }
+    }
+} // namespace EterBase::Diagnostics
+
+#define TraceErrorOnce(fmt, ...) \
+    ::EterBase::Diagnostics::TraceErrorOnceImpl(::std::source_location::current(), fmt, ##__VA_ARGS__)
+
+template <typename... Args>
+inline void TraceErrorOnceKeyed(
+    uint64_t runtimeKey,
+    const std::source_location& loc,
+    std::format_string<Args...> fmt,
+    Args&&... args) noexcept
+{
+    const uint64_t compositeKey = ::EterBase::Diagnostics::HashCombine(
+        ::EterBase::Diagnostics::HashSourceLocation(loc), runtimeKey);
+
+    if (!::EterBase::Diagnostics::CLockFreeOnceRegistry::TryRegister(compositeKey))
+        return;
+
+    try
+    {
+        std::string s = std::format(fmt, std::forward<Args>(args)...);
+        TraceErrorRaw(std::format("[ONCE][{}:{}] {}", loc.function_name(), loc.line(), s), true);
+    }
+    catch (...)
+    {
+        TraceErrorRaw("[TraceErrorOnceKeyed formatting exception]", true);
+    }
+}
+
+#define TRACE_ERROR_ONCE_KEYED(key, fmt, ...) \
+    TraceErrorOnceKeyed(static_cast<uint64_t>(key), ::std::source_location::current(), fmt, ##__VA_ARGS__)
 
 #define CHECK_RETURN(flag, string)          \
     if (flag)                               \

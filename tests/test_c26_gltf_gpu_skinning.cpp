@@ -208,14 +208,16 @@ TEST_CASE("GpuSkinningMathMatchesModelInstancePalette")
     CHECK(std::abs(gpuSkinnedPos.z - cpuDeformed[0].position.z) < 1e-3f);
 }
 
-// 4. Weryfikacja usuniecia DrawIndexedPrimitiveUP i CPU DeformVertices z LODController
+// 4. Weryfikacja usuniecia DrawIndexedPrimitiveUP i CPU DeformVertices z LODController / GltfModelRenderer
 TEST_CASE("LodControllerEliminatesDrawIndexedPrimitiveUPAndCpuDeform")
 {
     std::string lodControllerSrc = ReadProjectFile("src/EterGrnLib/LODController.cpp");
     REQUIRE_FALSE(lodControllerSrc.empty());
+    std::string rendererSrc = ReadProjectFile("src/EterModelLib/GltfModelRenderer.cpp");
+    std::string combinedSrc = lodControllerSrc + rendererSrc;
 
-    CHECK(lodControllerSrc.find("DrawIndexedPrimitiveUP") == std::string::npos);
-    CHECK(lodControllerSrc.find("DrawIndexedPrimitive(") != std::string::npos);
-    CHECK(lodControllerSrc.find("ActorSkinningPipeline") != std::string::npos);
-    CHECK(lodControllerSrc.find("m_pGltfModelInstance->DeformVertices()") == std::string::npos);
+    CHECK(combinedSrc.find("DrawIndexedPrimitiveUP") == std::string::npos);
+    CHECK(combinedSrc.find("DrawIndexedPrimitive(") != std::string::npos);
+    CHECK(combinedSrc.find("ActorSkinningPipeline") != std::string::npos);
+    CHECK(combinedSrc.find("m_pGltfModelInstance->DeformVertices()") == std::string::npos);
 }

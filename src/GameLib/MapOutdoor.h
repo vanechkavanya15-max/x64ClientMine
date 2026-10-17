@@ -680,8 +680,14 @@ class CMapOutdoor : public CMapBase
 
 
 	protected:
-		std::vector<CGraphicObjectInstance *> m_ShadowReceiverVector;
-		std::vector<CGraphicObjectInstance *> m_PCBlockerVector;
+		// FAZA 2: Jawne, niemutujace kolekcje widocznosci
+		std::vector<CGraphicThingInstance*>		m_opaqueInstances;
+		std::vector<CGraphicThingInstance*>		m_blendInstances;
+		std::vector<CGraphicObjectInstance*>	m_ShadowReceiverVector;
+		std::vector<CGraphicObjectInstance*>	m_PCBlockerVector;
+
+		std::vector<CGraphicThingInstance*>		m_rawAreaInstancesScratch;
+		std::vector<CGraphicObjectInstance*>	m_sortedBlockerLookupScratch;
 
 	protected:
 		float	m_fOpaqueWaterDepth;

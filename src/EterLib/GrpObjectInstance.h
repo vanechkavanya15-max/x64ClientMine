@@ -55,14 +55,14 @@ class CGraphicObjectInstance : public CGraphicCollisionObject
 		
 		void					Show();
 		void					Hide();
-		bool					isShow();
+		bool					isShow() const;
 
 		void					ApplyAlwaysHidden();
 		void					ReleaseAlwaysHidden();
 
 		// Camera Block
 		void					BlockCamera(bool bBlock) {m_BlockCamera = bBlock;}
-		bool					BlockCamera() { return m_BlockCamera; }
+		bool					BlockCamera() const { return m_BlockCamera; }
 		
 		// Ray Test
 		bool					isIntersect(const CRay & c_rRay, float * pu, float * pv, float * pt);
