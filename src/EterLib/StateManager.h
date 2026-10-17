@@ -48,6 +48,7 @@
 #include <stack>
 
 #include "EterBase/Singleton.h"
+#include "RenderOwnership.h"
 
 static const DWORD STATEMANAGER_MAX_RENDERSTATES = 256;
 static const DWORD STATEMANAGER_MAX_TEXTURESTATES = 128;
@@ -305,6 +306,11 @@ public:
 	void ResetPrimitiveCounter();
 	uint32_t GetPrimitiveCount() const;
 
+	// Render category tracking & bypass guard
+	void SetCurrentRenderCategory(RenderOwnership::ERenderCategory category);
+	RenderOwnership::ERenderCategory GetCurrentRenderCategory() const;
+	void RecordDrawCall(const char* siteName = nullptr);
+
 private:
 	void SetDevice(LPDIRECT3DDEVICE9EX lpDevice);
 
@@ -317,6 +323,8 @@ private:
 	DWORD				m_dwBestMinFilter;
 	DWORD				m_dwBestMagFilter;
 	LPDIRECT3DDEVICE9EX	m_lpD3DDev;
+
+	RenderOwnership::ERenderCategory m_currentRenderCategory{ RenderOwnership::ERenderCategory::Count };
 
 	std::vector<DWORD>						m_RenderStateStack[STATEMANAGER_MAX_RENDERSTATES];
 	std::vector<DWORD>						m_SamplerStateStack[STATEMANAGER_MAX_STAGES][STATEMANAGER_MAX_TEXTURESTATES];
