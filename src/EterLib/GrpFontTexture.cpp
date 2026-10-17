@@ -33,6 +33,7 @@ CGraphicFontTexture::~CGraphicFontTexture()
 void CGraphicFontTexture::Initialize()
 {
 	CGraphicTexture::Initialize();
+	m_bOwnsTexture = false;
 	m_ftFace = nullptr;
 	m_pAtlasBuffer = nullptr;
 	m_atlasWidth = 0;
@@ -58,7 +59,6 @@ void CGraphicFontTexture::Destroy()
 	delete[] m_pAtlasBuffer;
 	m_pAtlasBuffer = nullptr;
 
-	m_lpd3dTexture = NULL;
 	CGraphicTexture::Destroy();
 	stl_wipe(m_pFontTextureVector);
 	m_charInfoMap.clear();
@@ -111,7 +111,7 @@ bool CGraphicFontTexture::CreateDeviceObjects()
 
 void CGraphicFontTexture::DestroyDeviceObjects()
 {
-	m_lpd3dTexture = NULL;
+	CGraphicTexture::DestroyDeviceObjects();
 	stl_wipe(m_pFontTextureVector);
 }
 

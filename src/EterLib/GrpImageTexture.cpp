@@ -96,17 +96,25 @@ bool CGraphicImageTexture::Create(UINT width, UINT height, D3DFORMAT d3dFmt, DWO
 
 void CGraphicImageTexture::CreateFromTexturePointer(const CGraphicTexture* c_pSrcTexture)
 {
-	if (m_lpd3dTexture)
+	if (m_bOwnsTexture && m_lpd3dTexture)
 		m_lpd3dTexture->Release();
+
+	m_bOwnsTexture = false;
+
+	if (!c_pSrcTexture)
+	{
+		m_width = 0;
+		m_height = 0;
+		m_lpd3dTexture = NULL;
+		m_bEmpty = true;
+		return;
+	}
 
 	m_width = c_pSrcTexture->GetWidth();
 	m_height = c_pSrcTexture->GetHeight();
 	m_lpd3dTexture = c_pSrcTexture->GetD3DTexture();
 
-	if (m_lpd3dTexture)
-		m_lpd3dTexture->AddRef();
-
-	m_bEmpty = false;
+	m_bEmpty = c_pSrcTexture->IsEmpty();
 }
 
 bool CGraphicImageTexture::CreateFromDDSTexture(UINT bufSize, const void* c_pvBuf)

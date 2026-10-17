@@ -6245,5 +6245,15 @@ target_link_libraries(test_c26_snow_particle PRIVATE
 )
 add_test(NAME SnowParticleTest COMMAND test_c26_snow_particle)
 
+add_executable(test_c26_texture_ownership test_c26_texture_ownership.cpp)
+target_include_directories(test_c26_texture_ownership PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_texture_ownership PRIVATE EterLib EterImageLib PackLib EterBase DirectX ws2_32)
+add_test(NAME TextureOwnershipTest COMMAND test_c26_texture_ownership)
+
+
 
 

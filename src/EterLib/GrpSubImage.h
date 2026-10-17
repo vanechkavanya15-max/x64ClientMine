@@ -16,6 +16,7 @@ class CGraphicSubImage : public CGraphicImage
 		virtual ~CGraphicSubImage();
 
 		bool CreateDeviceObjects();
+		virtual void DestroyDeviceObjects();
 
 		bool SetImageFileName(const char* c_szFileName);
 
@@ -25,8 +26,9 @@ class CGraphicSubImage : public CGraphicImage
 
 		static void SetSearchPath(const char * c_szFileName);
 
-	protected:
 		void SetImagePointer(CGraphicImage* pImage);
+
+	protected:
 
 		bool OnLoad(int iSize, const void* c_pvBuf);
 		void OnClear();		
