@@ -42,6 +42,7 @@ class CGraphicTexture : public CGraphicBase
 
 		void SetTextureStage(int stage) const;
 		LPDIRECT3DTEXTURE9 GetD3DTexture() const;
+		uint32_t GetTextureHandle() const;
 
 		void DestroyDeviceObjects();
 

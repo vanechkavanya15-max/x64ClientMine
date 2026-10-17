@@ -4,6 +4,7 @@
 #include "AreaTerrain.h"
 #include "TerrainPatch.h"
 #include "EterLib/RenderQueueManager.h"
+#include "EterLib/RenderResourceRegistry.h"
 #include <algorithm>
 bool CTerrainRenderExtractor::ExtractPatch(CMapOutdoor* pMapOutdoor, uint32_t patchNum, TTerrainSectorPacket& outPacket)
 {
@@ -65,7 +66,9 @@ bool CTerrainRenderExtractor::ExtractPatch(CMapOutdoor* pMapOutdoor, uint32_t pa
 	if (pTerrain->GetSplatTexture())
 	{
 		outPacket.pSplatTexture = pTerrain->GetSplatTexture();
-		outPacket.splatTextureId = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(outPacket.pSplatTexture) & 0xFFFFFFFF);
+		outPacket.splatTextureId = (outPacket.pSplatTexture && CRenderResourceRegistry::InstancePtr())
+			? CRenderResourceRegistry::Instance().RegisterTexture(static_cast<IDirect3DTexture9*>(outPacket.pSplatTexture), "Terrain_Splat")
+			: kInvalidTextureHandle;
 
 		const auto& domLayers = weightMap.GetDominantLayers();
 		for (int l = 0; l < 4; ++l)
@@ -74,8 +77,10 @@ bool CTerrainRenderExtractor::ExtractPatch(CMapOutdoor* pMapOutdoor, uint32_t pa
 			if (texIdx > 0 && texIdx < dwNumTextures)
 			{
 				const TTerrainTexture& rTex = pTerrain->GetTexture(static_cast<long>(texIdx));
-				outPacket.layerTextureIds[l] = texIdx;
 				outPacket.pLayerTextures[l] = rTex.pd3dTexture;
+				outPacket.layerTextureIds[l] = (rTex.pd3dTexture && CRenderResourceRegistry::InstancePtr())
+					? CRenderResourceRegistry::Instance().RegisterTexture(rTex.pd3dTexture, "Terrain_DominantLayer")
+					: texIdx;
 			}
 		}
 	}
@@ -97,12 +102,16 @@ bool CTerrainRenderExtractor::ExtractPatch(CMapOutdoor* pMapOutdoor, uint32_t pa
 			if (activeLayerCount == 0 && rSplat.pd3dTexture)
 			{
 				outPacket.pSplatTexture = rSplat.pd3dTexture;
-				outPacket.splatTextureId = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(rSplat.pd3dTexture) & 0xFFFFFFFF);
+				outPacket.splatTextureId = CRenderResourceRegistry::InstancePtr()
+					? CRenderResourceRegistry::Instance().RegisterTexture(rSplat.pd3dTexture, "Terrain_SplatPatch")
+					: kInvalidTextureHandle;
 			}
 
 			const TTerrainTexture& rTex = pTerrain->GetTexture(static_cast<long>(j));
-			outPacket.layerTextureIds[activeLayerCount] = static_cast<uint32_t>(j);
 			outPacket.pLayerTextures[activeLayerCount] = rTex.pd3dTexture;
+			outPacket.layerTextureIds[activeLayerCount] = (rTex.pd3dTexture && CRenderResourceRegistry::InstancePtr())
+				? CRenderResourceRegistry::Instance().RegisterTexture(rTex.pd3dTexture, "Terrain_ActiveLayer")
+				: static_cast<uint32_t>(j);
 			++activeLayerCount;
 		}
 	}

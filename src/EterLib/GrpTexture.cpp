@@ -3,6 +3,7 @@
 #include "GrpTexture.h"
 #include "StateManager.h"
 #include "TextureUploadBridge.h"
+#include "RenderResourceRegistry.h"
 
 #if defined(_M_IX86) || defined(_M_X64)
 #include <emmintrin.h> // SSE2
@@ -119,6 +120,10 @@ void CGraphicTexture::DestroyDeviceObjects()
 		if (m_bOwnsTexture)
 		{
 			CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(m_lpd3dTexture));
+			if (CRenderResourceRegistry::InstancePtr())
+			{
+				CRenderResourceRegistry::Instance().UnregisterTexture(m_lpd3dTexture);
+			}
 			safe_release(m_lpd3dTexture);
 		}
 		else
@@ -160,6 +165,17 @@ LPDIRECT3DTEXTURE9 CGraphicTexture::GetD3DTexture() const
 	return m_lpd3dTexture;
 }
 
+uint32_t CGraphicTexture::GetTextureHandle() const
+{
+	if (!m_lpd3dTexture)
+		return kInvalidTextureHandle;
+
+	if (CRenderResourceRegistry::InstancePtr())
+		return CRenderResourceRegistry::Instance().RegisterTexture(m_lpd3dTexture);
+
+	return kInvalidTextureHandle;
+}
+
 int CGraphicTexture::GetWidth() const
 {
 	return m_width;
@@ -177,5 +193,12 @@ CGraphicTexture::CGraphicTexture()
 
 CGraphicTexture::~CGraphicTexture()	
 {
+	if (m_bOwnsTexture && m_lpd3dTexture)
+	{
+		if (CRenderResourceRegistry::InstancePtr())
+		{
+			CRenderResourceRegistry::Instance().UnregisterTexture(m_lpd3dTexture);
+		}
+	}
 	DestroyDeviceObjects();
 }
