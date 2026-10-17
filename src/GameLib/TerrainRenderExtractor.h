@@ -26,9 +26,6 @@ public:
 	CTerrainRenderExtractor(CTerrainRenderExtractor&&) noexcept = default;
 	CTerrainRenderExtractor& operator=(CTerrainRenderExtractor&&) noexcept = default;
 
-	// Inicjalizacja z prealokacja struktur pomocniczych
-	void Initialize(size_t maxSectors = 256);
-
 	// Ekstrakcja pojedynczego patcha do struktury TTerrainSectorPacket
 	bool ExtractPatch(CMapOutdoor* pMapOutdoor, uint32_t patchNum, TTerrainSectorPacket& outPacket);
 
@@ -42,7 +39,6 @@ public:
 	[[nodiscard]] uint32_t GetLastExtractedSectorCount() const noexcept { return m_lastExtractedCount; }
 
 private:
-	std::vector<uint32_t> m_splatWeightBuffer;
 	uint32_t m_lastExtractedCount{ 0 };
 };
 

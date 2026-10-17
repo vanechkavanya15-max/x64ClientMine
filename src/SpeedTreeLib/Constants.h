@@ -23,8 +23,6 @@
 
 #pragma once
 
-// used to isolate SpeedGrass usage
-#define USE_SPEEDGRASS
 
 // vertex shader constant locations
 const	int		c_nShaderLightPosition = 16;

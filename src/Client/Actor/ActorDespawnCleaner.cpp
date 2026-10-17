@@ -5,11 +5,9 @@ namespace Client::Actor {
 
 ActorDespawnCleaner::ActorDespawnCleaner(
     UserInterface::PlayerControllers::PlayerTargetController* targetController,
-    UserInterface::TextTail::ITargetHpBarService* targetHpBarService,
     Client::Gameplay::ExchangeCommandHandler* exchangeHandler
 ) noexcept
     : m_targetController(targetController)
-    , m_targetHpBarService(targetHpBarService)
     , m_exchangeHandler(exchangeHandler)
 {
 }
@@ -22,22 +20,8 @@ EterBase::Result<void, CleanerError> ActorDespawnCleaner::CleanReferences(
         return EterBase::MakeError(CleanerError::InvalidEntityId);
     }
 
-    // Sprawdzamy czy znikajacy aktor to obecny cel przed jego wyczyszczeniem
-    bool isCurrentTarget = false;
-    if (m_targetController && m_targetController->IsSameTargetVID(deadActorId.get())) {
-        isCurrentTarget = true;
-    }
-
     if (domains & CleanDomain::TargetSelection) {
         CleanTargetSelection(deadActorId);
-    }
-
-    if (domains & CleanDomain::TargetHpBar) {
-        // Pasek HP ukrywamy tylko wtedy, gdy znikajacy aktor byl naszym celem
-        if (isCurrentTarget && m_targetHpBarService) {
-            m_targetHpBarService->HideTargetBar();
-            EterBase::ModernLogger::Info("ActorDespawnCleaner: Pasek HP ukryty dla VID {}", deadActorId.get());
-        }
     }
 
     if (domains & CleanDomain::ExchangeWindow) {
@@ -57,12 +41,6 @@ void ActorDespawnCleaner::CleanTargetSelection(EterBase::EntityId deadActorId) c
         m_targetController->ClearTarget();
         EterBase::ModernLogger::Info("ActorDespawnCleaner: Wyczyszczono zaznaczenie celu dla VID {}", deadActorId.get());
     }
-}
-
-void ActorDespawnCleaner::CleanTargetHpBar(EterBase::EntityId /*deadActorId*/) const noexcept
-{
-    // Cialo puste, poniewaz logika zostala przeniesiona do glownej metody
-    // w celu poprawnego sprawdzenia stanu przed modyfikacja kontrolera.
 }
 
 void ActorDespawnCleaner::CleanExchangeWindow(EterBase::EntityId deadActorId) const noexcept

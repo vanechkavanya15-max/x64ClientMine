@@ -248,7 +248,6 @@ PyObject * backgroundRenderCharacterShadowToTexture(PyObject * poSelf, PyObject 
 
 PyObject * backgroundRenderDungeon(PyObject * poSelf, PyObject * poArgs)
 {
-	assert(!"background.RenderDungeon() - 사용하지 않는 함수입니다 - [levites]");
 	return Py_BuildNone();
 }
 

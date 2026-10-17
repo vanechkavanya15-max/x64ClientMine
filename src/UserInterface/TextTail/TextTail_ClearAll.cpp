@@ -1,5 +1,4 @@
 #include "../StdAfx.h"
-#include "ITextTailService.h"
 #include "../../EterBase/LogModern.h"
 #include "../Core/EventBus.h"
 #include "../PythonTextTail.h"
