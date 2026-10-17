@@ -5,88 +5,101 @@
 #include <cstdint>
 #include <vector>
 
-namespace EterLib { namespace Render {
+namespace EterLib::Render {
 
-// Constant register layout matching src/EterLib/actor_skinning.hlsl
-struct ActorSkinningShaderConstants
-{
-    static constexpr UINT kRegViewProj      = 0;   // c0..c3   (4 regs)
-    static constexpr UINT kRegWorld         = 4;   // c4..c7   (4 regs)
-    static constexpr UINT kRegLightDir      = 8;   // c8       (1 reg)
-    static constexpr UINT kRegLightDiffuse  = 9;   // c9       (1 reg)
-    static constexpr UINT kRegLightAmbient  = 10;  // c10      (1 reg)
-    static constexpr UINT kRegMaterialColor = 11;  // c11      (1 reg)
-    static constexpr UINT kRegFogParams     = 12;  // c12      (1 reg)
-    static constexpr UINT kRegSkinningInfo  = 13;  // c13      (1 reg)
-    static constexpr UINT kRegBonePalette   = 16;  // c16..c195 (60 * 3 = 180 regs)
+struct ActorSkinningShaderConstants {
+    static constexpr UINT kRegViewProj      = 0;   // c0..c3     (4 regs)
+    static constexpr UINT kRegBonePalette   = 4;   // c4..c183   (60 bones * 3 regs = 180 regs)
     static constexpr UINT kMaxBones         = 60;
     static constexpr UINT kRegsPerBone      = 3;
-    static constexpr UINT kLastBoneReg      = kRegBonePalette + (kMaxBones * kRegsPerBone) - 1; // 195
+    static constexpr UINT kLastBoneReg      = kRegBonePalette + (kMaxBones * kRegsPerBone) - 1; // 183
+    static constexpr UINT kRegLightDir      = 184; // c184       (1 reg)
+    static constexpr UINT kRegLightDiffuse  = 185; // c185       (1 reg)
+    static constexpr UINT kRegLightAmbient  = 186; // c186       (1 reg)
+    static constexpr UINT kRegMaterialColor = 187; // c187       (1 reg)
+    static constexpr UINT kRegFogParams     = 188; // c188       (1 reg)
+    static constexpr UINT kRegWorld         = 189; // c189..c192 (4 regs)
 };
 
-// GPU-friendly vertex matching VS_INPUT (72 bytes, 1:1 size with GltfVertex)
-struct GpuSkinnedVertex
-{
+// 72-byte hardware vertex structure matching GltfVertex size and offsets
+struct GpuSkinnedVertex {
     float position[3];      // offset 0  (12B)
     float normal[3];        // offset 12 (12B)
     float uv0[2];           // offset 24 (8B)
     float uv1[2];           // offset 32 (8B)
-    float jointIndices[4];  // offset 40 (16B) - converted from uint4 for D3DDECLTYPE_FLOAT4
+    float jointIndices[4];  // offset 40 (16B) - float4 representation of GltfVertex::jointIndices
     float jointWeights[4];  // offset 56 (16B)
 };
-static_assert(sizeof(GpuSkinnedVertex) == 72, "GpuSkinnedVertex must be 72 bytes");
+static_assert(sizeof(GpuSkinnedVertex) == 72, "GpuSkinnedVertex size must match GltfVertex (72 bytes)");
 
-struct ActorLightingState
-{
-    D3DXVECTOR4 lightDir      = D3DXVECTOR4(0.0f, -0.7071f, -0.7071f, 0.0f);
-    D3DXVECTOR4 lightDiffuse  = D3DXVECTOR4(0.8f, 0.8f, 0.8f, 1.0f);
-    D3DXVECTOR4 lightAmbient  = D3DXVECTOR4(0.35f, 0.35f, 0.35f, 1.0f);
-    D3DXVECTOR4 materialColor = D3DXVECTOR4(1.0f, 1.0f, 1.0f, 1.0f);
-    D3DXVECTOR4 fogParams     = D3DXVECTOR4(1000.0f, 10000.0f, 1.0f / 9000.0f, 0.0f);
+struct ActorSkinningBindDesc {
+    D3DXMATRIX worldMatrix;
+    D3DXMATRIX viewProjMatrix;
+    D3DXVECTOR4 lightDir{0.0f, -0.7071f, -0.7071f, 0.0f};
+    D3DXVECTOR4 lightDiffuse{0.8f, 0.8f, 0.8f, 1.0f};
+    D3DXVECTOR4 lightAmbient{0.35f, 0.35f, 0.35f, 1.0f};
+    D3DXVECTOR4 materialColor{1.0f, 1.0f, 1.0f, 1.0f};
+    D3DXVECTOR4 fogParams{1000.0f, 10000.0f, 1.0f / 9000.0f, 0.0f};
 };
 
-class ActorSkinningPipeline
-{
-public:
-    static ActorSkinningPipeline& Instance();
+using ActorLightingState = ActorSkinningBindDesc;
 
-    ActorSkinningPipeline();
+class ActorSkinningPipeline {
+public:
+    static ActorSkinningPipeline& Instance() noexcept;
+
+    ActorSkinningPipeline() = default;
     ~ActorSkinningPipeline();
 
-    bool Initialize(LPDIRECT3DDEVICE9 pDevice);
-    void Shutdown();
+    ActorSkinningPipeline(const ActorSkinningPipeline&) = delete;
+    ActorSkinningPipeline& operator=(const ActorSkinningPipeline&) = delete;
 
-    bool IsInitialized() const { return m_bInitialized; }
-    bool HasValidShaders() const { return m_pVertexShader != nullptr && m_pPixelShader != nullptr; }
+    bool Initialize(LPDIRECT3DDEVICE9 dev);
+    void Shutdown() noexcept;
 
+    bool Begin(const ActorSkinningBindDesc& desc) noexcept;
     bool Begin(
         const D3DXMATRIX& matWorld,
         const D3DXMATRIX& matViewProj,
-        const ActorLightingState* pLighting = nullptr);
+        const ActorSkinningBindDesc* pOptionalLighting = nullptr) noexcept;
 
-    void UploadBonePalette(const void* pMatrices4x4, UINT boneCount);
-    void End();
+    void UploadBonePalette(const void* pMatrices, UINT count) noexcept;
+    void End() noexcept;
 
-    LPDIRECT3DVERTEXDECLARATION9 GetVertexDeclaration() const { return m_pVertexDecl; }
+    [[nodiscard]] bool IsReady() const noexcept {
+        return m_vertexShader != nullptr && m_pixelShader != nullptr && m_vertexDecl != nullptr;
+    }
+    [[nodiscard]] bool IsInitialized() const noexcept { return IsReady(); }
+    [[nodiscard]] bool HasValidShaders() const noexcept { return m_vertexShader != nullptr && m_pixelShader != nullptr; }
 
-    // Pure math helper for unit testing and CPU->GPU packing verification
+    [[nodiscard]] LPDIRECT3DVERTEXDECLARATION9 GetVertexDeclaration() const noexcept {
+        return m_vertexDecl;
+    }
+
+    // Converts 4x4 bone matrices into 4x3 column-major HLSL register triplets (3 * float4 per bone)
+    static void PackBonePaletteTo4x3Registers(
+        const void* pMatrices,
+        UINT count,
+        std::vector<float>& outRegisters);
+
     static void PackBoneMatricesTo4x3Registers(
         const float* pSourceMatrices4x4,
         UINT boneCount,
-        std::vector<float>& outRegisters4x3);
+        std::vector<float>& outRegisters4x3)
+    {
+        PackBonePaletteTo4x3Registers(pSourceMatrices4x4, boneCount, outRegisters4x3);
+    }
 
 private:
-    LPDIRECT3DDEVICE9            m_pDevice;
-    LPDIRECT3DVERTEXDECLARATION9 m_pVertexDecl;
-    LPDIRECT3DVERTEXSHADER9      m_pVertexShader;
-    LPDIRECT3DPIXELSHADER9       m_pPixelShader;
+    LPDIRECT3DDEVICE9 m_device{nullptr};
+    IDirect3DVertexDeclaration9* m_vertexDecl{nullptr};
+    IDirect3DVertexShader9* m_vertexShader{nullptr};
+    IDirect3DPixelShader9* m_pixelShader{nullptr};
 
-    LPDIRECT3DVERTEXDECLARATION9 m_pPrevVertexDecl;
-    LPDIRECT3DVERTEXSHADER9      m_pPrevVertexShader;
-    LPDIRECT3DPIXELSHADER9       m_pPrevPixelShader;
-
-    bool                         m_bInitialized;
-    bool                         m_bActivePass;
+    IDirect3DVertexDeclaration9* m_prevVertexDecl{nullptr};
+    IDirect3DVertexShader9* m_prevVertexShader{nullptr};
+    IDirect3DPixelShader9* m_prevPixelShader{nullptr};
+    bool m_inPass{false};
 };
 
-}} // namespace EterLib::Render
+} // namespace EterLib::Render

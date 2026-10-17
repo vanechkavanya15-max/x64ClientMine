@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GltfTypes.h"
+#include <d3d9.h>
 #include <string>
 #include <vector>
 
@@ -52,11 +53,20 @@ public:
     // Pelna struktura modelu
     const GltfModelData& GetModelData() const { return m_modelData; }
     GltfModelData& GetModelData() { return m_modelData; }
-    void SetModelData(const GltfModelData& modelData) { m_modelData = modelData; m_bLoaded = true; }
+    void SetModelData(const GltfModelData& modelData) { ReleaseGpuBuffers(); m_modelData = modelData; m_bLoaded = true; }
+
+    // Statyczne bufory sprzetowe GPU (wspoldzielone przez wszystkie instancje CGltfModelInstance)
+    bool EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const;
+    void ReleaseGpuBuffers() const;
+    LPDIRECT3DVERTEXBUFFER9 GetVertexBuffer() const { return m_pVertexBuffer; }
+    LPDIRECT3DINDEXBUFFER9 GetIndexBuffer() const { return m_pIndexBuffer; }
+    bool HasGpuBuffers() const { return m_pVertexBuffer != nullptr && m_pIndexBuffer != nullptr; }
 
 private:
     bool m_bLoaded;
     GltfModelData m_modelData;
+    mutable LPDIRECT3DVERTEXBUFFER9 m_pVertexBuffer = nullptr;
+    mutable LPDIRECT3DINDEXBUFFER9 m_pIndexBuffer = nullptr;
 };
 
 } // namespace EterModelLib
