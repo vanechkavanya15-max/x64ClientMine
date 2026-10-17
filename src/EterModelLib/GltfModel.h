@@ -14,6 +14,11 @@ public:
     CGltfModel();
     virtual ~CGltfModel();
 
+    CGltfModel(const CGltfModel&) = delete;
+    CGltfModel& operator=(const CGltfModel&) = delete;
+    CGltfModel(CGltfModel&&) noexcept = default;
+    CGltfModel& operator=(CGltfModel&&) noexcept = default;
+
     // Ladowanie z pliku oraz z pamieci
     bool LoadFromFile(const std::string& filename);
     bool LoadFromMemory(const void* data, size_t size, const std::string& modelName = "");

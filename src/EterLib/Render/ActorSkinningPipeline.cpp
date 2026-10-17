@@ -247,23 +247,11 @@ void ActorSkinningPipeline::PackBonePaletteTo4x3Registers(
         const float* m = src + (i * 16);
         float* dst = outRegisters.data() + (i * 12);
 
-        // Detect whether translation is stored in row 3 (m[12..14], D3DX row-major)
-        // or column 3 (m[3], m[7], m[11], column-vector convention).
-        const bool hasRow3Translation =
-            (std::fabs(m[12]) > 1e-6f || std::fabs(m[13]) > 1e-6f || std::fabs(m[14]) > 1e-6f) &&
-            (std::fabs(m[3]) < 1e-6f && std::fabs(m[7]) < 1e-6f && std::fabs(m[11]) < 1e-6f);
-
-        if (hasRow3Translation) {
-            // Transpose 4x3 into 3 column registers for HLSL mul(float4(pos,1), g_matBones[i])
-            dst[0]  = m[0]; dst[1]  = m[4]; dst[2]  = m[8];  dst[3]  = m[12];
-            dst[4]  = m[1]; dst[5]  = m[5]; dst[6]  = m[9];  dst[7]  = m[13];
-            dst[8]  = m[2]; dst[9]  = m[6]; dst[10] = m[10]; dst[11] = m[14];
-        } else {
-            // Rows 0..2 already hold (basis.xyz, translation.w)
-            dst[0]  = m[0]; dst[1]  = m[1]; dst[2]  = m[2];  dst[3]  = m[3];
-            dst[4]  = m[4]; dst[5]  = m[5]; dst[6]  = m[6];  dst[7]  = m[7];
-            dst[8]  = m[8]; dst[9]  = m[9]; dst[10] = m[10]; dst[11] = m[11];
-        }
+        // D3DXMATRIX / Matrix4x4 w D3D9 ma uklad row-major z translacja w 4. wierszu (m[12..14]).
+        // W HLSL mul(float4(pos,1), g_matBones[i]) z column_major float4x3 wymaga transpozycji do 3 rejestrow float4.
+        dst[0]  = m[0]; dst[1]  = m[4]; dst[2]  = m[8];  dst[3]  = m[12];
+        dst[4]  = m[1]; dst[5]  = m[5]; dst[6]  = m[9];  dst[7]  = m[13];
+        dst[8]  = m[2]; dst[9]  = m[6]; dst[10] = m[10]; dst[11] = m[14];
     }
 }
 

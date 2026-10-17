@@ -47,11 +47,11 @@ bool ActorRenderExtractor::Extract(CActorInstance& actor, TActorRenderPacket& ou
 			D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
 		}
 		outPacket.dwBoneCount = 1;
-		outPacket.pBoneMatrices = outPacket.boneMatrices;
+		outPacket.pBoneMatrices = nullptr; // Bezpieczny fallback na inline boneMatrices
 	}
 	else if (!outPacket.pBoneMatrices)
 	{
-		outPacket.pBoneMatrices = outPacket.boneMatrices;
+		outPacket.pBoneMatrices = nullptr; // Bezpieczny fallback na inline boneMatrices
 	}
 
 	// 7. Ekstrakcja macierzy socketow (bron, helm, fryzura, aury)
@@ -85,7 +85,7 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 					}
 					else
 					{
-						outPacket.pBoneMatrices = outPacket.boneMatrices;
+						outPacket.pBoneMatrices = nullptr;
 					}
 
 					memcpy(outPacket.boneMatrices, skinMatrices.data(), sizeof(D3DXMATRIX) * copyCount);
@@ -114,7 +114,7 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 				}
 				else
 				{
-					outPacket.pBoneMatrices = pCompositeBones;
+					outPacket.pBoneMatrices = nullptr;
 				}
 
 				memcpy(outPacket.boneMatrices, pCompositeBones, sizeof(D3DXMATRIX) * copyCount);
@@ -141,7 +141,7 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 		}
 		else
 		{
-			outPacket.pBoneMatrices = outPacket.boneMatrices;
+			outPacket.pBoneMatrices = nullptr;
 		}
 		outPacket.dwBoneCount = 1;
 	}

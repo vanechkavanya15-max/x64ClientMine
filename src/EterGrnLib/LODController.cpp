@@ -1227,16 +1227,9 @@ void CGrannyLODController::InitGltfMaterials()
 
 void CGrannyLODController::ReleaseGltfStaticGpuBuffers()
 {
-	if (m_pGltfStaticVB)
-	{
-		m_pGltfStaticVB->Release();
-		m_pGltfStaticVB = NULL;
-	}
-	if (m_pGltfStaticIB)
-	{
-		m_pGltfStaticIB->Release();
-		m_pGltfStaticIB = NULL;
-	}
+	// Bufory naleza do wspoldzielonego modelu CGltfModel i sa zwalniane w modelu.
+	m_pGltfStaticVB = NULL;
+	m_pGltfStaticIB = NULL;
 	m_dwGltfStaticVertexCount = 0;
 	m_dwGltfStaticIndexCount = 0;
 }
@@ -1253,74 +1246,14 @@ bool CGrannyLODController::EnsureGltfStaticGpuBuffers()
 	if (!pModel || !pModel->IsLoaded())
 		return false;
 
-	const GltfModelData& modelData = pModel->GetModelData();
-	if (modelData.vertices.empty() || modelData.indices.empty())
+	if (!pModel->EnsureGpuBuffers(ms_lpd3dDevice))
 		return false;
 
-	ReleaseGltfStaticGpuBuffers();
-
-	const UINT vertexCount = (UINT)modelData.vertices.size();
-	const UINT indexCount  = (UINT)modelData.indices.size();
-	const UINT vbByteSize  = vertexCount * sizeof(EterLib::Render::GpuSkinnedVertex);
-	const UINT ibByteSize  = indexCount * sizeof(unsigned int);
-
-	if (FAILED(ms_lpd3dDevice->CreateVertexBuffer(
-		vbByteSize, D3DUSAGE_WRITEONLY, 0, D3DPOOL_MANAGED, &m_pGltfStaticVB, NULL)))
-	{
-		return false;
-	}
-
-	EterLib::Render::GpuSkinnedVertex* pLockedVertices = nullptr;
-	if (FAILED(m_pGltfStaticVB->Lock(0, vbByteSize, (void**)&pLockedVertices, 0)))
-	{
-		ReleaseGltfStaticGpuBuffers();
-		return false;
-	}
-
-	for (UINT i = 0; i < vertexCount; ++i)
-	{
-		const GltfVertex& src = modelData.vertices[i];
-		EterLib::Render::GpuSkinnedVertex& dst = pLockedVertices[i];
-		dst.position[0] = src.position.x;
-		dst.position[1] = src.position.y;
-		dst.position[2] = src.position.z;
-		dst.normal[0]   = src.normal.x;
-		dst.normal[1]   = src.normal.y;
-		dst.normal[2]   = src.normal.z;
-		dst.uv0[0]      = src.uv0.x;
-		dst.uv0[1]      = src.uv0.y;
-		dst.uv1[0]      = src.uv1.x;
-		dst.uv1[1]      = src.uv1.y;
-		dst.jointIndices[0] = (float)src.jointIndices.x;
-		dst.jointIndices[1] = (float)src.jointIndices.y;
-		dst.jointIndices[2] = (float)src.jointIndices.z;
-		dst.jointIndices[3] = (float)src.jointIndices.w;
-		dst.jointWeights[0] = src.jointWeights.x;
-		dst.jointWeights[1] = src.jointWeights.y;
-		dst.jointWeights[2] = src.jointWeights.z;
-		dst.jointWeights[3] = src.jointWeights.w;
-	}
-	m_pGltfStaticVB->Unlock();
-
-	if (FAILED(ms_lpd3dDevice->CreateIndexBuffer(
-		ibByteSize, D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_MANAGED, &m_pGltfStaticIB, NULL)))
-	{
-		ReleaseGltfStaticGpuBuffers();
-		return false;
-	}
-
-	void* pLockedIndices = nullptr;
-	if (FAILED(m_pGltfStaticIB->Lock(0, ibByteSize, &pLockedIndices, 0)))
-	{
-		ReleaseGltfStaticGpuBuffers();
-		return false;
-	}
-	std::memcpy(pLockedIndices, modelData.indices.data(), ibByteSize);
-	m_pGltfStaticIB->Unlock();
-
-	m_dwGltfStaticVertexCount = vertexCount;
-	m_dwGltfStaticIndexCount  = indexCount;
-	return true;
+	m_pGltfStaticVB = pModel->GetVertexBuffer();
+	m_pGltfStaticIB = pModel->GetIndexBuffer();
+	m_dwGltfStaticVertexCount = static_cast<DWORD>(pModel->GetVertexCount());
+	m_dwGltfStaticIndexCount = static_cast<DWORD>(pModel->GetIndexCount());
+	return (m_pGltfStaticVB != NULL && m_pGltfStaticIB != NULL);
 }
 
 void CGrannyLODController::RenderGltfModel(EModelPass pass)
