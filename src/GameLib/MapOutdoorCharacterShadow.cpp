@@ -139,8 +139,8 @@ bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 	
 	pDevice->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, m_characterShadowPassDesc.clearColor, 1.0f, 0);
 	
-	pDevice->GetViewport(&m_BackupViewport);
-	pDevice->SetViewport(&m_ShadowMapViewport);
+	STATEMANAGER.GetViewport(&m_BackupViewport);
+	STATEMANAGER.SetViewport(&m_ShadowMapViewport);
 	
 	return true;
 }
@@ -150,10 +150,11 @@ void CMapOutdoor::EndRenderCharacterShadowToTexture()
 	if (!RenderOwnership::LegacyDraws(ERenderCategory::Shadow))
 		return;
 
+	STATEMANAGER.SetViewport(&m_BackupViewport);
+
 	LPDIRECT3DDEVICE9EX pDevice = STATEMANAGER.GetDevice();
 	if (pDevice)
 	{
-		pDevice->SetViewport(&m_BackupViewport);
 		pDevice->SetDepthStencilSurface(m_lpBackupDepthSurface);
 		pDevice->SetRenderTarget(0, m_lpBackupRenderTargetSurface);
 	}

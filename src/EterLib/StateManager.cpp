@@ -12,6 +12,7 @@ struct SLightData
 {
 	D3DLIGHT9 m_akD3DLight[8];
 	bool m_abLightValid[8];
+	BOOL m_abLightEnabled[8];
 } m_kLightData;
 
 void CStateManager::SetLight(DWORD index, CONST D3DLIGHT9* pLight)
@@ -40,6 +41,79 @@ void CStateManager::GetLight(DWORD index, D3DLIGHT9* pLight)
 		return;
 
 	*pLight = m_kLightData.m_akD3DLight[index];
+}
+
+void CStateManager::LightEnable(DWORD index, BOOL bEnable)
+{
+	assert(index < 8);
+	if (index >= 8)
+		return;
+
+	if (!m_bForce && m_kLightData.m_abLightEnabled[index] == bEnable)
+		return;
+
+	m_kLightData.m_abLightEnabled[index] = bEnable;
+
+	if (m_lpD3DDev)
+		m_lpD3DDev->LightEnable(index, bEnable);
+}
+
+BOOL CStateManager::IsLightEnabled(DWORD index) const
+{
+	if (index >= 8)
+		return FALSE;
+	return m_kLightData.m_abLightEnabled[index];
+}
+
+void CStateManager::SetViewport(const D3DVIEWPORT9* pViewport)
+{
+	if (!pViewport)
+		return;
+
+	m_Viewport = *pViewport;
+	m_bViewportValid = true;
+
+	if (m_lpD3DDev)
+		m_lpD3DDev->SetViewport(pViewport);
+}
+
+void CStateManager::GetViewport(D3DVIEWPORT9* pViewport)
+{
+	if (!pViewport)
+		return;
+
+	if (m_bViewportValid)
+	{
+		*pViewport = m_Viewport;
+		return;
+	}
+
+	if (m_lpD3DDev)
+	{
+		m_lpD3DDev->GetViewport(pViewport);
+		m_Viewport = *pViewport;
+		m_bViewportValid = true;
+	}
+}
+
+void CStateManager::SetGammaRamp(DWORD dwFlags, const D3DGAMMARAMP* pRamp)
+{
+	if (m_lpD3DDev && pRamp)
+		m_lpD3DDev->SetGammaRamp(0, dwFlags, pRamp);
+}
+
+HRESULT CStateManager::GetDeviceCaps(D3DCAPS9* pCaps)
+{
+	if (!m_lpD3DDev || !pCaps)
+		return E_FAIL;
+	return m_lpD3DDev->GetDeviceCaps(pCaps);
+}
+
+DWORD CStateManager::GetAvailableTextureMem()
+{
+	if (!m_lpD3DDev)
+		return 0;
+	return m_lpD3DDev->GetAvailableTextureMem();
 }
 
 void CStateManager::SetScissorRect(const RECT& c_rRect)

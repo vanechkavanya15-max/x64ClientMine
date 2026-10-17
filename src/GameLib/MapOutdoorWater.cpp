@@ -51,7 +51,8 @@ void CMapOutdoor::RenderWater()
 	D3DXMATRIX matTexTransformWater;
 	BuildWaterUVTransformMatrix(&matTexTransformWater, m_matViewInverse, m_fWaterTexCoordBase);
 
-	const float fFogDistance = __GetFogDistance();
+	const TRenderFrameUniforms& uniforms = CRenderQueueManager::Instance().GetFrameUniforms();
+	const float fFogDistance = (uniforms.fFogFar > uniforms.fFogNear && uniforms.fFogNear > 0.0f) ? uniforms.fFogNear : __GetFogDistance();
 
 	const bool bLegacyDraws = RenderOwnership::LegacyDraws(ERenderCategory::Water);
 

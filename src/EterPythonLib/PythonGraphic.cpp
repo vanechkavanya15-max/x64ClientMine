@@ -88,21 +88,21 @@ void CPythonGraphic::SetOmniLight()
 	Light.Ambient.b = 1.0f;
 	Light.Ambient.a = 1.0f;
     Light.Range = 500.0f;
-	ms_lpd3dDevice->SetLight(0, &Light);
-	ms_lpd3dDevice->LightEnable(0, TRUE);
+	STATEMANAGER.SetLight(0, &Light);
+	STATEMANAGER.LightEnable(0, TRUE);
 
 	Light.Type = D3DLIGHT_POINT;
 	Light.Position = D3DXVECTOR3(0.0f, 200.0f, 200.0f);
 	Light.Attenuation0 = 0.1f;
 	Light.Attenuation1 = 0.01f;
 	Light.Attenuation2 = 0.0f;
-	ms_lpd3dDevice->SetLight(1, &Light);
-	ms_lpd3dDevice->LightEnable(1, TRUE);
+	STATEMANAGER.SetLight(1, &Light);
+	STATEMANAGER.LightEnable(1, TRUE);
 }
 
 void CPythonGraphic::SetViewport(float fx, float fy, float fWidth, float fHeight)
 {
-	ms_lpd3dDevice->GetViewport(&m_backupViewport);
+	STATEMANAGER.GetViewport(&m_backupViewport);
 
 	D3DVIEWPORT9 ViewPort;
 	ViewPort.X = fx;
@@ -111,20 +111,12 @@ void CPythonGraphic::SetViewport(float fx, float fy, float fWidth, float fHeight
 	ViewPort.Height = fHeight;
 	ViewPort.MinZ = 0.0f;
 	ViewPort.MaxZ = 1.0f;
-	if (FAILED(
-		ms_lpd3dDevice->SetViewport(&ViewPort)
-	))
-	{
-		Tracef("CPythonGraphic::SetViewport(%d, %d, %d, %d) - Error", 
-			ViewPort.X, ViewPort.Y,
-			ViewPort.Width, ViewPort.Height
-		);
-	}
+	STATEMANAGER.SetViewport(&ViewPort);
 }
 
 void CPythonGraphic::RestoreViewport()
 {
-	ms_lpd3dDevice->SetViewport(&m_backupViewport);
+	STATEMANAGER.SetViewport(&m_backupViewport);
 }
 
 void CPythonGraphic::SetGamma(float fGammaFactor)
@@ -133,7 +125,7 @@ void CPythonGraphic::SetGamma(float fGammaFactor)
 	D3DGAMMARAMP	NewRamp;
 	int				ui, val;
 	
-	ms_lpd3dDevice->GetDeviceCaps(&d3dCaps);
+	STATEMANAGER.GetDeviceCaps(&d3dCaps);
 
 	if (D3DCAPS2_FULLSCREENGAMMA != (d3dCaps.Caps2 & D3DCAPS2_FULLSCREENGAMMA))
 		return;
@@ -157,7 +149,7 @@ void CPythonGraphic::SetGamma(float fGammaFactor)
 		NewRamp.blue[i] = (WORD) (val | (32768 * ui));
 	}
 
-	ms_lpd3dDevice->SetGammaRamp(0, D3DSGR_NO_CALIBRATION, &NewRamp);
+	STATEMANAGER.SetGammaRamp(D3DSGR_NO_CALIBRATION, &NewRamp);
 }
 
 void GenScreenShotTag(const char* src, DWORD crc32, char* leaf, size_t leafLen)
@@ -216,15 +208,16 @@ bool CPythonGraphic::ExecuteScreenShot(const char * c_pszFileName)
 	if (!c_pszFileName || !c_pszFileName[0])
 		return false;
 
-	if (!ms_lpd3dDevice)
+	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
+	if (!lpDevice)
 		return false;
 
 	HRESULT hr;
 	LPDIRECT3DSURFACE9 lpRenderTarget = nullptr;
 
-	if (FAILED(hr = ms_lpd3dDevice->GetRenderTarget(0, &lpRenderTarget)) || !lpRenderTarget)
+	if (FAILED(hr = lpDevice->GetRenderTarget(0, &lpRenderTarget)) || !lpRenderTarget)
 	{
-		if (FAILED(hr = ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &lpRenderTarget)) || !lpRenderTarget)
+		if (FAILED(hr = lpDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &lpRenderTarget)) || !lpRenderTarget)
 		{
 			TraceError("Failed to get render target / back buffer (0x%08x)", hr);
 			return false;
@@ -263,7 +256,7 @@ bool CPythonGraphic::ExecuteScreenShot(const char * c_pszFileName)
 	}
 
 	LPDIRECT3DSURFACE9 lpSysMemSurface = nullptr;
-	hr = ms_lpd3dDevice->CreateOffscreenPlainSurface(
+	hr = lpDevice->CreateOffscreenPlainSurface(
 		uWidth,
 		uHeight,
 		stSurfaceDesc.Format,
@@ -279,7 +272,7 @@ bool CPythonGraphic::ExecuteScreenShot(const char * c_pszFileName)
 		return false;
 	}
 
-	hr = ms_lpd3dDevice->GetRenderTargetData(lpRenderTarget, lpSysMemSurface);
+	hr = lpDevice->GetRenderTargetData(lpRenderTarget, lpSysMemSurface);
 	SAFE_RELEASE(lpRenderTarget);
 
 	if (FAILED(hr))
@@ -634,7 +627,7 @@ void CPythonGraphic::RenderUpButton(float sx, float sy, float ex, float ey)
 
 DWORD CPythonGraphic::GetAvailableMemory()
 {
-	return ms_lpd3dDevice->GetAvailableTextureMem();
+	return STATEMANAGER.GetAvailableTextureMem();
 }
 
 CPythonGraphic::CPythonGraphic()

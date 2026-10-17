@@ -146,6 +146,91 @@ void CD3D9RenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 	{
 		D3DXMatrixMultiply(&m_currentUniforms.matViewProj, &m_currentUniforms.matView, &m_currentUniforms.matProj);
 	}
+
+	// 1. Centralna aplikacja oswietlenia
+	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, TRUE);
+
+	D3DCOLOR dwAmbientColor = D3DCOLOR_COLORVALUE(
+		m_currentUniforms.vAmbientColor.r,
+		m_currentUniforms.vAmbientColor.g,
+		m_currentUniforms.vAmbientColor.b,
+		m_currentUniforms.vAmbientColor.a
+	);
+	if (dwAmbientColor == 0 && snapshot.lights[0].Type != 0)
+	{
+		dwAmbientColor = D3DCOLOR_COLORVALUE(
+			snapshot.lights[0].Ambient.r,
+			snapshot.lights[0].Ambient.g,
+			snapshot.lights[0].Ambient.b,
+			snapshot.lights[0].Ambient.a
+		);
+	}
+	STATEMANAGER.SetRenderState(D3DRS_AMBIENT, dwAmbientColor);
+
+	// Swiatlo kierunkowe swiata (Light 0)
+	D3DLIGHT9 sunLight{};
+	if (m_currentUniforms.vSunLightDir.x == 0.0f && m_currentUniforms.vSunLightDir.y == 0.0f && m_currentUniforms.vSunLightDir.z == 0.0f &&
+		snapshot.lights[0].Type != 0)
+	{
+		sunLight = snapshot.lights[0];
+	}
+	else
+	{
+		sunLight.Type = D3DLIGHT_DIRECTIONAL;
+		sunLight.Direction = m_currentUniforms.vSunLightDir;
+		sunLight.Diffuse = D3DCOLORVALUE{
+			m_currentUniforms.vSunLightColor.r,
+			m_currentUniforms.vSunLightColor.g,
+			m_currentUniforms.vSunLightColor.b,
+			m_currentUniforms.vSunLightColor.a
+		};
+		sunLight.Ambient = D3DCOLORVALUE{
+			m_currentUniforms.vAmbientColor.r,
+			m_currentUniforms.vAmbientColor.g,
+			m_currentUniforms.vAmbientColor.b,
+			m_currentUniforms.vAmbientColor.a
+		};
+		sunLight.Specular = D3DCOLORVALUE{ 0.0f, 0.0f, 0.0f, 0.0f };
+	}
+	STATEMANAGER.SetLight(0, &sunLight);
+	STATEMANAGER.LightEnable(0, TRUE);
+
+	// Swiatlo postaci (Light 1) ze snapshotu
+	if (snapshot.lights[1].Type != 0)
+	{
+		STATEMANAGER.SetLight(1, &snapshot.lights[1]);
+		STATEMANAGER.LightEnable(1, TRUE);
+	}
+
+	// 2. Centralna aplikacja mgly
+	bool bFogEnable = (m_currentUniforms.fFogEnable > 0.5f);
+	if (!bFogEnable && snapshot.v4FogParams.w > 0.5f)
+	{
+		bFogEnable = true;
+		m_currentUniforms.fFogNear = snapshot.v4FogParams.x;
+		m_currentUniforms.fFogFar = snapshot.v4FogParams.y;
+		m_currentUniforms.fFogInvRange = snapshot.v4FogParams.z;
+		m_currentUniforms.fFogEnable = snapshot.v4FogParams.w;
+	}
+
+	STATEMANAGER.SetRenderState(D3DRS_FOGENABLE, bFogEnable ? TRUE : FALSE);
+
+	if (bFogEnable)
+	{
+		D3DCOLOR dwFogColor = D3DCOLOR_COLORVALUE(
+			m_currentUniforms.vFogColor.r,
+			m_currentUniforms.vFogColor.g,
+			m_currentUniforms.vFogColor.b,
+			m_currentUniforms.vFogColor.a
+		);
+		STATEMANAGER.SetRenderState(D3DRS_FOGCOLOR, dwFogColor);
+		STATEMANAGER.SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR);
+		STATEMANAGER.SetRenderState(D3DRS_RANGEFOGENABLE, TRUE);
+		float fNear = m_currentUniforms.fFogNear;
+		float fFar = m_currentUniforms.fFogFar;
+		STATEMANAGER.SetRenderState(D3DRS_FOGSTART, *reinterpret_cast<const DWORD*>(&fNear));
+		STATEMANAGER.SetRenderState(D3DRS_FOGEND, *reinterpret_cast<const DWORD*>(&fFar));
+	}
 }
 
 void CD3D9RenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned int count)

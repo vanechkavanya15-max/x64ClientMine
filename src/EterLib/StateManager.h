@@ -209,6 +209,17 @@ public:
 
 	void	SetLight(DWORD index, CONST D3DLIGHT9* pLight);
 	void	GetLight(DWORD index, D3DLIGHT9* pLight);
+	void	LightEnable(DWORD index, BOOL bEnable);
+	BOOL	IsLightEnabled(DWORD index) const;
+
+	// Viewport
+	void	SetViewport(const D3DVIEWPORT9* pViewport);
+	void	GetViewport(D3DVIEWPORT9* pViewport);
+
+	// Gamma & Device Helpers
+	void	SetGammaRamp(DWORD dwFlags, const D3DGAMMARAMP* pRamp);
+	HRESULT	GetDeviceCaps(D3DCAPS9* pCaps);
+	DWORD	GetAvailableTextureMem();
 
 	// Scissor Rect
 	void	SetScissorRect(const RECT& c_rRect);
@@ -349,6 +360,10 @@ private:
 	// Scissor Rect Cache
 	RECT				m_CurrentScissorRect{ 0, 0, 0, 0 };
 	bool				m_bScissorRectValid{ false };
+
+	// Viewport Cache
+	D3DVIEWPORT9		m_Viewport{ 0, 0, 0, 0, 0.0f, 1.0f };
+	bool				m_bViewportValid{ false };
 };
 
 #define STATEMANAGER (CStateManager::Instance())

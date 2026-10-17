@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "MapOutdoorSky.h"
 #include "SpeedTreeLib/SpeedTreeForestDirectX.h"
+#include "EterLib/CFrameSnapshot.h"
 
 CMapOutdoorSky::CMapOutdoorSky()
 	: m_pSkyBox(nullptr), m_bInitialized(false)
@@ -66,11 +67,22 @@ void CMapOutdoorSky::UpdateAtmosphere(const TEnvironmentData* pEnvData, int iFog
 	{
 		m_uniforms.fFogNear = fFogNear;
 		m_uniforms.fFogFar = fFogFar;
-		m_uniforms.v4FogParams = D3DXVECTOR4(0.0f, 0.0f, 0.0f, 0.0f);
+		const float fLinearScale = (fFogFar > fFogNear) ? (1.0f / (fFogFar - fFogNear)) : 0.0f;
+		m_uniforms.v4FogParams = D3DXVECTOR4(fFogNear, fFogFar, fLinearScale, 0.0f);
 	}
 
 	// 4. Synchronizacja ze struktura TRenderFrameUniforms w CRenderQueueManager oraz CSkyBox
 	SyncUniformsToRenderQueue();
+
+	// Zsynchronizuj oswietlenie swiata i postaci oraz mgle w CFrameSnapshot
+	TFrameSnapshot snapshot = CFrameSnapshot::Current();
+	snapshot.lights[0] = pEnvData->DirLights[ENV_DIRLIGHT_BACKGROUND];
+	if (pEnvData->bDirLightsEnable[ENV_DIRLIGHT_CHARACTER])
+	{
+		snapshot.lights[1] = pEnvData->DirLights[ENV_DIRLIGHT_CHARACTER];
+	}
+	snapshot.v4FogParams = m_uniforms.v4FogParams;
+	CFrameSnapshot::SetCurrent(snapshot);
 
 	// 5. Aktualizacja SpeedTree
 	CSpeedTreeForestDirectX& rkForest = CSpeedTreeForestDirectX::Instance();

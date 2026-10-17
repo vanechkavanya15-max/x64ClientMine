@@ -127,3 +127,6 @@ patch.diff
 Docs/state/ALLOW_STOP
 .gemini/session_window.json
 .agents/session_window.json
+
+.worktrees/
+
