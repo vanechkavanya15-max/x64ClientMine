@@ -4,6 +4,7 @@
 #include "GrpBase.h"
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include "Render/TerrainShaderPipeline.h"
+#include "RenderOwnership.h"
 
 CD3D9RenderBackend::CD3D9RenderBackend()
 {
@@ -14,12 +15,10 @@ CD3D9RenderBackend::~CD3D9RenderBackend()
 	Shutdown();
 }
 
-bool CD3D9RenderBackend::Initialize(HWND hWnd, unsigned int width, unsigned int height)
+bool CD3D9RenderBackend::Initialize(HWND /*hWnd*/, unsigned int width, unsigned int height)
 {
-	m_hWnd = hWnd;
 	m_width = width;
 	m_height = height;
-	m_bInitialized = true;
 	InitVertexDeclarations();
 	return true;
 }
@@ -32,7 +31,6 @@ void CD3D9RenderBackend::Shutdown()
 		m_pTerrainPipeline.reset();
 	}
 	ReleaseVertexDeclarations();
-	m_bInitialized = false;
 }
 
 void CD3D9RenderBackend::Resize(unsigned int width, unsigned int height)
@@ -43,8 +41,8 @@ void CD3D9RenderBackend::Resize(unsigned int width, unsigned int height)
 
 void CD3D9RenderBackend::InitVertexDeclarations()
 {
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
+	LPDIRECT3DDEVICE9 pD3DDevice = STATEMANAGER.GetDevice();
+	if (!pD3DDevice)
 		return;
 
 	if (!m_pUIVertexDecl)
@@ -56,7 +54,7 @@ void CD3D9RenderBackend::InitVertexDeclarations()
 			{ 0, 16, D3DDECLTYPE_FLOAT2,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
 			D3DDECL_END()
 		};
-		dev->CreateVertexDeclaration(uiDeclElements, &m_pUIVertexDecl);
+		pD3DDevice->CreateVertexDeclaration(uiDeclElements, &m_pUIVertexDecl);
 	}
 
 	if (!m_pDungeonVertexDecl)
@@ -69,7 +67,7 @@ void CD3D9RenderBackend::InitVertexDeclarations()
 			{ 0, 32, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
 			D3DDECL_END()
 		};
-		dev->CreateVertexDeclaration(dungeonDeclElements, &m_pDungeonVertexDecl);
+		pD3DDevice->CreateVertexDeclaration(dungeonDeclElements, &m_pDungeonVertexDecl);
 	}
 }
 
@@ -79,11 +77,6 @@ void CD3D9RenderBackend::ReleaseVertexDeclarations()
 	{
 		m_pUIVertexDecl->Release();
 		m_pUIVertexDecl = nullptr;
-	}
-	if (m_pActorVertexDecl)
-	{
-		m_pActorVertexDecl->Release();
-		m_pActorVertexDecl = nullptr;
 	}
 	if (m_pDungeonVertexDecl)
 	{
@@ -128,6 +121,9 @@ void CD3D9RenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 
 void CD3D9RenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned int count)
 {
+	if (RenderOwnership::Owner(ERenderCategory::SkyBox) != ERenderOwner::D3D9Backend)
+		return;
+
 	if (!pPackets || count == 0)
 		return;
 
@@ -139,11 +135,14 @@ void CD3D9RenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned in
 
 void CD3D9RenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, unsigned int count)
 {
+	if (RenderOwnership::Owner(ERenderCategory::Terrain) != ERenderOwner::D3D9Backend)
+		return;
+
 	if (!pPackets || count == 0)
 		return;
 
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
+	LPDIRECT3DDEVICE9 pD3DDevice = STATEMANAGER.GetDevice();
+	if (!pD3DDevice)
 		return;
 
 	if (!m_pTerrainPipeline)
@@ -151,15 +150,9 @@ void CD3D9RenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, uns
 
 	if (!m_pTerrainPipeline->IsReady())
 	{
-		if (!m_pTerrainPipeline->Initialize(dev))
+		if (!m_pTerrainPipeline->Initialize(pD3DDevice))
 			return;
 	}
-
-	// W trybie hybrydowym (Strangler Fig) teren wraz z mapa cieni statycznych i dynamicznych
-	// jest juz wyrenderowany w CMapOutdoor::RenderTerrain(). Pakiety TTerrainSectorPacket
-	// sluza do eksportu Golden Master (frame_dump.bin) oraz dla backendu WGPU.
-	if (pPackets[0].bPad == 0)
-		return;
 
 	const float fogColorAndRange[4] = {
 		m_currentUniforms.vFogColor.r,
@@ -171,7 +164,7 @@ void CD3D9RenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, uns
 	const D3DVECTOR lightDir = { m_currentUniforms.vSunLightDir.x, m_currentUniforms.vSunLightDir.y, m_currentUniforms.vSunLightDir.z };
 	const D3DVECTOR ambientColor = { m_currentUniforms.vAmbientColor.r, m_currentUniforms.vAmbientColor.g, m_currentUniforms.vAmbientColor.b };
 
-	m_pTerrainPipeline->BeginFrame(dev, m_currentUniforms.matViewProj, lightDir, ambientColor, fogColorAndRange);
+	m_pTerrainPipeline->BeginFrame(pD3DDevice, m_currentUniforms.matViewProj, lightDir, ambientColor, fogColorAndRange);
 
 	for (unsigned int i = 0; i < count; ++i)
 	{
@@ -182,7 +175,7 @@ void CD3D9RenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, uns
 		EterLib::Render::TerrainSectorBindDesc desc{};
 		desc.sectorOriginX = pkt.fWorldPosX;
 		desc.sectorOriginY = pkt.fWorldPosY;
-		desc.invSectorSize = 1.0f / 25600.0f;
+		desc.invSectorSize = 1.0f / kSectorSize;
 		desc.detailTileScale = 64.0f;
 		desc.splatTexture = reinterpret_cast<LPDIRECT3DTEXTURE9>(pkt.pSplatTexture);
 
@@ -191,24 +184,23 @@ void CD3D9RenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, uns
 			desc.layerTextures[l] = reinterpret_cast<LPDIRECT3DTEXTURE9>(pkt.pLayerTextures[l]);
 		}
 
-		m_pTerrainPipeline->BindSector(dev, desc);
+		m_pTerrainPipeline->BindSector(pD3DDevice, desc);
 
 		auto* pD3DVB = reinterpret_cast<LPDIRECT3DVERTEXBUFFER9>(pkt.pVertexData);
-		dev->SetStreamSource(0, pD3DVB, 0, sizeof(float) * 6);
+		STATEMANAGER.SetStreamSource(0, pD3DVB, sizeof(float) * 6);
 
-		dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, pkt.dwVertexCount > 2 ? pkt.dwVertexCount - 2 : 0);
+		STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, pkt.dwVertexCount > 2 ? pkt.dwVertexCount - 2 : 0);
 	}
 
-	m_pTerrainPipeline->EndFrame(dev);
+	m_pTerrainPipeline->EndFrame(pD3DDevice);
 }
 
 void CD3D9RenderBackend::RenderActors(const TActorRenderPacket* pPackets, unsigned int count)
 {
-	if (!pPackets || count == 0)
+	if (RenderOwnership::Owner(ERenderCategory::Model) != ERenderOwner::D3D9Backend)
 		return;
 
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
+	if (!pPackets || count == 0)
 		return;
 
 	D3DXMATRIX matSavedWorld;
@@ -220,8 +212,8 @@ void CD3D9RenderBackend::RenderActors(const TActorRenderPacket* pPackets, unsign
 		if (pkt.dwBoneCount > 0)
 		{
 			const D3DXMATRIX* pBones = pkt.GetBoneMatrices();
-			UINT matrixCount = (std::min)(pkt.dwBoneCount, 60u);
-			dev->SetVertexShaderConstantF(4, reinterpret_cast<const float*>(pBones), matrixCount * 4);
+			UINT matrixCount = (std::min)(pkt.dwBoneCount, kMaxShaderBones);
+			STATEMANAGER.SetVertexShaderConstant(4, pBones, matrixCount * 4);
 		}
 	}
 
@@ -236,13 +228,10 @@ void CD3D9RenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int 
 
 void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsigned int count)
 {
-	if (!pPackets || count == 0)
+	if (RenderOwnership::Owner(ERenderCategory::SpeedTree) != ERenderOwner::D3D9Backend)
 		return;
 
-	// Tryb hybrydowy (Strangler Fig): CSpeedTreeForestDirectX::Render() rysuje juz drzewa
-	// z poprawnymi shaderami wiatru/lisci. Ponowne odtworzenie pakietow rysowalo kazde drzewo
-	// DWA RAZY (bez stanu shaderow). Pakiety sluza tylko dla WGPU i frame_dump.bin.
-	if (!m_bReplaySpeedTreePackets)
+	if (!pPackets || count == 0)
 		return;
 
 	for (unsigned int i = 0; i < count; ++i)
@@ -323,10 +312,6 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 	if (!pPackets || count == 0)
 		return;
 
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
-		return;
-
 	if (!m_pUIVertexDecl)
 		InitVertexDeclarations();
 
@@ -346,9 +331,6 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 
 	if (m_pUIVertexDecl)
 		STATEMANAGER.SetVertexDeclaration(m_pUIVertexDecl);
-
-	static std::vector<TUIVertex> s_particleVertices;
-	static std::vector<uint16_t> s_sharedEffectIndices;
 
 	for (unsigned int i = 0; i < count; ++i)
 	{
@@ -393,11 +375,11 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 		uint32_t particleOffset = 0;
 		while (particleOffset < totalQuads)
 		{
-			const uint32_t numQuads = (std::min)(totalQuads - particleOffset, 16380u);
-			if (s_particleVertices.size() < numQuads * 4)
-				s_particleVertices.resize(numQuads * 4);
+			const uint32_t numQuads = (std::min)(totalQuads - particleOffset, kMaxQuadsPerDraw);
+			if (m_particleVertices.size() < numQuads * 4)
+				m_particleVertices.resize(numQuads * 4);
 
-			EnsureSharedQuadIndices(s_sharedEffectIndices, numQuads);
+			EnsureSharedQuadIndices(m_sharedEffectIndices, numQuads);
 
 			for (uint32_t pIdx = 0; pIdx < numQuads; ++pIdx)
 			{
@@ -418,7 +400,7 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 				}
 
 				const uint32_t packedColor = static_cast<DWORD>(p.vColor);
-				TUIVertex* v = &s_particleVertices[pIdx * 4];
+				TUIVertex* v = &m_particleVertices[pIdx * 4];
 
 				v[0].position = center - axisX + axisY;
 				v[0].color = packedColor;
@@ -442,9 +424,9 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 				0,
 				numQuads * 4,
 				numQuads * 2,
-				s_sharedEffectIndices.data(),
+				m_sharedEffectIndices.data(),
 				D3DFMT_INDEX16,
-				s_particleVertices.data(),
+				m_particleVertices.data(),
 				static_cast<UINT>(sizeof(TUIVertex))
 			);
 
@@ -464,8 +446,8 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 	if (!pPackets || count == 0)
 		return;
 
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
+	LPDIRECT3DDEVICE9 pD3DDevice = STATEMANAGER.GetDevice();
+	if (!pD3DDevice)
 		return;
 
 	if (!m_pUIVertexDecl)
@@ -476,7 +458,7 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 	float screenH = static_cast<float>(m_height);
 	if (screenW <= 0.0f || screenH <= 0.0f)
 	{
-		if (SUCCEEDED(dev->GetViewport(&vp)))
+		if (SUCCEEDED(pD3DDevice->GetViewport(&vp)))
 		{
 			screenW = static_cast<float>(vp.Width);
 			screenH = static_cast<float>(vp.Height);
@@ -503,8 +485,6 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 
 	if (m_pUIVertexDecl)
 		STATEMANAGER.SetVertexDeclaration(m_pUIVertexDecl);
-
-	static std::vector<uint16_t> s_sharedQuadIndices;
 
 	for (unsigned int i = 0; i < count; ++i)
 	{
@@ -568,15 +548,15 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 		uint32_t quadsDrawn = 0;
 		while (quadsDrawn < totalQuads)
 		{
-			const uint32_t numQuads = (std::min)(totalQuads - quadsDrawn, 16380u);
-			EnsureSharedQuadIndices(s_sharedQuadIndices, numQuads);
+			const uint32_t numQuads = (std::min)(totalQuads - quadsDrawn, kMaxQuadsPerDraw);
+			EnsureSharedQuadIndices(m_sharedQuadIndices, numQuads);
 
 			STATEMANAGER.DrawIndexedPrimitiveUP(
 				D3DPT_TRIANGLELIST,
 				0,
 				numQuads * 4,
 				numQuads * 2,
-				s_sharedQuadIndices.data(),
+				m_sharedQuadIndices.data(),
 				D3DFMT_INDEX16,
 				pVtx + (quadsDrawn * 4),
 				static_cast<UINT>(sizeof(TUIVertex))
@@ -601,11 +581,10 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 
 void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets, unsigned int count)
 {
-	if (!pPackets || count == 0)
+	if (RenderOwnership::Owner(ERenderCategory::Dungeon) != ERenderOwner::D3D9Backend)
 		return;
 
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
+	if (!pPackets || count == 0)
 		return;
 
 	if (!m_pDungeonVertexDecl)
@@ -757,9 +736,9 @@ const char* CD3D9RenderBackend::GetBackendName() const
 
 bool CD3D9RenderBackend::IsDeviceLost() const
 {
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
+	LPDIRECT3DDEVICE9 pD3DDevice = STATEMANAGER.GetDevice();
+	if (!pD3DDevice)
 		return true;
-	HRESULT hr = dev->TestCooperativeLevel();
+	HRESULT hr = pD3DDevice->TestCooperativeLevel();
 	return (hr == D3DERR_DEVICELOST || hr == D3DERR_DEVICENOTRESET);
 }
