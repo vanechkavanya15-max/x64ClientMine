@@ -2,6 +2,7 @@
 #include "StateManager.h"
 #include "GrpLightManager.h"
 #include "RenderBypassGuard.h"
+#include "RenderQueueManager.h"
 
 //#define StateManager_Assert(a) if (!(a)) puts("assert"#a)
 #define StateManager_Assert(a) assert(a)
@@ -997,6 +998,7 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartV
 	++m_iDrawCallCount;
 	m_dwPrimitiveCount += PrimitiveCount;
 	RecordDrawCall("DrawPrimitive");
+	CRenderQueueManager::Instance().RecordDrawCall(m_currentRenderCategory, PrimitiveCount);
 
 	return (m_lpD3DDev->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount));
 }
@@ -1006,6 +1008,7 @@ HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT Prim
 	++m_iDrawCallCount;
 	m_dwPrimitiveCount += PrimitiveCount;
 	RecordDrawCall("DrawPrimitiveUP");
+	CRenderQueueManager::Instance().RecordDrawCall(m_currentRenderCategory, PrimitiveCount);
 
 	m_CurrentState.m_StreamData[0] = NULL;
 	return (m_lpD3DDev->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride));
@@ -1016,6 +1019,7 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT
 	++m_iDrawCallCount;
 	m_dwPrimitiveCount += primCount;
 	RecordDrawCall("DrawIndexedPrimitive");
+	CRenderQueueManager::Instance().RecordDrawCall(m_currentRenderCategory, primCount);
 
 	return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, 0, minIndex, NumVertices, startIndex, primCount));
 }
@@ -1025,6 +1029,7 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT 
 	++m_iDrawCallCount;
 	m_dwPrimitiveCount += primCount;
 	RecordDrawCall("DrawIndexedPrimitive");
+	CRenderQueueManager::Instance().RecordDrawCall(m_currentRenderCategory, primCount);
 
 	return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, baseVertexIndex, minIndex, NumVertices, startIndex, primCount));
 }
@@ -1034,11 +1039,13 @@ HRESULT CStateManager::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UI
 	++m_iDrawCallCount;
 	m_dwPrimitiveCount += PrimitiveCount;
 	RecordDrawCall("DrawIndexedPrimitiveUP");
+	CRenderQueueManager::Instance().RecordDrawCall(m_currentRenderCategory, PrimitiveCount);
 
 	m_CurrentState.m_IndexData = NULL;
 	m_CurrentState.m_StreamData[0] = NULL;
 	return (m_lpD3DDev->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertexIndices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride));
 }
+
 
 void CStateManager::ResetDrawCallCounter()
 {

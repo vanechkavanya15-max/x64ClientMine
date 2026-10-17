@@ -6482,8 +6482,25 @@ target_include_directories(test_c26_render_bypass_guard PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/include
 )
-target_link_libraries(test_c26_render_bypass_guard PRIVATE EterLib EterBase doctest)
+target_link_libraries(test_c26_render_bypass_guard PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
 add_test(NAME RenderBypassGuardTest COMMAND test_c26_render_bypass_guard)
+
 
 add_executable(test_c26_frustum test_c26_frustum.cpp)
 target_include_directories(test_c26_frustum PRIVATE
@@ -6914,4 +6931,32 @@ target_link_libraries(test_c26_actor_packet PRIVATE
 )
 add_test(NAME test_c26_actor_packet COMMAND test_c26_actor_packet)
 add_test(NAME ActorPacketTest COMMAND test_c26_actor_packet)
+
+add_executable(test_c26_queue_stats test_c26_queue_stats.cpp)
+target_include_directories(test_c26_queue_stats PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_queue_stats PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
+
+add_test(NAME test_c26_queue_stats COMMAND test_c26_queue_stats)
+add_test(NAME QueueStatsTest COMMAND test_c26_queue_stats)
+
 

@@ -402,8 +402,8 @@ void CMapOutdoor::__HardwareTransformPatch_RenderPatchSplat(
 				STATEMANAGER.SetTexture(1, NULL);
 			}
 
-			ms_faceCount += wPrimitiveCount;
 			STATEMANAGER.DrawIndexedPrimitive(ePrimitiveType, 0, m_iPatchTerrainVertexCount, 0, wPrimitiveCount);
+
 
 			if (m_bDrawChrShadow)
 			{

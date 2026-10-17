@@ -4,6 +4,7 @@
 #include "GrpBase.h"
 #include "Camera.h"
 #include "StateManager.h"
+#include "RenderQueueManager.h"
 #include <algorithm>
 
 void PixelPositionToD3DXVECTOR3(const D3DXVECTOR3& c_rkPPosSrc, D3DXVECTOR3* pv3Dst)
@@ -34,9 +35,8 @@ HRESULT					CGraphicBase::ms_hLastResult = NULL;
 int						CGraphicBase::ms_iWidth;
 int						CGraphicBase::ms_iHeight;
 
-DWORD					CGraphicBase::ms_faceCount = 0;
-
 D3DCAPS9				CGraphicBase::ms_d3dCaps;
+
 
 DWORD					CGraphicBase::ms_dwD3DBehavior = 0;
 
@@ -457,13 +457,14 @@ void CGraphicBase::SetScreenEffectWaving(float fDuringTime, int iPower)
 
 DWORD CGraphicBase::GetFaceCount()
 {
-	return ms_faceCount;
+	return CRenderQueueManager::Instance().GetFrameStats().totalFaceCount;
 }
 
 void CGraphicBase::ResetFaceCount()
 {
-	ms_faceCount = 0;
+	CRenderQueueManager::Instance().ResetFrameStats();
 }
+
 
 HRESULT CGraphicBase::GetLastResult()
 {

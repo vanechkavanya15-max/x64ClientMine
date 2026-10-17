@@ -1046,10 +1046,10 @@ void CSpeedTreeWrapper::RenderBranches(void) const
 			const uint16_t stripLength = lengths[s];
 			if (stripLength > 2)
 			{
-				ms_faceCount += stripLength - 2;
 				if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 					STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, 0, m_pGeometryCache->m_sBranches.m_usVertexCount, m_branchStripOffsets[s], stripLength - 2);
 			}
+
 		}
 	}
 }
@@ -1127,10 +1127,10 @@ void CSpeedTreeWrapper::RenderFronds(void) const
 			const uint16_t stripLength = lengths[s];
 			if (stripLength > 2)
 			{
-				ms_faceCount += stripLength - 2;
 				if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 					STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, 0, m_pGeometryCache->m_sFronds.m_usVertexCount, m_frondStripOffsets[s], stripLength - 2);
 			}
+
 		}
 	}
 }
@@ -1298,9 +1298,9 @@ void CSpeedTreeWrapper::RenderLeaves(void) const
 		STATEMANAGER.SetStreamSource(0, m_pLeafVertexBuffer[unLod], sizeof(SFVFLeafVertex));
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, static_cast<DWORD>(pLeaf->m_fAlphaTestValue));
 		
-		ms_faceCount += pLeaf->m_usLeafCount * 2;
 		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 			STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, pLeaf->m_usLeafCount * 2);
+
 	}
 }
 
@@ -1354,7 +1354,6 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sBillboard0.m_fAlphaTestValue));
 		
-		ms_faceCount += 2;
 		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
@@ -1373,7 +1372,6 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		};
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sBillboard1.m_fAlphaTestValue));
 		
-		ms_faceCount += 2;
 		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
@@ -1393,12 +1391,12 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		};
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sHorizontalBillboard.m_fAlphaTestValue));
 		
-		ms_faceCount += 2;
 		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) || RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::D3D9Backend)
 			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
 	
 #endif
+
 #endif
 }
 

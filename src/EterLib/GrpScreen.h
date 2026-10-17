@@ -84,5 +84,5 @@ protected:
 	static float		ms_clearDepth;
 
 	static Frustum ms_frustum;
-	static TRenderStatistics ms_renderStats;
 };
+
