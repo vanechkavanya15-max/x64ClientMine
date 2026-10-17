@@ -8,13 +8,11 @@
 #include "MapOutdoor.h"
 #include "MapOutdoorCharacterShadow.h"
 
-static int recreate = false;
-
 void CMapOutdoor::SetShadowTextureSize(WORD size)
 {
 	if (m_wShadowMapSize != size)
 	{
-		recreate = true;
+		m_bRecreateShadowTexture = true;
 		Tracenf("ShadowTextureSize changed %d -> %d", m_wShadowMapSize, size);
 	}
 
@@ -85,8 +83,6 @@ void CMapOutdoor::ReleaseCharacterShadowTexture()
 	SAFE_RELEASE(m_lpCharacterShadowMapTexture);
 }
 
-DWORD dwLightEnable = FALSE;
-
 bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 {
 	if (!RenderOwnership::LegacyDraws(ERenderCategory::Shadow))
@@ -97,10 +93,10 @@ bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 	if (!pCurrentCamera)
 		return false;
 
-	if (recreate)
+	if (m_bRecreateShadowTexture)
 	{
 		CreateCharacterShadowTexture();
-		recreate = false;
+		m_bRecreateShadowTexture = false;
 	}
 
 	D3DXVECTOR3 v3Target = pCurrentCamera->GetTarget();
@@ -118,7 +114,7 @@ bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 	STATEMANAGER.SaveTransform(D3DTS_VIEW, &matLightView);
 	STATEMANAGER.SaveTransform(D3DTS_PROJECTION, &matLightProj);
 
-	dwLightEnable = STATEMANAGER.GetRenderState(D3DRS_LIGHTING);
+	m_dwShadowLightEnable = STATEMANAGER.GetRenderState(D3DRS_LIGHTING);
 	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
 	
 	STATEMANAGER.SaveRenderState(D3DRS_TEXTUREFACTOR, 0xFF808080);
@@ -170,7 +166,7 @@ void CMapOutdoor::EndRenderCharacterShadowToTexture()
 	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
 	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
 	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
-	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, dwLightEnable);
+	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, m_dwShadowLightEnable);
 	STATEMANAGER.RestoreRenderState(D3DRS_TEXTUREFACTOR);
 }
 

@@ -22,9 +22,16 @@
 #include "MonsterAreaInfo.h"
 
 
-#define LOAD_SIZE_WIDTH				1
+constexpr int kLoadSizeWidth = 1;
+constexpr int kAroundAreaNum = (2 * kLoadSizeWidth + 1) * (2 * kLoadSizeWidth + 1);
 
-#define AROUND_AREA_NUM				1+(LOAD_SIZE_WIDTH*2)*(LOAD_SIZE_WIDTH*2)*2
+#ifndef LOAD_SIZE_WIDTH
+#define LOAD_SIZE_WIDTH				kLoadSizeWidth
+#endif
+
+#ifndef AROUND_AREA_NUM
+#define AROUND_AREA_NUM				kAroundAreaNum
+#endif
 #define MAX_PREPARE_SIZE			9
 #define MAX_MAPSIZE					256		// 0 ~ 255, cellsize 200 = 64km
 
@@ -449,6 +456,9 @@ class CMapOutdoor : public CMapBase
 		LPDIRECT3DSURFACE9		m_lpBackupRenderTargetSurface;
 		LPDIRECT3DSURFACE9		m_lpBackupDepthSurface;
 		D3DVIEWPORT9			m_BackupViewport;
+
+		bool					m_bRecreateShadowTexture{ false };
+		DWORD					m_dwShadowLightEnable{ FALSE };
 
 		// Character Shadow
 		//////////////////////////////////////////////////////////////////////////
