@@ -362,3 +362,5 @@ class CGrannyLODController : public CGraphicCollisionObject
 	protected:
 		std::vector<SGltfMaterialState>		m_gltfMaterials;
 };
+
+using CModelLODController = CGrannyLODController;

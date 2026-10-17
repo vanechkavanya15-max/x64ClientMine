@@ -44,6 +44,7 @@ namespace EterLib::Render
         void FlushToQueue(CRenderQueueManager& queue);
         void FlushPendingUI();
         void FlushPendingUI(CRenderQueueManager& queue);
+        void SubmitToQueue() { Flush(); }
         void Clear() noexcept;
         bool IsBatching() const noexcept { return true; }
 
