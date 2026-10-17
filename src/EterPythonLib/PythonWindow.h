@@ -1,9 +1,38 @@
 #pragma once
 
 #include "EterBase/Utils.h"
+#include "EterBase/CRC32.h"
+#include "EterLib/GrpImageInstance.h"
+#include "EterLib/GrpTextInstance.h"
+#include "EterLib/GrpMarkInstance.h"
+#include "EterLib/GrpExpandedImageInstance.h"
+#include <optional>
+
+typedef struct _object PyObject;
 
 namespace UI
 {
+	// Oblicza czesc wspolna (przeciecie) prostokata okna z aktywnym obcieciem przodkow.
+	// Jesli prostokat jest pusty (right <= left lub bottom <= top), zwraca std::nullopt.
+	inline std::optional<RECT> ComputeChildScissor(const RECT& own, const RECT* pActiveParent)
+	{
+		RECT result = own;
+		if (pActiveParent)
+		{
+			result.left = (std::max)(result.left, pActiveParent->left);
+			result.top = (std::max)(result.top, pActiveParent->top);
+			result.right = (std::min)(result.right, pActiveParent->right);
+			result.bottom = (std::min)(result.bottom, pActiveParent->bottom);
+		}
+
+		if (result.right <= result.left || result.bottom <= result.top)
+		{
+			return std::nullopt;
+		}
+
+		return result;
+	}
+
 	class CWindow
 	{
 		public:
@@ -52,6 +81,7 @@ namespace UI
 			void			DestroyHandle();
 			void			Update();
 			void			Render();
+			void			Render(const RECT* pActiveParentScissor);
 
 			void			SetName(const char * c_szName);
 			const char *	GetName()		{ return m_strName.c_str(); }
@@ -105,6 +135,11 @@ namespace UI
 			void			EnableScissorRect();
 			void			DisableScissorRect();
 			bool			IsScissorRectEnabled() const;
+			static std::optional<RECT> ComputeChildScissor(const RECT& own, const RECT* pActiveParent)
+			{
+				return UI::ComputeChildScissor(own, pActiveParent);
+			}
+			bool			GetActiveAncestorScissor(RECT* pOutRect) const;
 			/////////////////////////////////////
 
 			virtual void	OnRender();
