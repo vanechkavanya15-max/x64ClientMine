@@ -33,8 +33,8 @@ namespace UserInterface::TestHarness
         SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
         SymInitialize(hProcess, nullptr, TRUE);
 
-        // Rejestracja wektorowego handlera wyjatkow na poczatku lancucha (First = 1)
-        m_pHandlerHandle = AddVectoredExceptionHandler(1, VectoredExceptionHandler);
+        // Rejestracja wektorowego handlera kontynuacji wyjatkow (wywolywany gdy zaden blok __try/__except nie obsluzyl bledu)
+        m_pHandlerHandle = AddVectoredContinueHandler(1, VectoredExceptionHandler);
         if (!m_pHandlerHandle)
         {
             return false;
@@ -51,7 +51,7 @@ namespace UserInterface::TestHarness
 
         if (m_pHandlerHandle)
         {
-            RemoveVectoredExceptionHandler(m_pHandlerHandle);
+            RemoveVectoredContinueHandler(m_pHandlerHandle);
             m_pHandlerHandle = nullptr;
         }
 

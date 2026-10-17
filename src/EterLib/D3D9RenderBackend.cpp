@@ -133,55 +133,10 @@ void CD3D9RenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned in
 	if (!pPackets || count == 0)
 		return;
 
-	LPDIRECT3DDEVICE9 dev = STATEMANAGER.GetDevice();
-	if (!dev)
-		return;
-
 	// W trybie hybrydowym (Strangler Fig) CSkyBox::Render() oraz CSkyBox::RenderCloud()
-	// odpowiadaja za bezposrednie rysowanie nieba i chmur. Pakiety TSkyBoxPacket
-	// umozliwiaja bezpieczny fallback D3D9 oraz export do bufora klatki Golden Master.
-	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, TRUE);
-	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_FOGENABLE, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-
-	for (unsigned int i = 0; i < count; ++i)
-	{
-		const TSkyBoxPacket& packet = pPackets[i];
-
-		if (packet.matWorld._44 != 0.0f || packet.matWorld._11 != 0.0f)
-		{
-			STATEMANAGER.SetTransform(D3DTS_WORLD, &packet.matWorld);
-		}
-
-		if (packet.dwSkyTextureID != 0)
-		{
-			STATEMANAGER.SetTexture(0, reinterpret_cast<LPDIRECT3DBASETEXTURE9>(static_cast<uintptr_t>(packet.dwSkyTextureID)));
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		}
-
-		if (packet.dwCloudTextureID != 0)
-		{
-			STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-			STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-			STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCCOLOR);
-
-			STATEMANAGER.SetTexture(0, reinterpret_cast<LPDIRECT3DBASETEXTURE9>(static_cast<uintptr_t>(packet.dwCloudTextureID)));
-
-			STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-			STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-			STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-		}
-	}
-
-	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
-	STATEMANAGER.RestoreRenderState(D3DRS_FOGENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
+	// odpowiadaja za bezposrednie rysowanie nieba i chmur w Direct3D 9 z pelnymi teksturami 64-bit.
+	// Pakiety TSkyBoxPacket w kolejce sluza wylacznie do eksportu Golden Master oraz dla backendu WGPU.
+	return;
 }
 
 void CD3D9RenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, unsigned int count)
@@ -687,15 +642,15 @@ void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 		STATEMANAGER.SetTransform(D3DTS_WORLD, &pkt.matWorld);
 
 		// Ustawienie tekstury bazowej (diffuse)
-		LPDIRECT3DBASETEXTURE9 pBaseTex = pkt.pDiffuseTexture
-			? reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.pDiffuseTexture)
-			: reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwDiffuseTextureID);
+		LPDIRECT3DBASETEXTURE9 pBaseTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.pDiffuseTexture);
+		if (!pBaseTex && pkt.dwDiffuseTextureID >= 0x10000)
+			pBaseTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwDiffuseTextureID);
 		STATEMANAGER.SetTexture(0, pBaseTex);
 
 		// Ustawienie tekstury mapy swiatla (lightmap)
-		LPDIRECT3DBASETEXTURE9 pLightmapTex = pkt.pLightmapTexture
-			? reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.pLightmapTexture)
-			: reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwLightmapTextureID);
+		LPDIRECT3DBASETEXTURE9 pLightmapTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.pLightmapTexture);
+		if (!pLightmapTex && pkt.dwLightmapTextureID >= 0x10000)
+			pLightmapTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwLightmapTextureID);
 		STATEMANAGER.SetTexture(1, pLightmapTex);
 
 		// Wariant 1: Rysowanie z buforow Direct3D9 (VertexBuffer / IndexBuffer)

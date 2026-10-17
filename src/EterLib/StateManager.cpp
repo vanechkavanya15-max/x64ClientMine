@@ -533,8 +533,20 @@ bool CStateManager::IsValidTexturePointer(LPDIRECT3DBASETEXTURE9 pTexture)
 	if ((uPtr & (sizeof(void*) - 1)) != 0)
 		return false;
 
-	// Weryfikacja czy wskaznik wskazuje na prawidlowy blok pamieci do odczytu
-	if (IsBadReadPtr(reinterpret_cast<const void*>(uPtr), sizeof(void*)))
+	// Weryfikacja czy wskaznik wskazuje na zaalokowany blok pamieci z prawem odczytu (bez wyzwalania wyjatkow CPU i VEH)
+	MEMORY_BASIC_INFORMATION mbi;
+	if (VirtualQuery(reinterpret_cast<const void*>(uPtr), &mbi, sizeof(mbi)) == 0)
+		return false;
+
+	if (mbi.State != MEM_COMMIT)
+		return false;
+
+	if (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD))
+		return false;
+
+	constexpr DWORD kReadableFlags = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY |
+	                                 PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+	if ((mbi.Protect & kReadableFlags) == 0)
 		return false;
 
 	__try
@@ -545,8 +557,15 @@ bool CStateManager::IsValidTexturePointer(LPDIRECT3DBASETEXTURE9 pTexture)
 		if (!pVtbl || uVtbl < 0x10000 || uVtbl >= 0x00007FFFFFFFFFFF || (uVtbl & (sizeof(void*) - 1)) != 0)
 			return false;
 
-		// Sprawdzenie czy poczatek vtable (QueryInterface, AddRef, Release) jest odczytywalny
-		if (IsBadReadPtr(reinterpret_cast<const void*>(uVtbl), sizeof(void*) * 4))
+		// Sprawdzenie czy poczatek vtable (QueryInterface, AddRef, Release) lezy w zaalokowanej pamieci
+		MEMORY_BASIC_INFORMATION mbiVtbl;
+		if (VirtualQuery(reinterpret_cast<const void*>(uVtbl), &mbiVtbl, sizeof(mbiVtbl)) == 0)
+			return false;
+
+		if (mbiVtbl.State != MEM_COMMIT || (mbiVtbl.Protect & (PAGE_NOACCESS | PAGE_GUARD)))
+			return false;
+
+		if ((mbiVtbl.Protect & kReadableFlags) == 0)
 			return false;
 
 		// Wskaznik na pierwsza metode w vtable musi wskazywac na kod wykonywalny w przestrzeni uzytkownika

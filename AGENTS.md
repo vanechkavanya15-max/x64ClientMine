@@ -1,7 +1,7 @@
 # INSTRUKCJE DLA AGENTOW AI (JULES SWARM)
 
 ## 1. ZASADY GLOWNE I PRIORYTETY
-1. **GRAFIKI NIE RUSZAMY NA RAZIE:** Zgodnie z wytycznymi, podsystemy graficzne (DirectX, renderery, modele) pozostaja nienaruszone.
+1. **RENDERER ZMIENIAMY TYLKO WEDLUG PLANU:** Podsystemy graficzne (DirectX, renderery, modele, `src/EterLib/Render/`, `RenderQueueManager`, backendy) zmieniamy wylacznie w ramach zadan z `E:\AgentAIHarnessWork\Docs\RENDERER_CPP_PREP_PLAN.md` (tylko C++, bez zmian w Rust). Kazde zadanie: zakres, weryfikacja i akceptacja jak w planie; bez zmiany obrazu D3D9, chyba ze zadanie ma etykiete `[RESTORE]`/`[FIX-VISUAL]`. Zmiany grafiki spoza planu sa zabronione.
 2. **AUDIOLIB WYTNIETY:** `AudioLib` zostal zastapiony lekka, bezkosztowa atrapa (stub). Zadne moduly dzwieku (miniaudio, Miles) nie sa kompilowane ani inicjalizowane.
 3. **GLOWNY CEL NA ROK 2026:** Porzadek, modularyzacja, refaktoryzacja do standardu C++20/C++23 oraz stworzenie **maksymalnej czytelnosci dla agentow AI** w kodzie sieci, logiki i stanu gry.
 
