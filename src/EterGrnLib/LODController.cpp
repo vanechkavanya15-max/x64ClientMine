@@ -20,21 +20,6 @@ static const float LOD_APPLY_MIN = 500.0f;
 
 bool ms_isMinLODModeEnable=false;
 
-enum
-{
-	SHARED_VB_500	= 0,
-	SHARED_VB_1000	= 1,
-	SHARED_VB_1500	= 2,
-	SHARED_VB_2000	= 3,
-	SHARED_VB_2500	= 4,
-	SHARED_VB_3000	= 5,
-	SHARED_VB_3500	= 6,
-	SHARED_VB_4000	= 7,
-	SHARED_VB_NUM	= 9,
-};
-
-static std::vector<CGraphicVertexBuffer*> gs_vbs[SHARED_VB_NUM];
-
 static CGraphicVertexBuffer gs_emptyVB;
 static LPDIRECT3DVERTEXDECLARATION9 s_pGltfVertexDecl = NULL;
 
@@ -47,32 +32,12 @@ void CGrannyLODController::ReleaseGltfVertexDeclaration()
 	}
 }
 
-#include <time.h>
-
 static CGraphicVertexBuffer* __AllocDeformVertexBuffer(unsigned deformableVertexCount)
 {
 	if (deformableVertexCount == 0)
 		return &gs_emptyVB;
 
-	unsigned capacity	= (((deformableVertexCount-1) / 500) + 1) * 500;
-	unsigned index		= (deformableVertexCount-1) / 500;	
-	if (index < SHARED_VB_NUM)
-	{	
-		std::vector<CGraphicVertexBuffer*>& vbs = gs_vbs[index];
-		if (!vbs.empty())
-		{
-			//TraceError("REUSE %d(%d)", capacity, deformableVertexCount);
-
-			CGraphicVertexBuffer* pkRetVB = vbs.back();
-			vbs.pop_back();
-			return pkRetVB;
-		}
-	}
-
-
-	static time_t base = time(NULL);
-	//TraceError("NEW %8d: %d(%d)", time(NULL) - base, capacity, deformableVertexCount);
-
+	unsigned capacity = (((deformableVertexCount-1) / 500) + 1) * 500;
 	CGraphicVertexBuffer* pkNewVB = new CGraphicVertexBuffer;
 
 	if (!pkNewVB->Create(
@@ -81,7 +46,7 @@ static CGraphicVertexBuffer* __AllocDeformVertexBuffer(unsigned deformableVertex
 		D3DUSAGE_DYNAMIC,
 		D3DPOOL_DEFAULT))
 	{
-		TraceError("NEW_ERROR %8d: %d(%d)", time(NULL) - base, capacity, deformableVertexCount);
+		TraceError("NEW_ERROR: capacity %d (deformableVertexCount %d)", capacity, deformableVertexCount);
 	}
 
 	return pkNewVB;
@@ -94,72 +59,9 @@ void __FreeDeformVertexBuffer(CGraphicVertexBuffer* pkDelVB)
 		if (pkDelVB == &gs_emptyVB)
 			return;
 
-		unsigned index = (pkDelVB->GetVertexCount() - 1) / 500;
-		if (index < SHARED_VB_NUM)
-		{	
-			gs_vbs[index].push_back(pkDelVB);			
-		}
-		else
-		{
-			pkDelVB->Destroy();
-			delete pkDelVB;
-		}
+		pkDelVB->Destroy();
+		delete pkDelVB;
 	}
-}
-
-void __ReserveSharedVertexBuffers(unsigned index, unsigned count)
-{
-	if (index >= SHARED_VB_NUM)
-		return;
-
-	unsigned capacity = (index + 1) * 500;
-
-	for (unsigned i = 0; i != count; ++i)
-	{
-		CGraphicVertexBuffer* pkNewVB = new CGraphicVertexBuffer;
-		pkNewVB->Create(
-			capacity,
-			D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX1,
-			D3DUSAGE_DYNAMIC,
-			D3DPOOL_DEFAULT);	
-		gs_vbs[index].push_back(pkNewVB);
-	}
-}
-
-void GrannyCreateSharedDeformBuffer()
-{
-	if (!CStateManager::InstancePtr() || !CStateManager::Instance().GetDevice())
-		return;
-
-	__ReserveSharedVertexBuffers(SHARED_VB_500, 40);
-	__ReserveSharedVertexBuffers(SHARED_VB_1000, 20);
-	__ReserveSharedVertexBuffers(SHARED_VB_1500, 20);
-	__ReserveSharedVertexBuffers(SHARED_VB_2000, 40);
-	__ReserveSharedVertexBuffers(SHARED_VB_3000, 20);
-}
-
-void GrannyDestroySharedDeformBuffer()
-{
-#ifdef _DEBUG
-	TraceError("granny_shared_vbs:");
-#endif
-	for (int i = 0; i != SHARED_VB_NUM; ++i)
-	{	
-		std::vector<CGraphicVertexBuffer*>& vbs = gs_vbs[i];
-#ifdef _DEBUG
-		TraceError("\t%d: %d", i, vbs.size());
-#endif
-
-		std::vector<CGraphicVertexBuffer*>::iterator v;
-		for (v = vbs.begin(); v != vbs.end(); ++v)
-		{
-			CGraphicVertexBuffer* pkEachVB = (*v);
-			pkEachVB->Destroy();
-			delete pkEachVB;
-		}
-		vbs.clear();
-	}
-	
 }
 
 void CGrannyLODController::SetMinLODMode(bool isEnable)
@@ -828,33 +730,6 @@ void CGrannyLODController::RefreshAttachedModelInstance()
 	}
 }
 
-void CGrannyLODController::UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float fElapsedTime)
-{
-	if (c_pWorldMatrix)
-		m_matWorld = *c_pWorldMatrix;
-
-	if (m_pGltfModelInstance)
-		m_pGltfModelInstance->Update(fElapsedTime);
-
-	if (m_pCurrentModelInstance)
-	{
-		++m_dwSampleFrameCounter;
-		bool bSkipBoneSampling = false;
-		// Optymalizacja czestotliwosci probkowania animacji dla postaci oddalonych od kamery (LOD2/LOD3):
-		// Pomijanie probkowania kosci co druga klatke
-		if (m_bLODLevel >= 2)
-		{
-			if ((m_dwSampleFrameCounter & 1) != 0)
-			{
-				bSkipBoneSampling = true;
-			}
-		}
-
-		m_pCurrentModelInstance->UpdateSkeleton(c_pWorldMatrix, fElapsedTime, bSkipBoneSampling);
-	}
-
-	RefreshAttachedModelInstance();
-}
 
 void CGrannyLODController::DeformAll(const D3DXMATRIX * c_pWorldMatrix)
 {

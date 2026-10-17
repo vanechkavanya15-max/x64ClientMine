@@ -107,29 +107,6 @@ void CGrannyModel::UnlockVertices() const
 	m_pntVtxBuf.Unlock();
 }
 
-bool CGrannyModel::LoadPNTVertices()
-{
-	if (m_rigidVtxCount <= 0)
-		return true;
-
-	assert(m_meshs != NULL);
-
-	if (!m_pntVtxBuf.Create(m_rigidVtxCount, m_dwFvF, D3DUSAGE_WRITEONLY, D3DPOOL_DEFAULT))
-		return false;
-
-	void* vertices;
-	if (!m_pntVtxBuf.Lock(&vertices))
-		return false;
-
-	for (int m = 0; m < m_pgrnModel->MeshBindingCount; ++m)
-	{
-		CGrannyMesh& rMesh = m_meshs[m];
-		rMesh.LoadPNTVertices(vertices);
-	}
-
-	m_pntVtxBuf.Unlock();
-	return true;
-}
 
 bool CGrannyModel::LoadIndices()
 {

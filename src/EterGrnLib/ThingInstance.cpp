@@ -926,25 +926,6 @@ void CGraphicThingInstance::BlendRenderWithOneTexture()
 	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), blendRender);
 }
 
-void CGraphicThingInstance::RenderWithTwoTexture()
-{
-	//assert(m_bUpdated);
-	if (!m_bUpdated)
-		return;
-
-	CGrannyLODController::FRenderWithTwoTexture render;
-	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), render);
-}
-
-void CGraphicThingInstance::BlendRenderWithTwoTexture()
-{
-	//assert(m_bUpdated);
-	if (!m_bUpdated)
-		return;
-
-	CGrannyLODController::FRenderWithTwoTexture blendRender;
-	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), blendRender);
-}
 
 void CGraphicThingInstance::OnRenderToShadowMap()
 {
