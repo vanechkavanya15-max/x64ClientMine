@@ -6245,5 +6245,14 @@ target_link_libraries(test_c26_snow_particle PRIVATE
 )
 add_test(NAME SnowParticleTest COMMAND test_c26_snow_particle)
 
+add_executable(test_c26_world_small_fixes test_c26_world_small_fixes.cpp)
+target_include_directories(test_c26_world_small_fixes PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_world_small_fixes PRIVATE DirectX)
+add_test(NAME WorldSmallFixesTest COMMAND test_c26_world_small_fixes)
+
 
 

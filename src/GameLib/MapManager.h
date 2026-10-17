@@ -105,6 +105,8 @@ class CMapManager : public CScreen, public IPhysicsWorld
 		//////////////////////////////////////////////////////////////////////////
 		TEnvironmentDataMap			m_EnvironmentDataMap;
 		const TEnvironmentData *	mc_pcurEnvironmentData;
+		const TEnvironmentData *	m_pLastLightEnvironmentData;
+		DWORD						m_dwLightVersion;
 
 		//////////////////////////////////////////////////////////////////////////
 		// Map

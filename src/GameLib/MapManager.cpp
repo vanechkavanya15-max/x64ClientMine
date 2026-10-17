@@ -1,4 +1,5 @@
 #include "StdAfx.h"
+#include <algorithm>
 #include <stdexcept>
 #include "EterLib/StateManager.h"
 #include "PackLib/PackManager.h"
@@ -61,7 +62,10 @@ const CMapOutdoor& CMapManager::GetMapOutdoorRef() const
 }
 
 
-CMapManager::CMapManager() : mc_pcurEnvironmentData(NULL)
+CMapManager::CMapManager() :
+	mc_pcurEnvironmentData(NULL),
+	m_pLastLightEnvironmentData(NULL),
+	m_dwLightVersion(0)
 {
 	m_pkMap = NULL;
 	m_isSoftwareTilingEnableReserved=false;
@@ -88,6 +92,8 @@ void CMapManager::ReserveSoftwareTilingEnable(bool isEnable)
 void CMapManager::Initialize()
 {
 	mc_pcurEnvironmentData = NULL;
+	m_pLastLightEnvironmentData = NULL;
+	m_dwLightVersion = 0;
 	__LoadMapInfoVector();
 }
 
@@ -285,7 +291,15 @@ void CMapManager::BeginEnvironment()
 	{
 		ms_lpd3dDevice->LightEnable(0, TRUE);
 
-		rkMap.ApplyLight((DWORD)mc_pcurEnvironmentData, mc_pcurEnvironmentData->DirLights[ENV_DIRLIGHT_BACKGROUND]);		
+		if (m_pLastLightEnvironmentData != mc_pcurEnvironmentData)
+		{
+			m_pLastLightEnvironmentData = mc_pcurEnvironmentData;
+			++m_dwLightVersion;
+			if (m_dwLightVersion == 0)
+				++m_dwLightVersion;
+		}
+
+		rkMap.ApplyLight(m_dwLightVersion, mc_pcurEnvironmentData->DirLights[ENV_DIRLIGHT_BACKGROUND]);		
 	}
 	else
 		ms_lpd3dDevice->LightEnable(0, FALSE);
@@ -295,7 +309,7 @@ void CMapManager::BeginEnvironment()
 		const DWORD dwFogColor = mc_pcurEnvironmentData->FogColor;
 		STATEMANAGER.SetRenderState(D3DRS_FOGCOLOR, dwFogColor);
 
-		const int iFogLevel = CPythonSystem::Instance().GetFogLevel(); // 2=Dense,1=Middle,0=Light
+		const int iFogLevel = std::clamp(CPythonSystem::Instance().GetFogLevel(), 0, 2); // 2=Dense,1=Middle,0=Light
 
 		if (mc_pcurEnvironmentData->bDensityFog && (mc_pcurEnvironmentData->bFogLevel != 0))
 		{

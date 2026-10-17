@@ -751,7 +751,7 @@ LPDIRECT3DTEXTURE9 CTerrain::AddTexture32(BYTE byImageNum, BYTE * pbyImage, long
 	
 		hr = pkTex->LockRect(uMipMapLevel, &d3dlr, 0, 0);
 		if (FAILED(hr))
-			continue;
+			break;
 
 		if(ms_bSupportDXT)
 			PutImage32(pbDstBuffer, (BYTE*) d3dlr.pBits, uDstSize, d3dlr.Pitch, uDstSize, uDstSize, bResizedAndSuccess);

@@ -143,10 +143,10 @@ void CTerrainRenderExtractor::ExtractAndSubmitVisibleNodes(CMapOutdoor* pMapOutd
 		return;
 
 	uint32_t count = 0;
-	TTerrainSectorPacket packet{};
 
 	for (const uint32_t patchNum : visibleNodes)
 	{
+		TTerrainSectorPacket packet{};
 		if (ExtractPatch(pMapOutdoor, patchNum, packet))
 		{
 			CRenderQueueManager::Instance().SubmitTerrain(packet);
