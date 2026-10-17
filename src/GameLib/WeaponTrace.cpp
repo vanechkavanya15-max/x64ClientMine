@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "EterLib/ResourceManager.h"
 #include "EterLib/StateManager.h"
+#include "EterLib/RenderOwnership.h"
 
 #include "WeaponTrace.h"
 
@@ -323,10 +324,13 @@ void CWeaponTrace::Render()
 	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
 	STATEMANAGER.SetTexture(0, lpTexture);
 	STATEMANAGER.SetTexture(1, NULL);
-	STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,
-								 int(m_PDTVertexVector.size() - 2),
-								 &m_PDTVertexVector[0],
-								 sizeof(TPDTVertex));
+	if (RenderOwnership::LegacyDraws(ERenderCategory::WeaponTrace))
+	{
+		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,
+									 int(m_PDTVertexVector.size() - 2),
+									 &m_PDTVertexVector[0],
+									 sizeof(TPDTVertex));
+	}
 
 	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
 	STATEMANAGER.RestoreRenderState(D3DRS_ZFUNC);

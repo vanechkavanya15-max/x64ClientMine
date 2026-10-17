@@ -2,6 +2,7 @@
 #include "D3D9RenderBackend.h"
 #include "StateManager.h"
 #include "GrpBase.h"
+#include "RenderOwnership.h"
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include "Render/TerrainShaderPipeline.h"
 #include "RenderOwnership.h"
@@ -127,6 +128,9 @@ void CD3D9RenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned in
 	if (!pPackets || count == 0)
 		return;
 
+	if (RenderOwnership::Owner(ERenderCategory::SkyBox) != ERenderOwner::D3D9Backend)
+		return;
+
 	// W trybie hybrydowym (Strangler Fig) CSkyBox::Render() oraz CSkyBox::RenderCloud()
 	// odpowiadaja za bezposrednie rysowanie nieba i chmur w Direct3D 9 z pelnymi teksturami 64-bit.
 	// Pakiety TSkyBoxPacket w kolejce sluza wylacznie do eksportu Golden Master oraz dla backendu WGPU.
@@ -224,6 +228,9 @@ void CD3D9RenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int 
 {
 	if (!pPackets || count == 0)
 		return;
+
+	if (RenderOwnership::Owner(ERenderCategory::Water) != ERenderOwner::D3D9Backend)
+		return;
 }
 
 void CD3D9RenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsigned int count)
@@ -309,9 +316,11 @@ static void EnsureSharedQuadIndices(std::vector<uint16_t>& indices, uint32_t req
 
 void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, unsigned int count)
 {
-	if (!pPackets || count == 0)
+	if (RenderOwnership::Owner(ERenderCategory::Effect) != ERenderOwner::D3D9Backend)
 		return;
 
+	if (!pPackets || count == 0)
+		return;
 	if (!m_pUIVertexDecl)
 		InitVertexDeclarations();
 
@@ -443,6 +452,9 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 
 void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int count)
 {
+	if (RenderOwnership::Owner(ERenderCategory::UI) != ERenderOwner::D3D9Backend)
+		return;
+
 	if (!pPackets || count == 0)
 		return;
 

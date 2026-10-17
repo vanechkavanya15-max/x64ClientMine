@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "MovieMan.h"
 #include "PythonApplication.h"
+#include "EterLib/RenderOwnership.h"
 
 // 2007-08-19, nuclei
 // add following files to the [Project Settings-Linker-Input]
@@ -129,6 +130,9 @@ BOOL CMovieMan::PlayTutorial(LONG nIdx)
 
 BOOL CMovieMan::PlayMovie( const char *cpFileName, const bool bSkipAllowed, const int nPostEffectID, const DWORD dwPostEffectData )
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Movie))
+		return FALSE;
+
 	HWND hWnd = CPythonApplication::Instance().GetWindowHandle();
 
 	IDirectDraw *pDD = NULL;
@@ -335,9 +339,12 @@ HRESULT CMovieMan::RenderStreamToSurface(IDirectDrawSurface *pSurface, IDirectDr
 		{
 			// 윈도우 중앙을 기준으로 꽉차게 그린다
 			CalcMovieRect(m_movieWidth, m_movieHeight, movieRect);
-			if (FAILED(m_pPrimarySurface->Blt(&movieRect, pSurface, NULL, DDBLT_WAIT, NULL)))
+			if (RenderOwnership::LegacyDraws(ERenderCategory::Movie))
 			{
-				GDIBlt(pSurface, &movieRect);
+				if (FAILED(m_pPrimarySurface->Blt(&movieRect, pSurface, NULL, DDBLT_WAIT, NULL)))
+				{
+					GDIBlt(pSurface, &movieRect);
+				}
 			}
 
 			// 중간에 스킵 가능하면 키보드ESC/마우스 입력시 탈출

@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/ResourceManager.h"
+#include "EterLib/RenderOwnership.h"
 #include "EffectMeshInstance.h"
 #include "Eterlib/GrpMath.h"
 
@@ -213,10 +214,13 @@ void CEffectMeshInstance::OnRender()
 		Color.a = fAlpha * rFrameData.fVisibility;
 		STATEMANAGER.SaveRenderState(D3DRS_TEXTUREFACTOR, DWORD(Color));
 		STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
-		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLELIST,
-									 rFrameData.dwIndexCount/3,
-									 rFrameData.PDTVertexVector.data(),
-									 sizeof(TPTVertex));
+		if (RenderOwnership::LegacyDraws(ERenderCategory::EffectMesh))
+		{
+			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+										 rFrameData.dwIndexCount/3,
+										 rFrameData.PDTVertexVector.data(),
+										 sizeof(TPTVertex));
+		}
 		RestoreEffectMeshStates(false);
 		// Render //
 	}

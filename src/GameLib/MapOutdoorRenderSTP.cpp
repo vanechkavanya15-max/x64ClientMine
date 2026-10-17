@@ -5,6 +5,7 @@
 
 #include "EterLib/Camera.h"
 #include "EterLib/StateManager.h"
+#include "EterLib/RenderOwnership.h"
 
 struct SoftwareTransformPatch_SSplatVertex
 {
@@ -19,6 +20,9 @@ struct SoftwareTransformPatch_SSplatVertex
 
 void CMapOutdoor::__RenderTerrain_RenderSoftwareTransformPatch()
 {	
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Terrain))
+		return;
+
 	// Bezwzgledna gwarancja RAII: czyszczenie shaderow/deklaracji oraz ustawienie FVF
 	ScopedD3DFFPGuard stpFFPGuard(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX2, false);
 
@@ -336,9 +340,12 @@ void CMapOutdoor::__SoftwareTransformPatch_RenderPatchNone(SoftwareTransformPatc
 
 	pkVB->Unlock();
 
-	STATEMANAGER.SetStreamSource(0, pkVB, sizeof(SoftwareTransformPatch_STVertex));
-	STATEMANAGER.DrawIndexedPrimitive(ePrimitiveType, 0, m_iPatchTerrainVertexCount, 0, wPrimitiveCount);
-	ms_faceCount += wPrimitiveCount;
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Terrain))
+	{
+		STATEMANAGER.SetStreamSource(0, pkVB, sizeof(SoftwareTransformPatch_STVertex));
+		STATEMANAGER.DrawIndexedPrimitive(ePrimitiveType, 0, m_iPatchTerrainVertexCount, 0, wPrimitiveCount);
+		ms_faceCount += wPrimitiveCount;
+	}
 }
 
 void CMapOutdoor::__SoftwareTransformPatch_ApplyStaticShadowRenderState()

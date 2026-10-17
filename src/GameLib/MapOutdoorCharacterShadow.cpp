@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/Camera.h"
+#include "EterLib/RenderOwnership.h"
 
 #include "MapOutdoor.h"
 
@@ -66,6 +67,9 @@ DWORD dwLightEnable = FALSE;
 
 bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Shadow))
+		return false;
+
 	D3DXMATRIX matLightView, matLightProj;
 	
 	CCamera* pCurrentCamera = CCameraManager::Instance().GetCurrentCamera();
@@ -121,6 +125,9 @@ bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 
 void CMapOutdoor::EndRenderCharacterShadowToTexture()
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Shadow))
+		return;
+
 	ms_lpd3dDevice->SetViewport(&m_BackupViewport);
 
 	ms_lpd3dDevice->SetDepthStencilSurface(m_lpBackupDepthSurface);

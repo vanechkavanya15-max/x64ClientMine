@@ -44,6 +44,7 @@
 #include "EterLib/ResourceManager.h"
 #include "EterLib/Camera.h"
 #include "EterLib/StateManager.h"
+#include "EterLib/RenderOwnership.h"
 
 #include "SpeedTreeConfig.h"
 #include "SpeedTreeForestDirectX.h"
@@ -1004,7 +1005,8 @@ void CSpeedTreeWrapper::RenderBranches(void) const
 			if (stripLength > 2)
 			{
 				ms_faceCount += stripLength - 2;
-				STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, 0, m_pGeometryCache->m_sBranches.m_usVertexCount, m_branchStripOffsets[s], stripLength - 2);
+				if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+					STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, 0, m_pGeometryCache->m_sBranches.m_usVertexCount, m_branchStripOffsets[s], stripLength - 2);
 			}
 		}
 	}
@@ -1084,7 +1086,8 @@ void CSpeedTreeWrapper::RenderFronds(void) const
 			if (stripLength > 2)
 			{
 				ms_faceCount += stripLength - 2;
-				STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, 0, m_pGeometryCache->m_sFronds.m_usVertexCount, m_frondStripOffsets[s], stripLength - 2);
+				if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+					STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, 0, m_pGeometryCache->m_sFronds.m_usVertexCount, m_frondStripOffsets[s], stripLength - 2);
 			}
 		}
 	}
@@ -1254,7 +1257,8 @@ void CSpeedTreeWrapper::RenderLeaves(void) const
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, static_cast<DWORD>(pLeaf->m_fAlphaTestValue));
 		
 		ms_faceCount += pLeaf->m_usLeafCount * 2;
-		STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, pLeaf->m_usLeafCount * 2);
+		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+			STATEMANAGER.DrawPrimitive(D3DPT_TRIANGLELIST, 0, pLeaf->m_usLeafCount * 2);
 	}
 }
 
@@ -1309,7 +1313,8 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sBillboard0.m_fAlphaTestValue));
 		
 		ms_faceCount += 2;
-		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
+		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
 	
 	// if tree supports 360 degree billboards, render the second
@@ -1327,7 +1332,8 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sBillboard1.m_fAlphaTestValue));
 		
 		ms_faceCount += 2;
-		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
+		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
 	
 #ifdef WRAPPER_RENDER_HORIZONTAL_BILLBOARD
@@ -1346,7 +1352,8 @@ void CSpeedTreeWrapper::RenderBillboards(void) const
 		STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, DWORD(m_pGeometryCache->m_sHorizontalBillboard.m_fAlphaTestValue));
 		
 		ms_faceCount += 2;
-		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
+		if (RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, sVertex, sizeof(SBillboardVertex));
 	}
 	
 #endif

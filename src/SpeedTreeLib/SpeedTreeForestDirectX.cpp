@@ -37,6 +37,7 @@
 #include "EterBase/Timer.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/Camera.h"
+#include "EterLib/RenderOwnership.h"
 
 #include "SpeedTreeForestDirectX.h"
 #include "SpeedTreeConfig.h"
@@ -144,6 +145,9 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 
 	// Przekazuj partie drzew do CRenderQueueManager
 	SubmitTreePackets(ulRenderBitVector);
+
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree))
+		return;
 
 	// Gwarancja RAII: wyczyszczenie deklaracji wierzcholkow po zakonczeniu renderowania drzew SpeedTree
 	ScopedD3DVertexDeclGuard speedTreeDeclGuard(nullptr, false);
