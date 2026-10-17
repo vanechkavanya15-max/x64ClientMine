@@ -5,7 +5,7 @@
 #include "RenderOwnership.h"
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include "Render/TerrainShaderPipeline.h"
-#include "RenderOwnership.h"
+#include "CFrameSnapshot.h"
 
 CD3D9RenderBackend::CD3D9RenderBackend()
 {
@@ -99,25 +99,28 @@ void CD3D9RenderBackend::OnResetDevice()
 void CD3D9RenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 {
 	m_currentUniforms = uniforms;
-	if (uniforms.matView._44 != 0.0f || uniforms.matView._11 != 0.0f || uniforms.matView._22 != 0.0f)
+	const TFrameSnapshot& snapshot = CFrameSnapshot::Current();
+
+	if (m_currentUniforms.matView._44 == 0.0f && m_currentUniforms.matView._11 == 0.0f && m_currentUniforms.matView._22 == 0.0f)
 	{
-		STATEMANAGER.SetTransform(D3DTS_VIEW, &uniforms.matView);
+		m_currentUniforms.matView = snapshot.matView;
+	}
+	STATEMANAGER.SetTransform(D3DTS_VIEW, &m_currentUniforms.matView);
+
+	if (m_currentUniforms.matProj._34 == 0.0f && m_currentUniforms.matProj._11 == 0.0f && m_currentUniforms.matProj._22 == 0.0f)
+	{
+		m_currentUniforms.matProj = snapshot.matProj;
+	}
+	STATEMANAGER.SetTransform(D3DTS_PROJECTION, &m_currentUniforms.matProj);
+
+	if (m_currentUniforms.matViewProj._44 == 0.0f && m_currentUniforms.matViewProj._11 == 0.0f)
+	{
+		m_currentUniforms.matViewProj = snapshot.matViewProj;
 	}
 	else
 	{
-		STATEMANAGER.GetTransform(D3DTS_VIEW, &m_currentUniforms.matView);
+		D3DXMatrixMultiply(&m_currentUniforms.matViewProj, &m_currentUniforms.matView, &m_currentUniforms.matProj);
 	}
-
-	if (uniforms.matProj._34 != 0.0f || uniforms.matProj._11 != 0.0f || uniforms.matProj._22 != 0.0f)
-	{
-		STATEMANAGER.SetTransform(D3DTS_PROJECTION, &uniforms.matProj);
-	}
-	else
-	{
-		STATEMANAGER.GetTransform(D3DTS_PROJECTION, &m_currentUniforms.matProj);
-	}
-
-	D3DXMatrixMultiply(&m_currentUniforms.matViewProj, &m_currentUniforms.matView, &m_currentUniforms.matProj);
 }
 
 void CD3D9RenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned int count)
@@ -207,9 +210,6 @@ void CD3D9RenderBackend::RenderActors(const TActorRenderPacket* pPackets, unsign
 	if (!pPackets || count == 0)
 		return;
 
-	D3DXMATRIX matSavedWorld;
-	STATEMANAGER.GetTransform(D3DTS_WORLD, &matSavedWorld);
-
 	for (unsigned int i = 0; i < count; ++i)
 	{
 		const TActorRenderPacket& pkt = pPackets[i];
@@ -220,8 +220,6 @@ void CD3D9RenderBackend::RenderActors(const TActorRenderPacket* pPackets, unsign
 			STATEMANAGER.SetVertexShaderConstant(4, pBones, matrixCount * 4);
 		}
 	}
-
-	STATEMANAGER.SetTransform(D3DTS_WORLD, &matSavedWorld);
 }
 
 void CD3D9RenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int count)
@@ -324,8 +322,9 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 	if (!m_pUIVertexDecl)
 		InitVertexDeclarations();
 
-	D3DXMATRIX matView;
-	STATEMANAGER.GetTransform(D3DTS_VIEW, &matView);
+	const D3DXMATRIX& matView = (m_currentUniforms.matView._11 != 0.0f || m_currentUniforms.matView._44 != 0.0f)
+		? m_currentUniforms.matView
+		: CFrameSnapshot::Current().matView;
 	const D3DXVECTOR3 vRight(matView._11, matView._21, matView._31);
 	const D3DXVECTOR3 vUp(matView._12, matView._22, matView._32);
 
@@ -602,8 +601,9 @@ void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 	if (!m_pDungeonVertexDecl)
 		InitVertexDeclarations();
 
-	D3DXMATRIX matSavedWorld;
-	STATEMANAGER.GetTransform(D3DTS_WORLD, &matSavedWorld);
+	D3DXMATRIX matIdentity;
+	D3DXMatrixIdentity(&matIdentity);
+	STATEMANAGER.SaveTransform(D3DTS_WORLD, &matIdentity);
 
 	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
 	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
@@ -734,7 +734,7 @@ void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
 	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
 	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
-	STATEMANAGER.SetTransform(D3DTS_WORLD, &matSavedWorld);
+	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 }
 
 void CD3D9RenderBackend::EndFrame()

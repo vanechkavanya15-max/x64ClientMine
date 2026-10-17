@@ -6519,6 +6519,27 @@ target_link_libraries(test_c26_ui_flush_barrier PRIVATE
 )
 add_test(NAME UiFlushBarrierTest COMMAND test_c26_ui_flush_barrier)
 
-
-
-
+add_executable(test_c26_frame_snapshot test_c26_frame_snapshot.cpp)
+target_include_directories(test_c26_frame_snapshot PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_frame_snapshot PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
+add_test(NAME FrameSnapshotTest COMMAND test_c26_frame_snapshot)
