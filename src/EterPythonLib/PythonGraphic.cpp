@@ -8,6 +8,8 @@ bool g_isScreenShotKey = false;
 
 void CPythonGraphic::Destroy()
 {	
+	m_bScreenShotRequest = false;
+	m_strScreenShotFileName.clear();
 }
 
 LPDIRECT3D9EX CPythonGraphic::GetD3D()
@@ -174,111 +176,193 @@ bool CPythonGraphic::SaveJPEG(const char * pszFileName, LPBYTE pbyBuffer, UINT u
 
 bool CPythonGraphic::SaveScreenShot(const char * c_pszFileName)
 {
-	HRESULT hr;
-	LPDIRECT3DSURFACE9 lpSurface;
-	D3DSURFACE_DESC stSurfaceDesc;
-
-	if (FAILED(hr = ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &lpSurface)))
-	{
-		TraceError("Failed to get back buffer (0x%08x)", hr);
+	if (!c_pszFileName || !c_pszFileName[0])
 		return false;
+
+	m_bScreenShotRequest = true;
+	m_strScreenShotFileName = c_pszFileName;
+	return true;
+}
+
+bool CPythonGraphic::RequestScreenShot(const char * c_pszFileName)
+{
+	return SaveScreenShot(c_pszFileName);
+}
+
+void CPythonGraphic::End()
+{
+	CScreen::End();
+
+	if (m_bScreenShotRequest)
+	{
+		ProcessScreenShot();
+	}
+}
+
+bool CPythonGraphic::ProcessScreenShot()
+{
+	if (!m_bScreenShotRequest)
+		return false;
+
+	m_bScreenShotRequest = false;
+	std::string fileName = m_strScreenShotFileName;
+	m_strScreenShotFileName.clear();
+	return ExecuteScreenShot(fileName.c_str());
+}
+
+bool CPythonGraphic::ExecuteScreenShot(const char * c_pszFileName)
+{
+	if (!c_pszFileName || !c_pszFileName[0])
+		return false;
+
+	if (!ms_lpd3dDevice)
+		return false;
+
+	HRESULT hr;
+	LPDIRECT3DSURFACE9 lpRenderTarget = nullptr;
+
+	if (FAILED(hr = ms_lpd3dDevice->GetRenderTarget(0, &lpRenderTarget)) || !lpRenderTarget)
+	{
+		if (FAILED(hr = ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &lpRenderTarget)) || !lpRenderTarget)
+		{
+			TraceError("Failed to get render target / back buffer (0x%08x)", hr);
+			return false;
+		}
 	}
 
-	if (FAILED(hr = lpSurface->GetDesc(&stSurfaceDesc)))
+	D3DSURFACE_DESC stSurfaceDesc;
+	if (FAILED(hr = lpRenderTarget->GetDesc(&stSurfaceDesc)))
 	{
 		TraceError("Failed to get surface desc (0x%08x)", hr);
-		SAFE_RELEASE(lpSurface);
+		SAFE_RELEASE(lpRenderTarget);
 		return false;
 	}
 
 	UINT uWidth = stSurfaceDesc.Width;
 	UINT uHeight = stSurfaceDesc.Height;
 
-	switch( stSurfaceDesc.Format ) {
-	case D3DFMT_R8G8B8 :
-	case D3DFMT_A8R8G8B8 :
-	case D3DFMT_X8R8G8B8 :
-	case D3DFMT_R5G6B5 :
-	case D3DFMT_X1R5G5B5 :
-	case D3DFMT_A1R5G5B5 :
+	switch (stSurfaceDesc.Format)
+	{
+	case D3DFMT_R8G8B8:
+	case D3DFMT_A8R8G8B8:
+	case D3DFMT_X8R8G8B8:
+	case D3DFMT_R5G6B5:
+	case D3DFMT_X1R5G5B5:
+	case D3DFMT_A1R5G5B5:
 		break;
-	case D3DFMT_A4R4G4B4 :
-	case D3DFMT_R3G3B2 :
-	case D3DFMT_A8R3G3B2 :
-	case D3DFMT_X4R4G4B4 :
-	case D3DFMT_A2B10G10R10 :
-		TraceError("Unsupported BackBuffer Format(%d). Please contact Metin 2 Administrator.", stSurfaceDesc.Format);
-		SAFE_RELEASE(lpSurface);
+	case D3DFMT_A4R4G4B4:
+	case D3DFMT_R3G3B2:
+	case D3DFMT_A8R3G3B2:
+	case D3DFMT_X4R4G4B4:
+	case D3DFMT_A2B10G10R10:
+	default:
+		TraceError("Unsupported Surface Format(%d).", stSurfaceDesc.Format);
+		SAFE_RELEASE(lpRenderTarget);
+		return false;
+	}
+
+	LPDIRECT3DSURFACE9 lpSysMemSurface = nullptr;
+	hr = ms_lpd3dDevice->CreateOffscreenPlainSurface(
+		uWidth,
+		uHeight,
+		stSurfaceDesc.Format,
+		D3DPOOL_SYSTEMMEM,
+		&lpSysMemSurface,
+		NULL
+	);
+
+	if (FAILED(hr) || !lpSysMemSurface)
+	{
+		TraceError("Failed to create offscreen plain surface in SYSTEMMEM (0x%08x)", hr);
+		SAFE_RELEASE(lpRenderTarget);
+		return false;
+	}
+
+	hr = ms_lpd3dDevice->GetRenderTargetData(lpRenderTarget, lpSysMemSurface);
+	SAFE_RELEASE(lpRenderTarget);
+
+	if (FAILED(hr))
+	{
+		TraceError("Failed to GetRenderTargetData (0x%08x)", hr);
+		SAFE_RELEASE(lpSysMemSurface);
 		return false;
 	}
 
 	D3DLOCKED_RECT lockRect;
-	if (FAILED(hr = lpSurface->LockRect(&lockRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_READONLY | D3DLOCK_NOSYSLOCK)))
+	if (FAILED(hr = lpSysMemSurface->LockRect(&lockRect, NULL, D3DLOCK_READONLY)))
 	{
-		TraceError("Failed to lock the surface (0x%08x)", hr);
-		SAFE_RELEASE(lpSurface);
+		TraceError("Failed to lock system surface (0x%08x)", hr);
+		SAFE_RELEASE(lpSysMemSurface);
 		return false;
 	}
 
-	uint8_t* pbyBuffer = new uint8_t[uWidth * uHeight * 3];
-	if (pbyBuffer == NULL) {
-		lpSurface->UnlockRect();
-		lpSurface->Release();
-		lpSurface = NULL;
+	uint8_t* pbyBuffer = new (std::nothrow) uint8_t[uWidth * uHeight * 3];
+	if (pbyBuffer == NULL)
+	{
+		lpSysMemSurface->UnlockRect();
+		SAFE_RELEASE(lpSysMemSurface);
 		TraceError("Failed to allocate screenshot buffer");
 		return false;
 	}
-	uint8_t* pbySource = (uint8_t*) lockRect.pBits;
-	uint8_t* pbyDestination = (uint8_t*) pbyBuffer;
-	for(UINT y = 0; y < uHeight; ++y) {
-		uint8_t*pRow = pbySource;
 
-		switch( stSurfaceDesc.Format ) {
-		case D3DFMT_R8G8B8 :
-			for(UINT x = 0; x < uWidth; ++x) {
+	uint8_t* pbySource = (uint8_t*)lockRect.pBits;
+	uint8_t* pbyDestination = (uint8_t*)pbyBuffer;
+
+	for (UINT y = 0; y < uHeight; ++y)
+	{
+		uint8_t* pRow = pbySource;
+
+		switch (stSurfaceDesc.Format)
+		{
+		case D3DFMT_R8G8B8:
+			for (UINT x = 0; x < uWidth; ++x)
+			{
 				*pbyDestination++ = pRow[2];	// Blue
 				*pbyDestination++ = pRow[1];	// Green
 				*pbyDestination++ = pRow[0];	// Red
 				pRow += 3;
 			}
 			break;
-		case D3DFMT_A8R8G8B8 :
-		case D3DFMT_X8R8G8B8 :
-			for(UINT x = 0; x < uWidth; ++x) {
+		case D3DFMT_A8R8G8B8:
+		case D3DFMT_X8R8G8B8:
+			for (UINT x = 0; x < uWidth; ++x)
+			{
 				*pbyDestination++ = pRow[2];	// Blue
 				*pbyDestination++ = pRow[1];	// Green
 				*pbyDestination++ = pRow[0];	// Red
 				pRow += 4;
 			}
 			break;
-		case D3DFMT_R5G6B5 :
+		case D3DFMT_R5G6B5:
 			{
-				for(UINT x = 0; x < uWidth; ++x) {
-					UINT uColor		= *((UINT *) pRow);
-					uint8_t byBlue		= (uColor >> 11) & 0x1F;
-					uint8_t byGreen	= (uColor >> 5) & 0x3F;
-					uint8_t byRed		= uColor & 0x1F;
+				const uint16_t* pPixel = reinterpret_cast<const uint16_t*>(pRow);
+				for (UINT x = 0; x < uWidth; ++x)
+				{
+					uint16_t uColor = pPixel[x];
+					uint8_t byBlue  = (uColor >> 11) & 0x1F;
+					uint8_t byGreen = (uColor >> 5) & 0x3F;
+					uint8_t byRed   = uColor & 0x1F;
 
-					*pbyDestination++ = (byBlue << 3)	| (byBlue >> 2);		// Blue
-					*pbyDestination++ = (byGreen << 2)	| (byGreen >> 2);		// Green
-					*pbyDestination++ = (byRed << 3)	| (byRed >> 2);			// Red
-					pRow += 2;
+					*pbyDestination++ = (byBlue << 3)  | (byBlue >> 2);		// Blue
+					*pbyDestination++ = (byGreen << 2) | (byGreen >> 2);	// Green
+					*pbyDestination++ = (byRed << 3)   | (byRed >> 2);		// Red
 				}
 			}
 			break;
-		case D3DFMT_X1R5G5B5 :
-		case D3DFMT_A1R5G5B5 :
+		case D3DFMT_X1R5G5B5:
+		case D3DFMT_A1R5G5B5:
 			{
-				for(UINT x = 0; x < uWidth; ++x) {
-					UINT uColor		= *((UINT *) pRow);
-					uint8_t byBlue		= (uColor >> 10) & 0x1F;
-					uint8_t byGreen	= (uColor >> 5) & 0x1F;
-					uint8_t byRed		= uColor & 0x1F;
+				const uint16_t* pPixel = reinterpret_cast<const uint16_t*>(pRow);
+				for (UINT x = 0; x < uWidth; ++x)
+				{
+					uint16_t uColor = pPixel[x];
+					uint8_t byBlue  = (uColor >> 10) & 0x1F;
+					uint8_t byGreen = (uColor >> 5) & 0x1F;
+					uint8_t byRed   = uColor & 0x1F;
 
-					*pbyDestination++ = (byBlue << 3)	| (byBlue >> 2);		// Blue
-					*pbyDestination++ = (byGreen << 3)	| (byGreen >> 2);		// Green
-					*pbyDestination++ = (byRed << 3)	| (byRed >> 2);			// Red
-					pRow += 2;
+					*pbyDestination++ = (byBlue << 3)  | (byBlue >> 2);		// Blue
+					*pbyDestination++ = (byGreen << 3) | (byGreen >> 2);	// Green
+					*pbyDestination++ = (byRed << 3)   | (byRed >> 2);		// Red
 				}
 			}
 			break;
@@ -288,101 +372,111 @@ bool CPythonGraphic::SaveScreenShot(const char * c_pszFileName)
 		pbySource += lockRect.Pitch;
 	}
 
-	if(lpSurface) {
-		lpSurface->UnlockRect();
-		lpSurface->Release();
-		lpSurface = NULL;
-	}
+	lpSysMemSurface->UnlockRect();
+	SAFE_RELEASE(lpSysMemSurface);
 
 	bool bSaved = SaveJPEG(c_pszFileName, pbyBuffer, uWidth, uHeight);
 
-	if(pbyBuffer) {
-		delete [] pbyBuffer;
-		pbyBuffer = NULL;
-	}
+	delete[] pbyBuffer;
+	pbyBuffer = NULL;
 
-	if(bSaved == false) {
+	if (bSaved == false)
+	{
 		TraceError("Failed to save JPEG file. (%s, %d, %d)", c_pszFileName, uWidth, uHeight);
 		return false;
 	}
 
 	if (g_isScreenShotKey)
 	{
-		// UTF-8 → UTF-16 conversion for Unicode path support
+		// UTF-8 -> UTF-16 conversion for Unicode path support
 		std::wstring wFileName = Utf8ToWide(c_pszFileName);
 		FILE* srcFilePtr = _wfopen(wFileName.c_str(), L"rb");
 		if (srcFilePtr)
 		{
-			fseek(srcFilePtr, 0, SEEK_END);		
-			size_t fileSize = ftell(srcFilePtr);
-			fseek(srcFilePtr, 0, SEEK_SET);
-
-			char head[21];
-			size_t tailSize = fileSize - sizeof(head);
-			char* tail = (char*)malloc(tailSize);
-			
-			fread(head, sizeof(head), 1, srcFilePtr);
-			fread(tail, tailSize, 1, srcFilePtr);
-			fclose(srcFilePtr);
-
-			char imgDesc[64];
-			GenScreenShotTag(c_pszFileName, GetCRC32(tail, tailSize), imgDesc, sizeof(imgDesc));
-
-			int imgDescLen = strlen(imgDesc) + 1;
-			
-			unsigned char exifHeader[] = {
-				0xe1,
-				0, // blockLen[1],
-				0, // blockLen[0],
-				0x45,
-				0x78,
-				0x69,
-				0x66,
-				0x0,
-				0x0,
-				0x49,
-				0x49,
-				0x2a,
-				0x0,
-				0x8,
-				0x0,
-				0x0,
-				0x0,
-				0x1,
-				0x0,
-				0xe,
-				0x1,
-				0x2,
-				0x0,
-				static_cast<unsigned char>(imgDescLen), // textLen[0],
-				0, // textLen[1],
-				0, // textLen[2],
-				0, // textLen[3],
-				0x1a,
-				0x0,
-				0x0,
-				0x0,
-				0x0,
-				0x0,
-				0x0,
-				0x0,
-			};
-
-			exifHeader[2] = sizeof(exifHeader) + imgDescLen;
-
-			FILE* dstFilePtr = _wfopen(wFileName.c_str(), L"wb");
-			if (dstFilePtr)
+			if (fseek(srcFilePtr, 0, SEEK_END) == 0)
 			{
-				fwrite(head, sizeof(head), 1, dstFilePtr);
-				fwrite(exifHeader, sizeof(exifHeader), 1, dstFilePtr);
-				fwrite(imgDesc, imgDescLen, 1, dstFilePtr);
-				fputc(0x00, dstFilePtr);
-				fputc(0xff, dstFilePtr);
-				fwrite(tail, tailSize, 1, dstFilePtr);
-				fclose(dstFilePtr);
-			}
+				long ftellResult = ftell(srcFilePtr);
+				if (ftellResult > 21)
+				{
+					size_t fileSize = static_cast<size_t>(ftellResult);
+					fseek(srcFilePtr, 0, SEEK_SET);
 
-			free(tail);
+					char head[21];
+					size_t tailSize = fileSize - sizeof(head);
+					char* tail = static_cast<char*>(malloc(tailSize));
+					if (tail)
+					{
+						if (fread(head, sizeof(head), 1, srcFilePtr) == 1 &&
+							fread(tail, tailSize, 1, srcFilePtr) == 1)
+						{
+							fclose(srcFilePtr);
+							srcFilePtr = nullptr;
+
+							char imgDesc[64];
+							GenScreenShotTag(c_pszFileName, GetCRC32(tail, tailSize), imgDesc, sizeof(imgDesc));
+
+							int imgDescLen = static_cast<int>(strlen(imgDesc)) + 1;
+
+							unsigned char exifHeader[] = {
+								0xe1,
+								0, // blockLen[1],
+								0, // blockLen[0],
+								0x45,
+								0x78,
+								0x69,
+								0x66,
+								0x0,
+								0x0,
+								0x49,
+								0x49,
+								0x2a,
+								0x0,
+								0x8,
+								0x0,
+								0x0,
+								0x0,
+								0x1,
+								0x0,
+								0xe,
+								0x1,
+								0x2,
+								0x0,
+								static_cast<unsigned char>(imgDescLen), // textLen[0],
+								0, // textLen[1],
+								0, // textLen[2],
+								0, // textLen[3],
+								0x1a,
+								0x0,
+								0x0,
+								0x0,
+								0x0,
+								0x0,
+								0x0,
+								0x0,
+							};
+
+							exifHeader[2] = static_cast<unsigned char>(sizeof(exifHeader) + imgDescLen);
+
+							FILE* dstFilePtr = _wfopen(wFileName.c_str(), L"wb");
+							if (dstFilePtr)
+							{
+								fwrite(head, sizeof(head), 1, dstFilePtr);
+								fwrite(exifHeader, sizeof(exifHeader), 1, dstFilePtr);
+								fwrite(imgDesc, imgDescLen, 1, dstFilePtr);
+								fputc(0x00, dstFilePtr);
+								fputc(0xff, dstFilePtr);
+								fwrite(tail, tailSize, 1, dstFilePtr);
+								fclose(dstFilePtr);
+							}
+						}
+						free(tail);
+					}
+				}
+			}
+			if (srcFilePtr)
+			{
+				fclose(srcFilePtr);
+			}
 		}
 	}
 	return true;
@@ -620,6 +714,9 @@ CPythonGraphic::CPythonGraphic()
 	memset(&m_backupViewport, 0, sizeof(D3DVIEWPORT9));
 
 	m_fOrthoDepth = 1000.0f;
+
+	m_bScreenShotRequest = false;
+	m_strScreenShotFileName.clear();
 }
 
 CPythonGraphic::~CPythonGraphic()

@@ -63,56 +63,58 @@ void CWeaponTrace::Update(float fReachScale)
 		D3DXMATRIX * pMatrix;
 		if (m_pInstance->GetCompositeBoneMatrix(m_dwModelInstanceIndex, m_iBoneIndex, &pMatrix))
 		{
-			D3DXMATRIX * pBoneMat;
-			m_pInstance->GetBoneMatrix(m_dwModelInstanceIndex, m_iBoneIndex, &pBoneMat);
-			D3DXMATRIX mat = *pMatrix;
-			mat._41 = pBoneMat->_41;
-			mat._42 = pBoneMat->_42;
-			mat._43 = pBoneMat->_43;
-			// 현재 위치를 추가합니다.
-			D3DXMATRIX matPoint;
-			D3DXMATRIX matTranslation;
-			D3DXMATRIX matRotation;
+			D3DXMATRIX * pBoneMat = nullptr;
+			if (m_pInstance->GetBoneMatrix(m_dwModelInstanceIndex, m_iBoneIndex, &pBoneMat) && pBoneMat)
+			{
+				D3DXMATRIX mat = *pMatrix;
+				mat._41 = pBoneMat->_41;
+				mat._42 = pBoneMat->_42;
+				mat._43 = pBoneMat->_43;
+				// 현재 위치를 추가합니다.
+				D3DXMATRIX matPoint;
+				D3DXMATRIX matTranslation;
+				D3DXMATRIX matRotation;
 
-			//D3DXMatrixTranslation(&matTranslation, 0.0f, m_fLength, 0.0f);
-			D3DXMatrixTranslation(&matTranslation, 0.0f, 0.0f, m_fLength*fReachScale);
-			D3DXMatrixRotationZ(&matRotation, D3DXToRadian(m_fRotation));
+				//D3DXMatrixTranslation(&matTranslation, 0.0f, m_fLength, 0.0f);
+				D3DXMatrixTranslation(&matTranslation, 0.0f, 0.0f, m_fLength*fReachScale);
+				D3DXMatrixRotationZ(&matRotation, D3DXToRadian(m_fRotation));
 
 
-			matPoint = /**pMatrix*/mat * matRotation;
-			/*TPDTVertex PDTVertex;
-			PDTVertex.position.x = m_fx + matPoint._41;
-			PDTVertex.position.y = m_fy + matPoint._42;
-			PDTVertex.position.z = m_fz + matPoint._43;
-			PDTVertex.diffuse = D3DXCOLOR(1.0f, 1.0f, 1.0f, 0.1f);
-			m_PDTVertexVector.push_back(PDTVertex);*/
-			m_ShortTimePointList.push_front(
-				TTimePoint(
-					0.0f, 
-					D3DXVECTOR3(
-						m_fx + matPoint._41,
-						m_fy + matPoint._42,
-						m_fz + matPoint._43
+				matPoint = /**pMatrix*/mat * matRotation;
+				/*TPDTVertex PDTVertex;
+				PDTVertex.position.x = m_fx + matPoint._41;
+				PDTVertex.position.y = m_fy + matPoint._42;
+				PDTVertex.position.z = m_fz + matPoint._43;
+				PDTVertex.diffuse = D3DXCOLOR(1.0f, 1.0f, 1.0f, 0.1f);
+				m_PDTVertexVector.push_back(PDTVertex);*/
+				m_ShortTimePointList.push_front(
+					TTimePoint(
+						0.0f, 
+						D3DXVECTOR3(
+							m_fx + matPoint._41,
+							m_fy + matPoint._42,
+							m_fz + matPoint._43
+							)
 						)
-					)
-				);
+					);
 
-			matPoint = matTranslation * matPoint;
-			/*PDTVertex.position.x = m_fx + matPoint._41;
-			PDTVertex.position.y = m_fy + matPoint._42;
-			PDTVertex.position.z = m_fz + matPoint._43;
-			PDTVertex.diffuse = D3DXCOLOR(1.0f, 1.0f, 1.0f, 0.1f);
-			m_PDTVertexVector.push_back(PDTVertex);*/
-			m_LongTimePointList.push_front(
-				TTimePoint(
-					0.0f,
-					D3DXVECTOR3(
-						m_fx + matPoint._41,
-						m_fy + matPoint._42,
-						m_fz + matPoint._43
+				matPoint = matTranslation * matPoint;
+				/*PDTVertex.position.x = m_fx + matPoint._41;
+				PDTVertex.position.y = m_fy + matPoint._42;
+				PDTVertex.position.z = m_fz + matPoint._43;
+				PDTVertex.diffuse = D3DXCOLOR(1.0f, 1.0f, 1.0f, 0.1f);
+				m_PDTVertexVector.push_back(PDTVertex);*/
+				m_LongTimePointList.push_front(
+					TTimePoint(
+						0.0f, 
+						D3DXVECTOR3(
+							m_fx + matPoint._41,
+							m_fy + matPoint._42,
+							m_fz + matPoint._43
+							)
 						)
-					)
-				);
+					);
+			}
 		}
 	}
 
@@ -129,26 +131,19 @@ bool CWeaponTrace::BuildVertex()
 	int sp=0;
 	D3DXVECTOR3 r[max_size];
 
-	if (m_LongTimePointList.size()<=1) 
+	if (m_LongTimePointList.size() <= 1 || m_ShortTimePointList.size() <= 1) 
 		return false;
-	
 
-	//Tracef("## %f %f %f\n", m_LongTimePointList[0].second.x, m_LongTimePointList[0].second.y, m_LongTimePointList[0].second.z);
-
-	/*m_LongTimePointList.clear();
-	m_LongTimePointList.push_back(TTimePoint(0.00,D3DXVECTOR3(0,0,0)));
-	m_LongTimePointList.push_back(TTimePoint(0.01,D3DXVECTOR3(0,1,0)));
-	m_LongTimePointList.push_back(TTimePoint(0.04,D3DXVECTOR3(0,1,0)));
-	m_LongTimePointList.push_back(TTimePoint(0.05,D3DXVECTOR3(0,0,0)));
-	m_ShortTimePointList = m_LongTimePointList;
-
-  */
 	std::vector<TPDTVertex> m_ShortVertexVector, m_LongVertexVector;
 	
-	float length = std::min(m_fLifeTime, m_LongTimePointList.back().first);
-	
-	int n = m_LongTimePointList.size()-1;
-	assert(n<max_size-1);
+	int n = static_cast<int>(std::min(m_LongTimePointList.size(), m_ShortTimePointList.size())) - 1;
+	if (n >= max_size - 1)
+		n = max_size - 2;
+
+	if (n <= 0)
+		return false;
+
+	float length = std::min(m_fLifeTime, m_LongTimePointList[n].first);
 
 	// cubic spline
 
@@ -162,6 +157,8 @@ bool CWeaponTrace::BuildVertex()
 		for(i=0;i<n;++i)
 		{
 			h[i] = Input[i+1].first - Input[i].first;
+			if (fabsf(h[i]) < 0.0001f)
+				h[i] = 0.0001f;
 			r[i] = (Input[i+1].second - Input[i].second)*(3/h[i]);
 		}
 		r[n] = D3DXVECTOR3(0.0f,0.0f,0.0f);
@@ -297,7 +294,7 @@ void CWeaponTrace::Render()
 	D3DXMatrixIdentity(&matWorld);
 
 	STATEMANAGER.SaveTransform(D3DTS_WORLD, &matWorld);
-	STATEMANAGER.SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+	STATEMANAGER.SaveFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -323,15 +320,13 @@ void CWeaponTrace::Render()
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, (m_bUseTexture)?D3DTOP_SELECTARG2:D3DTOP_SELECTARG1);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
 	STATEMANAGER.SetTexture(0, lpTexture);
 	STATEMANAGER.SetTexture(1, NULL);
 	STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,
 								 int(m_PDTVertexVector.size() - 2),
 								 &m_PDTVertexVector[0],
 								 sizeof(TPDTVertex));
-	
-	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, TRUE);
 
 	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
 	STATEMANAGER.RestoreRenderState(D3DRS_ZFUNC);
@@ -347,6 +342,8 @@ void CWeaponTrace::Render()
 
 	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+	STATEMANAGER.RestoreFVF();
 }
 
 void CWeaponTrace::UseAlpha()
@@ -382,8 +379,9 @@ bool CWeaponTrace::SetWeaponInstance(CGraphicThingInstance * pInstance, DWORD dw
 	m_dwModelInstanceIndex = dwModelIndex;
 
 	m_pInstance = pInstance;
-	D3DXMATRIX * pmat;
-	pInstance->GetBoneMatrix(dwModelIndex, 0, &pmat);
+	D3DXMATRIX * pmat = nullptr;
+	if (!pInstance->GetBoneMatrix(dwModelIndex, 0, &pmat) || !pmat)
+		return false;
 	D3DXVECTOR3 v3Bone(pmat->_41,pmat->_42,pmat->_43);
 
 	const auto vv1 = (v3Bone - v3Min);

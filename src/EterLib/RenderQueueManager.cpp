@@ -448,7 +448,13 @@ bool CRenderQueueManager::CaptureReferenceScreenshot(const char* c_pszFileName) 
 	if (FAILED(dev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer)) || !pBackBuffer)
 		return false;
 
-	HRESULT hr = D3DXSaveSurfaceToFileA(c_pszFileName, D3DXIFF_PNG, pBackBuffer, nullptr, nullptr);
+	std::string fileName = c_pszFileName;
+	if (fileName.length() < 4 || (fileName.compare(fileName.length() - 4, 4, ".png") != 0 && fileName.compare(fileName.length() - 4, 4, ".PNG") != 0))
+	{
+		fileName += ".png";
+	}
+
+	HRESULT hr = D3DXSaveSurfaceToFileA(fileName.c_str(), D3DXIFF_PNG, pBackBuffer, nullptr, nullptr);
 	pBackBuffer->Release();
 	return SUCCEEDED(hr);
 }

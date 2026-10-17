@@ -41,6 +41,10 @@ class CPythonGraphic : public CScreen, public CSingleton<CPythonGraphic>
 
 		bool SaveJPEG(const char * pszFileName, LPBYTE pbyBuffer, UINT uWidth, UINT uHeight);
 		bool SaveScreenShot(const char *szFileName);
+		bool RequestScreenShot(const char *szFileName);
+		bool ProcessScreenShot();
+		bool ExecuteScreenShot(const char *szFileName);
+		void End();
 
 		DWORD GetAvailableMemory();
 		void SetGamma(float fGammaFactor = 1.0f);
@@ -65,4 +69,7 @@ class CPythonGraphic : public CScreen, public CSingleton<CPythonGraphic>
 		D3DVIEWPORT9							m_backupViewport;
 
 		float									m_fOrthoDepth;
+
+		bool									m_bScreenShotRequest;
+		std::string								m_strScreenShotFileName;
 };
