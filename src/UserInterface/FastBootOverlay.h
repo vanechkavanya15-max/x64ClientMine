@@ -106,6 +106,7 @@ namespace UserInterface::FastBoot
         int m_reconnectAttempts = 0;
         int m_maxReconnectAttempts = 10;
         bool m_bWasInGame = false;
+        bool m_bSelectSent = false;
 
         // Kreator postaci (Zero-Python)
         bool m_bNeedCreateCharacter = false;

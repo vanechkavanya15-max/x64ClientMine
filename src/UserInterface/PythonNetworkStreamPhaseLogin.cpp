@@ -76,8 +76,33 @@ bool CPythonNetworkStream::__RecvLoginSuccessPacket3()
 	m_kMarkAuth.m_dwHandle=kPacketLoginSuccess.handle;
 	m_kMarkAuth.m_dwRandomKey=kPacketLoginSuccess.random_key;	
 
-	if (__DirectEnterMode_IsSet())
+	extern bool g_bFastBootAutoConnect;
+	if (g_bFastBootAutoConnect || __DirectEnterMode_IsSet())
 	{
+		BYTE slotIndex = __DirectEnterMode_IsSet() ? static_cast<BYTE>(m_kDirectEnterMode.m_dwChrSlotIndex) : static_cast<BYTE>(m_dwSelectedCharacterIndex);
+		m_dwSelectedCharacterIndex = slotIndex;
+
+		if (!IsCharacterSlotEmpty(slotIndex))
+		{
+			__DirectEnterMode_Set(slotIndex);
+			TraceError("[FAST_BOOT] __RecvLoginSuccessPacket3: Wykryto postac na slocie %u! Natychmiastowe SendSelectCharacterPacket...", slotIndex);
+			SendSelectCharacterPacket(slotIndex);
+
+			if (m_poHandler)
+			{
+				PyCallClassMemberFunc(m_poHandler, "SetLoadingPhase", Py_BuildValue("()"));
+			}
+		}
+		else
+		{
+			TraceError("[FAST_BOOT] __RecvLoginSuccessPacket3: Slot=%u jest PUSTY! Przejscie do okna postaci.", slotIndex);
+			__DirectEnterMode_Initialize();
+			if (m_poHandler)
+			{
+				PyCallClassMemberFunc(m_poHandler, "SetSelectCharacterPhase", Py_BuildValue("()"));
+			}
+			PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "Refresh", Py_BuildValue("()"));
+		}
 	}
 	else
 	{
@@ -104,7 +129,35 @@ bool CPythonNetworkStream::__RecvLoginSuccessPacket4()
 	m_kMarkAuth.m_dwHandle=kPacketLoginSuccess.handle;
 	m_kMarkAuth.m_dwRandomKey=kPacketLoginSuccess.random_key;
 
-	if (!__DirectEnterMode_IsSet())
+	extern bool g_bFastBootAutoConnect;
+	if (g_bFastBootAutoConnect || __DirectEnterMode_IsSet())
+	{
+		BYTE slotIndex = __DirectEnterMode_IsSet() ? static_cast<BYTE>(m_kDirectEnterMode.m_dwChrSlotIndex) : static_cast<BYTE>(m_dwSelectedCharacterIndex);
+		m_dwSelectedCharacterIndex = slotIndex;
+
+		if (!IsCharacterSlotEmpty(slotIndex))
+		{
+			__DirectEnterMode_Set(slotIndex);
+			TraceError("[FAST_BOOT] __RecvLoginSuccessPacket4: Wykryto postac na slocie %u! Natychmiastowe SendSelectCharacterPacket...", slotIndex);
+			SendSelectCharacterPacket(slotIndex);
+
+			if (m_poHandler)
+			{
+				PyCallClassMemberFunc(m_poHandler, "SetLoadingPhase", Py_BuildValue("()"));
+			}
+		}
+		else
+		{
+			TraceError("[FAST_BOOT] __RecvLoginSuccessPacket4: Slot=%u jest PUSTY! Przejscie do okna postaci.", slotIndex);
+			__DirectEnterMode_Initialize();
+			if (m_poHandler)
+			{
+				PyCallClassMemberFunc(m_poHandler, "SetSelectCharacterPhase", Py_BuildValue("()"));
+			}
+			PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "Refresh", Py_BuildValue("()"));
+		}
+	}
+	else
 	{
 		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "Refresh", Py_BuildValue("()"));
 	}
@@ -211,8 +264,33 @@ bool CPythonNetworkStream::RecvLoginSuccessPacketLuria()
 		}
 	}
 
-	if (__DirectEnterMode_IsSet())
+	extern bool g_bFastBootAutoConnect;
+	if (g_bFastBootAutoConnect || __DirectEnterMode_IsSet())
 	{
+		BYTE slotIndex = __DirectEnterMode_IsSet() ? static_cast<BYTE>(m_kDirectEnterMode.m_dwChrSlotIndex) : static_cast<BYTE>(m_dwSelectedCharacterIndex);
+		m_dwSelectedCharacterIndex = slotIndex;
+
+		if (!IsCharacterSlotEmpty(slotIndex))
+		{
+			__DirectEnterMode_Set(slotIndex);
+			TraceError("[FAST_BOOT] RecvLoginSuccessPacketLuria: Wykryto postac na slocie %u! Natychmiastowe SendSelectCharacterPacket...", slotIndex);
+			SendSelectCharacterPacket(slotIndex);
+
+			if (m_poHandler)
+			{
+				PyCallClassMemberFunc(m_poHandler, "SetLoadingPhase", Py_BuildValue("()"));
+			}
+		}
+		else
+		{
+			TraceError("[FAST_BOOT] RecvLoginSuccessPacketLuria: Slot=%u jest PUSTY! Przejscie do okna postaci.", slotIndex);
+			__DirectEnterMode_Initialize();
+			if (m_poHandler)
+			{
+				PyCallClassMemberFunc(m_poHandler, "SetSelectCharacterPhase", Py_BuildValue("()"));
+			}
+			PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_SELECT], "Refresh", Py_BuildValue("()"));
+		}
 	}
 	else
 	{

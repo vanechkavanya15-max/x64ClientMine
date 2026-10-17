@@ -808,6 +808,7 @@ class CPythonNetworkStream : public CNetworkStream, public CSingleton<CPythonNet
 		bool m_isEnableChatInsultFilter;
 		bool m_bComboSkillFlag;
 		bool m_bEnterGameSent = false;
+		bool m_bSelectCharacterSent = false;
 
 		std::deque<std::string> m_kQue_stHack;
 

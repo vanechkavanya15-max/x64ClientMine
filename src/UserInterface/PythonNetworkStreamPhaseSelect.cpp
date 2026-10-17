@@ -12,6 +12,7 @@ void CPythonNetworkStream::SetSelectPhase()
 
 	m_strPhase = "Select";
 	m_bEnterGameSent = false;
+	m_bSelectCharacterSent = false;
 	RefreshProtocolHandlers();
 
 	m_dwChangingPhaseTime = ELTimer_GetMSec();
@@ -37,11 +38,7 @@ void CPythonNetworkStream::SetSelectPhase()
 		}
 		else
 		{
-			TraceError("[FAST_BOOT] SetSelectPhase: Slot=%u jest PUSTY! Oczekiwanie na stworzenie postaci.", slotIndex);
-			if (m_poHandler)
-			{
-				PyCallClassMemberFunc(m_poHandler, "SetSelectCharacterPhase", Py_BuildValue("()"));
-			}
+			TraceError("[FAST_BOOT] SetSelectPhase: Oczekiwanie na pakiet listy postaci dla slotu %u...", slotIndex);
 		}
 	}
 	else
@@ -96,6 +93,12 @@ bool CPythonNetworkStream::SendSelectEmpirePacket(DWORD dwEmpireID)
 
 bool CPythonNetworkStream::SendSelectCharacterPacket(BYTE Index)
 {
+	if (m_bSelectCharacterSent)
+	{
+		TraceError("[SELECT_DEBUG] SendSelectCharacterPacket: juz wyslano dla slotu=%d, pominiecie duplikatu", Index);
+		return true;
+	}
+	m_bSelectCharacterSent = true;
 	m_dwSelectedCharacterIndex = Index;
 	TraceError("[SELECT_DEBUG] SendSelectCharacterPacket called for slot=%d", Index);
 

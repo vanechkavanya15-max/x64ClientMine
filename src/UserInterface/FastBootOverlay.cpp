@@ -419,6 +419,18 @@ namespace UserInterface::FastBoot
                     m_bNeedCreateCharacter = false;
                     m_statusMessage = "Faza Select: Automatyczny wybor postaci (DirectEnter)...";
                     m_statusColor = 0xFFFFAA00;
+
+                    if (!m_bSelectSent && m_bConnecting)
+                    {
+                        m_bSelectSent = true;
+                        TraceError("[FAST_BOOT] FastBootOverlay: Wykryto postac na slocie %d, fallback SendSelectCharacterPacket", m_characterSlot);
+                        rkNet.SendSelectCharacterPacket(static_cast<BYTE>(m_characterSlot));
+                        PyObject* poHandler = rkNet.GetHandler();
+                        if (poHandler)
+                        {
+                            PyCallClassMemberFunc(poHandler, "SetLoadingPhase", Py_BuildValue("()"));
+                        }
+                    }
                 }
             }
             else if (currentPhase == "Login" && m_bConnecting)
@@ -622,6 +634,7 @@ namespace UserInterface::FastBoot
         rkNetStream.SetDirectEnterMode(m_characterSlot);
 
         m_bConnecting = true;
+        m_bSelectSent = false;
         m_connectStartTime = GetTickCount();
         m_enterGameTime = 0;
         m_statusMessage = std::format("Laczenie z: {} ({}:{})...", prof.name, prof.serverIp, prof.authPort);
@@ -657,6 +670,7 @@ namespace UserInterface::FastBoot
         rkNetStream.RefreshProtocolHandlers();
 
         m_bConnecting = true;
+        m_bSelectSent = false;
         m_connectStartTime = GetTickCount();
         m_enterGameTime = 0;
         m_statusMessage = "Szybkie polaczenie lokalne Standard x64 (127.0.0.1:11000)...";
