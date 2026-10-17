@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "WgpuRenderBackend.h"
 #include "D3D9RenderBackend.h"
+#include "RenderOwnership.h"
 
 CWgpuRenderBackend::CWgpuRenderBackend() = default;
 
@@ -161,21 +162,6 @@ bool CWgpuRenderBackend::IsDeviceLost() const
 
 bool CWgpuRenderBackend::IsConfiguredInConfigJson()
 {
-	if (const char* envVal = std::getenv("M2_GRAPHICS_ENGINE"))
-	{
-		if (std::string(envVal) == "wgpu")
-			return true;
-	}
-
-	std::ifstream file("config.json");
-	if (!file.is_open())
-		return false;
-
-	std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-	const auto keyPos = content.find("\"graphics_engine\"");
-	if (keyPos == std::string::npos)
-		return false;
-
-	const auto wgpuPos = content.find("\"wgpu\"", keyPos);
-	return wgpuPos != std::string::npos && (wgpuPos - keyPos) < 64;
+	return RenderOwnership::IsWgpuConfigured();
 }
+

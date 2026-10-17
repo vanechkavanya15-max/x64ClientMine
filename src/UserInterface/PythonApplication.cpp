@@ -15,6 +15,7 @@
 #include "EterLib/Render/DynamicQuadBatcher.h"
 #include "EterLib/D3D9RenderBackend.h"
 #include "EterLib/WgpuRenderBackend.h"
+#include "EterLib/RenderOwnership.h"
 #include "Client/Graphics/Debug/DebugRenderer.h"
 #include "TestHarness/TestHarnessServer.h"
 #include "TestHarness/DeterministicTickController.h"
@@ -532,7 +533,7 @@ bool CPythonApplication::Process()
 				m_pyGraphic.End();
 
 				// W trybie WGPU Direct-to-Screen prezentacja odbywa sie bezposrednio w m2_wgpu_render_frame (surface.present())
-				if (!CWgpuRenderBackend::IsConfiguredInConfigJson())
+				if (!RenderOwnership::IsWgpuConfigured())
 				{
 					m_pyGraphic.Show();
 				}
@@ -1010,7 +1011,7 @@ bool CPythonApplication::Create(PyObject * poSelf, const char * c_szName, int wi
 
 		CD3D9RenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight());
 		CRenderQueueManager::Instance().SetActiveBackend(&CD3D9RenderBackend::Instance());
-		if (CWgpuRenderBackend::IsConfiguredInConfigJson())
+		if (RenderOwnership::IsWgpuConfigured())
 		{
 			CWgpuRenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight());
 			CRenderQueueManager::Instance().SetActiveBackend(&CWgpuRenderBackend::Instance());
