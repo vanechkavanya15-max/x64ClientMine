@@ -9,6 +9,7 @@ static constexpr size_t DEFAULT_PARTICLE_POOL_CAPACITY = 65536;
 static constexpr size_t DEFAULT_SPEEDTREE_POOL_CAPACITY = 16384;
 static constexpr size_t DEFAULT_WEAPON_TRACE_VERTEX_CAPACITY = 16384;
 static constexpr size_t DEFAULT_EFFECT_MESH_VERTEX_CAPACITY = 32768;
+static constexpr size_t DEFAULT_BONE_MATRIX_POOL_CAPACITY = 32768;
 
 std::vector<std::pair<std::string, size_t>> CRenderQueueManager::GetPacketSizes()
 {
@@ -68,10 +69,14 @@ CRenderQueueManager::CRenderQueueManager()
 	m_effectMeshVertexPool.resize(DEFAULT_EFFECT_MESH_VERTEX_CAPACITY);
 	m_effectMeshVertexOffset = 0;
 
+	m_boneMatrixPool.resize(DEFAULT_BONE_MATRIX_POOL_CAPACITY);
+	m_boneMatrixOffset = 0;
+
 	m_droppedParticles = 0;
 	m_droppedSpeedTree = 0;
 	m_droppedWeaponTrace = 0;
 	m_droppedEffectMesh = 0;
+	m_droppedBones = 0;
 
 	memset(&m_frameUniforms, 0, sizeof(TRenderFrameUniforms));
 }
@@ -98,10 +103,12 @@ void CRenderQueueManager::BeginFrame()
 	m_speedTreeInstanceOffset = 0;
 	m_weaponTraceVertexOffset = 0;
 	m_effectMeshVertexOffset = 0;
+	m_boneMatrixOffset = 0;
 	m_droppedParticles = 0;
 	m_droppedSpeedTree = 0;
 	m_droppedWeaponTrace = 0;
 	m_droppedEffectMesh = 0;
+	m_droppedBones = 0;
 }
 
 void CRenderQueueManager::EndFrame()
@@ -418,6 +425,29 @@ TPTVertex* CRenderQueueManager::AllocateEffectMeshVertexData(size_t count)
 const TPTVertex* CRenderQueueManager::GetEffectMeshVertexData() const
 {
 	return m_effectMeshVertexPool.empty() ? nullptr : m_effectMeshVertexPool.data();
+}
+
+D3DXMATRIX* CRenderQueueManager::AllocateBoneMatrices(size_t count)
+{
+	if (count == 0)
+		return nullptr;
+
+	if (m_boneMatrixOffset + count > m_boneMatrixPool.size())
+	{
+		m_droppedBones += count;
+		TraceError("CRenderQueueManager::AllocateBoneMatrices: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
+			count, m_boneMatrixPool.size() - m_boneMatrixOffset, m_boneMatrixPool.size(), m_droppedBones);
+		return nullptr;
+	}
+
+	D3DXMATRIX* pResult = &m_boneMatrixPool[m_boneMatrixOffset];
+	m_boneMatrixOffset += count;
+	return pResult;
+}
+
+const D3DXMATRIX* CRenderQueueManager::GetBoneMatrixData() const
+{
+	return m_boneMatrixPool.empty() ? nullptr : m_boneMatrixPool.data();
 }
 
 bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const

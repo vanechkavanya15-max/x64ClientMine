@@ -4,6 +4,7 @@
 #include "ActorInstance.h"
 #include "ActorRenderExtractor.h"
 #include "EterLib/RenderQueueManager.h"
+#include "EterLib/RenderOwnership.h"
 
 bool CActorInstance::ms_isDirLine=false;
 
@@ -44,6 +45,9 @@ void CActorInstance::OnRender()
 	{
 		CRenderQueueManager::Instance().SubmitActor(packet);
 	}
+
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model))
+		return;
 
 	// Gwarancja RAII: wyczyszczenie deklaracji wierzcholkow po zakonczeniu renderowania aktora
 	ScopedD3DVertexDeclGuard actorDeclGuard(nullptr, false);

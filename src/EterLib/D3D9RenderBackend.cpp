@@ -744,6 +744,22 @@ void CD3D9RenderBackend::RenderTerrainSector(const TTerrainSectorPacket& pkt)
 	STATEMANAGER.SetTexture(1, NULL);
 }
 
+void CD3D9RenderBackend::RenderActor(const TActorRenderPacket& pkt)
+{
+	if (pkt.dwBoneCount > 0)
+	{
+		const D3DXMATRIX* pBones = pkt.GetBoneMatrices();
+		if (pBones)
+		{
+			UINT matrixCount = (std::min)(pkt.dwBoneCount, kMaxShaderBones);
+			if (matrixCount > 0)
+			{
+				STATEMANAGER.SetVertexShaderConstant(4, pBones, matrixCount * 4);
+			}
+		}
+	}
+}
+
 void CD3D9RenderBackend::RenderActors(const TActorRenderPacket* pPackets, unsigned int count)
 {
 	if (RenderOwnership::Owner(ERenderCategory::Model) != ERenderOwner::D3D9Backend)
@@ -754,13 +770,7 @@ void CD3D9RenderBackend::RenderActors(const TActorRenderPacket* pPackets, unsign
 
 	for (unsigned int i = 0; i < count; ++i)
 	{
-		const TActorRenderPacket& pkt = pPackets[i];
-		if (pkt.dwBoneCount > 0)
-		{
-			const D3DXMATRIX* pBones = pkt.GetBoneMatrices();
-			UINT matrixCount = (std::min)(pkt.dwBoneCount, kMaxShaderBones);
-			STATEMANAGER.SetVertexShaderConstant(4, pBones, matrixCount * 4);
-		}
+		RenderActor(pPackets[i]);
 	}
 }
 

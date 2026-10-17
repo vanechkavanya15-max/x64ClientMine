@@ -172,7 +172,30 @@ void CActorInstance::AttachWeapon(DWORD dwItemIndex,DWORD dwParentPartIndex, DWO
 
 BOOL CActorInstance::GetAttachingBoneName(DWORD dwPartIndex, const char ** c_pszBoneName)
 {
-	return m_pkCurRaceData->GetAttachingBoneName(dwPartIndex, c_pszBoneName);
+	if (!c_pszBoneName)
+		return FALSE;
+
+	if (m_pkCurRaceData)
+	{
+		return m_pkCurRaceData->GetAttachingBoneName(dwPartIndex, c_pszBoneName);
+	}
+
+	// Standardowy fallback dla gniazd aktora bez dedykowanego CRaceData
+	switch (dwPartIndex)
+	{
+		case CRaceData::PART_WEAPON:
+			*c_pszBoneName = "equip_right";
+			return TRUE;
+		case CRaceData::PART_WEAPON_LEFT:
+			*c_pszBoneName = "equip_left";
+			return TRUE;
+		case CRaceData::PART_HEAD:
+		case CRaceData::PART_HAIR:
+			*c_pszBoneName = "Bip01 Head";
+			return TRUE;
+		default:
+			return FALSE;
+	}
 }
 
 
@@ -690,9 +713,6 @@ void CActorInstance::__ClearAttachingEffect()
 bool CActorInstance::GetSocketMatrix(DWORD dwPartIndex, D3DXMATRIX** ppMatrix)
 {
 	if (dwPartIndex >= CRaceData::PART_MAX_NUM)
-		return false;
-
-	if (!m_pkCurRaceData)
 		return false;
 
 	const char * szBoneName = NULL;

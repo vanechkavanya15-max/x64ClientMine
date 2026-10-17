@@ -192,21 +192,26 @@ public:
 	const TPDTVertex* GetWeaponTraceVertexData() const;
 	TPTVertex* AllocateEffectMeshVertexData(size_t count);
 	const TPTVertex* GetEffectMeshVertexData() const;
+	D3DXMATRIX* AllocateBoneMatrices(size_t count);
+	const D3DXMATRIX* GetBoneMatrixData() const;
 
 	size_t GetDroppedParticles() const { return m_droppedParticles; }
 	size_t GetDroppedSpeedTree() const { return m_droppedSpeedTree; }
 	size_t GetDroppedWeaponTrace() const { return m_droppedWeaponTrace; }
 	size_t GetDroppedEffectMesh() const { return m_droppedEffectMesh; }
-	void ResetDroppedCounters() { m_droppedParticles = 0; m_droppedSpeedTree = 0; m_droppedWeaponTrace = 0; m_droppedEffectMesh = 0; }
+	size_t GetDroppedBones() const { return m_droppedBones; }
+	void ResetDroppedCounters() { m_droppedParticles = 0; m_droppedSpeedTree = 0; m_droppedWeaponTrace = 0; m_droppedEffectMesh = 0; m_droppedBones = 0; }
 
 	size_t GetParticlePoolCapacity() const { return m_particleDataPool.size(); }
 	size_t GetSpeedTreePoolCapacity() const { return m_speedTreeInstancePool.size(); }
 	size_t GetWeaponTracePoolCapacity() const { return m_weaponTraceVertexPool.size(); }
 	size_t GetEffectMeshPoolCapacity() const { return m_effectMeshVertexPool.size(); }
+	size_t GetBoneMatrixPoolCapacity() const { return m_boneMatrixPool.size(); }
 	size_t GetParticleDataOffset() const { return m_particleDataOffset; }
 	size_t GetSpeedTreeInstanceOffset() const { return m_speedTreeInstanceOffset; }
 	size_t GetWeaponTraceVertexOffset() const { return m_weaponTraceVertexOffset; }
 	size_t GetEffectMeshVertexOffset() const { return m_effectMeshVertexOffset; }
+	size_t GetBoneMatrixOffset() const { return m_boneMatrixOffset; }
 
 	// Golden Master Frame Dumper (Faza 6) & Backend Switcher (Faza 8)
 	bool ExportFrameToBinary(const char* c_pszFileName) const;
@@ -254,10 +259,14 @@ private:
 	std::vector<TPTVertex> m_effectMeshVertexPool;
 	size_t m_effectMeshVertexOffset{ 0 };
 
+	std::vector<D3DXMATRIX> m_boneMatrixPool;
+	size_t m_boneMatrixOffset{ 0 };
+
 	size_t m_droppedParticles{ 0 };
 	size_t m_droppedSpeedTree{ 0 };
 	size_t m_droppedWeaponTrace{ 0 };
 	size_t m_droppedEffectMesh{ 0 };
+	size_t m_droppedBones{ 0 };
 
 	IRenderBackend* m_pActiveBackend{ nullptr };
 	bool m_bPendingDump{ false };
