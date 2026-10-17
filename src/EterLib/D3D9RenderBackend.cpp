@@ -1984,21 +1984,37 @@ void CD3D9RenderBackend::RenderDebugLinesWithDevice(const TDebugLinePacket* pPac
 	// Rysowanie wierzcholkow standardowych (ze sprawdzaniem bufora Z)
 	if (!stdVerts.empty())
 	{
-		pD3DDevice->SetFVF(SDebugVertex::FVF);
+		if (!pCustomDevice && CStateManager::InstancePtr())
+			STATEMANAGER.SaveFVF(SDebugVertex::FVF);
+		else
+			pD3DDevice->SetFVF(SDebugVertex::FVF);
+
 		drawBatched(stdVerts);
+
+		if (!pCustomDevice && CStateManager::InstancePtr())
+			STATEMANAGER.RestoreFVF();
 	}
 
 	// Rysowanie wierzcholkow X-Ray (przez sciany) z zachowaniem biezacego stanu ZENABLE
 	if (!xrayVerts.empty())
 	{
-		DWORD dwSavedZEnable = D3DZB_TRUE;
-		pD3DDevice->GetRenderState(D3DRS_ZENABLE, &dwSavedZEnable);
-
-		pD3DDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
-		pD3DDevice->SetFVF(SDebugVertex::FVF);
-		drawBatched(xrayVerts);
-
-		pD3DDevice->SetRenderState(D3DRS_ZENABLE, dwSavedZEnable);
+		if (!pCustomDevice && CStateManager::InstancePtr())
+		{
+			STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, FALSE);
+			STATEMANAGER.SaveFVF(SDebugVertex::FVF);
+			drawBatched(xrayVerts);
+			STATEMANAGER.RestoreFVF();
+			STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
+		}
+		else
+		{
+			DWORD dwSavedZEnable = D3DZB_TRUE;
+			pD3DDevice->GetRenderState(D3DRS_ZENABLE, &dwSavedZEnable);
+			pD3DDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+			pD3DDevice->SetFVF(SDebugVertex::FVF);
+			drawBatched(xrayVerts);
+			pD3DDevice->SetRenderState(D3DRS_ZENABLE, dwSavedZEnable);
+		}
 	}
 }
 

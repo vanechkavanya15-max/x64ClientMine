@@ -351,6 +351,7 @@ public:
 	const std::vector<TDebugLinePacket>& GetWorkDebugLinePackets() const { return m_frameBuffers[GetWorkFrameIndex()].debugLinePackets; }
 
 	size_t GetTotalPacketCount() const;
+	const SFrameBuffer& GetReadableFrameBuffer() const;
 
 	TParticleInstanceData* AllocateParticleData(size_t count);
 	TSpeedTreeInstanceData* AllocateSpeedTreeInstanceData(size_t count);

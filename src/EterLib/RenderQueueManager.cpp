@@ -504,60 +504,53 @@ void CRenderQueueManager::FlushUI()
 	targetFrame.flushedUIOffset = targetFrame.uiPackets.size();
 }
 
+const SFrameBuffer& CRenderQueueManager::GetReadableFrameBuffer() const
+{
+	if (m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() > 0 && m_frameBuffers[GetWorkFrameIndex()].GetTotalPacketCount() == 0)
+		return m_frameBuffers[m_activeFrameIndex];
+	if (m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() > 0 && m_bHasSwappedFrame)
+		return m_frameBuffers[m_activeFrameIndex];
+	return m_frameBuffers[GetWorkFrameIndex()];
+}
+
 const std::vector<TSpeedTreePacket>& CRenderQueueManager::GetSpeedTreePackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].speedTreePackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].speedTreePackets;
-	return m_frameBuffers[m_activeFrameIndex].speedTreePackets;
+	return GetReadableFrameBuffer().speedTreePackets;
 }
 
 const std::vector<TUIBatchPacket>& CRenderQueueManager::GetUIPackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].uiPackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].uiPackets;
-	return m_frameBuffers[m_activeFrameIndex].uiPackets;
+	return GetReadableFrameBuffer().uiPackets;
 }
 
 const std::vector<TActorRenderPacket>& CRenderQueueManager::GetActorPackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].actorPackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].actorPackets;
-	return m_frameBuffers[m_activeFrameIndex].actorPackets;
+	return GetReadableFrameBuffer().actorPackets;
 }
 
 const std::vector<TTerrainSectorPacket>& CRenderQueueManager::GetTerrainPackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].terrainPackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].terrainPackets;
-	return m_frameBuffers[m_activeFrameIndex].terrainPackets;
+	return GetReadableFrameBuffer().terrainPackets;
 }
 
 const std::vector<TEffectInstancePacket>& CRenderQueueManager::GetEffectPackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].effectPackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].effectPackets;
-	return m_frameBuffers[m_activeFrameIndex].effectPackets;
+	return GetReadableFrameBuffer().effectPackets;
 }
 
 const std::vector<TWaterPacket>& CRenderQueueManager::GetWaterPackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].waterPackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].waterPackets;
-	return m_frameBuffers[m_activeFrameIndex].waterPackets;
+	return GetReadableFrameBuffer().waterPackets;
 }
 
 const std::vector<TSkyBoxPacket>& CRenderQueueManager::GetSkyBoxPackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].skyBoxPackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].skyBoxPackets;
-	return m_frameBuffers[m_activeFrameIndex].skyBoxPackets;
+	return GetReadableFrameBuffer().skyBoxPackets;
 }
 
 const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonPackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].dungeonPackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].dungeonPackets;
-	return m_frameBuffers[m_activeFrameIndex].dungeonPackets;
+	return GetReadableFrameBuffer().dungeonPackets;
 }
 
 size_t CRenderQueueManager::GetTotalPacketCount() const
@@ -593,11 +586,7 @@ TPDTVertex* CRenderQueueManager::AllocateWeaponTraceVertexData(size_t count)
 
 const TPDTVertex* CRenderQueueManager::GetWeaponTraceVertexData() const
 {
-	if (m_frameBuffers[m_activeFrameIndex].weaponTraceVertexOffset > 0)
-		return m_frameBuffers[m_activeFrameIndex].weaponTraceVertexPool.data();
-	if (m_frameBuffers[GetWorkFrameIndex()].weaponTraceVertexOffset > 0)
-		return m_frameBuffers[GetWorkFrameIndex()].weaponTraceVertexPool.data();
-	return m_frameBuffers[m_activeFrameIndex].weaponTraceVertexPool.data();
+	return GetReadableFrameBuffer().weaponTraceVertexPool.data();
 }
 
 TPTVertex* CRenderQueueManager::AllocateEffectMeshVertexData(size_t count)
@@ -610,11 +599,7 @@ TPTVertex* CRenderQueueManager::AllocateEffectMeshVertexData(size_t count)
 
 const TPTVertex* CRenderQueueManager::GetEffectMeshVertexData() const
 {
-	if (m_frameBuffers[m_activeFrameIndex].effectMeshVertexOffset > 0)
-		return m_frameBuffers[m_activeFrameIndex].effectMeshVertexPool.data();
-	if (m_frameBuffers[GetWorkFrameIndex()].effectMeshVertexOffset > 0)
-		return m_frameBuffers[GetWorkFrameIndex()].effectMeshVertexPool.data();
-	return m_frameBuffers[m_activeFrameIndex].effectMeshVertexPool.data();
+	return GetReadableFrameBuffer().effectMeshVertexPool.data();
 }
 
 D3DXMATRIX* CRenderQueueManager::AllocateBoneMatrices(size_t count)
@@ -627,11 +612,7 @@ D3DXMATRIX* CRenderQueueManager::AllocateBoneMatrices(size_t count)
 
 const D3DXMATRIX* CRenderQueueManager::GetBoneMatrixData() const
 {
-	if (m_frameBuffers[m_activeFrameIndex].boneMatrixOffset > 0)
-		return m_frameBuffers[m_activeFrameIndex].boneMatrixPool.data();
-	if (m_frameBuffers[GetWorkFrameIndex()].boneMatrixOffset > 0)
-		return m_frameBuffers[GetWorkFrameIndex()].boneMatrixPool.data();
-	return m_frameBuffers[m_activeFrameIndex].boneMatrixPool.data();
+	return GetReadableFrameBuffer().boneMatrixPool.data();
 }
 
 void* CRenderQueueManager::AllocateFrameData(size_t sizeInBytes, size_t alignment)
@@ -766,9 +747,7 @@ bool CRenderQueueManager::ExportFrameToBinaryV2(const char* c_pszFileName) const
 	if (fopen_s(&fp, c_pszFileName, "wb") != 0 || !fp)
 		return false;
 
-	const SFrameBuffer& frame = (m_frameBuffers[GetWorkFrameIndex()].GetTotalPacketCount() > 0)
-		? m_frameBuffers[GetWorkFrameIndex()]
-		: m_frameBuffers[m_activeFrameIndex];
+	const SFrameBuffer& frame = GetReadableFrameBuffer();
 
 	// 1. File Header
 	FrameDumpV2::THeader fileHdr{};

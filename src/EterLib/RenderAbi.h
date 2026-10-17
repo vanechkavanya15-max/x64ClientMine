@@ -335,7 +335,7 @@ typedef struct RENDER_ABI_ALIGN(16) TTerrainSectorPacket
         const void* pNormalMap;
         void* pChrShadowTexture;
     };
-    bool bHasWater;
+    uint8_t bHasWater;
     uint8_t byBand;
     uint8_t byLODLevel;
     uint8_t bDrawShadow;
@@ -377,10 +377,10 @@ typedef struct RENDER_ABI_ALIGN(16) TActorRenderPacket
     uint32_t dwAuraEffectCount;
     RENDER_MATRIX_TYPE matAuraEffectSockets[8];
     uint32_t dwAuraEffectIDs[8];
-    bool bRenderShadow;
-    bool bIsDead;
-    bool bSelected;
-    bool bAlphaBlend;
+    uint8_t bRenderShadow;
+    uint8_t bIsDead;
+    uint8_t bSelected;
+    uint8_t bAlphaBlend;
     float fAlpha;
     float fShadowSize;
 
@@ -519,10 +519,10 @@ typedef struct RENDER_ABI_ALIGN(16) TSpeedTreePacket
 {
     RENDER_TREE_WRAPPER_TYPE* pMainTree;
     uint32_t dwTreeCRC;
-    bool bRenderBranches;
-    bool bRenderFronds;
-    bool bRenderLeaves;
-    bool bRenderBillboards;
+    uint8_t bRenderBranches;
+    uint8_t bRenderFronds;
+    uint8_t bRenderLeaves;
+    uint8_t bRenderBillboards;
     uint32_t dwTreeTypeID;
     uint32_t dwTrunkTextureID;
     uint32_t dwLeafTextureID;
@@ -866,8 +866,8 @@ typedef enum ERenderPassType
     RENDER_PASS_CUSTOM = 4
 } ERenderPassType;
 
-/* 20. TRenderPassDesc: 144 bajty */
-typedef struct TRenderPassDesc
+/* 20. TRenderPassDesc: 144 bajty, wyrownanie 16B dla optymalizacji SIMD */
+typedef struct RENDER_ABI_ALIGN(16) TRenderPassDesc
 {
     uint32_t passType;
     uint32_t targetHandle;
