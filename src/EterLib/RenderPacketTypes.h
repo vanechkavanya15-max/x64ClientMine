@@ -110,4 +110,11 @@ static_assert(offsetof(TDungeonBlockPacket, fAlpha) == 148, "ABI: dungeon fAlpha
 static_assert(offsetof(TDungeonBlockPacket, bAlphaBlend) == 152, "ABI: dungeon bAlphaBlend");
 static_assert(offsetof(TDungeonBlockPacket, bPadDungeon) == 153, "ABI: dungeon bPadDungeon");
 static_assert(offsetof(TDungeonBlockPacket, fPad) == 156, "ABI: dungeon fPad");
+static_assert(sizeof(TWeaponTracePacket) == 24, "ABI: TWeaponTracePacket != packets.rs");
+static_assert(offsetof(TWeaponTracePacket, textureHandle) == 0, "ABI: trace textureHandle");
+static_assert(offsetof(TWeaponTracePacket, stateKey) == 4, "ABI: trace stateKey");
+static_assert(offsetof(TWeaponTracePacket, vertexOffset) == 12, "ABI: trace vertexOffset");
+static_assert(offsetof(TWeaponTracePacket, vertexCount) == 16, "ABI: trace vertexCount");
+static_assert(offsetof(TWeaponTracePacket, dwPad) == 20, "ABI: trace dwPad");
 #endif
+

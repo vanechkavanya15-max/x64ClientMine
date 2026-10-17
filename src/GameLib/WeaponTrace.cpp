@@ -2,6 +2,8 @@
 #include "EterLib/ResourceManager.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/RenderOwnership.h"
+#include "EterLib/RenderQueueManager.h"
+#include "EterLib/RenderResourceRegistry.h"
 
 #include "WeaponTrace.h"
 
@@ -288,66 +290,113 @@ void CWeaponTrace::Render()
 		return;
 
 
-	LPDIRECT3DTEXTURE9 lpTexture=NULL;
+	// Obsluga tekstury smugi broni wg DEC-5 (lot_ade10-2.tga)
+	if (m_bUseTexture && m_ImageInstance.IsEmpty())
+	{
+		SetTexture("lot_ade10-2.tga");
+	}
 
-	// Have to optimize
-	D3DXMATRIX matWorld;
-	D3DXMatrixIdentity(&matWorld);
+	LPDIRECT3DTEXTURE9 lpTexture = NULL;
+	if (m_bUseTexture && !m_ImageInstance.IsEmpty())
+	{
+		CGraphicTexture* pTexture = m_ImageInstance.GetTexturePointer();
+		if (pTexture)
+			lpTexture = pTexture->GetD3DTexture();
+	}
 
-	STATEMANAGER.SaveTransform(D3DTS_WORLD, &matWorld);
-	STATEMANAGER.SaveFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	TRenderTextureHandle textureHandle = kInvalidTextureHandle;
+	if (m_bUseTexture && lpTexture)
+	{
+		textureHandle = CRenderResourceRegistry::InstancePtr()
+			? CRenderResourceRegistry::Instance().RegisterTexture(lpTexture, "lot_ade10-2.tga")
+			: kInvalidTextureHandle;
+	}
 
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	TPipelineStateKey stateKey{};
+	stateKey.srcBlend = D3DBLEND_SRCALPHA;
+	stateKey.destBlend = D3DBLEND_INVSRCALPHA;
+	stateKey.cullMode = D3DCULL_NONE;
+	stateKey.zTest = 1;
+	stateKey.zWrite = 0;
+	stateKey.alphaRef = 0x11;
+	stateKey.fogEnable = 0;
+	stateKey.colorWrite = 0x0F;
 
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x00000011);
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
-
-	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, TRUE);
-	STATEMANAGER.SaveRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
-
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, (m_bUseTexture)?D3DTOP_SELECTARG2:D3DTOP_SELECTARG1);
-	//STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	//STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
-	//STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, (m_bUseTexture)?D3DTOP_SELECTARG2:D3DTOP_SELECTARG1);
-	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
-	STATEMANAGER.SetTexture(0, lpTexture);
-	STATEMANAGER.SetTexture(1, NULL);
 	if (RenderOwnership::LegacyDraws(ERenderCategory::WeaponTrace))
 	{
+		D3DXMATRIX matWorld;
+		D3DXMatrixIdentity(&matWorld);
+
+		STATEMANAGER.SaveTransform(D3DTS_WORLD, &matWorld);
+		STATEMANAGER.SaveFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+		STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x00000011);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+
+		STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, TRUE);
+		STATEMANAGER.SaveRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, (m_bUseTexture) ? D3DTOP_SELECTARG2 : D3DTOP_SELECTARG1);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, (m_bUseTexture) ? D3DTOP_SELECTARG2 : D3DTOP_SELECTARG1);
+		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+		STATEMANAGER.SetTexture(0, lpTexture);
+		STATEMANAGER.SetTexture(1, NULL);
+
 		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,
 									 int(m_PDTVertexVector.size() - 2),
 									 &m_PDTVertexVector[0],
 									 sizeof(TPDTVertex));
+
+		STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ZFUNC);
+		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
+
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+
+		STATEMANAGER.RestoreTransform(D3DTS_WORLD);
+		STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+		STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+		STATEMANAGER.RestoreFVF();
 	}
+	else
+	{
+		CRenderQueueManager& rqm = CRenderQueueManager::Instance();
+		const size_t vertexCount = m_PDTVertexVector.size();
+		TPDTVertex* pDestVertices = rqm.AllocateWeaponTraceVertexData(vertexCount);
+		if (pDestVertices)
+		{
+			const uint32_t vertexOffset = static_cast<uint32_t>(rqm.GetWeaponTraceVertexOffset() - vertexCount);
+			std::memcpy(pDestVertices, m_PDTVertexVector.data(), vertexCount * sizeof(TPDTVertex));
 
-	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZFUNC);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+			TWeaponTracePacket packet{};
+			packet.textureHandle = textureHandle;
+			packet.stateKey = stateKey;
+			packet.vertexOffset = vertexOffset;
+			packet.vertexCount = static_cast<uint32_t>(vertexCount);
+			packet.dwPad = 0;
 
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
-
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
-	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
-
-	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
-	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
-	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
-	STATEMANAGER.RestoreFVF();
+			rqm.SubmitWeaponTrace(packet);
+		}
+	}
 }
 
 void CWeaponTrace::UseAlpha()
@@ -362,12 +411,11 @@ void CWeaponTrace::UseTexture()
 
 void CWeaponTrace::SetTexture(const char * c_szFileName)
 {
-	CGraphicImage * pImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer("lot_ade10-2.tga");
+	const char* pszFile = (c_szFileName && *c_szFileName) ? c_szFileName : "lot_ade10-2.tga";
+	CGraphicImage * pImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer(pszFile);
 	m_ImageInstance.SetImagePointer(pImage);
-
-	//CGraphicTexture * pTexture = m_ImageInstance.GetTexturePointer();
-	//m_lpTexture = pTexture->GetD3DTexture();
 }
+
 
 bool CWeaponTrace::SetWeaponInstance(CGraphicThingInstance * pInstance, DWORD dwModelIndex, const char * c_szBoneName)
 {

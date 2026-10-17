@@ -6580,3 +6580,12 @@ target_link_libraries(test_c26_frame_snapshot PRIVATE
 )
 add_test(NAME FrameSnapshotTest COMMAND test_c26_frame_snapshot)
 
+add_executable(test_c26_weapon_trace test_c26_weapon_trace.cpp)
+target_include_directories(test_c26_weapon_trace PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_weapon_trace PRIVATE EterLib EterBase DirectX doctest)
+add_test(NAME test_c26_weapon_trace COMMAND test_c26_weapon_trace)
+

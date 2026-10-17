@@ -6,6 +6,7 @@
 
 static constexpr size_t DEFAULT_PARTICLE_POOL_CAPACITY = 65536;
 static constexpr size_t DEFAULT_SPEEDTREE_POOL_CAPACITY = 16384;
+static constexpr size_t DEFAULT_WEAPON_TRACE_VERTEX_CAPACITY = 16384;
 
 std::vector<std::pair<std::string, size_t>> CRenderQueueManager::GetPacketSizes()
 {
@@ -47,6 +48,7 @@ CRenderQueueManager::CRenderQueueManager()
 	m_waterPackets.reserve(32);
 	m_skyBoxPackets.reserve(8);
 	m_dungeonPackets.reserve(256);
+	m_weaponTracePackets.reserve(64);
 
 	m_particleDataPool.resize(DEFAULT_PARTICLE_POOL_CAPACITY);
 	m_particleDataOffset = 0;
@@ -54,8 +56,12 @@ CRenderQueueManager::CRenderQueueManager()
 	m_speedTreeInstancePool.resize(DEFAULT_SPEEDTREE_POOL_CAPACITY);
 	m_speedTreeInstanceOffset = 0;
 
+	m_weaponTraceVertexPool.resize(DEFAULT_WEAPON_TRACE_VERTEX_CAPACITY);
+	m_weaponTraceVertexOffset = 0;
+
 	m_droppedParticles = 0;
 	m_droppedSpeedTree = 0;
+	m_droppedWeaponTrace = 0;
 
 	memset(&m_frameUniforms, 0, sizeof(TRenderFrameUniforms));
 }
@@ -72,12 +78,15 @@ void CRenderQueueManager::BeginFrame()
 	m_waterPackets.clear();
 	m_skyBoxPackets.clear();
 	m_dungeonPackets.clear();
+	m_weaponTracePackets.clear();
 	m_flushedSpeedTreeOffset = 0;
 	m_flushedUIOffset = 0;
 	m_particleDataOffset = 0;
 	m_speedTreeInstanceOffset = 0;
+	m_weaponTraceVertexOffset = 0;
 	m_droppedParticles = 0;
 	m_droppedSpeedTree = 0;
+	m_droppedWeaponTrace = 0;
 }
 
 void CRenderQueueManager::EndFrame()
@@ -140,6 +149,16 @@ void CRenderQueueManager::SubmitDungeonBlock(const TDungeonBlockPacket& packet)
 	m_dungeonPackets.push_back(packet);
 }
 
+void CRenderQueueManager::SubmitWeaponTrace(const TWeaponTracePacket& packet)
+{
+	m_weaponTracePackets.push_back(packet);
+}
+
+const std::vector<TWeaponTracePacket>& CRenderQueueManager::GetWeaponTracePackets() const
+{
+	return m_weaponTracePackets;
+}
+
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
 	if (!pBackend)
@@ -172,6 +191,9 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 
 	if (!m_actorPackets.empty())
 		pBackend->RenderActors(m_actorPackets.data(), static_cast<unsigned int>(m_actorPackets.size()));
+
+	if (!m_weaponTracePackets.empty())
+		pBackend->RenderWeaponTrace(m_weaponTracePackets.data(), static_cast<unsigned int>(m_weaponTracePackets.size()));
 
 	if (!m_effectPackets.empty())
 		pBackend->RenderEffects(m_effectPackets.data(), static_cast<unsigned int>(m_effectPackets.size()));
@@ -285,6 +307,29 @@ TSpeedTreeInstanceData* CRenderQueueManager::AllocateSpeedTreeInstanceData(size_
 	TSpeedTreeInstanceData* pResult = &m_speedTreeInstancePool[m_speedTreeInstanceOffset];
 	m_speedTreeInstanceOffset += count;
 	return pResult;
+}
+
+TPDTVertex* CRenderQueueManager::AllocateWeaponTraceVertexData(size_t count)
+{
+	if (count == 0)
+		return nullptr;
+
+	if (m_weaponTraceVertexOffset + count > m_weaponTraceVertexPool.size())
+	{
+		m_droppedWeaponTrace += count;
+		TraceError("CRenderQueueManager::AllocateWeaponTraceVertexData: Pool overflow! requested=%zu, remaining=%zu, capacity=%zu, droppedTotal=%zu",
+			count, m_weaponTraceVertexPool.size() - m_weaponTraceVertexOffset, m_weaponTraceVertexPool.size(), m_droppedWeaponTrace);
+		return nullptr;
+	}
+
+	TPDTVertex* pResult = &m_weaponTraceVertexPool[m_weaponTraceVertexOffset];
+	m_weaponTraceVertexOffset += count;
+	return pResult;
+}
+
+const TPDTVertex* CRenderQueueManager::GetWeaponTraceVertexData() const
+{
+	return m_weaponTraceVertexPool.empty() ? nullptr : m_weaponTraceVertexPool.data();
 }
 
 bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const

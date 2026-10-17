@@ -41,6 +41,7 @@ public:
 	virtual void RenderEffects(const TEffectInstancePacket* pPackets, unsigned int count) override;
 	virtual void RenderUI(const TUIBatchPacket* pPackets, unsigned int count) override;
 	virtual void RenderDungeonBlocks(const TDungeonBlockPacket* pPackets, unsigned int count) override;
+	virtual void RenderWeaponTrace(const TWeaponTracePacket* pPackets, unsigned int count) override;
 
 	virtual void EndFrame() override;
 	virtual const char* GetBackendName() const override;

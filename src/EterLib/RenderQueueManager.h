@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RenderPacketTypes.h"
+#include "GrpBase.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -158,6 +159,7 @@ public:
 	void SubmitWater(const TWaterPacket& packet);
 	void SubmitSkyBox(const TSkyBoxPacket& packet);
 	void SubmitDungeonBlock(const TDungeonBlockPacket& packet);
+	void SubmitWeaponTrace(const TWeaponTracePacket& packet);
 
 	void Flush(IRenderBackend* pBackend = nullptr);
 	void FlushUI();
@@ -170,20 +172,26 @@ public:
 	const std::vector<TWaterPacket>& GetWaterPackets() const;
 	const std::vector<TSkyBoxPacket>& GetSkyBoxPackets() const;
 	const std::vector<TDungeonBlockPacket>& GetDungeonPackets() const;
+	const std::vector<TWeaponTracePacket>& GetWeaponTracePackets() const;
 
 	size_t GetTotalPacketCount() const;
 
 	TParticleInstanceData* AllocateParticleData(size_t count);
 	TSpeedTreeInstanceData* AllocateSpeedTreeInstanceData(size_t count);
+	TPDTVertex* AllocateWeaponTraceVertexData(size_t count);
+	const TPDTVertex* GetWeaponTraceVertexData() const;
 
 	size_t GetDroppedParticles() const { return m_droppedParticles; }
 	size_t GetDroppedSpeedTree() const { return m_droppedSpeedTree; }
-	void ResetDroppedCounters() { m_droppedParticles = 0; m_droppedSpeedTree = 0; }
+	size_t GetDroppedWeaponTrace() const { return m_droppedWeaponTrace; }
+	void ResetDroppedCounters() { m_droppedParticles = 0; m_droppedSpeedTree = 0; m_droppedWeaponTrace = 0; }
 
 	size_t GetParticlePoolCapacity() const { return m_particleDataPool.size(); }
 	size_t GetSpeedTreePoolCapacity() const { return m_speedTreeInstancePool.size(); }
+	size_t GetWeaponTracePoolCapacity() const { return m_weaponTraceVertexPool.size(); }
 	size_t GetParticleDataOffset() const { return m_particleDataOffset; }
 	size_t GetSpeedTreeInstanceOffset() const { return m_speedTreeInstanceOffset; }
+	size_t GetWeaponTraceVertexOffset() const { return m_weaponTraceVertexOffset; }
 
 	// Golden Master Frame Dumper (Faza 6) & Backend Switcher (Faza 8)
 	bool ExportFrameToBinary(const char* c_pszFileName) const;
@@ -210,6 +218,7 @@ private:
 	std::vector<TWaterPacket> m_waterPackets;
 	std::vector<TSkyBoxPacket> m_skyBoxPackets;
 	std::vector<TDungeonBlockPacket> m_dungeonPackets;
+	std::vector<TWeaponTracePacket> m_weaponTracePackets;
 
 	size_t m_flushedSpeedTreeOffset{ 0 };
 	size_t m_flushedUIOffset{ 0 };
@@ -221,8 +230,12 @@ private:
 	std::vector<TSpeedTreeInstanceData> m_speedTreeInstancePool;
 	size_t m_speedTreeInstanceOffset{ 0 };
 
+	std::vector<TPDTVertex> m_weaponTraceVertexPool;
+	size_t m_weaponTraceVertexOffset{ 0 };
+
 	size_t m_droppedParticles{ 0 };
 	size_t m_droppedSpeedTree{ 0 };
+	size_t m_droppedWeaponTrace{ 0 };
 
 	IRenderBackend* m_pActiveBackend{ nullptr };
 	bool m_bPendingDump{ false };

@@ -6,6 +6,8 @@
 #include "SpeedTreeLib/SpeedTreeWrapper.h"
 #include "Render/TerrainShaderPipeline.h"
 #include "CFrameSnapshot.h"
+#include "RenderQueueManager.h"
+#include "RenderResourceRegistry.h"
 
 CD3D9RenderBackend::CD3D9RenderBackend()
 {
@@ -734,6 +736,112 @@ void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
 	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
 	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
+}
+
+void CD3D9RenderBackend::RenderWeaponTrace(const TWeaponTracePacket* pPackets, unsigned int count)
+{
+	if (RenderOwnership::Owner(ERenderCategory::WeaponTrace) != ERenderOwner::D3D9Backend)
+		return;
+
+	if (!pPackets || count == 0)
+		return;
+
+	const TPDTVertex* pAllVertices = CRenderQueueManager::Instance().GetWeaponTraceVertexData();
+	if (!pAllVertices)
+		return;
+
+	D3DXMATRIX matIdentity;
+	D3DXMatrixIdentity(&matIdentity);
+	STATEMANAGER.SaveTransform(D3DTS_WORLD, &matIdentity);
+	STATEMANAGER.SaveFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+
+	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x00000011);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+
+	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+
+	for (unsigned int i = 0; i < count; ++i)
+	{
+		const TWeaponTracePacket& pkt = pPackets[i];
+		if (pkt.vertexCount < 4)
+			continue;
+
+		// Ustawienia stanow potoku z TPipelineStateKey
+		STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, pkt.stateKey.srcBlend ? pkt.stateKey.srcBlend : D3DBLEND_SRCALPHA);
+		STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, pkt.stateKey.destBlend ? pkt.stateKey.destBlend : D3DBLEND_INVSRCALPHA);
+		STATEMANAGER.SetRenderState(D3DRS_CULLMODE, pkt.stateKey.cullMode ? pkt.stateKey.cullMode : D3DCULL_NONE);
+		STATEMANAGER.SetRenderState(D3DRS_ZENABLE, pkt.stateKey.zTest ? TRUE : FALSE);
+		STATEMANAGER.SetRenderState(D3DRS_ZWRITEENABLE, pkt.stateKey.zWrite ? TRUE : FALSE);
+
+		// Rozwiazanie tekstury z rejestru zasobow
+		IDirect3DTexture9* pTexture = nullptr;
+		if (pkt.textureHandle != kInvalidTextureHandle && CRenderResourceRegistry::InstancePtr())
+		{
+			pTexture = CRenderResourceRegistry::Instance().ResolveTexture(pkt.textureHandle);
+		}
+
+		if (pTexture)
+		{
+			STATEMANAGER.SetTexture(0, pTexture);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+		}
+		else
+		{
+			STATEMANAGER.SetTexture(0, nullptr);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+		}
+
+		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		STATEMANAGER.SetTexture(1, nullptr);
+
+		const uint32_t primitiveCount = pkt.vertexCount - 2;
+		const TPDTVertex* pVertices = pAllVertices + pkt.vertexOffset;
+
+		STATEMANAGER.DrawPrimitiveUP(
+			D3DPT_TRIANGLESTRIP,
+			primitiveCount,
+			pVertices,
+			sizeof(TPDTVertex)
+		);
+	}
+
+	STATEMANAGER.SetTexture(0, nullptr);
+	STATEMANAGER.SetTexture(1, nullptr);
+
+	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZFUNC);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
+
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+
+	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+
+	STATEMANAGER.RestoreFVF();
 	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 }
 
