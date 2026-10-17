@@ -6220,3 +6220,13 @@ target_include_directories(test_c26_minimap_coord_projector PRIVATE
 target_link_libraries(test_c26_minimap_coord_projector PRIVATE EterBase ws2_32)
 add_test(NAME test_c26_minimap_coord_projector COMMAND test_c26_minimap_coord_projector)
 
+add_executable(test_c26_texture_swizzle test_c26_texture_swizzle.cpp)
+target_include_directories(test_c26_texture_swizzle PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_texture_swizzle PRIVATE EterLib EterBase DirectX ws2_32)
+add_test(NAME TextureSwizzleTest COMMAND test_c26_texture_swizzle)
+
+
