@@ -647,38 +647,8 @@ BOOL CScreen::RestoreDevice()
 			}
 					
 			rkD3DPP.BackBufferFormat = d3dDisplayMode.Format;
-
-			// Release all D3DPOOL_DEFAULT resources before calling Reset
-			CGraphicDevice::__DestroyPDTVertexBufferList();
-			CGraphicDevice::__DestroyDefaultIndexBufferList();
-			
-			HRESULT hrReset = rkD3DDev.Reset(&rkD3DPP);
-
-			if (FAILED(hrReset))
-			{
-				_com_error err(hrReset);
-				LPCWSTR errMsgW = err.ErrorMessage();   // wide string
-
-				std::string errUtf8 = WideToUtf8(errMsgW);
-				TraceError("CScreen::RestoreDevice: Reset failed: %s (hr=0x%08X)", errUtf8.c_str(), hrReset);
-
+			if (!CGraphicDevice::ResetWithParams(rkD3DPP))
 				return FALSE;
-			}
-
-			// Recreate all D3DPOOL_DEFAULT resources after successful Reset
-			if (!CGraphicDevice::__CreateDefaultIndexBufferList())
-			{
-				TraceError("CScreen::RestoreDevice: Failed to recreate DefaultIndexBufferList");
-				return FALSE;
-			}
-
-			if (!CGraphicDevice::__CreatePDTVertexBufferList())
-			{
-				TraceError("CScreen::RestoreDevice: Failed to recreate PDTVertexBufferList");
-				return FALSE;
-			}
-			
-			STATEMANAGER.SetDefaultState();
 		}
 		else
 		{

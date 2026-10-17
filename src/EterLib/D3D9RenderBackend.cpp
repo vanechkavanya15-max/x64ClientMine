@@ -96,12 +96,10 @@ void CD3D9RenderBackend::OnLostDevice()
 {
 	if (m_pTerrainPipeline)
 		m_pTerrainPipeline->Shutdown();
-	ReleaseVertexDeclarations();
 }
 
 void CD3D9RenderBackend::OnResetDevice()
 {
-	InitVertexDeclarations();
 }
 
 void CD3D9RenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)

@@ -195,6 +195,11 @@ CGraphicDevice::EDeviceState CGraphicDevice::GetDeviceState()
 
 bool CGraphicDevice::Reset()
 {
+	return ResetWithParams(ms_d3dPresentParameter);
+}
+
+bool CGraphicDevice::ResetWithParams(D3DPRESENT_PARAMETERS& d3dpp)
+{
 	if (!ms_lpd3dDevice)
 		return false;
 
@@ -202,28 +207,29 @@ bool CGraphicDevice::Reset()
 	__DestroyPDTVertexBufferList();
 	__DestroyDefaultIndexBufferList();
 
-	HRESULT hr = ms_lpd3dDevice->Reset(&ms_d3dPresentParameter);
+	HRESULT hr = ms_lpd3dDevice->Reset(&d3dpp);
 	if (FAILED(hr))
 	{
-		TraceError("CGraphicDevice::Reset: Reset failed (hr=0x%08X)", hr);
+		TraceError("CGraphicDevice::ResetWithParams: Reset failed (hr=0x%08X)", hr);
 		return false;
 	}
+
+	ms_d3dPresentParameter = d3dpp;
 
 	// Recreate D3DPOOL_DEFAULT resources after successful Reset
 	if (!__CreateDefaultIndexBufferList())
 	{
-		TraceError("CGraphicDevice::Reset: Failed to recreate DefaultIndexBufferList");
+		TraceError("CGraphicDevice::ResetWithParams: Failed to recreate DefaultIndexBufferList");
 		return false;
 	}
 
 	if (!__CreatePDTVertexBufferList())
 	{
-		TraceError("CGraphicDevice::Reset: Failed to recreate PDTVertexBufferList");
+		TraceError("CGraphicDevice::ResetWithParams: Failed to recreate PDTVertexBufferList");
 		return false;
 	}
 
-	if (m_pStateManager)
-		m_pStateManager->SetDefaultState();
+	STATEMANAGER.SetDefaultState();
 
 	return true;
 }

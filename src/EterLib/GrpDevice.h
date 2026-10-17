@@ -41,6 +41,7 @@ public:
 
 	EDeviceState	GetDeviceState();
 	bool			Reset();
+	static bool		ResetWithParams(D3DPRESENT_PARAMETERS& d3dpp);
 
 	bool			ResizeBackBuffer(UINT uWidth, UINT uHeight);
 	void			RegisterWarningString(UINT uiMsg, const char * c_szString);
