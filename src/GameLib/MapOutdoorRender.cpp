@@ -311,6 +311,27 @@ namespace
 		}
 	};
 
+	struct FThingInstanceCameraDistanceOrderBackToFront
+	{
+		D3DXVECTOR3 v3CameraEye{};
+
+		explicit FThingInstanceCameraDistanceOrderBackToFront(const D3DXVECTOR3& eye) noexcept
+			: v3CameraEye(eye)
+		{
+		}
+
+		bool operator()(const CGraphicThingInstance* pkLeft, const CGraphicThingInstance* pkRight) const noexcept
+		{
+			if (!pkLeft || !pkRight)
+				return pkLeft != nullptr;
+
+			const D3DXVECTOR3 vLeftDiff = v3CameraEye - pkLeft->GetPosition();
+			const D3DXVECTOR3 vRightDiff = v3CameraEye - pkRight->GetPosition();
+
+			return D3DXVec3LengthSq(&vLeftDiff) > D3DXVec3LengthSq(&vRightDiff);
+		}
+	};
+
 	void RenderSingleCameraBlocker(CGraphicObjectInstance* pInstance)
 	{
 		if (!pInstance || !pInstance->isShow())
@@ -525,10 +546,10 @@ void CMapOutdoor::RenderBlendArea()
 
 	if (CCamera* pCurrentCamera = CCameraManager::Instance().GetCurrentCamera())
 	{
-		std::ranges::sort(m_blendInstances, FThingInstanceCameraDistanceOrder(pCurrentCamera->GetEye()));
+		std::ranges::sort(m_blendInstances, FThingInstanceCameraDistanceOrderBackToFront(pCurrentCamera->GetEye()));
 	}
 
-	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);

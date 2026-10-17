@@ -321,7 +321,7 @@ BOOL CInstanceBase::NEW_IsClickableDistanceDestInstance(CInstanceBase& rkInstDst
 	if (IsBowMode())
 		fDistance = __GetBowRange();
 
-	if (rkInstDst.IsNPC())
+	if (rkInstDst.IsNPC() || !IsAttackableInstance(rkInstDst))
 		fDistance = 500.0f;
 
 	if (rkInstDst.IsResource())

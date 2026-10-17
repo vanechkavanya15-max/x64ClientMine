@@ -292,7 +292,7 @@ void CPythonPlayer::__OnClickActor(CInstanceBase& rkInstMain, DWORD dwPickedActo
 		return;
 	}
 
-	if (rkInstVictim.IsNPC())
+	if (rkInstVictim.IsNPC() || !rkInstMain.IsAttackableInstance(rkInstVictim))
 	{
 		__SendClickActorPacket(rkInstVictim);
 	}

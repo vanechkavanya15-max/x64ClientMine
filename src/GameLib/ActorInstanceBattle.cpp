@@ -122,6 +122,17 @@ BOOL CActorInstance::IsClickableDistanceDestInstance(CActorInstance & rkInstDst,
 	D3DXVECTOR3 kD3DVct3Src(kPPosSrc);
 
 	TCollisionPointInstanceList& rkLstkDefPtInst=rkInstDst.m_DefendingPointInstanceList;
+	if (rkLstkDefPtInst.empty())
+	{
+		TPixelPosition kPPosDst;
+		rkInstDst.GetPixelPosition(&kPPosDst);
+		D3DXVECTOR3 kD3DVct3Dst(kPPosDst);
+
+		D3DXVECTOR3 vv = kD3DVct3Dst - kD3DVct3Src;
+		float fMovDistance = D3DXVec3Length(&vv);
+		return (fMovDistance <= fDistance) ? TRUE : FALSE;
+	}
+
 	TCollisionPointInstanceList::iterator i;
 
 	for (i=rkLstkDefPtInst.begin(); i!=rkLstkDefPtInst.end(); ++i)

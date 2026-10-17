@@ -881,7 +881,7 @@ void CPythonCharacterManager::__UpdatePickedActorList()
 			}
 			else
 			{
-				if (pkInstEach->IntersectDefendingSphere())
+				if (pkInstEach->IntersectDefendingSphere() || pkInstEach->IntersectBoundingBox())
 					m_pickedInstances.push_back(pkInstEach);
 			}
 		}
@@ -987,7 +987,7 @@ void CPythonCharacterManager::__OLD_Pick()
 		if (pkInstEach == m_mainActor)
 			continue;
 
-		if (pkInstEach->IntersectDefendingSphere())
+		if (pkInstEach->IntersectDefendingSphere() || pkInstEach->IntersectBoundingBox())
 		{
 			if (m_pickedActor && m_pickedActor != pkInstEach)
 				m_pickedActor->OnUnselected();
@@ -1010,7 +1010,7 @@ int CPythonCharacterManager::PickAll()
 	for (auto& pair : m_aliveActorsMap)
 	{
 		CInstanceBase* pInstance = pair.second;
-		if (pInstance->IntersectDefendingSphere())
+		if (pInstance->IntersectDefendingSphere() || pInstance->IntersectBoundingBox())
 			return pInstance->GetVirtualID();
 	}
 
