@@ -187,6 +187,7 @@ Napisz kompletny plik testowy `tests/test_c26_<nazwa>_protocol.cpp`:
    ```
 Wszystkie testy w projekcie musza bezwzglednie zakonczyc sie wynikiem **100% PASS**.
 
+
 ---
 
 ### C. Detekcja i Ramkowanie Pakietu TPacketGCMainCharacter (Standard x64)
@@ -200,4 +201,25 @@ W architekturze klienta x64 detekcja pakietu wejscia do gry `TPacketGCMainCharac
    - `LoadingPacketHandler::HandleMainCharacter` weryfikuje poprawnosc rozmiaru bufora (`payload.size() >= sizeof(TPacketGCMainCharacter)`), a nastepnie deserializuje dane gracza glownego do `WorldContext` (ustawiajac `localPlayerVid` oraz koordynaty `lX, lY, lZ`).
 3. **Odpornosc na Desynchronizacje Strumienia TCP**:
    - Klient w fazie Loading konsumuje ze strumienia dokladnie tyle bajtow, ile wynosi zadeklarowany rozmiar ramki ze stalym lub dynamicznym naglowkiem, co calkowicie eliminuje powstawanie przesuniec bufora (TCP stream desync).
+
+---
+
+## 5. ZASADY KOMPILACJI I PRACY SUBAGENTOW (ANTY-LAG, BRAK KOMPILACJI MONOLITU)
+
+1. **BEZWZGLEDNY ZAKAZ BUDOWANIA `UserInterface` W WORKTREE / PRZEZ SUBAGENTOW:**
+   - Subagenci pracujacy w izolowanych galeziach i worktrees (`.worktrees/*`) maja **kategoryczny zakaz** uruchamiania pelnego buildu `cmake --build build --config Release --target UserInterface`.
+   - Monolit `UserInterface` linkuje plik wykonywalny 31 MB i generuje gigantyczny plik PDB (150 MB). Rownolegle uruchomienie 3–5 takich kompilacji prowadzi do blokad serwera `mspdbsrv.exe`, wyczerpania RAM i drastycznych lagow CPU/dysku.
+
+2. **W WORKTREE BUDUJEMY WYLACZNIE TEST JEDNOSTKOWY:**
+   - W worktree subagent buduje **wylacznie** dedykowany cel malego testu jednostkowego danego modulu:
+     ```powershell
+     cmake --build build --config Release --target test_c26_<modul> -- /m:1
+     ctest --test-dir build -C Release -R <NazwaTestu>Test --output-on-failure
+     ```
+   - Dla zadan czysto porzadkowych (np. usuniecie martwego kodu, refaktoryzacja bez nowego testu), wystarczy zbudowanie samej biblioteki statycznej danego komponentu (np. `--target EterLib -- /m:1`).
+
+3. **PELNY BUILD MONOLITU TYLKO RAZ PRZY GLOWNYM MERGE:**
+   - Pelna kompilacja celu `UserInterface` oraz pelne wywolanie `ctest` wykonuje sie **dokladnie jeden raz** przez glownego agenta integracyjnego w glownym repozytorium `E:\m2dev client backlup`, dopiero po scaleniu wszystkich ukonczonych galezi danej fali lub przed checkpointem.
+
+
 
