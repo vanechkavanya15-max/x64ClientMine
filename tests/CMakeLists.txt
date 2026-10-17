@@ -6532,6 +6532,15 @@ target_include_directories(test_c26_s8_cleanup PRIVATE
 target_link_libraries(test_c26_s8_cleanup PRIVATE EterLib EterBase doctest)
 add_test(NAME S8CleanupTest COMMAND test_c26_s8_cleanup)
 
+add_executable(test_c26_named_constants test_c26_named_constants.cpp)
+target_include_directories(test_c26_named_constants PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_named_constants PRIVATE EterLib EterBase doctest)
+add_test(NAME NamedConstantsTest COMMAND test_c26_named_constants)
+
 
 add_executable(test_c26_map_outdoor_helpers test_c26_map_outdoor_helpers.cpp)
 target_include_directories(test_c26_map_outdoor_helpers PRIVATE

@@ -7,13 +7,14 @@
 #include "EterBase/Timer.h"
 #include "FrameTimer.h"
 #include "Camera.h"
+#include "RenderConventions.h"
 #include <cmath>
 #include <algorithm>
 
 const float c_fDefaultResistance = 0.3f;
 
-float CCamera::CAMERA_MIN_DISTANCE = 200.0f;
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
+float CCamera::CAMERA_MIN_DISTANCE = kDefaultCameraMinDistance;
+float CCamera::CAMERA_MAX_DISTANCE = kDefaultCameraMaxDistance;
 
 CCameraManager aCameraManager;	// CCameraManager Instance
 

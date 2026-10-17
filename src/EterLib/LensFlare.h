@@ -29,6 +29,7 @@
 
 #include "GrpImageInstance.h"
 #include "GrpScreen.h"
+#include "RenderConventions.h"
 
 #include <float.h>
 #include <string>
@@ -41,8 +42,8 @@
 constexpr float	c_fHalfMaxBright = 0.45f;
 constexpr float	c_fDistanceScale = 1.0f;
 constexpr int   c_nDepthTestDimension = 15;
-constexpr float	kLensFlareMaxDistance = 99999999.0f; // Pozorny dystans slonca w jednostkach swiata
-constexpr float	kFlareIntensityScale = 0.85f;        // Wspolczynnik tlumienia jasnosci przy okluzji glebi
+constexpr float	kLensFlareMaxDistance = kDefaultLensFlareMaxDistance; // Pozorny dystans slonca w jednostkach swiata
+constexpr float	kFlareIntensityScale = kDefaultFlareIntensityScale;   // Wspolczynnik tlumienia jasnosci przy okluzji glebi
 
 
 ///////////////////////////////////////////////////////////////////////  
