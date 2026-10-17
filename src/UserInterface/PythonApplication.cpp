@@ -324,7 +324,7 @@ void CPythonApplication::UpdateGame()
 	CGraphicTextInstance::Hyperlink_UpdateMousePos(ptMouse.x, ptMouse.y);
 
 
-	//!@# Alt+Tab Áß SetTransfor ¿¡¼­ Æ¨±è Çö»ó ÇØ°áÀ» À§ÇØ - [levites]
+	// Workaround for SetTransform crash during Alt+Tab
 	//if (m_isActivateWnd)
 	{
 		CScreen s;
@@ -352,8 +352,7 @@ void CPythonApplication::UpdateGame()
 	m_pyItem.Update(ptMouse);
 	m_pyPlayer.Update();
 
-	// NOTE : Update µ¿¾È À§Ä¡ °ªÀÌ ¹Ù²î¹Ç·Î ´Ù½Ã ¾ò¾î ¿É´Ï´Ù - [levites]
-	//        ÀÌ ºÎºÐ ¶§¹®¿¡ ¸ÞÀÎ ÄÉ¸¯ÅÍÀÇ Sound°¡ ÀÌÀü À§Ä¡¿¡¼­ ÇÃ·¹ÀÌ µÇ´Â Çö»óÀÌ ÀÖ¾úÀ½.
+	// Re-acquire main actor position after Update so character sound plays at current position
 	m_pyPlayer.NEW_GetMainActorPosition(&kPPosMainActor);
 	SetCenterPosition(kPPosMainActor.x, kPPosMainActor.y, kPPosMainActor.z);
 }
@@ -573,7 +572,7 @@ bool CPythonApplication::Process()
 
 					m_fFaceSpd=(m_dwFaceAccCount/m_dwFaceAccTime);
 
-					// °Å¸® ÀÚµ¿ Á¶Àý
+					// Automatic view distance adjustment
 					if (-1 == m_iForceSightRange)
 					{
 						static float s_fAveRenderTime = 16.0f;
@@ -588,7 +587,7 @@ bool CPythonApplication::Process()
 						float fDistance=std::max((float)(fNear+(fFar-fNear)*(dbAvePow)/dbMaxPow), fNear);
 						m_pyBackground.SetViewDistanceSet(0, fDistance);
 					}
-					// °Å¸® °­Á¦ ¼³Á¤½Ã
+					// Forced view distance setting
 					else
 					{
 						m_pyBackground.SetViewDistanceSet(0, float(m_iForceSightRange));
@@ -596,7 +595,7 @@ bool CPythonApplication::Process()
 				}
 				else
 				{
-					// 10000 Æú¸®°ï º¸´Ù ÀûÀ»¶§´Â °¡Àå ¸Ö¸® º¸ÀÌ°Ô ÇÑ´Ù
+					// When polygon count is under 10000, set maximum view distance
 					m_pyBackground.SetViewDistanceSet(0, 25600.0f);
 				}
 

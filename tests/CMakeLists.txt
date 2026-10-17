@@ -7066,6 +7066,7 @@ target_link_libraries(test_c26_frame_double_buffer PRIVATE
 add_test(NAME test_c26_frame_double_buffer COMMAND test_c26_frame_double_buffer)
 add_test(NAME FrameDoubleBufferTest COMMAND test_c26_frame_double_buffer)
 
+<<<<<<< HEAD
 # --- S7.6 M2FR Frame Replayer & Validator Test ---
 add_executable(test_c26_frame_replay test_c26_frame_replay.cpp)
 target_include_directories(test_c26_frame_replay PRIVATE
@@ -7130,6 +7131,19 @@ target_link_libraries(test_c26_pure_functions PRIVATE
 )
 add_test(NAME test_c26_pure_functions COMMAND test_c26_pure_functions)
 add_test(NAME PureFunctionsTest COMMAND test_c26_pure_functions)
+
+# --- S8.5 Comment cleanliness and mojibake elimination test ---
+add_executable(test_c26_comment_cleanliness test_c26_comment_cleanliness.cpp)
+target_include_directories(test_c26_comment_cleanliness PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_comment_cleanliness PRIVATE
+    doctest
+)
+add_test(NAME test_c26_comment_cleanliness COMMAND test_c26_comment_cleanliness)
+add_test(NAME CommentCleanlinessTest COMMAND test_c26_comment_cleanliness)
 
 
 

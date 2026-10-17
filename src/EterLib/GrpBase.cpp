@@ -64,13 +64,13 @@ float					CGraphicBase::ms_fAspect;
 DWORD					CGraphicBase::ms_dwWavingEndTime;
 int						CGraphicBase::ms_iWavingPower;
 
-// Terrain picking용 Ray... CCamera 이용하는 버전.. 기존의 Ray와 통합 필요...
+// Terrain picking Ray using CCamera
 CRay					CGraphicBase::ms_Ray;
 bool					CGraphicBase::ms_bSupportDXT = true;
 bool					CGraphicBase::ms_isLowTextureMemory = false;
 bool					CGraphicBase::ms_isHighTextureMemory = false;
 
-// 2004.11.18.myevan.DynamicVertexBuffer로 교체
+// Replaced with DynamicVertexBuffer
 /*
 std::vector<TIndex>		CGraphicBase::ms_lineIdxVector;
 std::vector<TIndex>		CGraphicBase::ms_lineTriIdxVector;
