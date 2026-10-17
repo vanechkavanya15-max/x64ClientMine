@@ -31,6 +31,8 @@ public:
 		y = a.y;
 		z = a.z;
 	};
+
+	Vector3d(const D3DXVECTOR3 &v) : D3DXVECTOR3(v) {}
 	
 	Vector3d(float a,float b,float c) // construct with initial point.
 	{

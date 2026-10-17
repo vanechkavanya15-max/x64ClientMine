@@ -4,6 +4,7 @@
 #include "EterLib/RenderOwnership.h"
 
 #include "MapOutdoor.h"
+#include "MapOutdoorCharacterShadow.h"
 
 static int recreate = false;
 
@@ -84,16 +85,7 @@ bool CMapOutdoor::BeginRenderCharacterShadowToTexture()
 	}
 
 	D3DXVECTOR3 v3Target = pCurrentCamera->GetTarget();
-	
-	D3DXVECTOR3 v3Eye(v3Target.x - 1.732f * 1250.0f,
-					  v3Target.y - 1250.0f,
-					  v3Target.z + 2.0f * 1.732f * 1250.0f);
-	
-	const auto vv = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
-	D3DXMatrixLookAtRH(&matLightView,
-					   &v3Eye,
-					   &v3Target,
-					   &vv);
+	BuildCharacterShadowMatrix(&matLightView, kDefaultCharacterShadowLightDir, v3Target, 5000.0f);
 	
 	D3DXMatrixOrthoRH(&matLightProj, 2550.0f, 2550.0f, 1.0f, 15000.0f);
 
