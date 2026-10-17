@@ -1,5 +1,6 @@
 #include "DebugRenderer.h"
 #include "Client/World/ActorRegistry.h"
+#include "EterLib/RenderQueueManager.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -150,38 +151,37 @@ bool DebugRenderer::GetMainActorPosition(float& x, float& y, float& z) const
     return false;
 }
 
-void DebugRenderer::BuildVertexBatches(std::vector<DebugVertex>& outStandardVertices, std::vector<DebugVertex>& outXRayVertices)
+void DebugRenderer::BuildVertexBatches(std::vector<TDebugLinePacket>& outLinePackets)
 {
-    outStandardVertices.clear();
-    outXRayVertices.clear();
+    outLinePackets.clear();
 
     const size_t totalExpected = GetTotalVertexCount();
     if (totalExpected > 0)
     {
-        outStandardVertices.reserve(totalExpected);
-        outXRayVertices.reserve(totalExpected);
+        outLinePackets.reserve(totalExpected / 2);
     }
 
     // 1. Linie
     for (const auto& line : m_lines)
     {
-        auto& target = line.xray ? outXRayVertices : outStandardVertices;
-        target.push_back({line.sx, line.sy, line.sz, line.color});
-        target.push_back({line.ex, line.ey, line.ez, line.color});
+        TDebugLinePacket pkt{};
+        pkt.v3Start = { line.sx, line.sy, line.sz };
+        pkt.v3End = { line.ex, line.ey, line.ez };
+        pkt.dwColor = line.color;
+        pkt.bXRay = line.xray ? 1 : 0;
+        outLinePackets.push_back(pkt);
     }
 
     // 2. Boxy AABB
     for (const auto& box : m_boxes)
     {
-        auto& target = box.xray ? outXRayVertices : outStandardVertices;
-        GenerateBoxVertices(box, target);
+        GenerateBoxPackets(box, outLinePackets);
     }
 
     // 3. Okregi 3D
     for (const auto& circle : m_circles)
     {
-        auto& target = circle.xray ? outXRayVertices : outStandardVertices;
-        GenerateCircleVertices(circle, target);
+        GenerateCirclePackets(circle, outLinePackets);
     }
 
     // 4. Znaczniki aktorow (Tracery i Boxy)
@@ -196,8 +196,6 @@ void DebugRenderer::BuildVertexBatches(std::vector<DebugVertex>& outStandardVert
         float actorX = 0.0f, actorY = 0.0f, actorZ = 0.0f;
         if (GetActorPosition(marker.targetVid, actorX, actorY, actorZ))
         {
-            auto& target = marker.xray ? outXRayVertices : outStandardVertices;
-
             if (marker.drawBox)
             {
                 constexpr float halfExtent = 50.0f;
@@ -208,65 +206,53 @@ void DebugRenderer::BuildVertexBatches(std::vector<DebugVertex>& outStandardVert
                     marker.color,
                     marker.xray
                 };
-                GenerateBoxVertices(aabbBox, target);
+                GenerateBoxPackets(aabbBox, outLinePackets);
             }
 
             if (marker.drawTracer && hasMainPlayer)
             {
-                target.push_back({mainX, mainY, mainZ + 50.0f, marker.color});
-                target.push_back({actorX, actorY, actorZ + 75.0f, marker.color});
+                TDebugLinePacket pkt{};
+                pkt.v3Start = { mainX, mainY, mainZ + 50.0f };
+                pkt.v3End = { actorX, actorY, actorZ + 75.0f };
+                pkt.dwColor = marker.color;
+                pkt.bXRay = marker.xray ? 1 : 0;
+                outLinePackets.push_back(pkt);
             }
         }
     }
 }
 
-void DebugRenderer::Render(void* pD3DDevice)
+void DebugRenderer::BuildVertexBatches(std::vector<DebugVertex>& outStandardVertices, std::vector<DebugVertex>& outXRayVertices)
 {
-    if (!pD3DDevice)
-        return;
+    std::vector<TDebugLinePacket> packets;
+    BuildVertexBatches(packets);
 
-#if defined(_WIN32) || defined(_WIN64)
-    auto* device = static_cast<IDirect3DDevice9*>(pD3DDevice);
+    outStandardVertices.clear();
+    outXRayVertices.clear();
+    outStandardVertices.reserve(packets.size() * 2);
+    outXRayVertices.reserve(packets.size() * 2);
 
-    BuildVertexBatches(m_cachedStandardVertices, m_cachedXRayVertices);
-
-    if (m_cachedStandardVertices.empty() && m_cachedXRayVertices.empty())
-        return;
-
-    auto drawBatched = [device](const std::vector<DebugVertex>& verts) {
-        constexpr size_t MAX_BATCH_PRIMITIVES = 4096;
-        const size_t maxVerticesPerChunk = MAX_BATCH_PRIMITIVES * 2;
-        for (size_t offset = 0; offset < verts.size(); offset += maxVerticesPerChunk)
-        {
-            const size_t chunkVerts = std::min(maxVerticesPerChunk, verts.size() - offset);
-            const auto primitiveCount = static_cast<UINT>(chunkVerts / 2);
-            if (primitiveCount > 0)
-            {
-                device->DrawPrimitiveUP(D3DPT_LINELIST, primitiveCount, &verts[offset], sizeof(DebugVertex));
-            }
-        }
-    };
-
-    // Rysowanie wierzcholkow standardowych (ze sprawdzaniem bufora Z)
-    if (!m_cachedStandardVertices.empty())
+    for (const auto& pkt : packets)
     {
-        device->SetFVF(D3DFVF_DEBUG_VERTEX);
-        drawBatched(m_cachedStandardVertices);
+        auto& target = pkt.bXRay ? outXRayVertices : outStandardVertices;
+        target.push_back({ pkt.v3Start.x, pkt.v3Start.y, pkt.v3Start.z, pkt.dwColor });
+        target.push_back({ pkt.v3End.x, pkt.v3End.y, pkt.v3End.z, pkt.dwColor });
     }
+}
 
-    // Rysowanie wierzcholkow X-Ray (przez sciany) z zachowaniem biezacego stanu ZENABLE
-    if (!m_cachedXRayVertices.empty())
+void DebugRenderer::FlushToRenderQueue()
+{
+    std::vector<TDebugLinePacket> packets;
+    BuildVertexBatches(packets);
+    if (!packets.empty())
     {
-        DWORD dwSavedZEnable = D3DZB_TRUE;
-        device->GetRenderState(D3DRS_ZENABLE, &dwSavedZEnable);
-
-        device->SetRenderState(D3DRS_ZENABLE, FALSE);
-        device->SetFVF(D3DFVF_DEBUG_VERTEX);
-        drawBatched(m_cachedXRayVertices);
-
-        device->SetRenderState(D3DRS_ZENABLE, dwSavedZEnable);
+        CRenderQueueManager::Instance().SubmitDebugLines(packets.data(), packets.size());
     }
-#endif
+}
+
+void DebugRenderer::Render(void* /*pD3DDevice*/)
+{
+    FlushToRenderQueue();
 }
 
 } // namespace Client::Graphics::Debug

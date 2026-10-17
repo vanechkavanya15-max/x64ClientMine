@@ -21,6 +21,7 @@ public:
 	virtual void RenderEffects(const TEffectInstancePacket* pPackets, unsigned int count) = 0;
 	virtual void RenderUI(const TUIBatchPacket* pPackets, unsigned int count) = 0;
 	virtual void RenderDungeonBlocks(const TDungeonBlockPacket* pPackets, unsigned int count) {}
+	virtual void RenderDebugLines(const TDebugLinePacket* pPackets, unsigned int count) {}
 
 	virtual void EndFrame() = 0;
 	virtual const char* GetBackendName() const = 0;

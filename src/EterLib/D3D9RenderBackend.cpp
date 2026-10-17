@@ -778,3 +778,76 @@ bool CD3D9RenderBackend::CaptureFrame(const char* szFilename)
 	pBackBuffer->Release();
 	return SUCCEEDED(hr);
 }
+
+void CD3D9RenderBackend::RenderDebugLines(const TDebugLinePacket* pPackets, unsigned int count)
+{
+	RenderDebugLinesWithDevice(pPackets, count, nullptr);
+}
+
+namespace
+{
+	struct SDebugVertex
+	{
+		float x, y, z;
+		DWORD color;
+		static constexpr DWORD FVF = D3DFVF_XYZ | D3DFVF_DIFFUSE;
+	};
+}
+
+void CD3D9RenderBackend::RenderDebugLinesWithDevice(const TDebugLinePacket* pPackets, unsigned int count, void* pCustomDevice)
+{
+	if (!pPackets || count == 0)
+		return;
+
+	IDirect3DDevice9* pD3DDevice = pCustomDevice ? static_cast<IDirect3DDevice9*>(pCustomDevice) : STATEMANAGER.GetDevice();
+	if (!pD3DDevice)
+		return;
+
+	std::vector<SDebugVertex> stdVerts;
+	std::vector<SDebugVertex> xrayVerts;
+	stdVerts.reserve(count * 2);
+	xrayVerts.reserve(count * 2);
+
+	for (unsigned int i = 0; i < count; ++i)
+	{
+		const auto& p = pPackets[i];
+		auto& target = p.bXRay ? xrayVerts : stdVerts;
+		target.push_back({ p.v3Start.x, p.v3Start.y, p.v3Start.z, p.dwColor });
+		target.push_back({ p.v3End.x, p.v3End.y, p.v3End.z, p.dwColor });
+	}
+
+	auto drawBatched = [pD3DDevice](const std::vector<SDebugVertex>& verts) {
+		constexpr size_t MAX_BATCH_PRIMITIVES = 4096;
+		const size_t maxVerticesPerChunk = MAX_BATCH_PRIMITIVES * 2;
+		for (size_t offset = 0; offset < verts.size(); offset += maxVerticesPerChunk)
+		{
+			const size_t chunkVerts = std::min(maxVerticesPerChunk, verts.size() - offset);
+			const auto primitiveCount = static_cast<UINT>(chunkVerts / 2);
+			if (primitiveCount > 0)
+			{
+				pD3DDevice->DrawPrimitiveUP(D3DPT_LINELIST, primitiveCount, &verts[offset], sizeof(SDebugVertex));
+			}
+		}
+	};
+
+	// Rysowanie wierzcholkow standardowych (ze sprawdzaniem bufora Z)
+	if (!stdVerts.empty())
+	{
+		pD3DDevice->SetFVF(SDebugVertex::FVF);
+		drawBatched(stdVerts);
+	}
+
+	// Rysowanie wierzcholkow X-Ray (przez sciany) z zachowaniem biezacego stanu ZENABLE
+	if (!xrayVerts.empty())
+	{
+		DWORD dwSavedZEnable = D3DZB_TRUE;
+		pD3DDevice->GetRenderState(D3DRS_ZENABLE, &dwSavedZEnable);
+
+		pD3DDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+		pD3DDevice->SetFVF(SDebugVertex::FVF);
+		drawBatched(xrayVerts);
+
+		pD3DDevice->SetRenderState(D3DRS_ZENABLE, dwSavedZEnable);
+	}
+}
+

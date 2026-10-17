@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include "DebugVertex.h"
+#include "EterLib/RenderPacketTypes.h"
 
 namespace Client::Graphics::Debug
 {
@@ -91,6 +92,64 @@ inline void GenerateCircleVertices(const DebugCircle& circle, std::vector<DebugV
 
         outVertices.push_back({x0, y0, elevatedZ, circle.color});
         outVertices.push_back({x1, y1, elevatedZ, circle.color});
+    }
+}
+
+inline void GenerateBoxPackets(const DebugBox& box, std::vector<TDebugLinePacket>& outPackets)
+{
+    const float x0 = box.minX, x1 = box.maxX;
+    const float y0 = box.minY, y1 = box.maxY;
+    const float z0 = box.minZ, z1 = box.maxZ;
+    const uint32_t col = box.color;
+    const uint8_t xray = box.xray ? 1 : 0;
+
+    auto addEdge = [&](float sx, float sy, float sz, float ex, float ey, float ez) {
+        TDebugLinePacket pkt{};
+        pkt.v3Start = { sx, sy, sz };
+        pkt.v3End = { ex, ey, ez };
+        pkt.dwColor = col;
+        pkt.bXRay = xray;
+        outPackets.push_back(pkt);
+    };
+
+    // Dolna podstawa (z0)
+    addEdge(x0, y0, z0, x1, y0, z0);
+    addEdge(x1, y0, z0, x1, y1, z0);
+    addEdge(x1, y1, z0, x0, y1, z0);
+    addEdge(x0, y1, z0, x0, y0, z0);
+
+    // Gorna podstawa (z1)
+    addEdge(x0, y0, z1, x1, y0, z1);
+    addEdge(x1, y0, z1, x1, y1, z1);
+    addEdge(x1, y1, z1, x0, y1, z1);
+    addEdge(x0, y1, z1, x0, y0, z1);
+
+    // 4 pionowe filary
+    addEdge(x0, y0, z0, x0, y0, z1);
+    addEdge(x1, y0, z0, x1, y0, z1);
+    addEdge(x1, y1, z0, x1, y1, z1);
+    addEdge(x0, y1, z0, x0, y1, z1);
+}
+
+inline void GenerateCirclePackets(const DebugCircle& circle, std::vector<TDebugLinePacket>& outPackets)
+{
+    const uint32_t seg = (circle.segments < 8) ? 8 : (circle.segments > 64 ? 64 : circle.segments);
+    constexpr float PI = 3.14159265358979323846f;
+    const float step = (2.0f * PI) / static_cast<float>(seg);
+    const float elevatedZ = circle.cz + 2.5f;
+    const uint8_t xray = circle.xray ? 1 : 0;
+
+    for (uint32_t i = 0; i < seg; ++i)
+    {
+        const float a0 = static_cast<float>(i) * step;
+        const float a1 = static_cast<float>((i + 1) % seg) * step;
+
+        TDebugLinePacket pkt{};
+        pkt.v3Start = { circle.cx + circle.radius * std::cos(a0), circle.cy + circle.radius * std::sin(a0), elevatedZ };
+        pkt.v3End = { circle.cx + circle.radius * std::cos(a1), circle.cy + circle.radius * std::sin(a1), elevatedZ };
+        pkt.dwColor = circle.color;
+        pkt.bXRay = xray;
+        outPackets.push_back(pkt);
     }
 }
 

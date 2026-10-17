@@ -55,11 +55,15 @@ public:
     [[nodiscard]] size_t GetMarkerCount() const noexcept { return m_markers.size(); }
     [[nodiscard]] size_t GetTotalVertexCount() const noexcept;
 
-    // Generowanie buforow wierzcholkow
+    // Generowanie buforow wierzcholkow i pakietow linii
     void BuildVertexBatches(std::vector<DebugVertex>& outStandardVertices, std::vector<DebugVertex>& outXRayVertices);
+    void BuildVertexBatches(std::vector<TDebugLinePacket>& outLinePackets);
 
-    // Renderowanie Direct3D 9
-    void Render(void* pD3DDevice);
+    // Przekazywanie linii do kolejki renderowania
+    void FlushToRenderQueue();
+
+    // Renderowanie geometrii diagnostycznej (przez kolejke lub backend)
+    void Render(void* pD3DDevice = nullptr);
 
 private:
     DebugRenderer() = default;

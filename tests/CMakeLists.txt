@@ -707,6 +707,7 @@ target_link_libraries(test_c31_debug_renderer PRIVATE
     mio
     ws2_32
 )
+add_test(NAME test_c31_debug_renderer COMMAND test_c31_debug_renderer)
 add_test(NAME DebugRendererTest COMMAND test_c31_debug_renderer)
 
 add_executable(test_c34_universal_protocol_drivers

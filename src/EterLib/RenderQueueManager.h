@@ -158,6 +158,8 @@ public:
 	void SubmitWater(const TWaterPacket& packet);
 	void SubmitSkyBox(const TSkyBoxPacket& packet);
 	void SubmitDungeonBlock(const TDungeonBlockPacket& packet);
+	void SubmitDebugLine(const TDebugLinePacket& packet);
+	void SubmitDebugLines(const TDebugLinePacket* pPackets, size_t count);
 
 	void Flush(IRenderBackend* pBackend = nullptr);
 	void FlushUI();
@@ -170,6 +172,7 @@ public:
 	const std::vector<TWaterPacket>& GetWaterPackets() const;
 	const std::vector<TSkyBoxPacket>& GetSkyBoxPackets() const;
 	const std::vector<TDungeonBlockPacket>& GetDungeonPackets() const;
+	const std::vector<TDebugLinePacket>& GetDebugLinePackets() const;
 
 	size_t GetTotalPacketCount() const;
 
@@ -210,6 +213,7 @@ private:
 	std::vector<TWaterPacket> m_waterPackets;
 	std::vector<TSkyBoxPacket> m_skyBoxPackets;
 	std::vector<TDungeonBlockPacket> m_dungeonPackets;
+	std::vector<TDebugLinePacket> m_debugLinePackets;
 
 	size_t m_flushedSpeedTreeOffset{ 0 };
 	size_t m_flushedUIOffset{ 0 };

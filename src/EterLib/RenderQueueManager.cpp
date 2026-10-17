@@ -47,6 +47,7 @@ CRenderQueueManager::CRenderQueueManager()
 	m_waterPackets.reserve(32);
 	m_skyBoxPackets.reserve(8);
 	m_dungeonPackets.reserve(256);
+	m_debugLinePackets.reserve(512);
 
 	m_particleDataPool.resize(DEFAULT_PARTICLE_POOL_CAPACITY);
 	m_particleDataOffset = 0;
@@ -72,6 +73,7 @@ void CRenderQueueManager::BeginFrame()
 	m_waterPackets.clear();
 	m_skyBoxPackets.clear();
 	m_dungeonPackets.clear();
+	m_debugLinePackets.clear();
 	m_flushedSpeedTreeOffset = 0;
 	m_flushedUIOffset = 0;
 	m_particleDataOffset = 0;
@@ -140,6 +142,18 @@ void CRenderQueueManager::SubmitDungeonBlock(const TDungeonBlockPacket& packet)
 	m_dungeonPackets.push_back(packet);
 }
 
+void CRenderQueueManager::SubmitDebugLine(const TDebugLinePacket& packet)
+{
+	m_debugLinePackets.push_back(packet);
+}
+
+void CRenderQueueManager::SubmitDebugLines(const TDebugLinePacket* pPackets, size_t count)
+{
+	if (!pPackets || count == 0)
+		return;
+	m_debugLinePackets.insert(m_debugLinePackets.end(), pPackets, pPackets + count);
+}
+
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
 	if (!pBackend)
@@ -175,6 +189,9 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 
 	if (!m_effectPackets.empty())
 		pBackend->RenderEffects(m_effectPackets.data(), static_cast<unsigned int>(m_effectPackets.size()));
+
+	if (!m_debugLinePackets.empty())
+		pBackend->RenderDebugLines(m_debugLinePackets.data(), static_cast<unsigned int>(m_debugLinePackets.size()));
 
 	if (m_flushedUIOffset < m_uiPackets.size())
 	{
@@ -244,11 +261,16 @@ const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonPackets()
 	return m_dungeonPackets;
 }
 
+const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() const
+{
+	return m_debugLinePackets;
+}
+
 size_t CRenderQueueManager::GetTotalPacketCount() const
 {
 	return m_speedTreePackets.size() + m_uiPackets.size() + m_actorPackets.size() +
 		m_terrainPackets.size() + m_effectPackets.size() + m_waterPackets.size() +
-		m_skyBoxPackets.size() + m_dungeonPackets.size();
+		m_skyBoxPackets.size() + m_dungeonPackets.size() + m_debugLinePackets.size();
 }
 
 TParticleInstanceData* CRenderQueueManager::AllocateParticleData(size_t count)

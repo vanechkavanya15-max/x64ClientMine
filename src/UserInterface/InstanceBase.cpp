@@ -16,6 +16,7 @@
 #include "InstanceControllers/IInstanceTitleRankController.h"
 #include "Client/Bridge/StranglerInstanceFacade.h"
 #include "ECS/ECSWorldRegistry.h"
+#include "Client/Graphics/Debug/DebugRenderer.h"
 
 extern BOOL HAIR_COLOR_ENABLE;
 extern BOOL USE_ARMOR_SPECULAR;
@@ -1685,30 +1686,17 @@ void CInstanceBase::Render()
 	{	
 		if (NEW_GetDstPixelPositionRef().x != 0.0f)
 		{
-			static CScreen s_kScreen;
-
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_DIFFUSE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,	D3DTOP_SELECTARG1);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP,	D3DTOP_DISABLE);	
-			STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, FALSE);
-			STATEMANAGER.SetRenderState(D3DRS_FOGENABLE, FALSE);
-			STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
-			
 			TPixelPosition px;
 			m_GraphicThingInstance.GetPixelPosition(&px);
 			D3DXVECTOR3 kD3DVt3Cur(px.x, px.y, px.z);
-			//D3DXVECTOR3 kD3DVt3Cur(NEW_GetSrcPixelPositionRef().x, -NEW_GetSrcPixelPositionRef().y, NEW_GetSrcPixelPositionRef().z);
 			D3DXVECTOR3 kD3DVt3Dest(NEW_GetDstPixelPositionRef().x, -NEW_GetDstPixelPositionRef().y, NEW_GetDstPixelPositionRef().z);
 
-			//printf("%s %f\n", GetNameString(), kD3DVt3Cur.y - kD3DVt3Dest.y);
-			//float fdx = NEW_GetDstPixelPositionRef().x - NEW_GetSrcPixelPositionRef().x;
-			//float fdy = NEW_GetDstPixelPositionRef().y - NEW_GetSrcPixelPositionRef().y;
-
-			s_kScreen.SetDiffuseColor(0.0f, 0.0f, 1.0f);
-			s_kScreen.RenderLine3d(kD3DVt3Cur.x, kD3DVt3Cur.y, px.z, kD3DVt3Dest.x, kD3DVt3Dest.y, px.z);
-			STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
-			STATEMANAGER.SetRenderState(D3DRS_FOGENABLE, TRUE);
-			STATEMANAGER.SetRenderState(D3DRS_LIGHTING, TRUE);
+			Client::Graphics::Debug::DebugRenderer::GetInstance().AddLine(
+				kD3DVt3Cur.x, kD3DVt3Cur.y, px.z,
+				kD3DVt3Dest.x, kD3DVt3Dest.y, px.z,
+				0xFF0000FF,
+				true
+			);
 		}
 	}	
 }

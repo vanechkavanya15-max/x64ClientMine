@@ -371,11 +371,7 @@ typedef struct RENDER_ABI_ALIGN(16) TSkyBoxPacket
     {
         std::memset(this, 0, sizeof(*this));
         fCloudScale = 1.0f;
-#if defined(RENDER_COLOR4_TYPE) && !defined(RENDER_ABI_C_ONLY)
-        vSkyColor = RENDER_COLOR4_TYPE(0.0f, 0.0f, 0.0f, 1.0f);
-#else
         vSkyColor.r = 0.0f; vSkyColor.g = 0.0f; vSkyColor.b = 0.0f; vSkyColor.a = 1.0f;
-#endif
     }
 #endif
 } TSkyBoxPacket;
