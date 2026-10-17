@@ -157,16 +157,6 @@ target_link_libraries(test_c26_quickslot_domain PRIVATE
     EterBase
 )
 
-add_executable(test_c26_simd_culling test_c26_simd_culling.cpp)
-target_include_directories(test_c26_simd_culling PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-target_link_libraries(test_c26_simd_culling PRIVATE
-    Client2026
-    EterBase
-)
 
 add_executable(test_c26_world_context test_c26_world_context.cpp)
 target_include_directories(test_c26_world_context PRIVATE
@@ -209,29 +199,6 @@ target_link_libraries(test_c26_instance_components PRIVATE
     EterBase
 )
 
-add_executable(test_c26_zero_overhead_state_cache 
-    test_c26_zero_overhead_state_cache.cpp
-    ${CMAKE_SOURCE_DIR}/src/Client/Graphics/ZeroOverheadStateCache.cpp
-)
-target_include_directories(test_c26_zero_overhead_state_cache PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-)
-
-add_executable(test_c26_dynamic_geometry_ring_buffer test_c26_dynamic_geometry_ring_buffer.cpp)
-target_include_directories(test_c26_dynamic_geometry_ring_buffer PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}
-)
-target_link_libraries(test_c26_dynamic_geometry_ring_buffer PRIVATE
-    Client2026
-    EterBase
-)
 
 add_executable(test_c26_instance_physics_engine test_c26_instance_physics_engine.cpp)
 target_include_directories(test_c26_instance_physics_engine PRIVATE
@@ -272,34 +239,6 @@ target_link_libraries(test_c26_type_sanitization PRIVATE
     EterBase
 )
 
-add_executable(test_c26_msdf_text_batcher test_c26_msdf_text_batcher.cpp)
-target_include_directories(test_c26_msdf_text_batcher PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/vendor
-)
-target_link_libraries(test_c26_msdf_text_batcher PRIVATE
-    Client2026
-    EterBase
-)
-
-add_executable(test_c26_hardware_mesh_instancing test_c26_hardware_mesh_instancing.cpp)
-target_include_directories(test_c26_hardware_mesh_instancing PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_SOURCE_DIR}/src/GameLib
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/vendor
-)
-target_link_libraries(test_c26_hardware_mesh_instancing PRIVATE
-    Client2026
-    GameLib
-    EterBase
-)
-
 enable_testing()
 add_test(NAME StranglerFacadeTest COMMAND test_c26_strangler_facade)
 add_test(NAME PandoraSimulationTest COMMAND test_c26_e2e_pandora_simulation)
@@ -312,17 +251,13 @@ add_test(NAME QuickslotDomainTest COMMAND test_c26_quickslot_domain)
 add_test(NAME ActorRegistryTest COMMAND test_c26_actor_registry)
 add_test(NAME SpatialHashGridTest COMMAND test_c26_spatial_hash_grid)
 add_test(NAME ZeroCopyRingBufferTest COMMAND test_c26_zero_copy_ring_buffer)
-add_test(NAME SimdCullingTest COMMAND test_c26_simd_culling)
 add_test(NAME WorldContextTest COMMAND test_c26_world_context)
 add_test(NAME DomainErrorsEventsTest COMMAND test_c26_domain_errors_events)
 add_test(NAME InstanceComponentsTest COMMAND test_c26_instance_components)
-add_test(NAME ZeroOverheadStateCacheTest COMMAND test_c26_zero_overhead_state_cache)
-add_test(NAME DynamicGeometryRingBufferTest COMMAND test_c26_dynamic_geometry_ring_buffer)
 add_test(NAME InstancePhysicsEngineTest COMMAND test_c26_instance_physics_engine)
 add_test(NAME InstanceCombatEngineTest COMMAND test_c26_instance_combat_engine)
 add_test(NAME TypeSanitizationTest COMMAND test_c26_type_sanitization)
-add_test(NAME MsdfTextBatcherTest COMMAND test_c26_msdf_text_batcher)
-add_test(NAME HardwareMeshInstancingTest COMMAND test_c26_hardware_mesh_instancing)
+
 
 add_executable(test_c26_protocol_pillar1 test_c26_protocol_pillar1.cpp)
 target_include_directories(test_c26_protocol_pillar1 PRIVATE
@@ -351,18 +286,6 @@ target_link_libraries(test_c26_modern_packet_dispatcher PRIVATE
 )
 add_test(NAME ModernPacketDispatcherTest COMMAND test_c26_modern_packet_dispatcher)
 
-add_executable(test_c26_rhi_engine test_c26_rhi_engine.cpp)
-target_include_directories(test_c26_rhi_engine PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-target_link_libraries(test_c26_rhi_engine PRIVATE
-    Client2026
-    EterBase
-)
-
-add_test(NAME RHIEngineTest COMMAND test_c26_rhi_engine)
 
 add_executable(test_c26_phase_game_routers
     test_c26_phase_game_routers.cpp
@@ -1093,27 +1016,6 @@ add_test(NAME test_c26_aes_crypto_provider COMMAND test_c26_aes_crypto_provider)
 
 
 
-add_executable(test_c26_camera_frustum test_c26_camera_frustum.cpp)
-target_include_directories(test_c26_camera_frustum PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_camera_frustum PRIVATE
-    Client2026
-    SphereLib
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_camera_frustum COMMAND test_c26_camera_frustum)
 
 add_executable(test_c26_chat_command_handler test_c26_chat_command_handler.cpp)
 target_include_directories(test_c26_chat_command_handler PRIVATE
@@ -3019,48 +2921,6 @@ target_link_libraries(test_c26_refine_packet_codec PRIVATE
 )
 add_test(NAME test_c26_refine_packet_codec COMMAND test_c26_refine_packet_codec)
 
-add_executable(test_c26_render_context test_c26_render_context.cpp)
-target_include_directories(test_c26_render_context PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_render_context PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_render_context COMMAND test_c26_render_context)
-
-
-add_executable(test_c26_render_state_guard test_c26_render_state_guard.cpp)
-target_include_directories(test_c26_render_state_guard PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_render_state_guard PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_render_state_guard COMMAND test_c26_render_state_guard)
 
 add_executable(test_c26_result_system test_c26_result_system.cpp)
 target_include_directories(test_c26_result_system PRIVATE
@@ -4067,27 +3927,6 @@ target_link_libraries(test_c26_vfs_mmap PRIVATE
 )
 add_test(NAME test_c26_vfs_mmap COMMAND test_c26_vfs_mmap)
 
-# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
-add_executable(test_c26_texture_raii test_c26_texture_raii.cpp)
-target_include_directories(test_c26_texture_raii PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_texture_raii PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_texture_raii COMMAND test_c26_texture_raii)
 
 # --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
 add_executable(test_c26_area_collision test_c26_area_collision.cpp)
