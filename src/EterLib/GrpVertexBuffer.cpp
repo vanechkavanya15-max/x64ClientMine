@@ -2,6 +2,8 @@
 #include "EterBase/Stl.h"
 #include "GrpVertexBuffer.h"
 #include "StateManager.h"
+#include "RenderResourceRegistry.h"
+#include "EterBase/CRC32.h"
 
 int	CGraphicVertexBuffer::GetVertexStride() const
 {
@@ -163,6 +165,9 @@ bool CGraphicVertexBuffer::Copy(int bufSize, const void* srcVertices)
 	memcpy(dstVertices, srcVertices, bufSize);
 	
 	Unlock();
+
+	m_cpuCopy.assign(static_cast<const uint8_t*>(srcVertices), static_cast<const uint8_t*>(srcVertices) + bufSize);
+	CRenderResourceRegistry::SafeSetVertexBufferCpuCopy(m_lpd3dVB, srcVertices, bufSize);
 	return true;
 }
 
@@ -188,12 +193,25 @@ bool CGraphicVertexBuffer::CreateDeviceObjects()
 		return false;
 	}
 
+	CRenderResourceRegistry::SafeRegisterVertexBuffer(
+		m_lpd3dVB,
+		m_dwBufferSize,
+		m_dwFVF,
+		m_cpuCopy.empty() ? nullptr : m_cpuCopy.data(),
+		(m_dwUsage & D3DUSAGE_DYNAMIC) ? "DynamicVB" : "StaticVB"
+	);
+
 	return true;
 }
 
 void CGraphicVertexBuffer::DestroyDeviceObjects()
 {
-	safe_release(m_lpd3dVB);
+	if (m_lpd3dVB)
+	{
+		CRenderResourceRegistry::SafeUnregisterVertexBuffer(m_lpd3dVB);
+		safe_release(m_lpd3dVB);
+	}
+	m_cpuCopy.clear();
 }
 
 bool CGraphicVertexBuffer::Create(int vtxCount, DWORD fvf, DWORD usage, D3DPOOL d3dPool, int explicitStride)
@@ -232,6 +250,48 @@ void CGraphicVertexBuffer::Initialize()
 	m_vtxCount = 0;
 	m_dwBufferSize = 0;
 	m_iExplicitStride = 0;
+	m_cpuCopy.clear();
+}
+
+bool CGraphicVertexBuffer::GetCpuCopy(std::vector<uint8_t>& outData) const
+{
+	if (!m_cpuCopy.empty())
+	{
+		outData = m_cpuCopy;
+		return true;
+	}
+	if (m_lpd3dVB)
+	{
+		return CRenderResourceRegistry::SafeGetVertexBufferCpuCopy(m_lpd3dVB, outData);
+	}
+	return false;
+}
+
+bool CGraphicVertexBuffer::HasCpuCopy() const
+{
+	if (!m_cpuCopy.empty())
+		return true;
+	if (m_lpd3dVB && CRenderResourceRegistry::InstancePtr())
+	{
+		std::vector<uint8_t> tmp;
+		return CRenderResourceRegistry::SafeGetVertexBufferCpuCopy(m_lpd3dVB, tmp);
+	}
+	return false;
+}
+
+uint32_t CGraphicVertexBuffer::GetCpuCopyCrc32() const
+{
+	if (!m_cpuCopy.empty())
+	{
+		return GetCRC32(reinterpret_cast<const char*>(m_cpuCopy.data()), m_cpuCopy.size());
+	}
+	if (m_lpd3dVB && CRenderResourceRegistry::InstancePtr())
+	{
+		TRenderVertexBufferHandle h = CRenderResourceRegistry::Instance().FindVertexBufferHandle(m_lpd3dVB);
+		if (h != kInvalidVertexBufferHandle)
+			return CRenderResourceRegistry::Instance().GetVertexBufferCrc32(h);
+	}
+	return 0;
 }
 
 CGraphicVertexBuffer::CGraphicVertexBuffer()

@@ -16,6 +16,7 @@
 
 #include "StdAfx.h"
 #include "DDSTextureLoader9.h"
+#include "EterLib/RenderResourceRegistry.h"
 
 #include <d3d9types.h>
 
@@ -24,6 +25,7 @@
 #include <cstring>
 #include <memory>
 #include <new>
+#include <vector>
 
 #include <wrl/client.h>
 
@@ -1037,6 +1039,17 @@ namespace
             const uint8_t* pEndBits = bitData + bitSize;
             D3DLOCKED_RECT LockedRect = {};
 
+            struct SMipPixelData
+            {
+                uint32_t level;
+                uint32_t width;
+                uint32_t height;
+                uint32_t pitch;
+                std::vector<uint8_t> pixels;
+            };
+            std::vector<SMipPixelData> collectedMips;
+            collectedMips.reserve(iMipCount);
+
             for (UINT i = 0; i < iMipCount; ++i)
             {
                 GetSurfaceInfo(iWidth, iHeight, fmt, &NumBytes, &RowBytes, &NumRows);
@@ -1061,6 +1074,22 @@ namespace
                         pSrcBits += RowBytes;
                     }
 
+                    // Kopia CPU pikseli ze stagingu SYSTEMMEM
+                    SMipPixelData mip;
+                    mip.level = i;
+                    mip.width = iWidth;
+                    mip.height = iHeight;
+                    mip.pitch = static_cast<uint32_t>(RowBytes);
+                    mip.pixels.resize(NumRows * RowBytes);
+
+                    const uint8_t* pStagedRow = static_cast<const uint8_t*>(LockedRect.pBits);
+                    for (UINT h = 0; h < NumRows; ++h)
+                    {
+                        memcpy(mip.pixels.data() + h * RowBytes, pStagedRow, RowBytes);
+                        pStagedRow += LockedRect.Pitch;
+                    }
+                    collectedMips.push_back(std::move(mip));
+
                     pStagingTexture->UnlockRect(i);
                 }
 
@@ -1077,6 +1106,24 @@ namespace
                 hr = device->UpdateTexture(pStagingTexture.Get(), pTexture.Get());
                 if (FAILED(hr))
                     return hr;
+            }
+
+            // Przekazanie zdekodowanych pikseli ze stagingu do CRenderResourceRegistry
+            if (pTexture)
+            {
+                CRenderResourceRegistry::SafeRegisterTexture(pTexture.Get(), "DDS_Staged_Texture");
+                for (const auto& mip : collectedMips)
+                {
+                    CRenderResourceRegistry::SafeAttachTexturePixelCopy(
+                        pTexture.Get(),
+                        mip.level,
+                        mip.width,
+                        mip.height,
+                        mip.pitch,
+                        mip.pixels.data(),
+                        mip.pixels.size()
+                    );
+                }
             }
 
             *texture = pTexture.Detach();

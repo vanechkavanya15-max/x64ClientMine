@@ -2,6 +2,8 @@
 #include "EterBase/Stl.h"
 #include "GrpIndexBuffer.h"
 #include "StateManager.h"
+#include "RenderResourceRegistry.h"
+#include "EterBase/CRC32.h"
 
 LPDIRECT3DINDEXBUFFER9 CGraphicIndexBuffer::GetD3DIndexBuffer() const
 {
@@ -114,6 +116,9 @@ bool CGraphicIndexBuffer::Copy(int bufSize, const void* srcIndices)
 
 	m_lpd3dIdxBuf->Unlock();
 
+	m_cpuCopy.assign(static_cast<const uint8_t*>(srcIndices), static_cast<const uint8_t*>(srcIndices) + bufSize);
+	CRenderResourceRegistry::SafeSetIndexBufferCpuCopy(m_lpd3dIdxBuf, srcIndices, bufSize);
+
 	return true;
 }
 
@@ -136,6 +141,7 @@ bool CGraphicIndexBuffer::Create(int faceCount, TFace* faces)
 	if (FAILED(m_lpd3dIdxBuf->Lock(0, requiredBytes, (void**)&dstIndices, dwLockFlag)))
 		return false;
 
+	WORD* dstIndicesStart = dstIndices;
 	for (int i = 0; i < faceCount; ++i, dstIndices += 3)
 	{
 		TFace* curFace = faces + i;
@@ -145,6 +151,10 @@ bool CGraphicIndexBuffer::Create(int faceCount, TFace* faces)
 	}
 
 	m_lpd3dIdxBuf->Unlock();
+
+	m_cpuCopy.assign(reinterpret_cast<const uint8_t*>(dstIndicesStart), reinterpret_cast<const uint8_t*>(dstIndicesStart) + requiredBytes);
+	CRenderResourceRegistry::SafeSetIndexBufferCpuCopy(m_lpd3dIdxBuf, m_cpuCopy.data(), m_cpuCopy.size());
+
 	return true;
 }
 
@@ -170,12 +180,25 @@ bool CGraphicIndexBuffer::CreateDeviceObjects()
 		return false;
 	}
 
+	CRenderResourceRegistry::SafeRegisterIndexBuffer(
+		m_lpd3dIdxBuf,
+		m_dwBufferSize,
+		m_d3dFmt,
+		m_cpuCopy.empty() ? nullptr : m_cpuCopy.data(),
+		(m_dwUsage & D3DUSAGE_DYNAMIC) ? "DynamicIB" : "StaticIB"
+	);
+
 	return true;
 }
 
 void CGraphicIndexBuffer::DestroyDeviceObjects()
 {
-	safe_release(m_lpd3dIdxBuf);
+	if (m_lpd3dIdxBuf)
+	{
+		CRenderResourceRegistry::SafeUnregisterIndexBuffer(m_lpd3dIdxBuf);
+		safe_release(m_lpd3dIdxBuf);
+	}
+	m_cpuCopy.clear();
 }
 
 bool CGraphicIndexBuffer::Create(int idxCount, D3DFORMAT d3dFmt)
@@ -218,6 +241,48 @@ void CGraphicIndexBuffer::Initialize()
 	m_dwUsage = D3DUSAGE_WRITEONLY;
 	m_d3dPool = D3DPOOL_DEFAULT;
 	m_dwLockFlag = 0;
+	m_cpuCopy.clear();
+}
+
+bool CGraphicIndexBuffer::GetCpuCopy(std::vector<uint8_t>& outData) const
+{
+	if (!m_cpuCopy.empty())
+	{
+		outData = m_cpuCopy;
+		return true;
+	}
+	if (m_lpd3dIdxBuf)
+	{
+		return CRenderResourceRegistry::SafeGetIndexBufferCpuCopy(m_lpd3dIdxBuf, outData);
+	}
+	return false;
+}
+
+bool CGraphicIndexBuffer::HasCpuCopy() const
+{
+	if (!m_cpuCopy.empty())
+		return true;
+	if (m_lpd3dIdxBuf && CRenderResourceRegistry::InstancePtr())
+	{
+		std::vector<uint8_t> tmp;
+		return CRenderResourceRegistry::SafeGetIndexBufferCpuCopy(m_lpd3dIdxBuf, tmp);
+	}
+	return false;
+}
+
+uint32_t CGraphicIndexBuffer::GetCpuCopyCrc32() const
+{
+	if (!m_cpuCopy.empty())
+	{
+		return GetCRC32(reinterpret_cast<const char*>(m_cpuCopy.data()), m_cpuCopy.size());
+	}
+	if (m_lpd3dIdxBuf && CRenderResourceRegistry::InstancePtr())
+	{
+		TRenderIndexBufferHandle h = CRenderResourceRegistry::Instance().FindIndexBufferHandle(m_lpd3dIdxBuf);
+		if (h != kInvalidIndexBufferHandle)
+			return CRenderResourceRegistry::Instance().GetIndexBufferCrc32(h);
+	}
+	return 0;
 }
 
 CGraphicIndexBuffer::CGraphicIndexBuffer()
