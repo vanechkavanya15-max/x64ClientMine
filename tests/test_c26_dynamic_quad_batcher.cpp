@@ -4,7 +4,7 @@
 #include "EterLib/RenderQueueManager.h"
 #include "EterLib/Camera.h"
 
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
+// float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
 
 using namespace EterLib::Render;
 

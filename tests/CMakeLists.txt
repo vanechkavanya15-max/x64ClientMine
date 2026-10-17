@@ -574,7 +574,23 @@ target_include_directories(test_c26_state_manager_cache PRIVATE
     ${CMAKE_SOURCE_DIR}/extern/include
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_link_libraries(test_c26_state_manager_cache PRIVATE EterLib EterBase doctest)
+target_link_libraries(test_c26_state_manager_cache PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    DirectX
+    Dbghelp
+    sodium
+    libzstd_static
+    lzo2
+    mio
+    ws2_32
+    doctest
+)
 add_test(NAME StateManagerCacheTest COMMAND test_c26_state_manager_cache)
 
 add_executable(test_c31_beavium_server_profile
