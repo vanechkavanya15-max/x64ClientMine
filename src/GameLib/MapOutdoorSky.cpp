@@ -39,7 +39,6 @@ void CMapOutdoorSky::UpdateAtmosphere(const TEnvironmentData* pEnvData, int iFog
 	const D3DLIGHT9& sunLight = pEnvData->DirLights[ENV_DIRLIGHT_CHARACTER];
 	m_uniforms.vSunLightDir = D3DXVECTOR3(sunLight.Direction.x, sunLight.Direction.y, sunLight.Direction.z);
 	m_uniforms.vSunLightColor = D3DXCOLOR(sunLight.Diffuse.r, sunLight.Diffuse.g, sunLight.Diffuse.b, sunLight.Diffuse.a);
-	m_uniforms.v4SunDirection = D3DXVECTOR4(sunLight.Direction.x, sunLight.Direction.y, sunLight.Direction.z, 1.0f);
 	m_uniforms.v4SunColor = D3DXVECTOR4(sunLight.Diffuse.r, sunLight.Diffuse.g, sunLight.Diffuse.b, sunLight.Diffuse.a);
 
 	// 2. Kolor otoczenia (ambient)
@@ -84,7 +83,6 @@ void CMapOutdoorSky::SetSunLight(const D3DXVECTOR3& v3Direction, const D3DCOLORV
 {
 	m_uniforms.vSunLightDir = v3Direction;
 	m_uniforms.vSunLightColor = D3DXCOLOR(cDiffuse.r, cDiffuse.g, cDiffuse.b, cDiffuse.a);
-	m_uniforms.v4SunDirection = D3DXVECTOR4(v3Direction.x, v3Direction.y, v3Direction.z, 1.0f);
 	m_uniforms.v4SunColor = D3DXVECTOR4(cDiffuse.r, cDiffuse.g, cDiffuse.b, cDiffuse.a);
 	SyncUniformsToRenderQueue();
 }
@@ -115,7 +113,6 @@ void CMapOutdoorSky::SyncUniformsToRenderQueue()
 	merged.vFogColor = m_uniforms.vFogColor;
 	merged.fFogNear = m_uniforms.fFogNear;
 	merged.fFogFar = m_uniforms.fFogFar;
-	merged.v4SunDirection = m_uniforms.v4SunDirection;
 	merged.v4SunColor = m_uniforms.v4SunColor;
 	merged.v4AmbientColor = m_uniforms.v4AmbientColor;
 	merged.v4FogParams = m_uniforms.v4FogParams;

@@ -258,7 +258,7 @@ const TRenderFrameUniforms& CSkyBox::GetAtmosphereUniforms() const
 
 void CSkyBox::SetSunLight(const D3DXVECTOR4& v4Direction, const D3DXVECTOR4& v4Color)
 {
-	m_atmosphereUniforms.v4SunDirection = v4Direction;
+	m_atmosphereUniforms.vSunLightDir = D3DXVECTOR3(v4Direction.x, v4Direction.y, v4Direction.z);
 	m_atmosphereUniforms.v4SunColor = v4Color;
 	CRenderQueueManager::Instance().SetFrameUniforms(m_atmosphereUniforms);
 }

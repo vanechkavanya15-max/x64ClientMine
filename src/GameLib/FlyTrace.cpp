@@ -114,8 +114,8 @@ void CFlyTrace::Render()
 		pParticles[i].vTexCoordRect = D3DXVECTOR4(0.0f, 0.0f, 1.0f, 1.0f);
 		pParticles[i].fRotation = 0.0f;
 		pParticles[i].fLifeRatio = fLifeRatio;
-		pParticles[i].fPad[0] = m_fSize;
-		pParticles[i].fPad[1] = 0.0f;
+		pParticles[i].fHalfWidth = m_fSize;
+		pParticles[i].fHalfHeight = 0.0f;
 	}
 
 	TEffectInstancePacket packet{};

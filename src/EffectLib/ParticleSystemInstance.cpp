@@ -390,8 +390,8 @@ void CParticleSystemInstance::OnRender()
 			data.vTexCoordRect = D3DXVECTOR4(0.0f, 0.0f, 1.0f, 1.0f);
 			data.fRotation = pInstance->m_fRotation;
 			data.fLifeRatio = fLifeRatio;
-			data.fPad[0] = fScaleX;
-			data.fPad[1] = fScaleY;
+			data.fHalfWidth = fScaleX;
+			data.fHalfHeight = fScaleY;
 
 			if (m_pParticleProperty->m_byBillboardType == BILLBOARD_TYPE_2FACE)
 			{

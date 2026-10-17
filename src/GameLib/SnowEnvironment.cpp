@@ -151,8 +151,8 @@ void CSnowEnvironment::Render()
 		data.vTexCoordRect = D3DXVECTOR4(0.0f, 0.0f, 1.0f, 1.0f);
 		data.fRotation = pSnow->GetRotation();
 		data.fLifeRatio = 1.0f;
-		data.fPad[0] = fHalfWidth;
-		data.fPad[1] = fHalfHeight;
+		data.fHalfWidth = fHalfWidth;
+		data.fHalfHeight = fHalfHeight;
 
 		batcher.AddParticle(dwSnowEffectID, dwTextureID, dwSnowBlendMode, data);
 	}

@@ -3,6 +3,7 @@
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <cstdint>
+#include <cstring>
 
 class CSpeedTreeWrapper;
 
@@ -21,41 +22,34 @@ enum EUIBlendMode : uint32_t
 
 struct alignas(16) TRenderFrameUniforms
 {
-	D3DXMATRIX matView;
-	D3DXMATRIX matProj;
-	D3DXMATRIX matViewProj;
+	D3DXMATRIX matView{};
+	D3DXMATRIX matProj{};
+	D3DXMATRIX matViewProj{};
 
 	// Slot 0 (offset 192, 16B): Camera Position + Global Time
-	D3DXVECTOR3 vCameraPos;
-	float fTime;
+	D3DXVECTOR3 vCameraPos{};
+	float fTime{ 0.0f };
 
-	// Slot 1 (offset 208, 16B): Sun Light Direction + Frame Index
-	union
-	{
-		struct
-		{
-			D3DXVECTOR3 vSunLightDir;
-			uint32_t dwFrameIndex;
-		};
-		D3DXVECTOR4 v4SunDirection;
-	};
+	// Slot 1 (offset 208, 16B): Sun Light Direction + Frame Index (F-NEW-018: unia usunieta)
+	D3DXVECTOR3 vSunLightDir{};
+	uint32_t dwFrameIndex{ 0 };
 
 	// Slot 2 (offset 224, 16B): Sun Light Diffuse Color
 	union
 	{
-		D3DXCOLOR vSunLightColor;
+		D3DXCOLOR vSunLightColor{};
 		D3DXVECTOR4 v4SunColor;
 	};
 
 	// Slot 3 (offset 240, 16B): Ambient Light Color
 	union
 	{
-		D3DXCOLOR vAmbientColor;
+		D3DXCOLOR vAmbientColor{};
 		D3DXVECTOR4 v4AmbientColor;
 	};
 
 	// Slot 4 (offset 256, 16B): Fog Color
-	D3DXCOLOR vFogColor;
+	D3DXCOLOR vFogColor{};
 
 	// Slot 5 (offset 272, 16B): Fog Range & Linear Scale Params (Near, Far, InvRange, Enable)
 	union
@@ -69,6 +63,11 @@ struct alignas(16) TRenderFrameUniforms
 		};
 		D3DXVECTOR4 v4FogParams;
 	};
+
+	TRenderFrameUniforms()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 static_assert(sizeof(TRenderFrameUniforms) == 288, "TRenderFrameUniforms must be 288 bytes (18x vec4, 16B aligned)");
 static_assert(alignof(TRenderFrameUniforms) == 16, "TRenderFrameUniforms must be 16-byte aligned");
@@ -102,36 +101,42 @@ struct alignas(16) TTerrainSectorPacket
 	bool bHasWater = false;
 	float fWaterHeight = 0.0f;
 	float fReserved = 0.0f;
+
+	TTerrainSectorPacket()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 
 struct alignas(16) TActorRenderPacket
 {
-	uint32_t dwActorID;
-	uint32_t dwMeshID;
-	uint32_t dwTextureID;
-	uint32_t dwBoneCount;
-	D3DXMATRIX matWorld;
-	const D3DXMATRIX* pBoneMatrices;
-	D3DXMATRIX boneMatrices[64];
-	uint32_t dwWeaponMeshID;
-	uint32_t dwWeaponTextureID;
-	D3DXMATRIX matWeaponSocket;
-	D3DXMATRIX matWeaponLeftSocket;
-	D3DXMATRIX matHelmetSocket;
-	D3DXMATRIX matHairSocket;
-	uint32_t dwAuraEffectCount;
-	D3DXMATRIX matAuraEffectSockets[8];
-	uint32_t dwAuraEffectIDs[8];
-	bool bRenderShadow;
-	bool bIsDead;
-	bool bSelected;
-	bool bAlphaBlend;
-	float fAlpha;
-	union
+	uint32_t dwActorID{ 0 };
+	uint32_t dwMeshID{ 0 };
+	uint32_t dwTextureID{ 0 };
+	uint32_t dwBoneCount{ 0 };
+	D3DXMATRIX matWorld{};
+	const D3DXMATRIX* pBoneMatrices{ nullptr };
+	D3DXMATRIX boneMatrices[64]{};
+	uint32_t dwWeaponMeshID{ 0 };
+	uint32_t dwWeaponTextureID{ 0 };
+	D3DXMATRIX matWeaponSocket{};
+	D3DXMATRIX matWeaponLeftSocket{};
+	D3DXMATRIX matHelmetSocket{};
+	D3DXMATRIX matHairSocket{};
+	uint32_t dwAuraEffectCount{ 0 };
+	D3DXMATRIX matAuraEffectSockets[8]{};
+	uint32_t dwAuraEffectIDs[8]{};
+	bool bRenderShadow{ false };
+	bool bIsDead{ false };
+	bool bSelected{ false };
+	bool bAlphaBlend{ false };
+	float fAlpha{ 0.0f };
+	float fShadowSize{ 0.0f };
+
+	TActorRenderPacket()
 	{
-		float fPad;
-		float fShadowSize;
-	};
+		std::memset(this, 0, sizeof(*this));
+	}
 
 	// Bezpieczny dostep do macierzy kosci eliminujacy problem wiszacego wskaznika na stos
 	[[nodiscard]] const D3DXMATRIX* GetBoneMatrices() const noexcept
@@ -162,6 +167,15 @@ struct alignas(16) TWaterPacket
 	uint32_t dwFaceCount = 0;
 	uint32_t patchNum = 0;
 	float fPad = 0.0f;
+
+	TWaterPacket()
+	{
+		std::memset(this, 0, sizeof(*this));
+		fWaveFrequency = 1.5f;
+		fWaveAmplitude = 5.0f;
+		vWaterColor = D3DXCOLOR(0.2f, 0.5f, 0.7f, 0.6f);
+		fAlpha = 0.6f;
+	}
 };
 
 struct alignas(16) TSkyBoxPacket
@@ -175,6 +189,13 @@ struct alignas(16) TSkyBoxPacket
 	float fCloudScrollSpeed{ 0.0f };
 	float fPad{ 0.0f };
 	D3DXCOLOR vSkyColor{ 0.0f, 0.0f, 0.0f, 1.0f };
+
+	TSkyBoxPacket()
+	{
+		std::memset(this, 0, sizeof(*this));
+		fCloudScale = 1.0f;
+		vSkyColor = D3DXCOLOR(0.0f, 0.0f, 0.0f, 1.0f);
+	}
 };
 
 struct alignas(16) TSpeedTreeInstanceData
@@ -185,6 +206,11 @@ struct alignas(16) TSpeedTreeInstanceData
 	uint32_t dwTreeCRC{0};
 	float fWindStrength{0.0f};
 	float fPad[3]{};
+
+	TSpeedTreeInstanceData()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 
 // 100% C-ABI POD Packet dla instancji drzew SpeedTree (zero std::vector)
@@ -202,16 +228,27 @@ struct alignas(16) TSpeedTreePacket
 	uint32_t dwInstanceCount{0};
 	const TSpeedTreeInstanceData* pInstances{nullptr};
 	float fPad[2]{};
+
+	TSpeedTreePacket()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 
 struct alignas(16) TParticleInstanceData
 {
-	D3DXVECTOR4 vWorldPos;       // x, y, z, scale
-	D3DXCOLOR   vColor;          // ARGB color tint
-	D3DXVECTOR4 vTexCoordRect;   // minU, minV, maxU, maxV
-	float       fRotation;
-	float       fLifeRatio;
-	float       fPad[2];
+	D3DXVECTOR4 vWorldPos{};       // x, y, z, scale
+	D3DXCOLOR   vColor{};          // ARGB color tint
+	D3DXVECTOR4 vTexCoordRect{};   // minU, minV, maxU, maxV
+	float       fRotation{ 0.0f };
+	float       fLifeRatio{ 0.0f };
+	float       fHalfWidth{ 0.0f };
+	float       fHalfHeight{ 0.0f };
+
+	TParticleInstanceData()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 
 struct alignas(16) TEffectInstancePacket
@@ -222,14 +259,24 @@ struct alignas(16) TEffectInstancePacket
 	uint32_t dwParticleCount{0};
 	const TParticleInstanceData* pParticles{nullptr};
 	float fPad[2]{ 0.0f, 0.0f };
+
+	TEffectInstancePacket()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 
 // 24-bajtowy wierzcholek UI (zgodny binarnie z TPDTVertex: FLOAT3 + D3DCOLOR + FLOAT2)
 struct TUIVertex
 {
-	D3DXVECTOR3 position;
-	uint32_t color;
-	D3DXVECTOR2 texCoord;
+	D3DXVECTOR3 position{};
+	uint32_t color{ 0 };
+	D3DXVECTOR2 texCoord{};
+
+	TUIVertex()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 static_assert(sizeof(TUIVertex) == 24, "TUIVertex must be 24 bytes (FLOAT3 + D3DCOLOR + FLOAT2)");
 
@@ -243,6 +290,11 @@ struct alignas(16) TUIBatchPacket
 	RECT scissorRect{ 0, 0, 0, 0 };
 	const TUIVertex* pVertices{nullptr};
 	float fPad[2]{ 0.0f, 0.0f };
+
+	TUIBatchPacket()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 
 struct SPNT2Vertex;
@@ -257,11 +309,7 @@ struct alignas(16) TDungeonBlockPacket
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
 	};
-	union
-	{
-		uintptr_t dwDiffuseTextureID{ 0 };
-		uintptr_t dwBaseTextureID;
-	};
+	uintptr_t dwDiffuseTextureID{ 0 };
 	uintptr_t dwLightmapTextureID{ 0 };
 	void* pDiffuseTexture{ nullptr };
 	void* pLightmapTexture{ nullptr };
@@ -271,23 +319,23 @@ struct alignas(16) TDungeonBlockPacket
 	const uint16_t* pIndices{ nullptr };
 	uint32_t dwVertexCount{ 0 };
 	uint32_t dwIndexCount{ 0 };
-	union
-	{
-		uint32_t dwPrimitiveCount{ 0 };
-		uint32_t dwModelID;
-	};
+	uint32_t dwPrimitiveCount{ 0 };
 	uint32_t dwStartIndex{ 0 };
 	int32_t nBaseVertexIndex{ 0 };
-	union
+	float fAlpha{ 1.0f };
+	uint8_t bAlphaBlend{ 0 };
+	uint8_t bPadDungeon[3]{ 0, 0, 0 };
+	float fPad{ 0.0f };
+
+	TDungeonBlockPacket()
 	{
-		float fAlpha{ 1.0f };
-		struct
-		{
-			bool bAlphaBlend;
-			uint8_t reservedAlpha[3];
-		};
-	};
-	float fPad[2]{ 0.0f, 0.0f };
+		std::memset(this, 0, sizeof(*this));
+		matWorld._11 = 1.0f;
+		matWorld._22 = 1.0f;
+		matWorld._33 = 1.0f;
+		matWorld._44 = 1.0f;
+		fAlpha = 1.0f;
+	}
 };
 
 // Zbiorczy pakiet C-ABI calej klatki dla mostu FFI (m2_wgpu_render_frame)
@@ -315,6 +363,11 @@ struct alignas(16) TRenderFramePacket
 	const TSkyBoxPacket* pSkyBoxPackets{nullptr};
 	uint32_t dwSkyBoxCount{0};
 	uint32_t dwPad6{0};
+
+	TRenderFramePacket()
+	{
+		std::memset(this, 0, sizeof(*this));
+	}
 };
 
 namespace EterLib::Render
@@ -350,9 +403,14 @@ static_assert(offsetof(TSkyBoxPacket, fCloudHeight) == 80, "ABI: skybox fCloudHe
 static_assert(offsetof(TSkyBoxPacket, fCloudScrollSpeed) == 84, "ABI: skybox fCloudScrollSpeed");
 static_assert(offsetof(TSkyBoxPacket, vSkyColor) == 92, "ABI: skybox vSkyColor");
 static_assert(offsetof(TRenderFrameUniforms, vCameraPos) == 192, "ABI: uniforms slot0");
+static_assert(offsetof(TRenderFrameUniforms, vSunLightDir) == 208, "ABI: uniforms slot1 sun dir");
+static_assert(offsetof(TRenderFrameUniforms, dwFrameIndex) == 220, "ABI: uniforms slot1 frame index");
 static_assert(offsetof(TRenderFrameUniforms, vFogColor) == 256, "ABI: uniforms slot4");
 static_assert(offsetof(TActorRenderPacket, matWorld) == 16, "ABI: actor matWorld");
 static_assert(offsetof(TActorRenderPacket, boneMatrices) == 88, "ABI: actor boneMatrices");
+static_assert(offsetof(TActorRenderPacket, fShadowSize) == 5004, "ABI: actor fShadowSize");
+static_assert(offsetof(TParticleInstanceData, fHalfWidth) == 56, "ABI: particle fHalfWidth");
+static_assert(offsetof(TParticleInstanceData, fHalfHeight) == 60, "ABI: particle fHalfHeight");
 static_assert(offsetof(TRenderFramePacket, pTerrainPackets) == 288, "ABI: frame terrain ptr");
 static_assert(sizeof(TDungeonBlockPacket) == 160, "ABI: TDungeonBlockPacket != packets.rs");
 static_assert(alignof(TDungeonBlockPacket) == 16, "ABI: TDungeonBlockPacket align != 16");
@@ -371,9 +429,9 @@ static_assert(offsetof(TDungeonBlockPacket, dwPrimitiveCount) == 136, "ABI: dung
 static_assert(offsetof(TDungeonBlockPacket, dwStartIndex) == 140, "ABI: dungeon dwStartIndex");
 static_assert(offsetof(TDungeonBlockPacket, nBaseVertexIndex) == 144, "ABI: dungeon nBaseVertexIndex");
 static_assert(offsetof(TDungeonBlockPacket, fAlpha) == 148, "ABI: dungeon fAlpha");
-static_assert(offsetof(TDungeonBlockPacket, dwBaseTextureID) == 64, "ABI: dungeon dwBaseTextureID");
-static_assert(offsetof(TDungeonBlockPacket, dwModelID) == 136, "ABI: dungeon dwModelID");
-static_assert(offsetof(TDungeonBlockPacket, bAlphaBlend) == 148, "ABI: dungeon bAlphaBlend");
+static_assert(offsetof(TDungeonBlockPacket, bAlphaBlend) == 152, "ABI: dungeon bAlphaBlend");
+static_assert(offsetof(TDungeonBlockPacket, bPadDungeon) == 153, "ABI: dungeon bPadDungeon");
+static_assert(offsetof(TDungeonBlockPacket, fPad) == 156, "ABI: dungeon fPad");
 #endif
 
 

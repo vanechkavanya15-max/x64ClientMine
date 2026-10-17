@@ -394,8 +394,8 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 			{
 				const TParticleInstanceData& p = pkt.pParticles[particleOffset + pIdx];
 				const D3DXVECTOR3 center(p.vWorldPos.x, p.vWorldPos.y, p.vWorldPos.z);
-				const float sx = (p.fPad[0] > 0.0f) ? p.fPad[0] : p.vWorldPos.w;
-				const float sy = (p.fPad[1] > 0.0f) ? p.fPad[1] : p.vWorldPos.w;
+				const float sx = (p.fHalfWidth > 0.0f) ? p.fHalfWidth : p.vWorldPos.w;
+				const float sy = (p.fHalfHeight > 0.0f) ? p.fHalfHeight : p.vWorldPos.w;
 
 				D3DXVECTOR3 axisX = vRight * sx;
 				D3DXVECTOR3 axisY = vUp * sy;

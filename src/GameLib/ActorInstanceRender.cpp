@@ -39,7 +39,7 @@ void CActorInstance::OnRender()
 		return;
 
 	// Nowy potok klatki: ekstrakcja stanu aktora i emisja do CRenderQueueManager
-	TActorRenderPacket packet;
+	TActorRenderPacket packet{};
 	if (ActorRenderExtractor::Extract(*this, packet))
 	{
 		CRenderQueueManager::Instance().SubmitActor(packet);

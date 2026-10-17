@@ -32,7 +32,7 @@ bool ActorRenderExtractor::Extract(CActorInstance& actor, TActorRenderPacket& ou
 	outPacket.bIsDead = (actor.IsDead() != FALSE);
 	outPacket.bRenderShadow = true;
 	outPacket.bSelected = false;
-	outPacket.fPad = 0.0f;
+	outPacket.fShadowSize = 0.0f;
 
 	// 5. Ekstrakcja broni
 	outPacket.dwWeaponMeshID = actor.GetPartItemID(CRaceData::PART_WEAPON);
