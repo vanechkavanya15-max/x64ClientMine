@@ -45,6 +45,7 @@
 #include "EterLib/Camera.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/RenderOwnership.h"
+#include "SphereLib/frustum.h"
 
 #include "SpeedTreeConfig.h"
 #include "SpeedTreeForestDirectX.h"
@@ -1520,26 +1521,12 @@ bool CSpeedTreeWrapper::TestFrustumCulling() const
 	{
 		s_lastViewProj = matViewProj;
 
-		// Near plane
-		s_cachedPlanes[0] = DirectX::XMVectorSet(matViewProj._13, matViewProj._23, matViewProj._33, matViewProj._43);
-		// Far plane
-		s_cachedPlanes[1] = DirectX::XMVectorSet(matViewProj._14 - matViewProj._13, matViewProj._24 - matViewProj._23, matViewProj._34 - matViewProj._33, matViewProj._44 - matViewProj._43);
-		// Left plane
-		s_cachedPlanes[2] = DirectX::XMVectorSet(matViewProj._14 + matViewProj._11, matViewProj._24 + matViewProj._21, matViewProj._34 + matViewProj._31, matViewProj._44 + matViewProj._41);
-		// Right plane
-		s_cachedPlanes[3] = DirectX::XMVectorSet(matViewProj._14 - matViewProj._11, matViewProj._24 - matViewProj._21, matViewProj._34 - matViewProj._31, matViewProj._44 - matViewProj._41);
-		// Bottom plane
-		s_cachedPlanes[4] = DirectX::XMVectorSet(matViewProj._14 + matViewProj._12, matViewProj._24 + matViewProj._22, matViewProj._34 + matViewProj._32, matViewProj._44 + matViewProj._42);
-		// Top plane
-		s_cachedPlanes[5] = DirectX::XMVectorSet(matViewProj._14 - matViewProj._12, matViewProj._24 - matViewProj._22, matViewProj._34 - matViewProj._32, matViewProj._44 - matViewProj._42);
+		D3DXPLANE planes[6];
+		CFrustum::ExtractPlanes(matViewProj, planes);
 
 		for (int i = 0; i < 6; ++i)
 		{
-			const DirectX::XMVECTOR len = DirectX::XMVector3Length(s_cachedPlanes[i]);
-			if (DirectX::XMVectorGetX(len) > 1e-6f)
-			{
-				s_cachedPlanes[i] = DirectX::XMVectorDivide(s_cachedPlanes[i], len);
-			}
+			s_cachedPlanes[i] = DirectX::XMVectorSet(planes[i].a, planes[i].b, planes[i].c, planes[i].d);
 		}
 	}
 

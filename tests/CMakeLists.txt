@@ -6437,5 +6437,18 @@ target_include_directories(test_c26_render_bypass_guard PRIVATE
 target_link_libraries(test_c26_render_bypass_guard PRIVATE EterLib EterBase doctest)
 add_test(NAME RenderBypassGuardTest COMMAND test_c26_render_bypass_guard)
 
+add_executable(test_c26_frustum test_c26_frustum.cpp)
+target_include_directories(test_c26_frustum PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_frustum PRIVATE
+    SphereLib
+    DirectX
+    doctest
+)
+add_test(NAME FrustumTest COMMAND test_c26_frustum)
+
 
 

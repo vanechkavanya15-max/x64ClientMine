@@ -31,30 +31,91 @@ namespace
 		const float magSq = plane.a * plane.a + plane.b * plane.b + plane.c * plane.c;
 		if (magSq > 1e-12f)
 		{
-			const float invMag = 1.0f / std::sqrt(magSq);
-			plane.a *= invMag;
-			plane.b *= invMag;
-			plane.c *= invMag;
-			plane.d *= invMag;
+			D3DXPlaneNormalize(&plane, &plane);
 		}
 	}
 }
 
+void Frustum::ExtractPlanes(const D3DXMATRIX & mat, D3DXPLANE * pPlanesOut, bool bNegatePlaneY)
+{
+	if (!pPlanesOut)
+		return;
+
+	// Zoptymalizowana ekstrakcja 6 plaszczyzn bryl widzenia (DirectX row-major view-projection)
+	// Near:   Z >= 0
+	pPlanesOut[FRUSTUM_PLANE_NEAR] = D3DXPLANE(mat._13, mat._23, mat._33, mat._43);
+
+	// Far:    Z <= W (W - Z >= 0)
+	pPlanesOut[FRUSTUM_PLANE_FAR] = D3DXPLANE(mat._14 - mat._13, mat._24 - mat._23, mat._34 - mat._33, mat._44 - mat._43);
+
+	// Left:   X >= -W (W + X >= 0)
+	pPlanesOut[FRUSTUM_PLANE_LEFT] = D3DXPLANE(mat._14 + mat._11, mat._24 + mat._21, mat._34 + mat._31, mat._44 + mat._41);
+
+	// Right:  X <= W (W - X >= 0)
+	pPlanesOut[FRUSTUM_PLANE_RIGHT] = D3DXPLANE(mat._14 - mat._11, mat._24 - mat._21, mat._34 - mat._31, mat._44 - mat._41);
+
+	// Bottom: Y >= -W (W + Y >= 0)
+	pPlanesOut[FRUSTUM_PLANE_BOTTOM] = D3DXPLANE(mat._14 + mat._12, mat._24 + mat._22, mat._34 + mat._32, mat._44 + mat._42);
+
+	// Top:    Y <= W (W - Y >= 0)
+	pPlanesOut[FRUSTUM_PLANE_TOP] = D3DXPLANE(mat._14 - mat._12, mat._24 - mat._22, mat._34 - mat._32, mat._44 - mat._42);
+
+	// Ujednolicona normalizacja plaszczyzn
+	for (int i = 0; i < FRUSTUM_PLANE_COUNT; ++i)
+	{
+		NormalizePlaneUnified(pPlanesOut[i]);
+		if (bNegatePlaneY)
+		{
+			pPlanesOut[i].b = -pPlanesOut[i].b;
+		}
+	}
+}
+
+void Frustum::BuildViewFrustum(const D3DXMATRIX & mat, bool bNegatePlaneY)
+{
+	m_bUsingSphere = false;
+	ExtractPlanes(mat, m_plane, bNegatePlaneY);
+}
+
+void Frustum::BuildViewFrustum2(const D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook)
+{
+	float fViewLen = fFar - fNear;
+	float fH = fViewLen * tan(fFov * 0.5f);
+	float fW = fH * fAspect;
+	D3DXVECTOR3 P(0.0f, 0.0f, fNear + fViewLen * 0.5f);
+	D3DXVECTOR3 Q(fW, fH, fViewLen);
+	D3DXVECTOR3 PQ = P - Q;
+	m_fRadius = D3DXVec3Length(&PQ);
+	m_v3Center = vCamera + vLook * (fNear + fViewLen * 0.5f);
+	BuildViewFrustum(mat, false);
+	m_bUsingSphere = true;
+}
+
 ViewState Frustum::ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRadius) const
 {
-	return ViewVolumeTest(c_v3Center, c_fRadius, m_fHysteresisMargin);
+	return ViewVolumeTest(c_v3Center, c_fRadius, m_fHysteresisMargin, false);
 }
 
 ViewState Frustum::ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin) const
 {
-	const float effectiveRadius = c_fRadius + c_fMargin;
+	return ViewVolumeTest(c_v3Center, c_fRadius, c_fMargin, false);
+}
 
-	if (m_bUsingSphere)
+ViewState Frustum::ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin, bool bNegateY) const
+{
+	const float effectiveRadius = c_fRadius + c_fMargin;
+	D3DXVECTOR3 center = c_v3Center;
+	if (bNegateY)
+	{
+		center.y = -center.y;
+	}
+
+	if (m_bUsingSphere && !bNegateY)
 	{
 		D3DXVECTOR3 v(
-			c_v3Center.x - m_v3Center.x,
-			c_v3Center.y - m_v3Center.y,
-			c_v3Center.z - m_v3Center.z);
+			center.x - m_v3Center.x,
+			center.y - m_v3Center.y,
+			center.z - m_v3Center.z);
 
 		const float maxDist = effectiveRadius + m_fRadius;
 		if (maxDist * maxDist < D3DXVec3LengthSq(&v))
@@ -64,7 +125,6 @@ ViewState Frustum::ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRad
 	}	
 	
 	constexpr int count = 6;
-	const D3DXVECTOR3 center = c_v3Center;
 
 	float distance[count];
 	for (int i = 0; i < count; ++i)
@@ -84,14 +144,22 @@ ViewState Frustum::ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRad
 	return VS_INSIDE;
 }
 
-bool Frustum::IsBoxVisible(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin) const
+ViewState Frustum::ViewVolumeTestTerrain(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin) const
 {
+	return ViewVolumeTest(c_v3Center, c_fRadius, c_fMargin, true);
+}
+
+bool Frustum::IsBoxVisible(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin, bool bNegateY) const
+{
+	const float yMin = bNegateY ? -c_v3Max.y : c_v3Min.y;
+	const float yMax = bNegateY ? -c_v3Min.y : c_v3Max.y;
+
 	for (int i = 0; i < 6; ++i)
 	{
 		// Wierzcholek AABB najbardziej wysuniety w kierunku normalnej plaszczyzny
 		D3DXVECTOR3 p;
 		p.x = (m_plane[i].a >= 0.0f) ? c_v3Max.x : c_v3Min.x;
-		p.y = (m_plane[i].b >= 0.0f) ? c_v3Max.y : c_v3Min.y;
+		p.y = (m_plane[i].b >= 0.0f) ? yMax : yMin;
 		p.z = (m_plane[i].c >= 0.0f) ? c_v3Max.z : c_v3Min.z;
 
 		if (D3DXPlaneDotCoord(&m_plane[i], &p) + c_fMargin < 0.0f)
@@ -102,14 +170,17 @@ bool Frustum::IsBoxVisible(const Vector3d &c_v3Min, const Vector3d &c_v3Max, con
 	return true;
 }
 
-ViewState Frustum::ViewVolumeTestAABB(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin) const
+ViewState Frustum::ViewVolumeTestAABB(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin, bool bNegateY) const
 {
+	const float yMin = bNegateY ? -c_v3Max.y : c_v3Min.y;
+	const float yMax = bNegateY ? -c_v3Min.y : c_v3Max.y;
+
 	bool isPartial = false;
 	for (int i = 0; i < 6; ++i)
 	{
 		D3DXVECTOR3 pMax(
 			(m_plane[i].a >= 0.0f) ? c_v3Max.x : c_v3Min.x,
-			(m_plane[i].b >= 0.0f) ? c_v3Max.y : c_v3Min.y,
+			(m_plane[i].b >= 0.0f) ? yMax : yMin,
 			(m_plane[i].c >= 0.0f) ? c_v3Max.z : c_v3Min.z
 		);
 
@@ -121,7 +192,7 @@ ViewState Frustum::ViewVolumeTestAABB(const Vector3d &c_v3Min, const Vector3d &c
 
 		D3DXVECTOR3 pMin(
 			(m_plane[i].a >= 0.0f) ? c_v3Min.x : c_v3Max.x,
-			(m_plane[i].b >= 0.0f) ? c_v3Min.y : c_v3Max.y,
+			(m_plane[i].b >= 0.0f) ? yMin : yMax,
 			(m_plane[i].c >= 0.0f) ? c_v3Min.z : c_v3Max.z
 		);
 
@@ -135,51 +206,7 @@ ViewState Frustum::ViewVolumeTestAABB(const Vector3d &c_v3Min, const Vector3d &c
 	return isPartial ? VS_PARTIAL : VS_INSIDE;
 }
 
-bool Frustum::IsSphereVisible(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin) const
+bool Frustum::IsSphereVisible(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin, bool bNegateY) const
 {
-	return ViewVolumeTest(c_v3Center, c_fRadius, c_fMargin) != VS_OUTSIDE;
-}
-
-void Frustum::BuildViewFrustum(D3DXMATRIX & mat)
-{
-	m_bUsingSphere = false;
-
-	// Zoptymalizowana ekstrakcja 6 plaszczyzn bryl widzenia (DirectX row-major view-projection)
-	// Near:   Z >= 0
-	m_plane[0] = D3DXPLANE(mat._13, mat._23, mat._33, mat._43);
-
-	// Far:    Z <= W (W - Z >= 0)
-	m_plane[1] = D3DXPLANE(mat._14 - mat._13, mat._24 - mat._23, mat._34 - mat._33, mat._44 - mat._43);
-
-	// Left:   X >= -W (W + X >= 0)
-	m_plane[2] = D3DXPLANE(mat._14 + mat._11, mat._24 + mat._21, mat._34 + mat._31, mat._44 + mat._41);
-
-	// Right:  X <= W (W - X >= 0)
-	m_plane[3] = D3DXPLANE(mat._14 - mat._11, mat._24 - mat._21, mat._34 - mat._31, mat._44 - mat._41);
-
-	// Bottom: Y >= -W (W + Y >= 0)
-	m_plane[4] = D3DXPLANE(mat._14 + mat._12, mat._24 + mat._22, mat._34 + mat._32, mat._44 + mat._42);
-
-	// Top:    Y <= W (W - Y >= 0)
-	m_plane[5] = D3DXPLANE(mat._14 - mat._12, mat._24 - mat._22, mat._34 - mat._32, mat._44 - mat._42);
-
-	// Ujednolicona normalizacja plaszczyzn
-	for (int i = 0; i < 6; ++i)
-	{
-		NormalizePlaneUnified(m_plane[i]);
-	}
-}
-
-void Frustum::BuildViewFrustum2(D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook)
-{
-	float fViewLen = fFar - fNear;
-	float fH = fViewLen * tan(fFov * 0.5f);
-	float fW = fH * fAspect;
-	D3DXVECTOR3 P(0.0f, 0.0f, fNear + fViewLen * 0.5f);
-	D3DXVECTOR3 Q(fW, fH, fViewLen);
-	D3DXVECTOR3 PQ = P - Q;
-	m_fRadius = D3DXVec3Length(&PQ);
-	m_v3Center = vCamera + vLook * (fNear + fViewLen * 0.5f);
-	BuildViewFrustum(mat);
-	m_bUsingSphere = true;
+	return ViewVolumeTest(c_v3Center, c_fRadius, c_fMargin, bNegateY) != VS_OUTSIDE;
 }

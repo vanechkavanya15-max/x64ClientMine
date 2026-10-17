@@ -3,6 +3,7 @@
 #include <span>
 #include <vector>
 #include <cstdint>
+#include "SphereLib/frustum.h"
 #include "EterLib/SkyBox.h"
 #include "EterLib/LensFlare.h"
 #include "MapOutdoorSky.h"
@@ -439,9 +440,11 @@ class CMapOutdoor : public CMapBase
 		//////////////////////////////////////////////////////////////////////////
 
 		// View Frustum Culling
+		Frustum						m_Frustum;
 		D3DXPLANE					m_plane[6];
 
-		void BuildViewFrustum(D3DXMATRIX & mat);
+		void BuildViewFrustum(const D3DXMATRIX & mat);
+		void BuildViewFrustum(D3DXMATRIX & mat) { BuildViewFrustum(static_cast<const D3DXMATRIX&>(mat)); }
 
 		CTextureSet					m_TextureSet;
 

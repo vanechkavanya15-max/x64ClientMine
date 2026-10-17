@@ -18,12 +18,25 @@
 /***********************************************************************/
 
 #include "vector.h"
+#include <d3dx9math.h>
+#include <cstddef>
 
 enum ViewState
 {
 	VS_INSIDE,   // completely inside the frustum.
 	VS_PARTIAL,  // partially inside and partially outside the frustum.
 	VS_OUTSIDE   // completely outside the frustum
+};
+
+enum EFrustumPlane
+{
+	FRUSTUM_PLANE_NEAR = 0,
+	FRUSTUM_PLANE_FAR = 1,
+	FRUSTUM_PLANE_LEFT = 2,
+	FRUSTUM_PLANE_RIGHT = 3,
+	FRUSTUM_PLANE_BOTTOM = 4,
+	FRUSTUM_PLANE_TOP = 5,
+	FRUSTUM_PLANE_COUNT = 6
 };
 
 class Frustum 
@@ -36,15 +49,26 @@ class Frustum
 		void SetHysteresisMargin(float fMargin) noexcept { m_fHysteresisMargin = fMargin; }
 		[[nodiscard]] float GetHysteresisMargin() const noexcept { return m_fHysteresisMargin; }
 
-		void BuildViewFrustum(D3DXMATRIX & mat);
-		void BuildViewFrustum2(D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook);
+		// Zunifikowana ekstrakcja 6 plaszczyzn z macierzy widoku i projekcji (row-major DirectX).
+		// Parametr bNegatePlaneY pozwala na dostosowanie plaszczyzn do konwencji ze zwrocona osia Y.
+		static void ExtractPlanes(const D3DXMATRIX & mat, D3DXPLANE * pPlanesOut, bool bNegatePlaneY = false);
+
+		void BuildViewFrustum(const D3DXMATRIX & mat, bool bNegatePlaneY = false);
+		void BuildViewFrustum(D3DXMATRIX & mat) { BuildViewFrustum(static_cast<const D3DXMATRIX&>(mat), false); }
+		void BuildViewFrustum2(const D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook);
+		void BuildViewFrustum2(D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook)
+		{
+			BuildViewFrustum2(static_cast<const D3DXMATRIX&>(mat), fNear, fFar, fFov, fAspect, vCamera, vLook);
+		}
 		
 		[[nodiscard]] ViewState ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRadius) const;
 		[[nodiscard]] ViewState ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin) const;
+		[[nodiscard]] ViewState ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin, bool bNegateY) const;
+		[[nodiscard]] ViewState ViewVolumeTestTerrain(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin = 0.0f) const;
 
-		[[nodiscard]] ViewState ViewVolumeTestAABB(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin = DEFAULT_HYSTERESIS_MARGIN) const;
-		[[nodiscard]] bool IsBoxVisible(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin = DEFAULT_HYSTERESIS_MARGIN) const;
-		[[nodiscard]] bool IsSphereVisible(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin = DEFAULT_HYSTERESIS_MARGIN) const;
+		[[nodiscard]] ViewState ViewVolumeTestAABB(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin = DEFAULT_HYSTERESIS_MARGIN, bool bNegateY = false) const;
+		[[nodiscard]] bool IsBoxVisible(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin = DEFAULT_HYSTERESIS_MARGIN, bool bNegateY = false) const;
+		[[nodiscard]] bool IsSphereVisible(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin = DEFAULT_HYSTERESIS_MARGIN, bool bNegateY = false) const;
 
 		[[nodiscard]] const D3DXPLANE* GetPlanes() const noexcept { return m_plane; }
 		[[nodiscard]] const D3DXPLANE& GetPlane(size_t index) const noexcept { return m_plane[index]; }
@@ -56,3 +80,5 @@ class Frustum
 		float m_fHysteresisMargin;
 		D3DXPLANE m_plane[6];
 };
+
+using CFrustum = Frustum;
