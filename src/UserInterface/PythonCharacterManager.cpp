@@ -255,6 +255,28 @@ void CPythonCharacterManager::Update()
 
 		pkInstEach->Update();
 
+		// MR-3: Invisibility fix
+		if (pkInstEach->IsAffect(CInstanceBase::AFFECT_INVISIBILITY) || pkInstEach->IsAffect(CInstanceBase::AFFECT_EUNHYEONG) || pkInstEach->IsAffect(CInstanceBase::AFFECT_REVIVE_INVISIBILITY))
+		{
+			if (CPythonPlayer::Instance().IsMainCharacterIndex(pkInstEach->GetVirtualID()) && !pkInstEach->IsAffect(CInstanceBase::AFFECT_INVISIBILITY))
+			{
+				// Glownej postaci nie ukrywamy efektow, chyba ze jest calkowicie niewidzialna
+			}
+			else if (pkInstEach->IsAffect(CInstanceBase::AFFECT_EUNHYEONG) && !pkInstEach->IsAffect(CInstanceBase::AFFECT_INVISIBILITY) && !pkInstEach->IsAffect(CInstanceBase::AFFECT_REVIVE_INVISIBILITY))
+			{
+				pkInstEach->GetGraphicThingInstanceRef().HideAllAttachingEffectForEunhyeong();
+			}
+			else
+			{
+				pkInstEach->GetGraphicThingInstanceRef().HideAllAttachingEffect();
+			}
+		}
+		else
+		{
+			pkInstEach->GetGraphicThingInstanceRef().ShowAllAttachingEffect();
+		}
+		// MR-3: -- END OF -- Invisibility fix
+
 		// Synchronize spatial grid, world actor registry, and ECS transform table
 		if (pkInstEach->GetGraphicThingInstanceRef().IsMovement())
 		{

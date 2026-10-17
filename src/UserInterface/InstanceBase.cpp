@@ -1680,33 +1680,6 @@ void CInstanceBase::Render()
 
 	m_mountComponent.Render();
 	m_GraphicThingInstance.Render();
-
-	CPythonCharacterManager& rkChrMgr = CPythonCharacterManager::Instance();
-
-	for (auto ptr = rkChrMgr.CharacterInstanceBegin(); ptr != rkChrMgr.CharacterInstanceEnd(); ++ptr)
-	{
-		CInstanceBase* pkInstEach = *ptr;
-
-		if (pkInstEach)
-		{
-			// MR-3: Invisibility fix
-			if (pkInstEach->IsAffect(AFFECT_INVISIBILITY) || pkInstEach->IsAffect(AFFECT_EUNHYEONG) || pkInstEach->IsAffect(AFFECT_REVIVE_INVISIBILITY))
-			{
-				if (CPythonPlayer::Instance().IsMainCharacterIndex(pkInstEach->GetVirtualID()) && !pkInstEach->IsAffect(AFFECT_INVISIBILITY))
-					continue;
-
-				if (pkInstEach->IsAffect(AFFECT_EUNHYEONG) && !pkInstEach->IsAffect(AFFECT_INVISIBILITY) && !pkInstEach->IsAffect(AFFECT_REVIVE_INVISIBILITY))
-					pkInstEach->m_GraphicThingInstance.HideAllAttachingEffectForEunhyeong();
-				else
-					pkInstEach->m_GraphicThingInstance.HideAllAttachingEffect();
-			}
-			else
-			{
-				pkInstEach->m_GraphicThingInstance.ShowAllAttachingEffect();
-			}
-			// MR-3: -- END OF -- Invisibility fix
-		}
-	}
 	
 	if (CActorInstance::IsDirLine())
 	{	

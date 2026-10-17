@@ -689,8 +689,6 @@ namespace UserInterface::FastBoot
                 return;
         }
 
-        UpdateNetworkStatus();
-
         ImGui_ImplDX9_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
