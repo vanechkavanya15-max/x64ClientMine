@@ -66,46 +66,8 @@ target_link_libraries(test_c26_state_unification PRIVATE
     ws2_32
 )
 
-add_executable(test_c26_mem_pool test_c26_mem_pool.cpp)
 
-target_include_directories(test_c26_mem_pool PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
 
-target_link_libraries(test_c26_mem_pool PRIVATE
-    EterLib
-    EterBase
-    sodium
-    mio
-    ws2_32
-)
-
-add_executable(test_c26_radix_sort test_c26_radix_sort.cpp)
-target_include_directories(test_c26_radix_sort PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-)
-target_link_libraries(test_c26_radix_sort PRIVATE
-    EterLib
-    EterBase
-)
-
-add_executable(test_c26_render_target_mgr test_c26_render_target_mgr.cpp)
-target_include_directories(test_c26_render_target_mgr PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-)
-target_link_libraries(test_c26_render_target_mgr PRIVATE
-    EterLib
-    EterBase
-)
 
 add_executable(test_c26_skill_cooldown test_c26_skill_cooldown.cpp)
 target_include_directories(test_c26_skill_cooldown PRIVATE
@@ -342,9 +304,6 @@ enable_testing()
 add_test(NAME StranglerFacadeTest COMMAND test_c26_strangler_facade)
 add_test(NAME PandoraSimulationTest COMMAND test_c26_e2e_pandora_simulation)
 add_test(NAME StateUnificationTest COMMAND test_c26_state_unification)
-add_test(NAME MemPoolTest COMMAND test_c26_mem_pool)
-add_test(NAME RadixSort64Test COMMAND test_c26_radix_sort)
-add_test(NAME RenderTargetMgrTest COMMAND test_c26_render_target_mgr)
 add_test(NAME SkillCooldownTest COMMAND test_c26_skill_cooldown)
 add_test(NAME SkillDomainTest COMMAND test_c26_skill_domain)
 add_test(NAME ItemBonusTest COMMAND test_c26_item_bonus)
@@ -978,26 +937,6 @@ target_link_libraries(test_c26_actor_alpha_blender PRIVATE
 )
 add_test(NAME test_c26_actor_alpha_blender COMMAND test_c26_actor_alpha_blender)
 
-add_executable(test_c26_actor_bounding_frustum test_c26_actor_bounding_frustum.cpp)
-target_include_directories(test_c26_actor_bounding_frustum PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_actor_bounding_frustum PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_actor_bounding_frustum COMMAND test_c26_actor_bounding_frustum)
 
 add_executable(test_c26_actor_delete_handler test_c26_actor_delete_handler.cpp)
 target_include_directories(test_c26_actor_delete_handler PRIVATE
@@ -1020,47 +959,7 @@ target_link_libraries(test_c26_actor_delete_handler PRIVATE
 )
 add_test(NAME test_c26_actor_delete_handler COMMAND test_c26_actor_delete_handler)
 
-add_executable(test_c26_actor_instanced_batcher test_c26_actor_instanced_batcher.cpp)
-target_include_directories(test_c26_actor_instanced_batcher PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_actor_instanced_batcher PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_actor_instanced_batcher COMMAND test_c26_actor_instanced_batcher)
 
-add_executable(test_c26_actor_lod_selector test_c26_actor_lod_selector.cpp)
-target_include_directories(test_c26_actor_lod_selector PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_actor_lod_selector PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_actor_lod_selector COMMAND test_c26_actor_lod_selector)
 
 add_executable(test_c26_actor_motion_machine test_c26_actor_motion_machine.cpp)
 target_include_directories(test_c26_actor_motion_machine PRIVATE
@@ -1167,26 +1066,6 @@ target_link_libraries(test_c26_actor_update_handler PRIVATE
 )
 add_test(NAME test_c26_actor_update_handler COMMAND test_c26_actor_update_handler)
 
-add_executable(test_c26_additive_pass test_c26_additive_pass.cpp)
-target_include_directories(test_c26_additive_pass PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_additive_pass PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_additive_pass COMMAND test_c26_additive_pass)
 
 add_executable(test_c26_aes_crypto_provider test_c26_aes_crypto_provider.cpp)
 target_include_directories(test_c26_aes_crypto_provider PRIVATE
@@ -1209,110 +1088,10 @@ target_link_libraries(test_c26_aes_crypto_provider PRIVATE
 )
 add_test(NAME test_c26_aes_crypto_provider COMMAND test_c26_aes_crypto_provider)
 
-# add_executable(test_c26_alpha_test_scope test_c26_alpha_test_scope.cpp)
-# target_include_directories(test_c26_alpha_test_scope PRIVATE
-#     ${CMAKE_SOURCE_DIR}/src
-#     ${CMAKE_SOURCE_DIR}/src/Client
-#     ${CMAKE_CURRENT_SOURCE_DIR}
-#     ${CMAKE_SOURCE_DIR}/extern/include
-#     ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-#     ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-# )
-# target_link_libraries(test_c26_alpha_test_scope PRIVATE
-#     Client2026
-#     EterLib
-#     EterBase
-#     libzstd_static
-#     sodium
-#     lzo2
-#     mio
-#     ws2_32
-# )
-# add_test(NAME test_c26_alpha_test_scope COMMAND test_c26_alpha_test_scope)
 
-add_executable(test_c26_alphatest_pass test_c26_alphatest_pass.cpp)
-target_include_directories(test_c26_alphatest_pass PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_alphatest_pass PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_alphatest_pass COMMAND test_c26_alphatest_pass)
 
-add_executable(test_c26_blend_pass test_c26_blend_pass.cpp)
-target_include_directories(test_c26_blend_pass PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_blend_pass PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_blend_pass COMMAND test_c26_blend_pass)
 
-add_executable(test_c26_blend_scope test_c26_blend_scope.cpp)
-target_include_directories(test_c26_blend_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_blend_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_blend_scope COMMAND test_c26_blend_scope)
 
-add_executable(test_c26_buffer_cache test_c26_buffer_cache.cpp)
-target_include_directories(test_c26_buffer_cache PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_buffer_cache PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_buffer_cache COMMAND test_c26_buffer_cache)
 
 add_executable(test_c26_camera_frustum test_c26_camera_frustum.cpp)
 target_include_directories(test_c26_camera_frustum PRIVATE
@@ -1399,68 +1178,8 @@ target_link_libraries(test_c26_chat_handler PRIVATE
 )
 add_test(NAME test_c26_chat_handler COMMAND test_c26_chat_handler)
 
-add_executable(test_c26_cmd_indexed test_c26_cmd_indexed.cpp)
-target_include_directories(test_c26_cmd_indexed PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_cmd_indexed PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_cmd_indexed COMMAND test_c26_cmd_indexed)
 
-add_executable(test_c26_cmd_primitive test_c26_cmd_primitive.cpp)
-target_include_directories(test_c26_cmd_primitive PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_cmd_primitive PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_cmd_primitive COMMAND test_c26_cmd_primitive)
 
-add_executable(test_c26_cmd_user_prim test_c26_cmd_user_prim.cpp)
-target_include_directories(test_c26_cmd_user_prim PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_cmd_user_prim PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_cmd_user_prim COMMAND test_c26_cmd_user_prim)
 
 add_executable(test_c26_collision_detector test_c26_collision_detector.cpp)
 target_include_directories(test_c26_collision_detector PRIVATE
@@ -1483,26 +1202,6 @@ target_link_libraries(test_c26_collision_detector PRIVATE
 )
 add_test(NAME test_c26_collision_detector COMMAND test_c26_collision_detector)
 
-add_executable(test_c26_color_write_scope test_c26_color_write_scope.cpp)
-target_include_directories(test_c26_color_write_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_color_write_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_color_write_scope COMMAND test_c26_color_write_scope)
 
 add_executable(test_c26_combat_command_encoder test_c26_combat_command_encoder.cpp)
 target_include_directories(test_c26_combat_command_encoder PRIVATE
@@ -1756,68 +1455,8 @@ target_link_libraries(test_c26_dead_handler PRIVATE
 )
 add_test(NAME test_c26_dead_handler COMMAND test_c26_dead_handler)
 
-add_executable(test_c26_deduplicator test_c26_deduplicator.cpp)
-target_include_directories(test_c26_deduplicator PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_deduplicator PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_deduplicator COMMAND test_c26_deduplicator)
 
-add_executable(test_c26_depth_prepass test_c26_depth_prepass.cpp)
-target_include_directories(test_c26_depth_prepass PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_depth_prepass PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_depth_prepass COMMAND test_c26_depth_prepass)
 
-add_executable(test_c26_depth_scope test_c26_depth_scope.cpp)
-target_include_directories(test_c26_depth_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_depth_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_depth_scope COMMAND test_c26_depth_scope)
 
 add_executable(test_c26_dungeon_command_encoder test_c26_dungeon_command_encoder.cpp)
 target_include_directories(test_c26_dungeon_command_encoder PRIVATE
@@ -1882,47 +1521,7 @@ target_link_libraries(test_c26_dynamic_packet_framer_v2 PRIVATE
 )
 add_test(NAME test_c26_dynamic_packet_framer_v2 COMMAND test_c26_dynamic_packet_framer_v2)
 
-add_executable(test_c26_dynamic_ring_ibo test_c26_dynamic_ring_ibo.cpp)
-target_include_directories(test_c26_dynamic_ring_ibo PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_dynamic_ring_ibo PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_dynamic_ring_ibo COMMAND test_c26_dynamic_ring_ibo)
 
-add_executable(test_c26_dynamic_ring_vbo test_c26_dynamic_ring_vbo.cpp)
-target_include_directories(test_c26_dynamic_ring_vbo PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_dynamic_ring_vbo PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_dynamic_ring_vbo COMMAND test_c26_dynamic_ring_vbo)
 
 add_executable(test_c26_e2e_classic_ymir_simulation test_c26_e2e_classic_ymir_simulation.cpp)
 target_include_directories(test_c26_e2e_classic_ymir_simulation PRIVATE
@@ -2071,131 +1670,11 @@ target_link_libraries(test_c26_exchange_state_guard PRIVATE
 )
 add_test(NAME test_c26_exchange_state_guard COMMAND test_c26_exchange_state_guard)
 
-add_executable(test_c26_fixed_state_stack test_c26_fixed_state_stack.cpp)
-target_include_directories(test_c26_fixed_state_stack PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_fixed_state_stack PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_fixed_state_stack COMMAND test_c26_fixed_state_stack)
 
-add_executable(test_c26_fog_scope test_c26_fog_scope.cpp)
-target_include_directories(test_c26_fog_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_fog_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_fog_scope COMMAND test_c26_fog_scope)
 
-add_executable(test_c26_font_glyph_batcher test_c26_font_glyph_batcher.cpp)
-target_include_directories(test_c26_font_glyph_batcher PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_font_glyph_batcher PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_font_glyph_batcher COMMAND test_c26_font_glyph_batcher)
 
-add_executable(test_c26_frame_alloc test_c26_frame_alloc.cpp)
-target_include_directories(test_c26_frame_alloc PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_frame_alloc PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_frame_alloc COMMAND test_c26_frame_alloc)
 
-add_executable(test_c26_frame_coordinator test_c26_frame_coordinator.cpp)
-target_include_directories(test_c26_frame_coordinator PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_frame_coordinator PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_frame_coordinator COMMAND test_c26_frame_coordinator)
 
-add_executable(test_c26_frame_stats test_c26_frame_stats.cpp)
-target_include_directories(test_c26_frame_stats PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_frame_stats PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_frame_stats COMMAND test_c26_frame_stats)
 
 add_executable(test_c26_frame_timer test_c26_frame_timer.cpp)
 target_include_directories(test_c26_frame_timer PRIVATE
@@ -2260,47 +1739,7 @@ target_link_libraries(test_c26_gaussian_packet_jitter PRIVATE
 )
 add_test(NAME test_c26_gaussian_packet_jitter COMMAND test_c26_gaussian_packet_jitter)
 
-add_executable(test_c26_granny_bone_cache test_c26_granny_bone_cache.cpp)
-target_include_directories(test_c26_granny_bone_cache PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_granny_bone_cache PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_granny_bone_cache COMMAND test_c26_granny_bone_cache)
 
-add_executable(test_c26_granny_render_bridge test_c26_granny_render_bridge.cpp)
-target_include_directories(test_c26_granny_render_bridge PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_granny_render_bridge PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_granny_render_bridge COMMAND test_c26_granny_render_bridge)
 
 add_executable(test_c26_guild_handler test_c26_guild_handler.cpp)
 target_include_directories(test_c26_guild_handler PRIVATE
@@ -2386,110 +1825,10 @@ target_link_libraries(test_c26_handshake_fsm PRIVATE
 )
 add_test(NAME test_c26_handshake_fsm COMMAND test_c26_handshake_fsm)
 
-add_executable(test_c26_ib_scope test_c26_ib_scope.cpp)
-target_include_directories(test_c26_ib_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_ib_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_ib_scope COMMAND test_c26_ib_scope)
 
-add_executable(test_c26_inst_batcher test_c26_inst_batcher.cpp)
-target_include_directories(test_c26_inst_batcher PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_inst_batcher PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_inst_batcher COMMAND test_c26_inst_batcher)
 
-add_executable(test_c26_inst_collector test_c26_inst_collector.cpp)
-target_include_directories(test_c26_inst_collector PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_inst_collector PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_inst_collector COMMAND test_c26_inst_collector)
 
-add_executable(test_c26_instance_stream_buf test_c26_instance_stream_buf.cpp)
-target_include_directories(test_c26_instance_stream_buf PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_instance_stream_buf PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_instance_stream_buf COMMAND test_c26_instance_stream_buf)
 
-add_executable(test_c26_instanced_shadow_batcher test_c26_instanced_shadow_batcher.cpp)
-target_include_directories(test_c26_instanced_shadow_batcher PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_instanced_shadow_batcher PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_instanced_shadow_batcher COMMAND test_c26_instanced_shadow_batcher)
 
 add_executable(test_c26_inventory_command_encoder test_c26_inventory_command_encoder.cpp)
 target_include_directories(test_c26_inventory_command_encoder PRIVATE
@@ -2806,47 +2145,7 @@ target_link_libraries(test_c26_item_set_handler PRIVATE
 )
 add_test(NAME test_c26_item_set_handler COMMAND test_c26_item_set_handler)
 
-add_executable(test_c26_key_builder test_c26_key_builder.cpp)
-target_include_directories(test_c26_key_builder PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_key_builder PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_key_builder COMMAND test_c26_key_builder)
 
-add_executable(test_c26_lights_scope test_c26_lights_scope.cpp)
-target_include_directories(test_c26_lights_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_lights_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_lights_scope COMMAND test_c26_lights_scope)
 
 add_executable(test_c26_loading_packet_handler test_c26_loading_packet_handler.cpp)
 target_include_directories(test_c26_loading_packet_handler PRIVATE
@@ -2890,68 +2189,8 @@ target_link_libraries(test_c26_login_packet_handler PRIVATE
 )
 add_test(NAME test_c26_login_packet_handler COMMAND test_c26_login_packet_handler)
 
-add_executable(test_c26_map_outdoor_facade test_c26_map_outdoor_facade.cpp)
-target_include_directories(test_c26_map_outdoor_facade PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_map_outdoor_facade PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_map_outdoor_facade COMMAND test_c26_map_outdoor_facade)
 
-add_executable(test_c26_mat_cache test_c26_mat_cache.cpp)
-target_include_directories(test_c26_mat_cache PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_mat_cache PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_mat_cache COMMAND test_c26_mat_cache)
 
-add_executable(test_c26_material_scope test_c26_material_scope.cpp)
-target_include_directories(test_c26_material_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_material_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_material_scope COMMAND test_c26_material_scope)
 
 add_executable(test_c26_math_simd test_c26_math_simd.cpp)
 target_include_directories(test_c26_math_simd PRIVATE
@@ -3037,47 +2276,7 @@ target_link_libraries(test_c26_mock_network_port_advanced PRIVATE
 )
 add_test(NAME test_c26_mock_network_port_advanced COMMAND test_c26_mock_network_port_advanced)
 
-add_executable(test_c26_model_shader_pipeline test_c26_model_shader_pipeline.cpp)
-target_include_directories(test_c26_model_shader_pipeline PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_model_shader_pipeline PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_model_shader_pipeline COMMAND test_c26_model_shader_pipeline)
 
-add_executable(test_c26_modern_bridge test_c26_modern_bridge.cpp)
-target_include_directories(test_c26_modern_bridge PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_modern_bridge PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_modern_bridge COMMAND test_c26_modern_bridge)
 
 add_executable(test_c26_modern_mutex test_c26_modern_mutex.cpp)
 target_include_directories(test_c26_modern_mutex PRIVATE
@@ -3268,26 +2467,6 @@ target_link_libraries(test_c26_multi_crypto_manager PRIVATE
 )
 add_test(NAME test_c26_multi_crypto_manager COMMAND test_c26_multi_crypto_manager)
 
-add_executable(test_c26_opaque_pass test_c26_opaque_pass.cpp)
-target_include_directories(test_c26_opaque_pass PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_opaque_pass PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_opaque_pass COMMAND test_c26_opaque_pass)
 
 add_executable(test_c26_packet_ring_buffer test_c26_packet_ring_buffer.cpp)
 target_include_directories(test_c26_packet_ring_buffer PRIVATE
@@ -3520,26 +2699,6 @@ target_link_libraries(test_c26_ping_pong_engine PRIVATE
 )
 add_test(NAME test_c26_ping_pong_engine COMMAND test_c26_ping_pong_engine)
 
-add_executable(test_c26_pipeline_exec test_c26_pipeline_exec.cpp)
-target_include_directories(test_c26_pipeline_exec PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_pipeline_exec PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_pipeline_exec COMMAND test_c26_pipeline_exec)
 
 add_executable(test_c26_player_points_handler test_c26_player_points_handler.cpp)
 target_include_directories(test_c26_player_points_handler PRIVATE
@@ -3604,26 +2763,6 @@ target_link_libraries(test_c26_pluggable_crypto_provider PRIVATE
 )
 add_test(NAME test_c26_pluggable_crypto_provider COMMAND test_c26_pluggable_crypto_provider)
 
-add_executable(test_c26_post_process_pass test_c26_post_process_pass.cpp)
-target_include_directories(test_c26_post_process_pass PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_post_process_pass PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_post_process_pass COMMAND test_c26_post_process_pass)
 
 add_executable(test_c26_proto_binary_serializer_zstd test_c26_proto_binary_serializer_zstd.cpp)
 target_include_directories(test_c26_proto_binary_serializer_zstd PRIVATE
@@ -3751,47 +2890,7 @@ target_link_libraries(test_c26_protocol_adapter PRIVATE
 )
 add_test(NAME test_c26_protocol_adapter COMMAND test_c26_protocol_adapter)
 
-add_executable(test_c26_ps_scope test_c26_ps_scope.cpp)
-target_include_directories(test_c26_ps_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_ps_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_ps_scope COMMAND test_c26_ps_scope)
 
-add_executable(test_c26_py_graphic_bridge test_c26_py_graphic_bridge.cpp)
-target_include_directories(test_c26_py_graphic_bridge PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_py_graphic_bridge PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_py_graphic_bridge COMMAND test_c26_py_graphic_bridge)
 
 add_executable(test_c26_quest_command_encoder test_c26_quest_command_encoder.cpp)
 target_include_directories(test_c26_quest_command_encoder PRIVATE
@@ -3877,26 +2976,6 @@ target_link_libraries(test_c26_quest_packet_codec PRIVATE
 )
 add_test(NAME test_c26_quest_packet_codec COMMAND test_c26_quest_packet_codec)
 
-add_executable(test_c26_raster_scope test_c26_raster_scope.cpp)
-target_include_directories(test_c26_raster_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_raster_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_raster_scope COMMAND test_c26_raster_scope)
 
 add_executable(test_c26_refine_command_encoder test_c26_refine_command_encoder.cpp)
 target_include_directories(test_c26_refine_command_encoder PRIVATE
@@ -3961,26 +3040,6 @@ target_link_libraries(test_c26_render_context PRIVATE
 )
 add_test(NAME test_c26_render_context COMMAND test_c26_render_context)
 
-add_executable(test_c26_render_queue test_c26_render_queue.cpp)
-target_include_directories(test_c26_render_queue PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_render_queue PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_render_queue COMMAND test_c26_render_queue)
 
 add_executable(test_c26_render_state_guard test_c26_render_state_guard.cpp)
 target_include_directories(test_c26_render_state_guard PRIVATE
@@ -4024,26 +3083,6 @@ target_link_libraries(test_c26_result_system PRIVATE
 )
 add_test(NAME test_c26_result_system COMMAND test_c26_result_system)
 
-add_executable(test_c26_rhi_interface test_c26_rhi_interface.cpp)
-target_include_directories(test_c26_rhi_interface PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_rhi_interface PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_rhi_interface COMMAND test_c26_rhi_interface)
 
 add_executable(test_c26_safebox_command_handler test_c26_safebox_command_handler.cpp)
 target_include_directories(test_c26_safebox_command_handler PRIVATE
@@ -4087,47 +3126,7 @@ target_link_libraries(test_c26_safebox_handler PRIVATE
 )
 add_test(NAME test_c26_safebox_handler COMMAND test_c26_safebox_handler)
 
-add_executable(test_c26_sampler_addr_scope test_c26_sampler_addr_scope.cpp)
-target_include_directories(test_c26_sampler_addr_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_sampler_addr_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_sampler_addr_scope COMMAND test_c26_sampler_addr_scope)
 
-add_executable(test_c26_sampler_filter_scope test_c26_sampler_filter_scope.cpp)
-target_include_directories(test_c26_sampler_filter_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_sampler_filter_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_sampler_filter_scope COMMAND test_c26_sampler_filter_scope)
 
 add_executable(test_c26_select_packet_handler test_c26_select_packet_handler.cpp)
 target_include_directories(test_c26_select_packet_handler PRIVATE
@@ -4234,68 +3233,8 @@ target_link_libraries(test_c26_session_simulation_harness PRIVATE
 )
 add_test(NAME test_c26_session_simulation_harness COMMAND test_c26_session_simulation_harness)
 
-add_executable(test_c26_shader_cache test_c26_shader_cache.cpp)
-target_include_directories(test_c26_shader_cache PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_shader_cache PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_shader_cache COMMAND test_c26_shader_cache)
 
-add_executable(test_c26_shader_const_scope test_c26_shader_const_scope.cpp)
-target_include_directories(test_c26_shader_const_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_shader_const_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_shader_const_scope COMMAND test_c26_shader_const_scope)
 
-add_executable(test_c26_shader_constant_buffer test_c26_shader_constant_buffer.cpp)
-target_include_directories(test_c26_shader_constant_buffer PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_shader_constant_buffer PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_shader_constant_buffer COMMAND test_c26_shader_constant_buffer)
 
 add_executable(test_c26_shop_command_encoder test_c26_shop_command_encoder.cpp)
 target_include_directories(test_c26_shop_command_encoder PRIVATE
@@ -4507,68 +3446,8 @@ target_link_libraries(test_c26_social_domain PRIVATE
 )
 add_test(NAME test_c26_social_domain COMMAND test_c26_social_domain)
 
-add_executable(test_c26_sort_key test_c26_sort_key.cpp)
-target_include_directories(test_c26_sort_key PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_sort_key PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_sort_key COMMAND test_c26_sort_key)
 
-add_executable(test_c26_speedtree_batcher test_c26_speedtree_batcher.cpp)
-target_include_directories(test_c26_speedtree_batcher PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_speedtree_batcher PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_speedtree_batcher COMMAND test_c26_speedtree_batcher)
 
-add_executable(test_c26_speedtree_branch test_c26_speedtree_branch.cpp)
-target_include_directories(test_c26_speedtree_branch PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_speedtree_branch PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_speedtree_branch COMMAND test_c26_speedtree_branch)
 
 add_executable(test_c26_spline_motion_interpolator test_c26_spline_motion_interpolator.cpp)
 target_include_directories(test_c26_spline_motion_interpolator PRIVATE
@@ -4591,89 +3470,9 @@ target_link_libraries(test_c26_spline_motion_interpolator PRIVATE
 )
 add_test(NAME test_c26_spline_motion_interpolator COMMAND test_c26_spline_motion_interpolator)
 
-add_executable(test_c26_stage_alpha_scope test_c26_stage_alpha_scope.cpp)
-target_include_directories(test_c26_stage_alpha_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_stage_alpha_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_stage_alpha_scope COMMAND test_c26_stage_alpha_scope)
 
-add_executable(test_c26_stage_color_scope test_c26_stage_color_scope.cpp)
-target_include_directories(test_c26_stage_color_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_stage_color_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_stage_color_scope COMMAND test_c26_stage_color_scope)
 
-add_executable(test_c26_state_bitmask test_c26_state_bitmask.cpp)
-target_include_directories(test_c26_state_bitmask PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_state_bitmask PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_state_bitmask COMMAND test_c26_state_bitmask)
 
-add_executable(test_c26_state_snapshot test_c26_state_snapshot.cpp)
-target_include_directories(test_c26_state_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_state_snapshot PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_state_snapshot COMMAND test_c26_state_snapshot)
 
 add_executable(test_c26_stress_loot_scenario test_c26_stress_loot_scenario.cpp)
 target_include_directories(test_c26_stress_loot_scenario PRIVATE
@@ -4801,89 +3600,9 @@ target_link_libraries(test_c26_tea_crypto_provider PRIVATE
 )
 add_test(NAME test_c26_tea_crypto_provider COMMAND test_c26_tea_crypto_provider)
 
-add_executable(test_c26_terrain_frustum_culler test_c26_terrain_frustum_culler.cpp)
-target_include_directories(test_c26_terrain_frustum_culler PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_terrain_frustum_culler PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_terrain_frustum_culler COMMAND test_c26_terrain_frustum_culler)
 
-add_executable(test_c26_terrain_height_sampler test_c26_terrain_height_sampler.cpp)
-target_include_directories(test_c26_terrain_height_sampler PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_terrain_height_sampler PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_terrain_height_sampler COMMAND test_c26_terrain_height_sampler)
 
-add_executable(test_c26_terrain_lod_manager test_c26_terrain_lod_manager.cpp)
-target_include_directories(test_c26_terrain_lod_manager PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_terrain_lod_manager PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_terrain_lod_manager COMMAND test_c26_terrain_lod_manager)
 
-add_executable(test_c26_terrain_patch_batcher test_c26_terrain_patch_batcher.cpp)
-target_include_directories(test_c26_terrain_patch_batcher PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_terrain_patch_batcher PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_terrain_patch_batcher COMMAND test_c26_terrain_patch_batcher)
 
 add_executable(test_c26_terrain_sampler test_c26_terrain_sampler.cpp)
 target_include_directories(test_c26_terrain_sampler PRIVATE
@@ -4927,26 +3646,6 @@ target_link_libraries(test_c26_terrain_shader_pipeline PRIVATE
 )
 add_test(NAME test_c26_terrain_shader_pipeline COMMAND test_c26_terrain_shader_pipeline)
 
-add_executable(test_c26_terrain_shadow_proj test_c26_terrain_shadow_proj.cpp)
-target_include_directories(test_c26_terrain_shadow_proj PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_terrain_shadow_proj PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_terrain_shadow_proj COMMAND test_c26_terrain_shadow_proj)
 
 add_executable(test_c26_terrain_splat_weights test_c26_terrain_splat_weights.cpp)
 target_include_directories(test_c26_terrain_splat_weights PRIVATE
@@ -4969,47 +3668,7 @@ target_link_libraries(test_c26_terrain_splat_weights PRIVATE
 )
 add_test(NAME test_c26_terrain_splat_weights COMMAND test_c26_terrain_splat_weights)
 
-add_executable(test_c26_tex_cache test_c26_tex_cache.cpp)
-target_include_directories(test_c26_tex_cache PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_tex_cache PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_tex_cache COMMAND test_c26_tex_cache)
 
-add_executable(test_c26_tex_transform_scope test_c26_tex_transform_scope.cpp)
-target_include_directories(test_c26_tex_transform_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_tex_transform_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_tex_transform_scope COMMAND test_c26_tex_transform_scope)
 
 add_executable(test_c26_texttail_engine test_c26_texttail_engine.cpp)
 target_include_directories(test_c26_texttail_engine PRIVATE
@@ -5053,89 +3712,9 @@ target_link_libraries(test_c26_trade_domain PRIVATE
 )
 add_test(NAME test_c26_trade_domain COMMAND test_c26_trade_domain)
 
-add_executable(test_c26_ui_pass test_c26_ui_pass.cpp)
-target_include_directories(test_c26_ui_pass PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_ui_pass PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_ui_pass COMMAND test_c26_ui_pass)
 
-add_executable(test_c26_ui_prim_batcher test_c26_ui_prim_batcher.cpp)
-target_include_directories(test_c26_ui_prim_batcher PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_ui_prim_batcher PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_ui_prim_batcher COMMAND test_c26_ui_prim_batcher)
 
-add_executable(test_c26_ui_shader_pipeline test_c26_ui_shader_pipeline.cpp)
-target_include_directories(test_c26_ui_shader_pipeline PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_ui_shader_pipeline PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_ui_shader_pipeline COMMAND test_c26_ui_shader_pipeline)
 
-add_executable(test_c26_vb_stream_scope test_c26_vb_stream_scope.cpp)
-target_include_directories(test_c26_vb_stream_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_vb_stream_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_vb_stream_scope COMMAND test_c26_vb_stream_scope)
 
 add_executable(test_c26_vertex_decl_cache test_c26_vertex_decl_cache.cpp)
 target_include_directories(test_c26_vertex_decl_cache PRIVATE
@@ -5179,26 +3758,6 @@ target_link_libraries(test_c26_vfs_pack_manager PRIVATE
 )
 add_test(NAME test_c26_vfs_pack_manager COMMAND test_c26_vfs_pack_manager)
 
-add_executable(test_c26_view_proj_scope test_c26_view_proj_scope.cpp)
-target_include_directories(test_c26_view_proj_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_view_proj_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_view_proj_scope COMMAND test_c26_view_proj_scope)
 
 add_executable(test_c26_virtual_packet_generator test_c26_virtual_packet_generator.cpp)
 target_include_directories(test_c26_virtual_packet_generator PRIVATE
@@ -5221,26 +3780,6 @@ target_link_libraries(test_c26_virtual_packet_generator PRIVATE
 )
 add_test(NAME test_c26_virtual_packet_generator COMMAND test_c26_virtual_packet_generator)
 
-add_executable(test_c26_vs_scope test_c26_vs_scope.cpp)
-target_include_directories(test_c26_vs_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_vs_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_vs_scope COMMAND test_c26_vs_scope)
 
 add_executable(test_c26_warp_packet_handler test_c26_warp_packet_handler.cpp)
 target_include_directories(test_c26_warp_packet_handler PRIVATE
@@ -5263,47 +3802,7 @@ target_link_libraries(test_c26_warp_packet_handler PRIVATE
 )
 add_test(NAME test_c26_warp_packet_handler COMMAND test_c26_warp_packet_handler)
 
-add_executable(test_c26_water_surface_gen test_c26_water_surface_gen.cpp)
-target_include_directories(test_c26_water_surface_gen PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_water_surface_gen PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_water_surface_gen COMMAND test_c26_water_surface_gen)
 
-add_executable(test_c26_weapon_attach_res test_c26_weapon_attach_res.cpp)
-target_include_directories(test_c26_weapon_attach_res PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_weapon_attach_res PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_weapon_attach_res COMMAND test_c26_weapon_attach_res)
 
 add_executable(test_c26_whisper_command_handler test_c26_whisper_command_handler.cpp)
 target_include_directories(test_c26_whisper_command_handler PRIVATE
@@ -5347,26 +3846,6 @@ target_link_libraries(test_c26_window_hierarchy PRIVATE
 )
 add_test(NAME test_c26_window_hierarchy COMMAND test_c26_window_hierarchy)
 
-add_executable(test_c26_world_matrix_scope test_c26_world_matrix_scope.cpp)
-target_include_directories(test_c26_world_matrix_scope PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c26_world_matrix_scope PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c26_world_matrix_scope COMMAND test_c26_world_matrix_scope)
 
 add_executable(test_c26_world_packet_codec test_c26_world_packet_codec.cpp)
 target_include_directories(test_c26_world_packet_codec PRIVATE
