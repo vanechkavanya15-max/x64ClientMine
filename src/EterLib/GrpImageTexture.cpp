@@ -2,7 +2,6 @@
 #include "PackLib/PackManager.h"
 #include "GrpImageTexture.h"
 #include "EterImageLib/DDSTextureLoader9.h"
-#include "DecodedImageData.h"
 #include "TextureUploadBridge.h"
 
 #include <stb_image.h>
@@ -325,112 +324,6 @@ bool CGraphicImageTexture::CreateFromDiskFile(const char * c_szFileName, D3DFORM
 	m_d3dFmt = d3dFmt;
 	m_dwFilter = dwFilter;
 	return CreateDeviceObjects();
-}
-
-bool CGraphicImageTexture::CreateFromDecodedData(const TDecodedImageData& decodedImage, D3DFORMAT d3dFmt, DWORD dwFilter)
-{
-	assert(ms_lpd3dDevice != NULL);
-	assert(m_lpd3dTexture == NULL);
-
-	if (!decodedImage.IsValid())
-		return false;
-
-	m_bEmpty = true;
-
-	if (decodedImage.isDDS)
-	{
-		// DDS format - use DirectX loader
-		if (!CreateFromDDSTexture(decodedImage.pixels.size(), decodedImage.pixels.data()))
-			return false;
-	}
-	else if (decodedImage.format == TDecodedImageData::FORMAT_RGBA8)
-	{
-		LPDIRECT3DTEXTURE9 texture;
-		D3DFORMAT format = D3DFMT_A8R8G8B8;
-
-		if (FAILED(ms_lpd3dDevice->CreateTexture(
-			decodedImage.width,
-			decodedImage.height,
-			1,
-			0,
-			format,
-			D3DPOOL_MANAGED,
-			&texture,
-			nullptr)))
-		{
-			return false;
-		}
-
-		D3DLOCKED_RECT rect;
-		if (SUCCEEDED(texture->LockRect(0, &rect, nullptr, 0)))
-		{
-			uint8_t* dstData = (uint8_t*)rect.pBits;
-			const uint8_t* srcData = decodedImage.pixels.data();
-			size_t pixelCount = decodedImage.width * decodedImage.height;
-
-			#if defined(_M_IX86) || defined(_M_X64)
-			{
-				size_t simdPixels = pixelCount & ~3;
-				__m128i shuffle_mask = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
-
-				for (size_t i = 0; i < simdPixels; i += 4) {
-					__m128i pixels = _mm_loadu_si128((__m128i*)(srcData + i * 4));
-					pixels = _mm_shuffle_epi8(pixels, shuffle_mask);
-					_mm_storeu_si128((__m128i*)(dstData + i * 4), pixels);
-				}
-
-				for (size_t i = simdPixels; i < pixelCount; ++i) {
-					size_t idx = i * 4;
-					dstData[idx + 0] = srcData[idx + 2];
-					dstData[idx + 1] = srcData[idx + 1];
-					dstData[idx + 2] = srcData[idx + 0];
-					dstData[idx + 3] = srcData[idx + 3];
-				}
-			}
-			#else
-			for (size_t i = 0; i < pixelCount; ++i) {
-				size_t idx = i * 4;
-				dstData[idx + 0] = srcData[idx + 2];
-				dstData[idx + 1] = srcData[idx + 1];
-				dstData[idx + 2] = srcData[idx + 0];
-				dstData[idx + 3] = srcData[idx + 3];
-			}
-			#endif
-
-			texture->UnlockRect(0);
-
-			m_width = decodedImage.width;
-			m_height = decodedImage.height;
-			m_lpd3dTexture = texture;
-			m_bEmpty = false;
-		}
-		else
-		{
-			texture->Release();
-			return false;
-		}
-	}
-	else
-	{
-		TraceError("CreateFromDecodedData: Unsupported decoded image format");
-		return false;
-	}
-
-	if (!m_bEmpty)
-	{
-		const uintptr_t dwTextureID = reinterpret_cast<uintptr_t>(m_lpd3dTexture ? (void*)m_lpd3dTexture : (void*)this);
-		const uint32_t texFormat = static_cast<uint32_t>(decodedImage.d3dFormat != D3DFMT_UNKNOWN ? decodedImage.d3dFormat : (decodedImage.format == TDecodedImageData::FORMAT_RGBA8 ? D3DFMT_A8R8G8B8 : d3dFmt));
-		CTextureUploadBridge::Instance().RegisterTexture(
-			dwTextureID,
-			static_cast<uint32_t>(m_width),
-			static_cast<uint32_t>(m_height),
-			texFormat,
-			decodedImage.pixels.data(),
-			decodedImage.pixels.size()
-		);
-	}
-
-	return !m_bEmpty;
 }
 
 CGraphicImageTexture::CGraphicImageTexture()

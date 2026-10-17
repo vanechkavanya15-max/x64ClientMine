@@ -8,7 +8,6 @@
 #include "ResourceManager.h"
 #include "GrpImage.h"
 #include "TextureCache.h"
-#include "DecodedImageData.h"
 
 int g_iLoadingDelayTime = 1;  // Reduced from 20ms to 1ms for faster async loading
 

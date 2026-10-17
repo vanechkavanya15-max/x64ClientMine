@@ -49,14 +49,6 @@
 
 #include "EterBase/Singleton.h"
 
-#define CHECK_D3DAPI(a)		\
-{							\
-	HRESULT hr = (a);		\
-							\
-	if (hr != S_OK)			\
-		assert(!#a);		\
-}
-
 static const DWORD STATEMANAGER_MAX_RENDERSTATES = 256;
 static const DWORD STATEMANAGER_MAX_TEXTURESTATES = 128;
 static const DWORD STATEMANAGER_MAX_STAGES = 8;
@@ -230,7 +222,6 @@ public:
 	virtual ~CStateManager();
 
 	void	SetDefaultState();
-	void	Restore();
 
 	bool	BeginScene();
 	void	EndScene();
@@ -299,12 +290,6 @@ public:
 	void	SetPixelShader(LPDIRECT3DPIXELSHADER9 dwShader);
 	void	GetPixelShader(LPDIRECT3DPIXELSHADER9* pdwShader);
 
-	// Helpers for pipeline state cleanup & FFP
-	void	ClearVertexDeclaration();
-	void	ClearShaders();
-	void	ClearAllShadersAndDeclaration();
-	void	SetFixedFunctionPipeline(DWORD dwFVF);
-
 	// *** These states are cached, but not protected from multiple sends of the same value.
 	// Transform
 	void SaveTransform(D3DTRANSFORMSTATETYPE Transform, const D3DXMATRIX* pMatrix);
@@ -312,7 +297,6 @@ public:
 
 	// VertexProcessing
 	void SaveVertexProcessing(BOOL IsON);
-	void RestoreVertexProcessing();
 
 	// Don't cache-check the transform.  To much to do
 	void SetTransform(D3DTRANSFORMSTATETYPE Type, const D3DXMATRIX* pMatrix);
@@ -341,9 +325,6 @@ public:
 	// Codes For Debug
 	DWORD GetRenderState(D3DRENDERSTATETYPE Type);
 
-	void StateManager_Capture();
-	void StateManager_Apply();
-
 	LPDIRECT3DDEVICE9EX GetDevice();
 
 	void ResetDrawCallCounter();
@@ -357,7 +338,6 @@ private:
 private:
 
 	CStateManagerState	m_CurrentState;
-	CStateManagerState	m_CurrentState_Copy;
 
 	bool				m_bForce;
 	bool				m_bScene;

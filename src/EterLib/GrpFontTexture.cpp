@@ -10,16 +10,6 @@
 
 #include <cmath>
 
-// Gamma LUT to sharpen grayscale anti-aliasing edges.
-static struct SAlphaGammaLUT {
-	unsigned char table[256];
-	SAlphaGammaLUT() {
-		table[0] = 0;
-		for (int i = 1; i < 256; ++i)
-			table[i] = (unsigned char)(pow(i / 255.0, 0.85) * 255.0 + 0.5);
-	}
-} s_alphaGammaLUT;
-
 CGraphicFontTexture::CGraphicFontTexture()
 {
 	Initialize();

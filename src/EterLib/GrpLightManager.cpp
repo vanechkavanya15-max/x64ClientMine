@@ -89,60 +89,6 @@ void CLightManager::SetSkipIndex(DWORD dwSkipIndex)
 	m_dwSkipIndex = dwSkipIndex;
 }
 
-struct LightComp
-{
-	bool operator () (const CLight * l, const CLight * r) const
-	{
-		return l->GetDistance() < r->GetDistance();
-	}
-};
-
-// NOTE : FlushLight후 렌더링
-//        그 후 반드시 RestoreLight를 해줘야만 한다.
-void CLightManager::FlushLight()
-{
-	Update();
-
-	m_LightSortVector.clear();
-
-	// NOTE: Dynamic과 Static을 분리 시키고 CenterPosition이 바뀔때마다 Static만
-	//		 다시 Flush 하는 식으로 최적화 할 수 있다. - [levites]
-
-	// light들의 거리를 추출해 정렬한다.
-	TLightMap::iterator itor = m_LightMap.begin();
-
-	for (; itor != m_LightMap.end(); ++itor)
-	{
-		CLight * pLight = itor->second;
-
-		D3DXVECTOR3 v3LightPos(pLight->GetPosition());
-		D3DXVECTOR3 v3Distance(v3LightPos - m_v3CenterPosition);
-		pLight->SetDistance(D3DXVec3Length(&v3Distance));
-		m_LightSortVector.push_back(pLight);
-	}
-
-	// quick sort lights
-	std::sort(m_LightSortVector.begin(), m_LightSortVector.end(), LightComp());
-
-	// NOTE - 거리로 정렬된 라이트를 Limit 갯수 만큼 제한해서 켜준다.
-	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, TRUE);
-
-	for (DWORD k = 0; k < std::min((size_t)m_dwLimitLightCount, m_LightSortVector.size()); ++k)
-	{
-		m_LightSortVector[k]->Update();
-		m_LightSortVector[k]->SetDeviceLight(TRUE);
-
-	}
-}
-
-void CLightManager::RestoreLight()
-{
-	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
-
-	for (DWORD k = 0; k < std::min((size_t)m_dwLimitLightCount, m_LightSortVector.size()); ++k)
-		m_LightSortVector[k]->SetDeviceLight(FALSE);
-}
-
 TLightID CLightManager::NewLightID()
 {
 	if (!m_NonUsingLightIDDeque.empty())

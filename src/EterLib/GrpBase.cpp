@@ -48,14 +48,9 @@ D3DXMATRIX				CGraphicBase::ms_matIdentity;
 D3DXMATRIX				CGraphicBase::ms_matView;
 D3DXMATRIX				CGraphicBase::ms_matProj;
 D3DXMATRIX				CGraphicBase::ms_matInverseView;
-D3DXMATRIX				CGraphicBase::ms_matInverseViewYAxis;
 
 D3DXMATRIX				CGraphicBase::ms_matWorld;
 D3DXMATRIX				CGraphicBase::ms_matWorldView;
-
-D3DXMATRIX				CGraphicBase::ms_matScreen0;
-D3DXMATRIX				CGraphicBase::ms_matScreen1;
-D3DXMATRIX				CGraphicBase::ms_matScreen2;
 
 D3DXVECTOR3				CGraphicBase::ms_vtPickRayOrig;
 D3DXVECTOR3				CGraphicBase::ms_vtPickRayDir;
@@ -67,8 +62,6 @@ float					CGraphicBase::ms_fAspect;
 
 DWORD					CGraphicBase::ms_dwWavingEndTime;
 int						CGraphicBase::ms_iWavingPower;
-DWORD					CGraphicBase::ms_dwFlashingEndTime;
-D3DXCOLOR				CGraphicBase::ms_FlashingColor;
 
 // Terrain picking용 Ray... CCamera 이용하는 버전.. 기존의 Ray와 통합 필요...
 CRay					CGraphicBase::ms_Ray;
@@ -332,10 +325,6 @@ void CGraphicBase::UpdateViewMatrix()
 	STATEMANAGER.SetTransform(D3DTS_VIEW, &ms_matView);
 
 	D3DXMatrixInverse(&ms_matInverseView, NULL, &ms_matView);
-	ms_matInverseViewYAxis._11 = ms_matInverseView._11;
-	ms_matInverseViewYAxis._12 = ms_matInverseView._12;
-	ms_matInverseViewYAxis._21 = ms_matInverseView._21;
-	ms_matInverseViewYAxis._22 = ms_matInverseView._22;
 }
 
 void CGraphicBase::UpdatePipeLineMatrix()
@@ -378,19 +367,6 @@ const D3DXMATRIX* CGraphicBase::GetMatrixPointer() const
 {
 	assert(ms_lpd3dMatStack!=NULL);
 	return ms_lpd3dMatStack->GetTop();
-}
-
-void CGraphicBase::GetSphereMatrix(D3DXMATRIX * pMatrix, float fValue)
-{
-	D3DXMatrixIdentity(pMatrix);
-	pMatrix->_11 = fValue * ms_matWorldView._11;
-	pMatrix->_21 = fValue * ms_matWorldView._21;
-	pMatrix->_31 = fValue * ms_matWorldView._31;
-	pMatrix->_41 = fValue;
-	pMatrix->_12 = -fValue * ms_matWorldView._12;
-	pMatrix->_22 = -fValue * ms_matWorldView._22;
-	pMatrix->_32 = -fValue * ms_matWorldView._32;
-	pMatrix->_42 = -fValue;
 }
 
 float CGraphicBase::GetFOV()
@@ -466,21 +442,13 @@ DWORD CGraphicBase::GetColor(float r, float g, float b, float a)
 void CGraphicBase::InitScreenEffect()
 {
 	ms_dwWavingEndTime = 0;
-	ms_dwFlashingEndTime = 0;
 	ms_iWavingPower = 0;
-	ms_FlashingColor = D3DXCOLOR(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 void CGraphicBase::SetScreenEffectWaving(float fDuringTime, int iPower)
 {
 	ms_dwWavingEndTime = CTimer::Instance().GetCurrentMillisecond() + long(fDuringTime * 1000.0f);
 	ms_iWavingPower = iPower;
-}
-
-void CGraphicBase::SetScreenEffectFlashing(float fDuringTime, const D3DXCOLOR & c_rColor)
-{
-	ms_dwFlashingEndTime = CTimer::Instance().GetCurrentMillisecond() + long(fDuringTime * 1000.0f);
-	ms_FlashingColor = c_rColor;
 }
 
 DWORD CGraphicBase::GetFaceCount()

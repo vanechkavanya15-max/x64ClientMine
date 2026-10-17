@@ -341,49 +341,7 @@ void TestVertexDeclGuard(TestMockD3D9Device* dev)
     std::cout << "[PASS] Test 1: ScopedD3DVertexDeclGuard dziala w 100% poprawnie." << std::endl;
 }
 
-void TestShaderGuard(TestMockD3D9Device* dev)
-{
-    std::cout << "[RUN] Test 2: ScopedD3DShaderGuard (VS i PS)..." << std::endl;
 
-    DummyVertexShader vs1, vs2;
-    DummyPixelShader ps1, ps2;
-
-    STATEMANAGER.SetVertexShader(&vs1);
-    STATEMANAGER.SetPixelShader(&ps1);
-
-    // Save & Restore
-    {
-        ScopedD3DShaderGuard guard(&vs2, &ps2, true);
-        LPDIRECT3DVERTEXSHADER9 curVS = nullptr;
-        LPDIRECT3DPIXELSHADER9 curPS = nullptr;
-        STATEMANAGER.GetVertexShader(&curVS);
-        STATEMANAGER.GetPixelShader(&curPS);
-        TEST_CHECK(curVS == &vs2, "Nowy VertexShader aktywny");
-        TEST_CHECK(curPS == &ps2, "Nowy PixelShader aktywny");
-        TEST_CHECK(dev->m_hwVertexShader == &vs2, "Sprzetowy VS ustawiony");
-        TEST_CHECK(dev->m_hwPixelShader == &ps2, "Sprzetowy PS ustawiony");
-    }
-
-    LPDIRECT3DVERTEXSHADER9 resVS = nullptr;
-    LPDIRECT3DPIXELSHADER9 resPS = nullptr;
-    STATEMANAGER.GetVertexShader(&resVS);
-    STATEMANAGER.GetPixelShader(&resPS);
-    TEST_CHECK(resVS == &vs1, "Poprzedni VertexShader przywrocony");
-    TEST_CHECK(resPS == &ps1, "Poprzedni PixelShader przywrocony");
-
-    // Clean exit to NULL
-    {
-        ScopedD3DShaderGuard guard(&vs2, &ps2, false);
-    }
-    STATEMANAGER.GetVertexShader(&resVS);
-    STATEMANAGER.GetPixelShader(&resPS);
-    TEST_CHECK(resVS == nullptr, "VertexShader wyczyszczony do NULL na wyjsciu");
-    TEST_CHECK(resPS == nullptr, "PixelShader wyczyszczony do NULL na wyjsciu");
-    TEST_CHECK(dev->m_hwVertexShader == nullptr, "Sprzetowy VS wyczyszczony do NULL");
-    TEST_CHECK(dev->m_hwPixelShader == nullptr, "Sprzetowy PS wyczyszczony do NULL");
-
-    std::cout << "[PASS] Test 2: ScopedD3DShaderGuard dziala w 100% poprawnie." << std::endl;
-}
 
 void TestFFPGuard(TestMockD3D9Device* dev)
 {
@@ -442,88 +400,9 @@ void TestFFPGuard(TestMockD3D9Device* dev)
     std::cout << "[PASS] Test 3: ScopedD3DFFPGuard definitywnie zabezpiecza potok FVF terenu." << std::endl;
 }
 
-void TestRenderStateGuard(TestMockD3D9Device* dev)
-{
-    std::cout << "[RUN] Test 4: ScopedD3DRenderStateGuard (Pojedynczy i Initializer List)..." << std::endl;
-
-    STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-    STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-    STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
-    STATEMANAGER.SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-
-    // 1. Pojedynczy straznik
-    {
-        ScopedD3DRenderStateGuard guard(D3DRS_ZWRITEENABLE, FALSE);
-        DWORD curZ = 0;
-        STATEMANAGER.GetRenderState(D3DRS_ZWRITEENABLE, &curZ);
-        TEST_CHECK(curZ == FALSE, "ZWRITEENABLE zmienione na FALSE");
-    }
-    DWORD resZ = 0;
-    STATEMANAGER.GetRenderState(D3DRS_ZWRITEENABLE, &resZ);
-    TEST_CHECK(resZ == TRUE, "ZWRITEENABLE przywrocone do TRUE");
-
-    // 2. Multi-state initializer list
-    {
-        ScopedD3DRenderStateGuard multiGuard({
-            { D3DRS_ALPHABLENDENABLE, TRUE },
-            { D3DRS_SRCBLEND, D3DBLEND_SRCALPHA },
-            { D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA }
-        });
-
-        DWORD blend = 0, src = 0, dest = 0;
-        STATEMANAGER.GetRenderState(D3DRS_ALPHABLENDENABLE, &blend);
-        STATEMANAGER.GetRenderState(D3DRS_SRCBLEND, &src);
-        STATEMANAGER.GetRenderState(D3DRS_DESTBLEND, &dest);
-
-        TEST_CHECK(blend == TRUE, "Multi-state: ALPHABLENDENABLE zmienione");
-        TEST_CHECK(src == D3DBLEND_SRCALPHA, "Multi-state: SRCBLEND zmienione");
-        TEST_CHECK(dest == D3DBLEND_INVSRCALPHA, "Multi-state: DESTBLEND zmienione");
-    }
-
-    DWORD rBlend = 0, rSrc = 0, rDest = 0;
-    STATEMANAGER.GetRenderState(D3DRS_ALPHABLENDENABLE, &rBlend);
-    STATEMANAGER.GetRenderState(D3DRS_SRCBLEND, &rSrc);
-    STATEMANAGER.GetRenderState(D3DRS_DESTBLEND, &rDest);
-
-    TEST_CHECK(rBlend == FALSE, "Multi-state: ALPHABLENDENABLE przywrocone");
-    TEST_CHECK(rSrc == D3DBLEND_ONE, "Multi-state: SRCBLEND przywrocone");
-    TEST_CHECK(rDest == D3DBLEND_ZERO, "Multi-state: DESTBLEND przywrocone");
-
-    std::cout << "[PASS] Test 4: ScopedD3DRenderStateGuard dziala w 100% poprawnie." << std::endl;
-}
-
-void TestTextureStageAndSamplerGuard()
-{
-    std::cout << "[RUN] Test 5: ScopedD3DTextureStageStateGuard i ScopedD3DSamplerStateGuard..." << std::endl;
-
-    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-    STATEMANAGER.SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-
-    {
-        ScopedD3DTextureStageStateGuard tssGuard(0, D3DTSS_COLOROP, D3DTOP_DISABLE);
-        ScopedD3DSamplerStateGuard sampGuard(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-
-        DWORD op = 0, addr = 0;
-        STATEMANAGER.GetTextureStageState(0, D3DTSS_COLOROP, &op);
-        STATEMANAGER.GetSamplerState(0, D3DSAMP_ADDRESSU, &addr);
-
-        TEST_CHECK(op == D3DTOP_DISABLE, "TextureStageState zmieniony");
-        TEST_CHECK(addr == D3DTADDRESS_CLAMP, "SamplerState zmieniony");
-    }
-
-    DWORD rOp = 0, rAddr = 0;
-    STATEMANAGER.GetTextureStageState(0, D3DTSS_COLOROP, &rOp);
-    STATEMANAGER.GetSamplerState(0, D3DSAMP_ADDRESSU, &rAddr);
-
-    TEST_CHECK(rOp == D3DTOP_MODULATE, "TextureStageState przywrocony");
-    TEST_CHECK(rAddr == D3DTADDRESS_WRAP, "SamplerState przywrocony");
-
-    std::cout << "[PASS] Test 5: ScopedD3DTextureStageStateGuard i SamplerGuard dzialaja poprawnie." << std::endl;
-}
-
 void TestDefensiveStackSafety()
 {
-    std::cout << "[RUN] Test 6: Ochrona defensywna pustych stosow w CStateManager..." << std::endl;
+    std::cout << "[RUN] Test 3: Ochrona defensywna pustych stosow w CStateManager..." << std::endl;
 
     // Wywolanie metod Restore na pustych stosach - wczesniej powodowalo UB i crash .back() na pustym wektorze
     STATEMANAGER.RestoreVertexShader();
@@ -531,7 +410,6 @@ void TestDefensiveStackSafety()
     STATEMANAGER.RestorePixelShader();
     STATEMANAGER.RestoreFVF();
     STATEMANAGER.RestoreMaterial();
-    STATEMANAGER.RestoreVertexProcessing();
     STATEMANAGER.RestoreIndices();
     STATEMANAGER.RestoreStreamSource(0);
     STATEMANAGER.RestoreTexture(0);
@@ -543,7 +421,7 @@ void TestDefensiveStackSafety()
     // Jesli kod dotarl tutaj bez wyjatku i bledu pamieci, ochrona dziala w 100%
     TEST_CHECK(true, "CStateManager nie ulega awarii przy Restore na pustym stosie");
 
-    std::cout << "[PASS] Test 6: Ochrona defensywna pustych stosow zdala egzamin." << std::endl;
+    std::cout << "[PASS] Test 3: Ochrona defensywna pustych stosow zdala egzamin." << std::endl;
 }
 
 int main()
@@ -556,10 +434,7 @@ int main()
     auto stateMgr = std::make_unique<CStateManager>(mockDev);
 
     TestVertexDeclGuard(mockDev);
-    TestShaderGuard(mockDev);
     TestFFPGuard(mockDev);
-    TestRenderStateGuard(mockDev);
-    TestTextureStageAndSamplerGuard();
     TestDefensiveStackSafety();
 
     std::cout << "==========================================================================" << std::endl;

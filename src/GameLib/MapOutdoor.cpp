@@ -246,7 +246,6 @@ void CMapOutdoor::OnBeginEnvironment()
 
 void CMapOutdoor::OnSetEnvironmentDataPtr()
 {
-	SetEnvironmentScreenFilter();
 	SetEnvironmentSkyBox();
 	SetEnvironmentLensFlare();
 }
@@ -254,19 +253,8 @@ void CMapOutdoor::OnSetEnvironmentDataPtr()
 void CMapOutdoor::OnResetEnvironmentDataPtr()
 {
 	m_OutdoorSky.Reset();
-	SetEnvironmentScreenFilter();
 	SetEnvironmentSkyBox();
 	SetEnvironmentLensFlare();
-}
-
-void CMapOutdoor::SetEnvironmentScreenFilter()
-{
-	if (!mc_pEnvironmentData)
-		return;
-
-	m_ScreenFilter.SetEnable(mc_pEnvironmentData->bFilteringEnable);
-	m_ScreenFilter.SetBlendType(mc_pEnvironmentData->byFilteringAlphaSrc, mc_pEnvironmentData->byFilteringAlphaDest);
-	m_ScreenFilter.SetColor(mc_pEnvironmentData->FilteringColor);
 }
 
 void CMapOutdoor::SetEnvironmentSkyBox()
