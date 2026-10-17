@@ -6719,3 +6719,28 @@ target_link_libraries(test_c26_gltf_render_passes PRIVATE
 )
 add_test(NAME test_c26_gltf_render_passes COMMAND test_c26_gltf_render_passes)
 
+add_executable(test_c26_terrain_passes test_c26_terrain_passes.cpp)
+target_include_directories(test_c26_terrain_passes PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_terrain_passes PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
+add_test(NAME test_c26_terrain_passes COMMAND test_c26_terrain_passes)
+

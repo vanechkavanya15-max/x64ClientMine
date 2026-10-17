@@ -211,6 +211,11 @@ void CRenderQueueManager::SubmitDebugLines(const TDebugLinePacket* pPackets, siz
 	m_debugLinePackets.insert(m_debugLinePackets.end(), pPackets, pPackets + count);
 }
 
+const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() const
+{
+	return m_debugLinePackets;
+}
+
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
 	if (!pBackend)
@@ -324,10 +329,6 @@ const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonPackets()
 	return m_dungeonPackets;
 }
 
-const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() const
-{
-	return m_debugLinePackets;
-}
 
 size_t CRenderQueueManager::GetTotalPacketCount() const
 {

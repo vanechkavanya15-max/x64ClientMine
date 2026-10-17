@@ -55,6 +55,26 @@ namespace EterLib::Render
 	};
 }
 
+enum ETerrainRenderBand : uint8_t
+{
+	TERRAIN_BAND_NEAR = 0,
+	TERRAIN_BAND_FOG = 1,
+	TERRAIN_BAND_FAR = 2
+};
+
+struct STerrainSplatPass
+{
+	uint32_t layerIndex{ 0 };
+	uint32_t textureId{ 0 };
+	void* pLayerTexture{ nullptr };
+	uint32_t alphaTextureId{ 0 };
+	void* pAlphaTexture{ nullptr };
+	D3DXMATRIX matTextureTransform{};
+	D3DXMATRIX matAlphaTransform{};
+	bool bDisableAlphaOp{ false };
+	bool bShadowPass{ false };
+};
+
 // Twarde asercje ABI x64 - musza byc identyczne z const assert! w E:\metin2ToRust\crates\m2-client-render\src\packets.rs
 #if defined(_WIN64)
 #include <cstddef>

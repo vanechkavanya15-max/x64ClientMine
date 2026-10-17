@@ -39,7 +39,7 @@ typedef std::map<const std::string, TOutdoorMapCoordinate> TOutdoorMapCoordinate
 
 class CTerrainPatchProxy;
 class CTerrainQuadtreeNode;
-class CTerrainRenderExtractor;
+#include "TerrainRenderExtractor.h"
 
 class CMapOutdoor : public CMapBase
 {
@@ -415,7 +415,13 @@ class CMapOutdoor : public CMapBase
 		bool					m_bDrawWireFrame;
 		bool					m_bDrawShadow;
 		bool					m_bDrawChrShadow;
+		CTerrainRenderExtractor	m_TerrainRenderExtractor;
 
+	public:
+		CTerrainRenderExtractor& GetTerrainRenderExtractor() { return m_TerrainRenderExtractor; }
+		const CTerrainRenderExtractor& GetTerrainRenderExtractor() const { return m_TerrainRenderExtractor; }
+
+	protected:
 		//////////////////////////////////////////////////////////////////////////
 		// Water
 		D3DXMATRIX				m_matBump;
@@ -577,8 +583,8 @@ class CMapOutdoor : public CMapBase
 		void __RenderTerrain_RenderHardwareTransformPatch();
 
 	protected:
-		void __HardwareTransformPatch_RenderPatchSplat(long patchnum, WORD wPrimitiveCount, D3DPRIMITIVETYPE ePrimitiveType);
-		void __HardwareTransformPatch_RenderPatchNone(long patchnum, WORD wPrimitiveCount, D3DPRIMITIVETYPE ePrimitiveType);
+		void __HardwareTransformPatch_RenderPatchSplat(long patchnum, WORD wPrimitiveCount, D3DPRIMITIVETYPE ePrimitiveType, BYTE byLODLevel = 0, BYTE byBand = 0, float fDistance = 0.0f);
+		void __HardwareTransformPatch_RenderPatchNone(long patchnum, WORD wPrimitiveCount, D3DPRIMITIVETYPE ePrimitiveType, BYTE byLODLevel = 0, float fDistance = 0.0f);
 
 
 	protected:
