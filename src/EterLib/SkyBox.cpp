@@ -100,22 +100,32 @@ void CSkyObjectQuad::Render()
 // CSkyObject
 /////////////////////////////////////////////////////////////////////////
 CSkyObject::CSkyObject() :
+	m_v3PositionCloud(0.0f, 0.0f, 0.0f),
+	m_fCloudScaleX(0.0f),
+	m_fCloudScaleY(0.0f),
+	m_fCloudHeight(0.0f),
+	m_fCloudTextureScaleX(0.0f),
+	m_fCloudTextureScaleY(0.0f),
+	m_fCloudScrollSpeedU(0.0f),
+	m_fCloudScrollSpeedV(0.0f),
+	m_fCloudPositionU(0.0f),
+	m_fCloudPositionV(0.0f),
+	m_dwlastTime(0),
 	m_v3Position(0.0f, 0.0f, 0.0f),
 	m_fScaleX(1.0f),
 	m_fScaleY(1.0f),
-	m_fScaleZ(1.0f)
+	m_fScaleZ(1.0f),
+	m_ucRenderMode(SKY_RENDER_MODE_DEFAULT),
+	m_bTransitionStarted(false),
+	m_bSkyMatrixUpdated(false)
 {
 	D3DXMatrixIdentity(&m_matWorld);
 	D3DXMatrixIdentity(&m_matTranslation);
+	D3DXMatrixIdentity(&m_matWorldCloud);
+	D3DXMatrixIdentity(&m_matTranslationCloud);
 	D3DXMatrixIdentity(&m_matTextureCloud);
 
 	m_dwlastTime = CTimer::Instance().GetCurrentMillisecond();
-
-	m_fCloudPositionU = 0.0f;
-	m_fCloudPositionV = 0.0f;
-
-	m_bTransitionStarted = false;
-	m_bSkyMatrixUpdated = false;
 }
 
 CSkyObject::~CSkyObject()
@@ -891,16 +901,15 @@ void CSkyBox::Render()
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-
-	STATEMANAGER.SetTexture(1, NULL);
-	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+	STATEMANAGER.SaveTexture(1, NULL);
+	STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 
  	STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);
 
-	STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorld);
+	STATEMANAGER.SaveTransform(D3DTS_WORLD, &m_matWorld);
 
 	//Render Face
 	if( m_ucRenderMode == CSkyObject::SKY_RENDER_MODE_TEXTURE )
@@ -911,7 +920,11 @@ void CSkyBox::Render()
 
 		for (unsigned int i = 0; i < 6; ++i)
 		{
-			CGraphicImageInstance * pFaceImageInstance = m_GraphicImageInstanceMap[m_Faces[i].m_strFaceTextureFileName];
+			TGraphicImageInstanceMap::iterator itor = m_GraphicImageInstanceMap.find(m_Faces[i].m_strFaceTextureFileName);
+			if (itor == m_GraphicImageInstanceMap.end())
+				break;
+
+			CGraphicImageInstance * pFaceImageInstance = itor->second;
 			if (!pFaceImageInstance)
 				break;
 
@@ -933,15 +946,22 @@ void CSkyBox::Render()
 		}
 	}
 
-	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_FOGENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 
-	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
-	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
+	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_ALPHAOP);
+	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_COLOROP);
+	STATEMANAGER.RestoreTexture(1);
+
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
 	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG2);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_FOGENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
 }
 
 void CSkyBox::RenderCloud()
@@ -949,7 +969,11 @@ void CSkyBox::RenderCloud()
 	if (m_FaceCloud.m_strfacename.empty())
 		return;
 
-	CGraphicImageInstance * pCloudGraphicImageInstance = m_GraphicImageInstanceMap[m_FaceCloud.m_strfacename];
+	TGraphicImageInstanceMap::iterator itor = m_GraphicImageInstanceMap.find(m_FaceCloud.m_strfacename);
+	if (itor == m_GraphicImageInstanceMap.end())
+		return;
+
+	CGraphicImageInstance * pCloudGraphicImageInstance = itor->second;
 	if (!pCloudGraphicImageInstance)
 		return;
 
@@ -981,20 +1005,27 @@ void CSkyBox::RenderCloud()
 	
 	STATEMANAGER.SaveTransform(D3DTS_TEXTURE0, &m_matTextureCloud);
 
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATEINVALPHA_ADDCOLOR);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
- 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATEINVALPHA_ADDCOLOR);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+ 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 	
 	D3DXMATRIX matProjCloud;
 	D3DXMatrixPerspectiveFovRH(&matProjCloud, D3DX_PI * 0.25f, 1.33333f, 50.0f, 999999.0f);
-	STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorldCloud);
+	STATEMANAGER.SaveTransform(D3DTS_WORLD, &m_matWorldCloud);
 	STATEMANAGER.SaveTransform(D3DTS_PROJECTION, &matProjCloud);
 	STATEMANAGER.SetTexture(0, pCloudGraphicImageInstance->GetTexturePointer()->GetD3DTexture());
 	m_FaceCloud.Render();
 	STATEMANAGER.RestoreTransform(D3DTS_PROJECTION);
+	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 	
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAARG1);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG2);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+
 	STATEMANAGER.RestoreTransform(D3DTS_TEXTURE0);
 	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS);
 

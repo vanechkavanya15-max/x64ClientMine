@@ -430,7 +430,7 @@ RETRY:
 		disableMSAA = true;
 		iReflashRate = 0;
 		++ErrorCorrection;
-		iRet = CREATE_REFRESHRATE;
+		iRet |= CREATE_REFRESHRATE;
 		goto RETRY;
 	}
 
@@ -502,10 +502,10 @@ RETRY:
 	ms_lpd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff000000, 1.0f, 0);
 
 	if (!__CreateDefaultIndexBufferList())
-		return false;
+		return CREATE_DEVICE;
 
 	if (!__CreatePDTVertexBufferList())
-		return false;
+		return CREATE_DEVICE;
 	
 	DWORD dwTexMemSize = GetAvailableTextureMemory();
 

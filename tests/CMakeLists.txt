@@ -6332,3 +6332,18 @@ target_link_libraries(test_c26_effect_sort PRIVATE
 )
 add_test(NAME EffectSortTest COMMAND test_c26_effect_sort)
 
+add_executable(test_c26_eterlib_small_fixes test_c26_eterlib_small_fixes.cpp)
+target_include_directories(test_c26_eterlib_small_fixes PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_eterlib_small_fixes PRIVATE
+    EterLib
+    EterBase
+    SphereLib
+    DirectX
+    ws2_32
+)
+add_test(NAME EterlibSmallFixesTest COMMAND test_c26_eterlib_small_fixes)
+

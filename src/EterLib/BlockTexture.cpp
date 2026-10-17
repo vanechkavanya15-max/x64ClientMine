@@ -132,7 +132,7 @@ void CBlockTexture::InvalidateRect(const RECT & c_rsrcRect)
 
 	DWORD * pdwSrc;
 	pdwSrc = (DWORD *)m_pDIB->GetPointer();
-	pdwSrc += dstRect.left + dstRect.top*m_pDIB->GetWidth();
+	pdwSrc += (dstRect.left + clipRect.left) + (dstRect.top + clipRect.top)*m_pDIB->GetWidth();
 
 	D3DLOCKED_RECT lockedRect;
 	if (FAILED(m_lpd3dTexture->LockRect(0, &lockedRect, &clipRect, 0)))
