@@ -5,6 +5,7 @@
 #include "EterGrnLib/LODController.h"
 #include "EterGrnLib/ModelInstance.h"
 #include "EterGrnLib/Model.h"
+#include "EterModelLib/GltfModelInstance.h"
 #include "EterLib/RenderQueueManager.h"
 
 bool ActorRenderExtractor::Extract(CActorInstance& actor, TActorRenderPacket& outPacket)
@@ -63,6 +64,25 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 	CGrannyLODController* pController = actor.GetLODControllerPointer(CRaceData::PART_MAIN);
 	if (pController)
 	{
+		if (pController->isGltfModelInstance())
+		{
+			EterModelLib::CGltfModelInstance* pGltfInst = pController->GetGltfModelInstance();
+			if (pGltfInst)
+			{
+				const auto& skinMatrices = pGltfInst->GetSkinningMatrices();
+				if (!skinMatrices.empty())
+				{
+					uint32_t copyCount = std::min<uint32_t>(static_cast<uint32_t>(skinMatrices.size()), 64);
+					memcpy(outPacket.boneMatrices, skinMatrices.data(), sizeof(D3DXMATRIX) * copyCount);
+					outPacket.dwBoneCount = copyCount;
+					outPacket.pBoneMatrices = nullptr;
+					for (uint32_t i = copyCount; i < 64; ++i)
+						D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
+					return true;
+				}
+			}
+		}
+
 		CGrannyModelInstance* pModelInst = pController->GetModelInstance();
 		if (pModelInst)
 		{

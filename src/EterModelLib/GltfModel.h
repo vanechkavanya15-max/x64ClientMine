@@ -52,6 +52,7 @@ public:
     // Pelna struktura modelu
     const GltfModelData& GetModelData() const { return m_modelData; }
     GltfModelData& GetModelData() { return m_modelData; }
+    void SetModelData(const GltfModelData& modelData) { m_modelData = modelData; m_bLoaded = true; }
 
 private:
     bool m_bLoaded;
