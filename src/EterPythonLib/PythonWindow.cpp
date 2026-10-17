@@ -15,86 +15,154 @@ namespace UI
 {
 	struct ScopedScissorRect
 	{
-		DWORD __OldState = 0;
-		RECT __OldRect = { 0 };
-		bool __bStateChanged = false;
-		bool __bRectChanged = false;
+		DWORD m_dwOldState = 0;
+		RECT m_oldRect = { 0 };
+		bool m_bStateChanged = false;
+		bool m_bRectChanged = false;
+		bool m_bActive = false;
+
+		ScopedScissorRect() = default;
 
 		ScopedScissorRect(const RECT& rect, bool enable)
 		{
-			__OldState = STATEMANAGER.GetRenderState(D3DRS_SCISSORTESTENABLE);
-			STATEMANAGER.GetScissorRect(&__OldRect);
+			Enter(rect, enable);
+		}
+
+		~ScopedScissorRect()
+		{
+			Leave();
+		}
+
+		void Enter(const RECT& rect, bool enable)
+		{
+			if (m_bActive)
+				return;
+			m_bActive = true;
+
+			m_dwOldState = STATEMANAGER.GetRenderState(D3DRS_SCISSORTESTENABLE);
+			STATEMANAGER.GetScissorRect(&m_oldRect);
 
 			const DWORD targetState = enable ? 1 : 0;
-			if (__OldState != targetState)
+			if (m_dwOldState != targetState)
 			{
 				STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, targetState);
-				__bStateChanged = true;
+				m_bStateChanged = true;
 			}
 
 			if (enable)
 			{
-				if (!__bStateChanged)
+				if (!m_bStateChanged)
 				{
-					if (__OldRect.left != rect.left ||
-						__OldRect.top != rect.top ||
-						__OldRect.right != rect.right ||
-						__OldRect.bottom != rect.bottom)
+					if (m_oldRect.left != rect.left ||
+						m_oldRect.top != rect.top ||
+						m_oldRect.right != rect.right ||
+						m_oldRect.bottom != rect.bottom)
 					{
 						STATEMANAGER.SetScissorRect(rect);
-						__bRectChanged = true;
+						m_bRectChanged = true;
 					}
 				}
 				else
 				{
 					STATEMANAGER.SetScissorRect(rect);
-					__bRectChanged = true;
+					m_bRectChanged = true;
 				}
 			}
 
 			EterLib::Render::DynamicQuadBatcher::Instance().SetScissorRect(rect, enable);
 		}
 
-		~ScopedScissorRect()
+		void Leave()
 		{
-			EterLib::Render::DynamicQuadBatcher::Instance().SetScissorRect(__OldRect, __OldState != 0);
+			if (!m_bActive)
+				return;
+			m_bActive = false;
 
-			if (__bStateChanged)
+			EterLib::Render::DynamicQuadBatcher::Instance().SetScissorRect(m_oldRect, m_dwOldState != 0);
+
+			if (m_bStateChanged)
 			{
-				STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, __OldState);
+				STATEMANAGER.SetRenderState(D3DRS_SCISSORTESTENABLE, m_dwOldState);
 			}
-			if (__bRectChanged)
+			if (m_bRectChanged)
 			{
-				STATEMANAGER.SetScissorRect(__OldRect);
+				STATEMANAGER.SetScissorRect(m_oldRect);
 			}
+		}
+
+		ScopedScissorRect(const ScopedScissorRect&) = delete;
+		ScopedScissorRect& operator=(const ScopedScissorRect&) = delete;
+
+		ScopedScissorRect(ScopedScissorRect&& other) noexcept
+			: m_dwOldState(other.m_dwOldState)
+			, m_oldRect(other.m_oldRect)
+			, m_bStateChanged(other.m_bStateChanged)
+			, m_bRectChanged(other.m_bRectChanged)
+			, m_bActive(other.m_bActive)
+		{
+			other.m_bActive = false;
+		}
+
+		ScopedScissorRect& operator=(ScopedScissorRect&& other) noexcept
+		{
+			if (this != &other)
+			{
+				Leave();
+				m_dwOldState = other.m_dwOldState;
+				m_oldRect = other.m_oldRect;
+				m_bStateChanged = other.m_bStateChanged;
+				m_bRectChanged = other.m_bRectChanged;
+				m_bActive = other.m_bActive;
+				other.m_bActive = false;
+			}
+			return *this;
 		}
 	};
 
-	template<typename Func>
-	CWindow* FindWindowUpwards(CWindow* start, Func& f)
+	bool CWindow::GetActiveAncestorScissor(RECT* pOutRect) const
 	{
-		while (start && start->IsWindow()) 
+		bool bHasScissor = false;
+		RECT currentScissor = { 0, 0, 0, 0 };
+
+		for (const CWindow* pAncestor = m_pParent; pAncestor != nullptr; pAncestor = pAncestor->m_pParent)
 		{
-			if (f(start))
-				return start;
-			
-			start = start->GetParent();
+			if (pAncestor->m_bEnableScissorRect)
+			{
+				RECT ancestorRect;
+				ancestorRect.left = (std::max)(0L, pAncestor->m_rect.left);
+				ancestorRect.top = (std::max)(0L, pAncestor->m_rect.top);
+				ancestorRect.right = pAncestor->m_rect.left + pAncestor->m_lWidth;
+				ancestorRect.bottom = pAncestor->m_rect.top + pAncestor->m_lHeight;
+
+				if (!bHasScissor)
+				{
+					currentScissor = ancestorRect;
+					bHasScissor = true;
+				}
+				else
+				{
+					auto opt = ComputeChildScissor(ancestorRect, &currentScissor);
+					if (!opt)
+					{
+						if (pOutRect)
+						{
+							pOutRect->left = 0;
+							pOutRect->top = 0;
+							pOutRect->right = 0;
+							pOutRect->bottom = 0;
+						}
+						return true;
+					}
+					currentScissor = *opt;
+				}
+			}
 		}
 
-		return nullptr;
-	}
-
-	static CWindow* GetParentScissorWindow(CWindow* pWin)
-	{
-		if (!pWin)
-			return nullptr;
-
-		auto f = [](CWindow* pCurrWin) -> bool
+		if (bHasScissor && pOutRect)
 		{
-			return pCurrWin->IsScissorRectEnabled();
-		};
-
-		return FindWindowUpwards(pWin, f);
+			*pOutRect = currentScissor;
+		}
+		return bHasScissor;
 	}
 
 	CWindow::CWindow(PyObject * ppyObject) : 
@@ -231,57 +299,59 @@ namespace UI
 
 	void CWindow::Render()
 	{
+		RECT ancestorScissor;
+		if (GetActiveAncestorScissor(&ancestorScissor))
+		{
+			Render(&ancestorScissor);
+		}
+		else
+		{
+			Render(nullptr);
+		}
+	}
+
+	void CWindow::Render(const RECT* pActiveParentScissor)
+	{
 		if (!IsShow())
 			return;
 
+		ScopedScissorRect scopedScissor;
+		const RECT* pNextScissor = pActiveParentScissor;
+
 		if (m_bEnableScissorRect)
 		{
-			
-			RECT scissorRect;
-			scissorRect.left = std::max<int32_t>(0, m_rect.left);
-			scissorRect.top = std::max<int32_t>(0, m_rect.top);
-			scissorRect.right = m_rect.left + m_lWidth;
-			scissorRect.bottom = m_rect.top + m_lHeight;
+			RECT ownRect;
+			ownRect.left = (std::max)(0L, m_rect.left);
+			ownRect.top = (std::max)(0L, m_rect.top);
+			ownRect.right = m_rect.left + m_lWidth;
+			ownRect.bottom = m_rect.top + m_lHeight;
 
-			CWindow* pParentScissorWindow = GetParentScissorWindow(GetParent());
+			auto scissorOpt = ComputeChildScissor(ownRect, pActiveParentScissor);
+			if (!scissorOpt)
+				return;
 
-			if (pParentScissorWindow)
-			{
-				const RECT& parentRect = pParentScissorWindow->m_rect;
-				RECT parentScissorRect;
-
-				parentScissorRect.left = std::max<int32_t>(0, parentRect.left);
-				parentScissorRect.top = std::max<int32_t>(0, parentRect.top);
-				parentScissorRect.right = parentRect.left + pParentScissorWindow->GetWidth();
-				parentScissorRect.bottom = parentRect.top + pParentScissorWindow->GetHeight();
-
-				scissorRect.left = std::max<int32_t>(scissorRect.left, parentScissorRect.left);
-				scissorRect.top = std::max<int32_t>(scissorRect.top, parentScissorRect.top);
-				scissorRect.right = std::min<int32_t>(scissorRect.right, parentScissorRect.right);
-				scissorRect.bottom = std::min<int32_t>(scissorRect.bottom, parentScissorRect.bottom);
-			}
-
-			ScopedScissorRect scopedScissorRect(scissorRect, true);
-
-			OnRender();
-
-			if (g_bOutlineBoxEnable)
-			{
-				EterLib::Render::DynamicQuadBatcher::Instance().AddBox2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom, 0xFFFFFFFF);
-			}
-
-			std::for_each(m_pChildList.begin(), m_pChildList.end(), std::mem_fn(&CWindow::Render));
+			scopedScissor.Enter(*scissorOpt, true);
+			pNextScissor = &(*scissorOpt);
 		}
-		else 
+		else if (pActiveParentScissor)
 		{
-			OnRender();
+			auto visibleOpt = ComputeChildScissor(m_rect, pActiveParentScissor);
+			if (!visibleOpt)
+				return;
+		}
 
-			if (g_bOutlineBoxEnable)
-			{
-				EterLib::Render::DynamicQuadBatcher::Instance().AddBox2d(m_rect.left, m_rect.top, m_rect.right, m_rect.bottom, 0xFFFFFFFF);
-			}
+		OnRender();
 
-			std::for_each(m_pChildList.begin(), m_pChildList.end(), std::mem_fn(&CWindow::Render));
+		if (g_bOutlineBoxEnable)
+		{
+			EterLib::Render::DynamicQuadBatcher::Instance().AddBox2d(
+				m_rect.left, m_rect.top, m_rect.right, m_rect.bottom, 0xFFFFFFFF);
+		}
+
+		for (CWindow* pChild : m_pChildList)
+		{
+			if (pChild)
+				pChild->Render(pNextScissor);
 		}
 	}
 
