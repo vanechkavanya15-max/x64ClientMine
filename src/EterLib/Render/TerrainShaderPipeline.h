@@ -53,6 +53,7 @@ private:
     IDirect3DVertexShader9* m_vertexShader{nullptr};
     IDirect3DPixelShader9* m_pixelShader{nullptr};
     LPDIRECT3DTEXTURE9 m_fallbackWhiteTex{nullptr};
+    bool m_inFrame{false};
 };
 
 } // namespace EterLib::Render

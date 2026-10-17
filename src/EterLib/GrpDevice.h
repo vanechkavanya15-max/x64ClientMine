@@ -56,6 +56,9 @@ public:
 	static void __DestroyPDTVertexBufferList();
 	static bool __CreatePDTVertexBufferList();
 
+	static void __ReleaseDefaultResources();
+	static bool __RecreateDefaultResources();
+
 protected:
 	void __Initialize();
 	void __WarningMessage(HWND hWnd, UINT uiMsg);

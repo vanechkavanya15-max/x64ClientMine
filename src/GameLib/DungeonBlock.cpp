@@ -11,8 +11,14 @@ void CDungeonModelInstance::RenderDungeonBlock()
 	if (IsEmpty())
 		return;
 
-	// Ekstrakcja stanu i emisja pakietow do CRenderQueueManager
-	CDungeonBlockRenderExtractor::ExtractAndSubmit(this);
+	// Wdrozenie zasady Single-Owner Pipeline (DEC-3):
+	// Jesli aktywny jest ekstraktor kolejki CRenderQueueManager, emitujemy pakiety
+	// i blokujemy bezposrednie wywolania rysowania (LegacyDraws), eliminujac Double Rendering.
+	if (CDungeonBlockRenderExtractor::IsActive())
+	{
+		CDungeonBlockRenderExtractor::ExtractAndSubmit(this);
+		return;
+	}
 
 	if (RenderOwnership::LegacyDraws(ERenderCategory::Dungeon))
 	{
@@ -102,7 +108,12 @@ void CDungeonBlock::Render()
 
 	if (m_pLODController)
 	{
-		CDungeonBlockRenderExtractor::ExtractAndSubmit(m_pLODController, &m_worldMatrix);
+		if (CDungeonBlockRenderExtractor::IsActive())
+		{
+			CDungeonBlockRenderExtractor::ExtractAndSubmit(m_pLODController, &m_worldMatrix);
+			return;
+		}
+
 		if (RenderOwnership::LegacyDraws(ERenderCategory::Dungeon))
 		{
 			m_pLODController->RenderGltfModel(EModelPass::Opaque);

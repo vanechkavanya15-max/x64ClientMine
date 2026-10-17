@@ -57,6 +57,39 @@ void CGraphicDevice::__WarningMessage(HWND hWnd, UINT uiMsg)
 	MessageBoxW(hWnd, wMsg.c_str(), wCaption.c_str(), MB_OK | MB_TOPMOST);
 }
 
+void CGraphicDevice::__ReleaseDefaultResources()
+{
+	if (CStateManager::InstancePtr())
+	{
+		STATEMANAGER.UnbindAllResources();
+	}
+
+	__DestroyPDTVertexBufferList();
+	__DestroyDefaultIndexBufferList();
+}
+
+bool CGraphicDevice::__RecreateDefaultResources()
+{
+	if (!__CreateDefaultIndexBufferList())
+	{
+		TraceError("CGraphicDevice::__RecreateDefaultResources: Failed to recreate DefaultIndexBufferList");
+		return false;
+	}
+
+	if (!__CreatePDTVertexBufferList())
+	{
+		TraceError("CGraphicDevice::__RecreateDefaultResources: Failed to recreate PDTVertexBufferList");
+		return false;
+	}
+
+	if (CStateManager::InstancePtr())
+	{
+		STATEMANAGER.SetDefaultState();
+	}
+
+	return true;
+}
+
 bool CGraphicDevice::ResizeBackBuffer(UINT uWidth, UINT uHeight)
 {
 	if (!ms_lpd3dDevice || uWidth == 0 || uHeight == 0)
@@ -67,36 +100,44 @@ bool CGraphicDevice::ResizeBackBuffer(UINT uWidth, UINT uHeight)
 	{
 		if (rkD3DPP.BackBufferWidth != uWidth || rkD3DPP.BackBufferHeight != uHeight)
 		{
+			const UINT oldWidth = rkD3DPP.BackBufferWidth;
+			const UINT oldHeight = rkD3DPP.BackBufferHeight;
+
 			rkD3DPP.BackBufferWidth = uWidth;
 			rkD3DPP.BackBufferHeight = uHeight;
 
-			// Release all D3DPOOL_DEFAULT resources before calling Reset
-			__DestroyPDTVertexBufferList();
-			__DestroyDefaultIndexBufferList();
+			// Release all D3DPOOL_DEFAULT resources and unbind textures/shaders in STATEMANAGER
+			__ReleaseDefaultResources();
 
 			IDirect3DDevice9Ex& rkD3DDev = *ms_lpd3dDevice;
 
 			HRESULT hr = rkD3DDev.Reset(&rkD3DPP);
 			if (FAILED(hr))
 			{
-				TraceError("CGraphicDevice::ResizeBackBuffer: Reset failed (hr=0x%08X)", hr);
+				if (hr == D3DERR_DEVICELOST)
+				{
+					TRACE_ERROR_ONCE("CGraphicDevice::ResizeBackBuffer: Device lost during reset (D3DERR_DEVICELOST)");
+				}
+				else if (hr == D3DERR_DEVICENOTRESET)
+				{
+					TRACE_ERROR_ONCE("CGraphicDevice::ResizeBackBuffer: Device not reset (D3DERR_DEVICENOTRESET)");
+				}
+				else
+				{
+					TraceError("CGraphicDevice::ResizeBackBuffer: Reset failed (hr=0x%08X)", hr);
+				}
+
+				rkD3DPP.BackBufferWidth = oldWidth;
+				rkD3DPP.BackBufferHeight = oldHeight;
 				return false;
 			}
 
 			// Recreate D3DPOOL_DEFAULT resources after successful Reset
-			if (!__CreateDefaultIndexBufferList())
+			if (!__RecreateDefaultResources())
 			{
-				TraceError("CGraphicDevice::ResizeBackBuffer: Failed to recreate DefaultIndexBufferList");
+				TraceError("CGraphicDevice::ResizeBackBuffer: Failed to recreate default resources");
 				return false;
 			}
-
-			if (!__CreatePDTVertexBufferList())
-			{
-				TraceError("CGraphicDevice::ResizeBackBuffer: Failed to recreate PDTVertexBufferList");
-				return false;
-			}
-
-			STATEMANAGER.SetDefaultState();
 		}
 	}
 
@@ -203,33 +244,35 @@ bool CGraphicDevice::ResetWithParams(D3DPRESENT_PARAMETERS& d3dpp)
 	if (!ms_lpd3dDevice)
 		return false;
 
-	// Release all D3DPOOL_DEFAULT resources before calling Reset
-	__DestroyPDTVertexBufferList();
-	__DestroyDefaultIndexBufferList();
+	// Release all D3DPOOL_DEFAULT resources and unbind textures/shaders in STATEMANAGER
+	__ReleaseDefaultResources();
 
 	HRESULT hr = ms_lpd3dDevice->Reset(&d3dpp);
 	if (FAILED(hr))
 	{
-		TraceError("CGraphicDevice::ResetWithParams: Reset failed (hr=0x%08X)", hr);
+		if (hr == D3DERR_DEVICELOST)
+		{
+			TRACE_ERROR_ONCE("CGraphicDevice::ResetWithParams: Device lost during reset (D3DERR_DEVICELOST)");
+		}
+		else if (hr == D3DERR_DEVICENOTRESET)
+		{
+			TRACE_ERROR_ONCE("CGraphicDevice::ResetWithParams: Device not reset (D3DERR_DEVICENOTRESET)");
+		}
+		else
+		{
+			TraceError("CGraphicDevice::ResetWithParams: Reset failed (hr=0x%08X)", hr);
+		}
 		return false;
 	}
 
 	ms_d3dPresentParameter = d3dpp;
 
 	// Recreate D3DPOOL_DEFAULT resources after successful Reset
-	if (!__CreateDefaultIndexBufferList())
+	if (!__RecreateDefaultResources())
 	{
-		TraceError("CGraphicDevice::ResetWithParams: Failed to recreate DefaultIndexBufferList");
+		TraceError("CGraphicDevice::ResetWithParams: Failed to recreate default resources");
 		return false;
 	}
-
-	if (!__CreatePDTVertexBufferList())
-	{
-		TraceError("CGraphicDevice::ResetWithParams: Failed to recreate PDTVertexBufferList");
-		return false;
-	}
-
-	STATEMANAGER.SetDefaultState();
 
 	return true;
 }

@@ -898,6 +898,11 @@ void CActorInstance::Destroy()
 	__ClearAttachingEffect();
 	InvalidateAllSocketTransforms();
 
+	for (DWORD i = 0; i < CRaceData::PART_MAX_NUM; ++i)
+	{
+		DetachPart(i);
+	}
+
 	CGraphicThingInstance::Clear();
 
 	__DestroyWeaponTrace();

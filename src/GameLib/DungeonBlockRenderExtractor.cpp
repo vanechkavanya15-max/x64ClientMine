@@ -8,7 +8,24 @@
 #include "EterModelLib/GltfModelInstance.h"
 #include "EterLib/Render/ActorSkinningPipeline.h"
 #include "EterLib/RenderQueueManager.h"
+#include "EterLib/RenderOwnership.h"
 #include <algorithm>
+
+bool CDungeonBlockRenderExtractor::s_bActive = false;
+
+bool CDungeonBlockRenderExtractor::IsActive()
+{
+	if (s_bActive)
+		return true;
+
+	const ERenderOwner owner = RenderOwnership::Owner(ERenderCategory::Dungeon);
+	return (owner == ERenderOwner::D3D9Backend || owner == ERenderOwner::Wgpu || !RenderOwnership::LegacyDraws(ERenderCategory::Dungeon));
+}
+
+void CDungeonBlockRenderExtractor::SetActive(bool bActive)
+{
+	s_bActive = bActive;
+}
 
 bool CDungeonBlockRenderExtractor::ExtractAndSubmit(CDungeonModelInstance* pInstance)
 {

@@ -462,6 +462,31 @@ void CStateManager::SetDefaultState()
 	m_bForce = false;
 }
 
+void CStateManager::UnbindAllResources()
+{
+	ClearStateStacks();
+	m_bForce = true;
+
+	for (DWORD stage = 0; stage < STATEMANAGER_MAX_STAGES; ++stage)
+	{
+		SetTexture(stage, NULL);
+	}
+
+	SetVertexShader(NULL);
+	SetPixelShader(NULL);
+	SetVertexDeclaration(NULL);
+	SetFVF(0);
+
+	for (UINT stream = 0; stream < STATEMANAGER_MAX_STREAMS; ++stream)
+	{
+		SetStreamSource(stream, NULL, 0);
+	}
+
+	SetIndices(NULL, 0);
+
+	m_bForce = false;
+}
+
 // Material
 void CStateManager::SaveMaterial()
 {

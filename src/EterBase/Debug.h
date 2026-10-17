@@ -385,6 +385,10 @@ namespace EterBase::Diagnostics
         if (!c_szFormat)
             return;
 
+        const uint64_t locHash = HashSourceLocation(loc);
+        if (!CLockFreeOnceRegistry::TryRegister(locHash))
+            return;
+
         char szBuffer[1024];
         va_list args;
         va_start(args, c_szFormat);
@@ -394,25 +398,24 @@ namespace EterBase::Diagnostics
         if (written <= 0)
             return;
 
-        const size_t len = (static_cast<size_t>(written) < sizeof(szBuffer))
-            ? static_cast<size_t>(written)
-            : (sizeof(szBuffer) - 1);
-
-        const uint64_t locHash = HashSourceLocation(loc);
-        const uint64_t msgHash = HashStringFnv1a(std::string_view(szBuffer, len), locHash);
-
-        if (CLockFreeOnceRegistry::TryRegister(msgHash))
-        {
-            char szFinal[1280];
-            _snprintf_s(szFinal, sizeof(szFinal), _TRUNCATE, "[ONCE][%s:%u] %s",
-                loc.function_name(), loc.line(), szBuffer);
-            TraceErrorRaw(szFinal, true);
-        }
+        char szFinal[1280];
+        _snprintf_s(szFinal, sizeof(szFinal), _TRUNCATE, "[ONCE][%s:%u] %s",
+            loc.function_name(), loc.line(), szBuffer);
+        TraceErrorRaw(szFinal, true);
     }
 } // namespace EterBase::Diagnostics
 
-#define TraceErrorOnce(fmt, ...) \
-    ::EterBase::Diagnostics::TraceErrorOnceImpl(::std::source_location::current(), fmt, ##__VA_ARGS__)
+#define TRACE_ERROR_ONCE(fmt, ...) \
+    do { \
+        static std::atomic_flag s_onceFlag = ATOMIC_FLAG_INIT; \
+        if (!s_onceFlag.test(std::memory_order_relaxed) && !s_onceFlag.test_and_set(std::memory_order_relaxed)) { \
+            ::EterBase::Diagnostics::TraceErrorOnceImpl(::std::source_location::current(), fmt, ##__VA_ARGS__); \
+        } \
+    } while (0)
+
+#ifndef TraceErrorOnce
+#define TraceErrorOnce(fmt, ...) TRACE_ERROR_ONCE(fmt, ##__VA_ARGS__)
+#endif
 
 template <typename... Args>
 inline void TraceErrorOnceKeyed(
@@ -439,7 +442,12 @@ inline void TraceErrorOnceKeyed(
 }
 
 #define TRACE_ERROR_ONCE_KEYED(key, fmt, ...) \
-    TraceErrorOnceKeyed(static_cast<uint64_t>(key), ::std::source_location::current(), fmt, ##__VA_ARGS__)
+    do { \
+        static std::atomic_flag s_onceFlagKeyed = ATOMIC_FLAG_INIT; \
+        if (!s_onceFlagKeyed.test(std::memory_order_relaxed) && !s_onceFlagKeyed.test_and_set(std::memory_order_relaxed)) { \
+            TraceErrorOnceKeyed(static_cast<uint64_t>(key), ::std::source_location::current(), fmt, ##__VA_ARGS__); \
+        } \
+    } while (0)
 
 #define CHECK_RETURN(flag, string)          \
     if (flag)                               \

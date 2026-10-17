@@ -132,6 +132,8 @@ void CActorInstance::SetHair(DWORD eHair)
 {
 	m_eHair = eHair;
 
+	DetachPart(CRaceData::PART_HAIR);
+
 	CRaceData * pRaceData;
 
 	if (!CRaceManager::Instance().GetRaceDataPointer(m_eRace, &pRaceData))
@@ -145,6 +147,7 @@ void CActorInstance::SetHair(DWORD eHair)
 			CGraphicThing * pkHairThing = (CGraphicThing *)CResourceManager::Instance().GetResourcePointer(pkHair->m_stModelFileName.c_str());
 			RegisterModelThing(CRaceData::PART_HAIR, pkHairThing);
 			SetModelInstance(CRaceData::PART_HAIR, CRaceData::PART_HAIR, 0, CRaceData::PART_MAIN);
+			SyncSocketTransform(CRaceData::PART_HAIR);
 		}
 
 		const std::vector<CRaceData::SSkin>& c_rkVct_kSkin = pkHair->m_kVct_kSkin;

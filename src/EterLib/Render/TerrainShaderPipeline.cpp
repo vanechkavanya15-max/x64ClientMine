@@ -87,6 +87,7 @@ TerrainShaderPipeline::~TerrainShaderPipeline() {
 }
 
 void TerrainShaderPipeline::Shutdown() noexcept {
+    m_inFrame = false;
     if (m_fallbackWhiteTex) {
         m_fallbackWhiteTex->Release();
         m_fallbackWhiteTex = nullptr;
@@ -171,9 +172,13 @@ void TerrainShaderPipeline::BeginFrame(
     const float (&fogColorAndRange)[4]) noexcept {
     if (!dev || !IsReady()) return;
 
-    STATEMANAGER.SetVertexDeclaration(m_vertexDecl);
-    STATEMANAGER.SetVertexShader(m_vertexShader);
-    STATEMANAGER.SetPixelShader(m_pixelShader);
+    if (m_inFrame) {
+        EndFrame(dev);
+    }
+
+    STATEMANAGER.SaveVertexDeclaration(m_vertexDecl);
+    STATEMANAGER.SaveVertexShader(m_vertexShader);
+    STATEMANAGER.SavePixelShader(m_pixelShader);
 
     STATEMANAGER.SetVertexShaderConstant(0, reinterpret_cast<const float*>(&viewProj), 4);
 
@@ -184,23 +189,30 @@ void TerrainShaderPipeline::BeginFrame(
     STATEMANAGER.SetPixelShaderConstant(2, fogColorAndRange, 1);
 
     // Sampler s0: Splatmapa (CLAMP)
-    STATEMANAGER.SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-    STATEMANAGER.SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-    STATEMANAGER.SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-    STATEMANAGER.SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    STATEMANAGER.SaveSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    STATEMANAGER.SaveSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    STATEMANAGER.SaveSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 
     // Samplery s1..s4: Warstwy szczegolowe (WRAP)
     for (DWORD i = 1; i <= 4; ++i) {
-        STATEMANAGER.SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-        STATEMANAGER.SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-        STATEMANAGER.SetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-        STATEMANAGER.SetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-        STATEMANAGER.SetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+        STATEMANAGER.SaveSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+        STATEMANAGER.SaveSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+        STATEMANAGER.SaveSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+        STATEMANAGER.SaveSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        STATEMANAGER.SaveSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
     }
+
+    // Zabezpieczenie slotow tekstur 0..4
+    for (DWORD i = 0; i < 5; ++i) {
+        STATEMANAGER.SaveTexture(i, nullptr);
+    }
+
+    m_inFrame = true;
 }
 
 void TerrainShaderPipeline::BindSector(LPDIRECT3DDEVICE9 dev, const TerrainSectorBindDesc& desc) noexcept {
-    if (!dev || !IsReady()) return;
+    if (!dev || !IsReady() || !m_inFrame) return;
 
     const float sectorParams[4] = {
         desc.sectorOriginX,
@@ -220,16 +232,34 @@ void TerrainShaderPipeline::BindSector(LPDIRECT3DDEVICE9 dev, const TerrainSecto
 }
 
 void TerrainShaderPipeline::EndFrame(LPDIRECT3DDEVICE9 dev) noexcept {
-    if (!dev) return;
+    if (!dev || !m_inFrame) return;
 
-    for (DWORD i = 0; i < 5; ++i) {
-        STATEMANAGER.SetTexture(i, nullptr);
-        STATEMANAGER.SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-        STATEMANAGER.SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+    // 1. Przywrocenie tekstur w odwrotnej kolejnosci
+    for (int i = 4; i >= 0; --i) {
+        STATEMANAGER.RestoreTexture(static_cast<DWORD>(i));
     }
-    STATEMANAGER.SetVertexShader(nullptr);
-    STATEMANAGER.SetPixelShader(nullptr);
-    STATEMANAGER.SetVertexDeclaration(nullptr);
+
+    // 2. Przywrocenie samplerow s1..s4 w odwrotnej kolejnosci
+    for (DWORD i = 4; i >= 1; --i) {
+        STATEMANAGER.RestoreSamplerState(i, D3DSAMP_MIPFILTER);
+        STATEMANAGER.RestoreSamplerState(i, D3DSAMP_MAGFILTER);
+        STATEMANAGER.RestoreSamplerState(i, D3DSAMP_MINFILTER);
+        STATEMANAGER.RestoreSamplerState(i, D3DSAMP_ADDRESSV);
+        STATEMANAGER.RestoreSamplerState(i, D3DSAMP_ADDRESSU);
+    }
+
+    // 3. Przywrocenie samplera s0 w odwrotnej kolejnosci
+    STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MAGFILTER);
+    STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MINFILTER);
+    STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSV);
+    STATEMANAGER.RestoreSamplerState(0, D3DSAMP_ADDRESSU);
+
+    // 4. Przywrocenie shaderow i deklaracji wierzcholkow
+    STATEMANAGER.RestorePixelShader();
+    STATEMANAGER.RestoreVertexShader();
+    STATEMANAGER.RestoreVertexDeclaration();
+
+    m_inFrame = false;
 }
 
 } // namespace EterLib::Render

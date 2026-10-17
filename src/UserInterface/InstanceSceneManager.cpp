@@ -49,11 +49,7 @@ void InstanceSceneManager::RemoveAliveInstance(CInstanceBase* pkInst)
     if (!pkInst)
         return;
 
-    auto it = std::find(m_aliveInstances.begin(), m_aliveInstances.end(), pkInst);
-    if (it != m_aliveInstances.end())
-    {
-        m_aliveInstances.erase(it);
-    }
+    std::erase(m_aliveInstances, pkInst);
 }
 
 void InstanceSceneManager::AddDeadInstance(CInstanceBase* pkInst)
@@ -69,11 +65,7 @@ void InstanceSceneManager::RemoveDeadInstance(CInstanceBase* pkInst)
     if (!pkInst)
         return;
 
-    auto it = std::find(m_deadInstances.begin(), m_deadInstances.end(), pkInst);
-    if (it != m_deadInstances.end())
-    {
-        m_deadInstances.erase(it);
-    }
+    std::erase(m_deadInstances, pkInst);
 }
 
 void InstanceSceneManager::MoveToDead(CInstanceBase* pkInst)

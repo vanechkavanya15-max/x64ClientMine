@@ -683,11 +683,17 @@ class CMapOutdoor : public CMapBase
 		// FAZA 2: Jawne, niemutujace kolekcje widocznosci
 		std::vector<CGraphicThingInstance*>		m_opaqueInstances;
 		std::vector<CGraphicThingInstance*>		m_blendInstances;
+		std::vector<CGraphicObjectInstance*>	m_cameraBlockerInstances;
 		std::vector<CGraphicObjectInstance*>	m_ShadowReceiverVector;
 		std::vector<CGraphicObjectInstance*>	m_PCBlockerVector;
 
 		std::vector<CGraphicThingInstance*>		m_rawAreaInstancesScratch;
 		std::vector<CGraphicObjectInstance*>	m_sortedBlockerLookupScratch;
+
+	public:
+		const std::vector<CGraphicObjectInstance*>& GetCameraBlockerInstances() const noexcept { return m_cameraBlockerInstances; }
+		const std::vector<CGraphicThingInstance*>& GetOpaqueInstances() const noexcept { return m_opaqueInstances; }
+		const std::vector<CGraphicThingInstance*>& GetBlendInstances() const noexcept { return m_blendInstances; }
 
 	protected:
 		float	m_fOpaqueWaterDepth;

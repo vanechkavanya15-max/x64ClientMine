@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "ParticleQuad.h"
+#include "Camera.h"
 
 void BuildParticleQuad(
 	uint8_t byBillboardType,
@@ -18,6 +19,45 @@ void BuildParticleQuad(
 	float fZRotationRad
 )
 {
+	// Zabezpieczenie przed osobliwoscia numeryczna, gdy odleglosc czasteczki od kamery jest mniejsza niz 1e-6f
+	CCamera* pCamera = CCameraManager::Instance().GetCurrentCamera();
+	if (pCamera)
+	{
+		const D3DXVECTOR3 vToCam = pCamera->GetEye() - center;
+		const float fDistSq = D3DXVec3LengthSq(&vToCam);
+		if (fDistSq < 1e-12f)
+		{
+			const D3DXVECTOR3 safeUp = (D3DXVec3LengthSq(&camUp) > 1e-6f) ? camUp : D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+			const D3DXVECTOR3 safeCross = (D3DXVec3LengthSq(&camCross) > 1e-6f) ? camCross : D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+
+			const D3DXVECTOR3 vOffsetUp = halfHeight * safeUp;
+			const D3DXVECTOR3 vOffsetCross = -halfWidth * safeCross;
+
+			D3DXVECTOR3 centerPos = center;
+			if (pMatLocal && bAttach)
+			{
+				D3DXVec3TransformCoord(&centerPos, &center, pMatLocal);
+			}
+
+			outPositions[0] = centerPos - vOffsetUp + vOffsetCross;
+			outPositions[1] = centerPos - vOffsetUp - vOffsetCross;
+			outPositions[2] = centerPos + vOffsetUp + vOffsetCross;
+			outPositions[3] = centerPos + vOffsetUp - vOffsetCross;
+			return;
+		}
+	}
+
+	D3DXVECTOR3 safeCamView = camView;
+	const float camViewLenSq = D3DXVec3LengthSq(&safeCamView);
+	if (camViewLenSq < 1e-12f)
+	{
+		safeCamView = D3DXVECTOR3(0.0f, 1.0f, 0.0f);
+	}
+	else
+	{
+		safeCamView /= sqrtf(camViewLenSq);
+	}
+
 	D3DXVECTOR3 v3Up(0.0f, 0.0f, 0.0f);
 	D3DXVECTOR3 v3Cross(0.0f, 0.0f, 0.0f);
 
@@ -45,12 +85,12 @@ void BuildParticleQuad(
 		else if (isY)
 		{
 			v3Up = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
-			if (v3Up.x * camView.y - v3Up.y * camView.x < 0.0f)
+			if (v3Up.x * safeCamView.y - v3Up.y * safeCamView.x < 0.0f)
 			{
 				v3Up *= -1.0f;
 			}
 
-			const D3DXVECTOR3 d3dd(camView.x, camView.y, 0.0f);
+			const D3DXVECTOR3 d3dd(safeCamView.x, safeCamView.y, 0.0f);
 			D3DXVec3Cross(&v3Cross, &v3Up, &d3dd);
 			const float crossLen = D3DXVec3Length(&v3Cross);
 			if (crossLen > 1e-6f)
@@ -83,7 +123,7 @@ void BuildParticleQuad(
 			else
 			{
 				D3DXMATRIX matRotation;
-				D3DXMatrixRotationAxis(&matRotation, &camView, D3DXToRadian(fRotationDeg));
+				D3DXMatrixRotationAxis(&matRotation, &safeCamView, D3DXToRadian(fRotationDeg));
 				const D3DXVECTOR3 negCross = -camCross;
 				D3DXVec3TransformCoord(&v3Up, &negCross, &matRotation);
 				D3DXVec3TransformCoord(&v3Cross, &camUp, &matRotation);
@@ -100,7 +140,7 @@ void BuildParticleQuad(
 		}
 
 		const float length = D3DXVec3Length(&v3Up);
-		if (length == 0.0f)
+		if (length < 1e-6f)
 		{
 			v3Up = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
 		}
@@ -109,7 +149,7 @@ void BuildParticleQuad(
 			v3Up *= (1.0f + logf(1.0f + length)) / length;
 		}
 
-		D3DXVec3Cross(&v3Cross, &v3Up, &camView);
+		D3DXVec3Cross(&v3Cross, &v3Up, &safeCamView);
 		const float crossLen = D3DXVec3Length(&v3Cross);
 		if (crossLen > 1e-6f)
 		{

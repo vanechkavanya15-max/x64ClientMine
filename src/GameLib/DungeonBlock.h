@@ -5,6 +5,8 @@
 #include "EterGrnLib/ModelInstance.h"
 #include "EterGrnLib/Thing.h"
 
+class CDungeonBlockRenderExtractor;
+
 class CDungeonModelInstance : public CGrannyModelInstance
 {
 public:

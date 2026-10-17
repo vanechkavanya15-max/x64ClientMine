@@ -940,14 +940,46 @@ void CGraphicThingInstance::OnBlendRender()
 
 void CGraphicThingInstance::RenderWithOneTexture()
 {
+	CGraphicThing* pBase = GetBaseThingPtr();
 	if (!m_bUpdated)
 	{
-		CGraphicThing* pBase = GetBaseThingPtr();
-		TRACE_ERROR_ONCE_KEYED(
-			reinterpret_cast<uintptr_t>(this),
-			"CGraphicThingInstance::RenderWithOneTexture: Skipped render because m_bUpdated == false (Thing={})",
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::RenderWithOneTexture: Skipped render because m_bUpdated == false (Thing=%s)",
 			pBase ? pBase->GetFileName() : "<null>");
 		return;
+	}
+
+	if (m_LODControllerVector.empty())
+	{
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::RenderWithOneTexture: Skipped render because m_LODControllerVector is empty (Thing=%s)",
+			pBase ? pBase->GetFileName() : "<null>");
+		return;
+	}
+
+	for (size_t i = 0; i < m_LODControllerVector.size(); ++i)
+	{
+		CGrannyLODController* pkLODCtrl = m_LODControllerVector[i];
+		if (!pkLODCtrl)
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::RenderWithOneTexture: LOD controller %zu is NULL (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
+
+		if (pkLODCtrl->isGltfModelInstance() && !pkLODCtrl->EnsureGltfStaticGpuBuffers())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::RenderWithOneTexture: glTF GPU buffers unavailable for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			return;
+		}
+
+		if (pkLODCtrl->isModelInstance() && !pkLODCtrl->GetModelInstance())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::RenderWithOneTexture: Model instance is NULL for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
 	}
 
 	CGrannyLODController::FRenderWithOneTexture render;
@@ -956,14 +988,46 @@ void CGraphicThingInstance::RenderWithOneTexture()
 
 void CGraphicThingInstance::BlendRenderWithOneTexture()
 {
+	CGraphicThing* pBase = GetBaseThingPtr();
 	if (!m_bUpdated)
 	{
-		CGraphicThing* pBase = GetBaseThingPtr();
-		TRACE_ERROR_ONCE_KEYED(
-			reinterpret_cast<uintptr_t>(this),
-			"CGraphicThingInstance::BlendRenderWithOneTexture: Skipped blend render because m_bUpdated == false (Thing={})",
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::BlendRenderWithOneTexture: Skipped blend render because m_bUpdated == false (Thing=%s)",
 			pBase ? pBase->GetFileName() : "<null>");
 		return;
+	}
+
+	if (m_LODControllerVector.empty())
+	{
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::BlendRenderWithOneTexture: Skipped blend render because m_LODControllerVector is empty (Thing=%s)",
+			pBase ? pBase->GetFileName() : "<null>");
+		return;
+	}
+
+	for (size_t i = 0; i < m_LODControllerVector.size(); ++i)
+	{
+		CGrannyLODController* pkLODCtrl = m_LODControllerVector[i];
+		if (!pkLODCtrl)
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::BlendRenderWithOneTexture: LOD controller %zu is NULL (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
+
+		if (pkLODCtrl->isGltfModelInstance() && !pkLODCtrl->EnsureGltfStaticGpuBuffers())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::BlendRenderWithOneTexture: glTF GPU buffers unavailable for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			return;
+		}
+
+		if (pkLODCtrl->isModelInstance() && !pkLODCtrl->GetModelInstance())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::BlendRenderWithOneTexture: Model instance is NULL for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
 	}
 
 	CGrannyLODController::FBlendRenderWithOneTexture blendRender;
@@ -973,12 +1037,46 @@ void CGraphicThingInstance::BlendRenderWithOneTexture()
 
 void CGraphicThingInstance::OnRenderToShadowMap()
 {
+	CGraphicThing* pBase = GetBaseThingPtr();
 	if (!m_bUpdated)
 	{
-		TRACE_ERROR_ONCE_KEYED(
-			reinterpret_cast<uintptr_t>(this),
-			"CGraphicThingInstance::OnRenderToShadowMap: Skipped shadow map render because m_bUpdated == false");
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::OnRenderToShadowMap: Skipped shadow map render because m_bUpdated == false (Thing=%s)",
+			pBase ? pBase->GetFileName() : "<null>");
 		return;
+	}
+
+	if (m_LODControllerVector.empty())
+	{
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::OnRenderToShadowMap: Skipped shadow map render because m_LODControllerVector is empty (Thing=%s)",
+			pBase ? pBase->GetFileName() : "<null>");
+		return;
+	}
+
+	for (size_t i = 0; i < m_LODControllerVector.size(); ++i)
+	{
+		CGrannyLODController* pkLODCtrl = m_LODControllerVector[i];
+		if (!pkLODCtrl)
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderToShadowMap: LOD controller %zu is NULL (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
+
+		if (pkLODCtrl->isGltfModelInstance() && !pkLODCtrl->EnsureGltfStaticGpuBuffers())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderToShadowMap: glTF GPU buffers unavailable for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			return;
+		}
+
+		if (pkLODCtrl->isModelInstance() && !pkLODCtrl->GetModelInstance())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderToShadowMap: Model instance is NULL for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
 	}
 	
 	CGrannyLODController::FRenderToShadowMap RenderToShadowMap;
@@ -987,12 +1085,96 @@ void CGraphicThingInstance::OnRenderToShadowMap()
 
 void CGraphicThingInstance::OnRenderShadow()
 {
+	CGraphicThing* pBase = GetBaseThingPtr();
+	if (!m_bUpdated)
+	{
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::OnRenderShadow: Skipped shadow render because m_bUpdated == false (Thing=%s)",
+			pBase ? pBase->GetFileName() : "<null>");
+		return;
+	}
+
+	if (m_LODControllerVector.empty())
+	{
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::OnRenderShadow: Skipped shadow render because m_LODControllerVector is empty (Thing=%s)",
+			pBase ? pBase->GetFileName() : "<null>");
+		return;
+	}
+
+	for (size_t i = 0; i < m_LODControllerVector.size(); ++i)
+	{
+		CGrannyLODController* pkLODCtrl = m_LODControllerVector[i];
+		if (!pkLODCtrl)
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderShadow: LOD controller %zu is NULL (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
+
+		if (pkLODCtrl->isGltfModelInstance() && !pkLODCtrl->EnsureGltfStaticGpuBuffers())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderShadow: glTF GPU buffers unavailable for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			return;
+		}
+
+		if (pkLODCtrl->isModelInstance() && !pkLODCtrl->GetModelInstance())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderShadow: Model instance is NULL for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
+	}
+
 	CGrannyLODController::FRenderShadow RenderShadow;
 	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), RenderShadow);
 }
 
 void CGraphicThingInstance::OnRenderPCBlocker()
 {
+	CGraphicThing* pBase = GetBaseThingPtr();
+	if (!m_bUpdated)
+	{
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::OnRenderPCBlocker: Skipped PC blocker render because m_bUpdated == false (Thing=%s)",
+			pBase ? pBase->GetFileName() : "<null>");
+		return;
+	}
+
+	if (m_LODControllerVector.empty())
+	{
+		TRACE_ERROR_ONCE(
+			"CGraphicThingInstance::OnRenderPCBlocker: Skipped PC blocker render because m_LODControllerVector is empty (Thing=%s)",
+			pBase ? pBase->GetFileName() : "<null>");
+		return;
+	}
+
+	for (size_t i = 0; i < m_LODControllerVector.size(); ++i)
+	{
+		CGrannyLODController* pkLODCtrl = m_LODControllerVector[i];
+		if (!pkLODCtrl)
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderPCBlocker: LOD controller %zu is NULL (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
+
+		if (pkLODCtrl->isGltfModelInstance() && !pkLODCtrl->EnsureGltfStaticGpuBuffers())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderPCBlocker: glTF GPU buffers unavailable for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			return;
+		}
+
+		if (pkLODCtrl->isModelInstance() && !pkLODCtrl->GetModelInstance())
+		{
+			TRACE_ERROR_ONCE("CGraphicThingInstance::OnRenderPCBlocker: Model instance is NULL for LOD %zu (Thing=%s)",
+				i, pBase ? pBase->GetFileName() : "<null>");
+			continue;
+		}
+	}
+
 	CGrannyLODController::FRenderWithOneTexture RenderPCBlocker;
 	std::for_each(m_LODControllerVector.begin(), m_LODControllerVector.end(), RenderPCBlocker);
 }

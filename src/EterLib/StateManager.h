@@ -193,6 +193,7 @@ public:
 
 	void	ResetState();
 	void	SetDefaultState();
+	void	UnbindAllResources();
 
 	// Default state helpers per subsystem
 	void	SetDefaultSamplerStates();

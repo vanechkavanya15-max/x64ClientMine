@@ -30,8 +30,14 @@ CWeaponTrace* CWeaponTrace::New()
 
 void CWeaponTrace::Update(float fReachScale)
 {
-	float fElapsedTime = CTimer::Instance().GetCurrentSecond() - m_fLastUpdate;
-	m_fLastUpdate = CTimer::Instance().GetCurrentSecond();
+	float fCurrentTime = CTimer::Instance().GetCurrentSecond();
+	float fElapsedTime = (m_fLastUpdate > 0.0f) ? (fCurrentTime - m_fLastUpdate) : 0.016f;
+	m_fLastUpdate = fCurrentTime;
+
+	if (fElapsedTime <= 0.0f)
+		fElapsedTime = 0.001f;
+	else if (fElapsedTime > 0.1f)
+		fElapsedTime = 0.1f; // Ograniczenie skoku klatki
 	
 	if (!m_pInstance)
 		return;
@@ -153,6 +159,7 @@ bool CWeaponTrace::BuildVertex()
 
 	for(int loop = 0; loop<=1; ++loop)
 	{
+		sp = 0;
 		TTimePointList & Input = (loop) ? m_LongTimePointList : m_ShortTimePointList;
 		std::vector<TPDTVertex> & Output = (loop) ? m_LongVertexVector : m_ShortVertexVector;
 		TTimePointList::iterator it;
@@ -161,8 +168,10 @@ bool CWeaponTrace::BuildVertex()
 		for(i=0;i<n;++i)
 		{
 			h[i] = Input[i+1].first - Input[i].first;
-			if (fabsf(h[i]) < 0.0001f)
+			if (h[i] < 0.0001f)
 				h[i] = 0.0001f;
+			else if (h[i] > 0.5f)
+				h[i] = 0.5f;
 			r[i] = (Input[i+1].second - Input[i].second)*(3/h[i]);
 		}
 		r[n] = D3DXVECTOR3(0.0f,0.0f,0.0f);
@@ -193,7 +202,11 @@ bool CWeaponTrace::BuildVertex()
 		int base = 0;
 		D3DXVECTOR3 a,b,c,d;
 		D3DXVECTOR3 v3Tmp = Input[base+1].second-Input[base].second;
-		float timebase=0,timenext=h[base], dt=m_fSamplingTime;
+		float timebase = 0.0f, timenext = h[base];
+		float dt = m_fSamplingTime;
+		if (dt <= 0.001f)
+			dt = 0.016f; // Zabezpieczenie przed dt <= 0.0f oraz zawieszeniem petli
+
 		a = Input[base].second;
 		b = r[base];
 		c = ( 3*v3Tmp - r[base+1]*h[base] - (2*h[base])*r[base] )
@@ -377,6 +390,16 @@ void CWeaponTrace::Render()
 		STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
 		STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
 		STATEMANAGER.RestoreFVF();
+
+		// Bezpieczne czyszczenie stanow blendowania i jednostek teksturowania D3D9
+		STATEMANAGER.SetTexture(0, NULL);
+		STATEMANAGER.SetTexture(1, NULL);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 	}
 	else
 	{

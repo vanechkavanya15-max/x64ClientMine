@@ -345,10 +345,13 @@ namespace
 				pThingInstance->BlendRender();
 				return;
 			}
+
+			STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+			pInstance->RenderPCBlocker();
+			return;
 		}
 
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-		pInstance->RenderPCBlocker();
+		pInstance->Render();
 	}
 }
 
@@ -386,16 +389,23 @@ void CMapOutdoor::RenderArea(bool bRenderAmbience)
 		}
 	}
 
-	// 1. Przygotowanie posortowanej tablicy wskaznikow blockerow kamery do niemutujacego filtrowania
-	m_sortedBlockerLookupScratch.clear();
+	// 1. Przygotowanie jawnej kolekcji blockerow kamery m_cameraBlockerInstances do niemutujacego filtrowania
+	m_cameraBlockerInstances.clear();
 	if (!m_PCBlockerVector.empty())
 	{
-		m_sortedBlockerLookupScratch.reserve(m_PCBlockerVector.size());
+		m_cameraBlockerInstances.reserve(m_PCBlockerVector.size());
 		std::ranges::copy_if(
 			m_PCBlockerVector,
-			std::back_inserter(m_sortedBlockerLookupScratch),
+			std::back_inserter(m_cameraBlockerInstances),
 			[](const CGraphicObjectInstance* pInst) noexcept { return pInst != nullptr && pInst->isShow(); }
 		);
+	}
+
+	m_sortedBlockerLookupScratch.clear();
+	if (!m_cameraBlockerInstances.empty())
+	{
+		m_sortedBlockerLookupScratch.reserve(m_cameraBlockerInstances.size());
+		m_sortedBlockerLookupScratch = m_cameraBlockerInstances;
 		std::ranges::sort(m_sortedBlockerLookupScratch);
 	}
 
@@ -513,11 +523,12 @@ void CMapOutdoor::RenderBlendArea()
 		return;
 
 	m_sortedBlockerLookupScratch.clear();
-	if (!m_PCBlockerVector.empty())
+	const auto& blockersForBlend = !m_cameraBlockerInstances.empty() ? m_cameraBlockerInstances : m_PCBlockerVector;
+	if (!blockersForBlend.empty())
 	{
-		m_sortedBlockerLookupScratch.reserve(m_PCBlockerVector.size());
+		m_sortedBlockerLookupScratch.reserve(blockersForBlend.size());
 		std::ranges::copy_if(
-			m_PCBlockerVector,
+			blockersForBlend,
 			std::back_inserter(m_sortedBlockerLookupScratch),
 			[](const CGraphicObjectInstance* pInst) noexcept { return pInst != nullptr && pInst->isShow(); }
 		);
@@ -575,8 +586,23 @@ void CMapOutdoor::RenderBlendArea()
 
 void CMapOutdoor::RenderPCBlocker()
 {
-	if (m_PCBlockerVector.empty())
+	const auto& blockerList = !m_cameraBlockerInstances.empty() ? m_cameraBlockerInstances : m_PCBlockerVector;
+	if (blockerList.empty())
 		return;
+
+	LPDIRECT3DTEXTURE9 pTransparentTex = m_BuildingTransparentImageInstance.GetTexturePointer() ? m_BuildingTransparentImageInstance.GetTexturePointer()->GetD3DTexture() : NULL;
+	if (!pTransparentTex)
+	{
+		// Bezpieczny fallback: gdy brak tekstury przezroczystosci, renderuj obiekty normalnie, aby zapobiec ich znikaniu
+		for (CGraphicObjectInstance* pBlocker : blockerList)
+		{
+			if (pBlocker && pBlocker->isShow())
+			{
+				pBlocker->Render();
+			}
+		}
+		return;
+	}
 
 	STATEMANAGER.SetTexture(0, NULL);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
@@ -587,6 +613,8 @@ void CMapOutdoor::RenderPCBlocker()
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP,	D3DTOP_SELECTARG1);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP,	D3DTOP_DISABLE);
 
+	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
 	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
@@ -600,10 +628,9 @@ void CMapOutdoor::RenderPCBlocker()
 	STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSV,	D3DTADDRESS_CLAMP);
 
 	STATEMANAGER.SaveTransform(D3DTS_TEXTURE1, &m_matBuildingTransparent);
-	LPDIRECT3DTEXTURE9 pTransparentTex = m_BuildingTransparentImageInstance.GetTexturePointer() ? m_BuildingTransparentImageInstance.GetTexturePointer()->GetD3DTexture() : NULL;
 	STATEMANAGER.SetTexture(1, pTransparentTex);
 
-	for (CGraphicObjectInstance* pBlocker : m_PCBlockerVector)
+	for (CGraphicObjectInstance* pBlocker : blockerList)
 	{
 		RenderSingleCameraBlocker(pBlocker);
 	}
@@ -622,6 +649,8 @@ void CMapOutdoor::RenderPCBlocker()
 	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
 	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
 	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
 }
 
 void CMapOutdoor::SelectIndexBuffer(BYTE byLODLevel, WORD * pwPrimitiveCount, D3DPRIMITIVETYPE * pePrimitiveType)

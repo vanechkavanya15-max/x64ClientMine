@@ -175,9 +175,9 @@ BOOL CActorInstance::GetAttachingBoneName(DWORD dwPartIndex, const char ** c_psz
 	if (!c_pszBoneName)
 		return FALSE;
 
-	if (m_pkCurRaceData)
+	if (m_pkCurRaceData && m_pkCurRaceData->GetAttachingBoneName(dwPartIndex, c_pszBoneName))
 	{
-		return m_pkCurRaceData->GetAttachingBoneName(dwPartIndex, c_pszBoneName);
+		return TRUE;
 	}
 
 	// Standardowy fallback dla gniazd aktora bez dedykowanego CRaceData
@@ -192,6 +192,9 @@ BOOL CActorInstance::GetAttachingBoneName(DWORD dwPartIndex, const char ** c_psz
 		case CRaceData::PART_HEAD:
 		case CRaceData::PART_HAIR:
 			*c_pszBoneName = "Bip01 Head";
+			return TRUE;
+		case CRaceData::PART_ACCE:
+			*c_pszBoneName = "Bip01 Spine2";
 			return TRUE;
 		default:
 			return FALSE;
@@ -243,6 +246,9 @@ void CActorInstance::AttachWeapon(DWORD dwParentPartIndex, DWORD dwPartIndex, CI
 		SetMaterialData(dwPartIndex, NULL, kMaterialData);
 	}
 
+	// Natychmiastowa synchronizacja transformacji gniazda dla eliminacji 1-klatkowego opoznienia pozycji broni
+	SyncSocketTransform(dwPartIndex);
+
 	// Weapon Trace
 	if (__IsWeaponTrace(pItemData->GetWeaponType()))
 	{
@@ -250,6 +256,51 @@ void CActorInstance::AttachWeapon(DWORD dwParentPartIndex, DWORD dwPartIndex, CI
 		pWeaponTrace->SetWeaponInstance(this, dwPartIndex, szBoneName);
 		m_WeaponTraceVector.push_back(pWeaponTrace);
 	}
+}
+
+void CActorInstance::AttachAcce(DWORD dwItemIndex, DWORD dwParentPartIndex, DWORD dwPartIndex)
+{
+	if (dwPartIndex >= CRaceData::PART_MAX_NUM)
+		return;
+
+	m_adwPartItemID[dwPartIndex] = dwItemIndex;
+
+	CItemData * pItemData;
+	if (!CItemManager::Instance().GetItemDataPointer(dwItemIndex, &pItemData))
+	{
+		DetachPart(dwPartIndex);
+		RefreshActorInstance();
+		return;
+	}
+
+	ClearPartEffects(dwPartIndex);
+	InvalidateSocketTransform(dwPartIndex);
+
+	AttachAcce(dwParentPartIndex, dwPartIndex, pItemData);
+}
+
+void CActorInstance::AttachAcce(DWORD dwParentPartIndex, DWORD dwPartIndex, CItemData * pItemData)
+{
+	if (!pItemData)
+		return;
+
+	const char * szBoneName = NULL;
+	if (!GetAttachingBoneName(dwPartIndex, &szBoneName))
+		return;
+
+	RegisterModelThing(dwPartIndex, pItemData->GetModelThing());
+	for (DWORD i = 0; i < pItemData->GetLODModelThingCount(); ++i)
+	{
+		CGraphicThing * pThing;
+		if (!pItemData->GetLODModelThingPointer(i, &pThing))
+			continue;
+		RegisterLODThing(dwPartIndex, pThing);
+	}
+
+	SetModelInstance(dwPartIndex, dwPartIndex, 0);
+	AttachModelInstance(dwParentPartIndex, szBoneName, dwPartIndex);
+
+	SyncSocketTransform(dwPartIndex);
 }
 
 void  CActorInstance::DettachEffect(DWORD dwEID)
@@ -709,6 +760,51 @@ void CActorInstance::__ClearAttachingEffect()
 	m_AttachingEffectList.clear();
 }
 
+bool CActorInstance::SyncSocketTransform(DWORD dwPartIndex)
+{
+	if (dwPartIndex >= CRaceData::PART_MAX_NUM)
+		return false;
+
+	const char * szBoneName = NULL;
+	if (!GetAttachingBoneName(dwPartIndex, &szBoneName) || !szBoneName)
+		return false;
+
+	TSocketTransform & rSocket = m_kSocketTransform[dwPartIndex];
+	int iBone = -1;
+	if (!FindBoneIndex(CRaceData::PART_MAIN, szBoneName, &iBone) || iBone < 0)
+		return false;
+
+	rSocket.iBoneIndex = iBone;
+
+	D3DXMATRIX * pBoneMat = NULL;
+	if (!GetBoneMatrix(CRaceData::PART_MAIN, rSocket.iBoneIndex, &pBoneMat) || !pBoneMat)
+		return false;
+
+	// Natychmiastowe przeliczenie macierzy transformacji gniazda dla eliminacji 1-klatkowego opoznienia
+	D3DXMatrixMultiply(&rSocket.matTransform, pBoneMat, &m_worldMatrix);
+	rSocket.matLastBone = *pBoneMat;
+	rSocket.matLastWorld = m_worldMatrix;
+	rSocket.bValid = true;
+
+	// Wymuszenie deformacji i natychmiastowej aktualizacji swiatowej pozycji doczepionej czesci
+	CGrannyLODController * pPartLOD = GetLODControllerPointer(dwPartIndex);
+	if (pPartLOD)
+	{
+		pPartLOD->DeformNoSkin(&m_worldMatrix);
+	}
+
+	// Natychmiastowe odswiezenie transformacji efektow powiazanych z tym socketem
+	for (auto & rkAttEft : m_AttachingEffectList)
+	{
+		if (rkAttEft.dwModelIndex == dwPartIndex && rkAttEft.isAttaching)
+		{
+			rkAttEft.bTransformInitialized = false;
+		}
+	}
+
+	return true;
+}
+
 bool CActorInstance::GetSocketMatrix(DWORD dwPartIndex, D3DXMATRIX** ppMatrix)
 {
 	if (dwPartIndex >= CRaceData::PART_MAX_NUM)
@@ -765,6 +861,9 @@ void CActorInstance::InvalidateAllSocketTransforms()
 	{
 		m_kSocketTransform[i].bValid = false;
 		m_kSocketTransform[i].iBoneIndex = -1;
+		D3DXMatrixIdentity(&m_kSocketTransform[i].matTransform);
+		D3DXMatrixIdentity(&m_kSocketTransform[i].matLastBone);
+		D3DXMatrixIdentity(&m_kSocketTransform[i].matLastWorld);
 	}
 }
 
@@ -791,28 +890,46 @@ void CActorInstance::DetachPart(DWORD dwPartIndex)
 	if (dwPartIndex >= CRaceData::PART_MAX_NUM)
 		return;
 
-	// 1. Usun wszystkie efekty powiazane z odpinana czescia pancerza/modelu, zapobiegajac wyciekom w EffectManagerze
+	// 1. Zniszcz powiazana smuge broni (WeaponTrace), aby zapobiec odwolywaniu sie do usunietej instancji/czesci
+	if (dwPartIndex == CRaceData::PART_WEAPON || dwPartIndex == CRaceData::PART_WEAPON_LEFT)
+	{
+		__DestroyWeaponTrace();
+	}
+
+	// 2. Usun wszystkie efekty powiazane z odpinana czescia pancerza/modelu, zapobiegajac wyciekom w EffectManagerze
 	ClearPartEffects(dwPartIndex);
 
-	// 2. Bezpiecznie wyczysc instancje modelu w menedzerze LODController
+	// 3. Bezpiecznie wyczysc instancje modelu w menedzerze LODController i odlacz od rodzica
 	if (dwPartIndex < m_LODControllerVector.size())
 	{
 		CGrannyLODController * pPartLOD = m_LODControllerVector[dwPartIndex];
 		if (pPartLOD)
 		{
+			if (pPartLOD->GetAttachedParentModel())
+			{
+				pPartLOD->GetAttachedParentModel()->DetachModelInstance(pPartLOD);
+			}
+			else if (CRaceData::PART_MAIN < m_LODControllerVector.size() && m_LODControllerVector[CRaceData::PART_MAIN])
+			{
+				m_LODControllerVector[CRaceData::PART_MAIN]->DetachModelInstance(pPartLOD);
+			}
 			pPartLOD->Clear();
 		}
 	}
 
-	// 3. Zwolnij referencje do obiektow Thing dla danego partu
+	// 4. Zwolnij referencje do obiektow Thing dla danego partu
 	if (dwPartIndex < m_modelThingSetVector.size())
 	{
 		m_modelThingSetVector[dwPartIndex].Clear();
 	}
 
+	// 5. Atomowy reset stanu i czyszczenie zbuforowanych macierzy transformacji
 	m_adwPartItemID[dwPartIndex] = 0;
 	InvalidateSocketTransform(dwPartIndex);
 	m_kSocketTransform[dwPartIndex].iBoneIndex = -1;
+	D3DXMatrixIdentity(&m_kSocketTransform[dwPartIndex].matTransform);
+	D3DXMatrixIdentity(&m_kSocketTransform[dwPartIndex].matLastBone);
+	D3DXMatrixIdentity(&m_kSocketTransform[dwPartIndex].matLastWorld);
 }
 
 void CActorInstance::ReattachPart(DWORD dwParentPartIndex, DWORD dwPartIndex)
@@ -825,6 +942,5 @@ void CActorInstance::ReattachPart(DWORD dwParentPartIndex, DWORD dwPartIndex)
 		return;
 
 	AttachModelInstance(dwParentPartIndex, szBoneName, dwPartIndex);
-	InvalidateSocketTransform(dwPartIndex);
-	m_kSocketTransform[dwPartIndex].iBoneIndex = -1;
+	SyncSocketTransform(dwPartIndex);
 }

@@ -325,6 +325,8 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 
 		void AttachWeapon(DWORD dwItemIndex,DWORD dwParentPartIndex = CRaceData::PART_MAIN, DWORD dwPartIndex = CRaceData::PART_WEAPON);
 		void AttachWeapon(DWORD dwParentPartIndex, DWORD dwPartIndex, CItemData * pItemData);
+		void AttachAcce(DWORD dwItemIndex, DWORD dwParentPartIndex = CRaceData::PART_MAIN, DWORD dwPartIndex = CRaceData::PART_ACCE);
+		void AttachAcce(DWORD dwParentPartIndex, DWORD dwPartIndex, CItemData * pItemData);
 		
 		void RefreshActorInstance();
 		DWORD GetPartItemID(DWORD dwPartIndex);
@@ -338,6 +340,7 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 		DWORD AttachSmokeEffect(DWORD eSmoke);
 
 		// Socket & Part Attachment Caching / Memory Safety
+		bool SyncSocketTransform(DWORD dwPartIndex);
 		bool GetSocketMatrix(DWORD dwPartIndex, D3DXMATRIX** ppMatrix);
 		void InvalidateSocketTransform(DWORD dwPartIndex);
 		void InvalidateAllSocketTransforms();

@@ -308,6 +308,22 @@ void CPythonCharacterManager::Update()
 
 	m_sceneMgr.UpdateDeleting([this](DWORD vid) {
 		m_actorRegistry.UnregisterActor(EntityVid(vid));
+		if (m_boundActor && m_boundActor->GetVirtualID() == vid)
+			m_boundActor = nullptr;
+		if (m_mainActor && m_mainActor->GetVirtualID() == vid)
+		{
+			m_mainActor = nullptr;
+			m_actorRegistry.SetMainActorVid(EntityVid(0));
+			m_actorProviderAdapter.SetMainActorVID(0);
+		}
+		if (m_pickedActor && m_pickedActor->GetVirtualID() == vid)
+		{
+			m_pickedActor->OnUnselected();
+			m_pickedActor = nullptr;
+		}
+		std::erase_if(m_pickedInstances, [vid](CInstanceBase* p) { return !p || p->GetVirtualID() == vid; });
+		std::erase_if(m_kVct_pkInstSort, [vid](CInstanceBase* p) { return !p || p->GetVirtualID() == vid; });
+		std::erase_if(m_kVct_pkInstMain, [vid](CInstanceBase* p) { return !p || p->GetVirtualID() == vid; });
 	});
 	__NEW_Pick();
 }
@@ -575,6 +591,8 @@ bool CPythonCharacterManager::CentralUnregisterActor(DWORD dwVID, bool bFadeOut)
 						m_pickedActor = nullptr;
 					}
 					std::erase(m_pickedInstances, pkDeadInst);
+					std::erase(m_kVct_pkInstSort, pkDeadInst);
+					std::erase(m_kVct_pkInstMain, pkDeadInst);
 
 					m_sceneMgr.RemoveDeadInstance(pkDeadInst);
 					m_actorRegistry.UnregisterActor(EntityVid(dwVID));
@@ -637,6 +655,8 @@ bool CPythonCharacterManager::CentralUnregisterActor(DWORD dwVID, bool bFadeOut)
 	}
 
 	std::erase(m_pickedInstances, pkInst);
+	std::erase(m_kVct_pkInstSort, pkInst);
+	std::erase(m_kVct_pkInstMain, pkInst);
 
 	// 2. Wyrejestrowanie z ECS, SpatialHashGrid oraz zywego rejestru domenowego
 	(void)UserInterface::ECS::ECSWorldRegistry::GetInstance().RemoveEntity(EterBase::EntityId(dwVID));
@@ -700,6 +720,8 @@ void CPythonCharacterManager::CentralClearActors(bool bClearDead)
 		m_pickedActor = nullptr;
 	}
 	m_pickedInstances.clear();
+	m_kVct_pkInstSort.clear();
+	m_kVct_pkInstMain.clear();
 	m_pickedActorScreenPos = D3DXVECTOR2(0.0f, 0.0f);
 	m_actorProviderAdapter.SetMainActorVID(0);
 	m_actorRegistry.SetMainActorVid(EntityVid(0));
@@ -779,6 +801,10 @@ CInstanceBase* CPythonCharacterManager::RegisterInstance(DWORD VirtualID)
 
 void CPythonCharacterManager::DeleteInstance(DWORD dwDelVID)
 {
+	std::erase_if(m_pickedInstances, [dwDelVID](CInstanceBase* p) { return !p || p->GetVirtualID() == dwDelVID; });
+	std::erase_if(m_kVct_pkInstSort, [dwDelVID](CInstanceBase* p) { return !p || p->GetVirtualID() == dwDelVID; });
+	std::erase_if(m_kVct_pkInstMain, [dwDelVID](CInstanceBase* p) { return !p || p->GetVirtualID() == dwDelVID; });
+
 	if (!CentralUnregisterActor(dwDelVID, false))
 	{
 		Tracef("DeleteCharacterInstance: no vid by %d\n", dwDelVID);
@@ -1133,6 +1159,9 @@ void CPythonCharacterManager::__Initialize()
 	m_mainActor = NULL;
 	m_boundActor = NULL;
 	m_pickedActor = NULL;
+	m_pickedInstances.clear();
+	m_kVct_pkInstSort.clear();
+	m_kVct_pkInstMain.clear();
 	m_pickedActorScreenPos = D3DXVECTOR2(0.0f, 0.0f);
 	m_pfnCharacterDeadCallback = nullptr;
 }
