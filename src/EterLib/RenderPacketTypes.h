@@ -100,7 +100,6 @@ struct alignas(16) TTerrainSectorPacket
 	const void* pTileMap = nullptr;
 	const void* pNormalMap = nullptr;
 	bool bHasWater = false;
-	uint8_t bPad = 0;
 	float fWaterHeight = 0.0f;
 	float fReserved = 0.0f;
 };
@@ -285,7 +284,7 @@ struct alignas(16) TDungeonBlockPacket
 		struct
 		{
 			bool bAlphaBlend;
-			uint8_t bPadAlpha[3];
+			uint8_t reservedAlpha[3];
 		};
 	};
 	float fPad[2]{ 0.0f, 0.0f };

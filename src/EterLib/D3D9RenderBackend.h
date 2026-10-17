@@ -4,6 +4,12 @@
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <memory>
+#include <vector>
+#include <cstdint>
+
+constexpr uint32_t kMaxQuadsPerDraw = 16380;
+constexpr uint32_t kMaxShaderBones = 60;
+constexpr float kSectorSize = 25600.0f;
 
 namespace EterLib::Render
 {
@@ -47,18 +53,14 @@ private:
 	void InitVertexDeclarations();
 	void ReleaseVertexDeclarations();
 
-	HWND m_hWnd{ nullptr };
 	unsigned int m_width{ 0 };
 	unsigned int m_height{ 0 };
-	bool m_bInitialized{ false };
 	TRenderFrameUniforms m_currentUniforms{};
 	std::unique_ptr<EterLib::Render::TerrainShaderPipeline> m_pTerrainPipeline;
 	LPDIRECT3DVERTEXDECLARATION9 m_pUIVertexDecl{ nullptr };
-	LPDIRECT3DVERTEXDECLARATION9 m_pActorVertexDecl{ nullptr };
 	LPDIRECT3DVERTEXDECLARATION9 m_pDungeonVertexDecl{ nullptr };
-	// false dopoki CSpeedTreeForestDirectX::Render() rysuje drzewa bezposrednio (tryb hybrydowy)
-	bool m_bReplaySpeedTreePackets{ false };
 
-public:
-	void SetReplaySpeedTreePackets(bool bEnable) noexcept { m_bReplaySpeedTreePackets = bEnable; }
+	std::vector<TUIVertex> m_particleVertices;
+	std::vector<uint16_t> m_sharedEffectIndices;
+	std::vector<uint16_t> m_sharedQuadIndices;
 };
