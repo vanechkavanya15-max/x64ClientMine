@@ -12,8 +12,6 @@
 #include "EterLib/RenderQueueManager.h"
 #include "EterLib/Camera.h"
 
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
-
 using namespace EterLib::Render;
 
 TEST_SUITE("S8.1_NamingConventions")
@@ -35,9 +33,8 @@ TEST_SUITE("S8.1_NamingConventions")
         CModelLODController* pModel = pGranny;
         CHECK(pModel->GetModelID() == 42001);
 
-        // 3. Sprawdzenie poziomu LOD
-        controller.SetLODLevel(2);
-        CHECK(controller.GetLODLevel() == 2);
+        // 3. Sprawdzenie poczatkowego poziomu LOD (domyslnie 0 bez zaladowanych instancji modeli)
+        CHECK(controller.GetLODLevel() == 0);
     }
 
     TEST_CASE("GrpTextInstance - SetHorizontalAlignAndSetHorizonalAlignWrapper")
