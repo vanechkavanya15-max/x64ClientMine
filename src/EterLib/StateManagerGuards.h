@@ -24,8 +24,10 @@ public:
     void Dismiss() noexcept;
 
     LPDIRECT3DVERTEXDECLARATION9 GetSavedDecl() const noexcept { return m_pSavedDecl; }
+    DWORD GetSavedFVF() const noexcept { return m_dwSavedFVF; }
     void SetRestoreOnExit(bool bRestore) noexcept { m_bRestoreOnExit = bRestore; }
     void SetExitTarget(LPDIRECT3DVERTEXDECLARATION9 pExitDecl) noexcept { m_pExitDecl = pExitDecl; }
+    void SetExitFVF(DWORD dwExitFVF) noexcept { m_dwExitFVF = dwExitFVF; }
 
     ScopedD3DVertexDeclGuard(const ScopedD3DVertexDeclGuard&) = delete;
     ScopedD3DVertexDeclGuard& operator=(const ScopedD3DVertexDeclGuard&) = delete;
@@ -34,7 +36,9 @@ public:
 
 private:
     LPDIRECT3DVERTEXDECLARATION9 m_pSavedDecl = nullptr;
+    DWORD m_dwSavedFVF = 0;
     LPDIRECT3DVERTEXDECLARATION9 m_pExitDecl = nullptr;
+    DWORD m_dwExitFVF = 0;
     bool m_bRestoreOnExit = true;
     bool m_bActive = true;
 };
