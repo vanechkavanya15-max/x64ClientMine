@@ -105,28 +105,17 @@ void CMapOutdoor::__RenderTerrain_RecurseRenderQuadTree(CTerrainQuadtreeNode *No
 
 int	CMapOutdoor::__RenderTerrain_RecurseRenderQuadTree_CheckBoundingCircle(const D3DXVECTOR3 & c_v3Center, const float & c_fRadius)
 {
-	const int count = 6;
-
-	D3DXVECTOR3 center = c_v3Center;
-	center.y = -center.y;
-
-	int i;
-
-	float distance[count];
-	for(i = 0; i < count; ++i)
+	const ViewState state = m_Frustum.ViewVolumeTestTerrain(c_v3Center, c_fRadius, 0.0f);
+	switch (state)
 	{
-		distance[i] = D3DXPlaneDotCoord(&m_plane[i], &center);
-		if (distance[i] <= -c_fRadius) 
+		case VS_INSIDE:
+			return VIEW_ALL;
+		case VS_PARTIAL:
+			return VIEW_PART;
+		case VS_OUTSIDE:
+		default:
 			return VIEW_NONE;
 	}
-
-	for(i = 0; i < count;++i)
-	{
-		if (distance[i] <= c_fRadius) 
-			return VIEW_PART;
-	}
-	
-	return VIEW_ALL;
 }
 
 void CMapOutdoor::__RenderTerrain_AppendPatch(const D3DXVECTOR3& c_rv3Center, float fDistance, long lPatchNum)

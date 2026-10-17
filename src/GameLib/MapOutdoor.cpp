@@ -607,18 +607,12 @@ bool CMapOutdoor::GetTerrainNumFromCoord(WORD wCoordX, WORD wCoordY, BYTE * pbyT
 	return true;
 }
 
-void CMapOutdoor::BuildViewFrustum(D3DXMATRIX & mat)
+void CMapOutdoor::BuildViewFrustum(const D3DXMATRIX & mat)
 {
-	//m_plane[0] = D3DXPLANE(mat._14 + mat._13, mat._24 + mat._23, mat._34 + mat._33, mat._44 + mat._43);
-	m_plane[0] = D3DXPLANE(          mat._13,           mat._23,           mat._33,           mat._43);		// Near
-	m_plane[1] = D3DXPLANE(mat._14 - mat._13, mat._24 - mat._23, mat._34 - mat._33, mat._44 - mat._43);		// Far
-	m_plane[2] = D3DXPLANE(mat._14 + mat._11, mat._24 + mat._21, mat._34 + mat._31, mat._44 + mat._41);		// Left
-	m_plane[3] = D3DXPLANE(mat._14 - mat._11, mat._24 - mat._21, mat._34 - mat._31, mat._44 - mat._41);		// Right
-	m_plane[4] = D3DXPLANE(mat._14 + mat._12, mat._24 + mat._22, mat._34 + mat._32, mat._44 + mat._42);		// Bottom
-	m_plane[5] = D3DXPLANE(mat._14 - mat._12, mat._24 - mat._22, mat._34 - mat._32, mat._44 - mat._42);		// Top
-
+	m_Frustum.BuildViewFrustum(mat);
+	const D3DXPLANE* planes = m_Frustum.GetPlanes();
 	for (int i = 0; i < 6; ++i)
-		D3DXPlaneNormalize(&m_plane[i],&m_plane[i]);
+		m_plane[i] = planes[i];
 }
 
 bool MAPOUTDOOR_GET_HEIGHT_USE2D = true;
