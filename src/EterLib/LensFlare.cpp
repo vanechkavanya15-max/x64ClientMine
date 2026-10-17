@@ -97,9 +97,9 @@ void CLensFlare::Compute(const D3DXVECTOR3 & c_rv3LightDirection)
 
 	D3DXVECTOR3 v3Target = CCameraManager::Instance().GetCurrentCamera()->GetTarget();
 	
-	afSunPos[0] = v3Target.x - c_rv3LightDirection.x * 99999999.0f;
-	afSunPos[1] = v3Target.y - c_rv3LightDirection.y * 99999999.0f;
-	afSunPos[2] = v3Target.z - c_rv3LightDirection.z * 99999999.0f;
+	afSunPos[0] = v3Target.x - c_rv3LightDirection.x * kLensFlareMaxDistance;
+	afSunPos[1] = v3Target.y - c_rv3LightDirection.y * kLensFlareMaxDistance;
+	afSunPos[2] = v3Target.z - c_rv3LightDirection.z * kLensFlareMaxDistance;
 	
 	float fX, fY;
 	ProjectPosition(afSunPos[0], afSunPos[1], afSunPos[2], &fX, &fY);
@@ -300,7 +300,7 @@ void CLensFlare::AdjustBrightness()
 		}
 
 		float fAdjust = (static_cast<float>(nDifferent) / (c_nDepthTestDimension * c_nDepthTestDimension));
-		fAdjust = sqrtf(fAdjust) * 0.85f;
+		fAdjust = sqrtf(fAdjust) * kFlareIntensityScale;
 		m_fAfterBright *= 1.0f - fAdjust;
 	}
 }

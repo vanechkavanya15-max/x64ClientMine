@@ -338,8 +338,8 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 	STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, dwColorVertexState);
 	STATEMANAGER.SetRenderState(D3DRS_FOGVERTEXMODE, dwFogVertexMode);
 
-	// \xbc\xbf\xc7\xc1\xbc\xa8\xb5\xb5\xbf\xec\xb7\xce \xbe\xb2\xb4\xc2 TextureStage 1\xc0\xc7 COLOROP\xbf\xcd ALPHAOP\xb8\xa6 \xb2\xa8\xc1\xe0\xbe\xdf \xb4\xd9\xc0\xbd \xb7\xbb\xb4\xf5\xb8\xb5 \xc7\xd2 \xb3\xf0\xb5\xe9\xc0\xcc
-	// \xc1\xa6\xb4\xeb\xb7\xce \xb3\xaa\xbf´\xd9. (\xbeȱ׷\xaf\xb8\xe9 \xb0˰\xd4 \xb3\xaa\xbf\xc3 \xb0\xa1\xb4ɼ\xba\xc0\xcc..)
+	// Disable COLOROP and ALPHAOP on TextureStage 1 (used for self-shadowing)
+	// so that subsequent meshes render properly (otherwise they may appear black).
 	if (!(ulRenderBitVector & Forest_RenderToShadow))
 	{
 		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);

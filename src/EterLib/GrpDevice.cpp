@@ -239,7 +239,7 @@ static DWORD   s_MaxTextureWidth, s_MaxTextureHeight;
 
 BOOL EL3D_ConfirmDevice(D3DCAPS9& rkD3DCaps, UINT uBehavior)
 {
-	// PUREDEVICE´Â GetTransform / GetViewport µîÀÌ µÇÁö ¾Ê´Â´Ù.
+	// PUREDEVICE does not support GetTransform / GetViewport.
 	if (uBehavior & D3DCREATE_PUREDEVICE)
 		return FALSE;
 

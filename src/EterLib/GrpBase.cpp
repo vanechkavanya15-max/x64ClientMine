@@ -225,7 +225,7 @@ void CGraphicBase::SetSimpleCamera(float x, float y, float z, float pitch, float
 
 	UpdateViewMatrix();
 
-	// This is levites's virtual(?) code which you should not trust.
+	// Synchronize world-view composite matrix with current pipeline world matrix
 	ms_lpd3dDevice->GetTransform(D3DTS_WORLD, &ms_matWorld);
 	D3DXMatrixMultiply(&ms_matWorldView, &ms_matWorld, &ms_matView);
 }
@@ -242,14 +242,14 @@ void CGraphicBase::SetAroundCamera(float distance, float pitch, float roll, floa
 
 	UpdateViewMatrix();
 
-	// This is levites's virtual(?) code which you should not trust.
+	// Synchronize world-view composite matrix with current pipeline world matrix
 	ms_lpd3dDevice->GetTransform(D3DTS_WORLD, &ms_matWorld);
 	D3DXMatrixMultiply(&ms_matWorldView, &ms_matWorld, &ms_matView);
 }
 
 void CGraphicBase::SetPositionCamera(float fx, float fy, float fz, float distance, float pitch, float roll)
 {
-	// I wanna downward this code to the game control level. - [levites]
+	// Apply camera screen shake if active
 	if (ms_dwWavingEndTime > CTimer::Instance().GetCurrentMillisecond())
 	{
 		if (ms_iWavingPower>0)
@@ -272,7 +272,7 @@ void CGraphicBase::SetPositionCamera(float fx, float fy, float fz, float distanc
 
 	UpdateViewMatrix();
 
-	// This is levites's virtual(?) code which you should not trust.
+	// Synchronize world-view composite matrix with current pipeline world matrix
 	STATEMANAGER.GetTransform(D3DTS_WORLD, &ms_matWorld);
 	D3DXMatrixMultiply(&ms_matWorldView, &ms_matWorld, &ms_matView);
 }

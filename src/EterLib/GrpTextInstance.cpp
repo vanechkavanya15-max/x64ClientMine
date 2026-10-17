@@ -387,7 +387,7 @@ void CGraphicTextInstance::Update()
 					// In RTL chat: we want the hyperlink chunk to appear BEFORE the message, even if logically appended.
 					if (!s_currentSegment.empty())
 					{
-						// OPTIMIZED: Use thread-local buffer for visible rendering
+						// Reusable static buffer for visible rendering (avoids reallocations)
 						static std::vector<wchar_t> s_visibleToRender;
 						s_visibleToRender.clear();
 
