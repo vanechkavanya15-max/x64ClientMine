@@ -4,10 +4,6 @@
 #include <cstddef>
 #include <windows.h>
 
-// Typy wskaznikow na eksportowane funkcje FFI z m2_render_wgpu.dll
-using PFN_m2_wgpu_register_texture = void(__cdecl*)(uintptr_t, uint32_t, uint32_t, uint32_t, const uint8_t*, size_t);
-using PFN_m2_wgpu_unregister_texture = void(__cdecl*)(uintptr_t);
-
 // Singleton mostu przesylania tekstur C++ -> Rust WGPU
 class CTextureUploadBridge
 {
@@ -59,9 +55,5 @@ private:
 
 	bool EnsureWgpuLoaded();
 
-	HMODULE m_hWgpuModule{ nullptr };
-	PFN_m2_wgpu_register_texture m_pfnRegisterTexture{ nullptr };
-	PFN_m2_wgpu_unregister_texture m_pfnUnregisterTexture{ nullptr };
-	bool m_bOwnsModule{ false };
 	uint64_t m_registeredCount{ 0 };
 };

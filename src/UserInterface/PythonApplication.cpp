@@ -15,6 +15,7 @@
 #include "EterLib/Render/DynamicQuadBatcher.h"
 #include "EterLib/D3D9RenderBackend.h"
 #include "EterLib/WgpuRenderBackend.h"
+#include "EterLib/WgpuModule.h"
 #include "EterLib/RenderOwnership.h"
 #include "Client/Graphics/Debug/DebugRenderer.h"
 #include "TestHarness/TestHarnessServer.h"
@@ -1013,8 +1014,10 @@ bool CPythonApplication::Create(PyObject * poSelf, const char * c_szName, int wi
 		CRenderQueueManager::Instance().SetActiveBackend(&CD3D9RenderBackend::Instance());
 		if (RenderOwnership::IsWgpuConfigured())
 		{
-			CWgpuRenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight());
-			CRenderQueueManager::Instance().SetActiveBackend(&CWgpuRenderBackend::Instance());
+			if (CWgpuRenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight()))
+			{
+				CRenderQueueManager::Instance().SetActiveBackend(&CWgpuRenderBackend::Instance());
+			}
 		}
 
 		if (!g_bHeadlessMode)
@@ -1273,6 +1276,7 @@ void CPythonApplication::Destroy()
 
 	CWgpuRenderBackend::Instance().Shutdown();
 	CD3D9RenderBackend::Instance().Shutdown();
+	CWgpuModule::Instance().FreeLibrary();
 
 	m_grpDevice.Destroy();
 
