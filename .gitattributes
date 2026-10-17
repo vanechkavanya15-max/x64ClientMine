@@ -1,0 +1,28 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Enforce CRLF on all C/C++ source and header files
+*.cpp text eol=crlf
+*.h text eol=crlf
+*.c text eol=crlf
+*.inl text eol=crlf
+*.hpp text eol=crlf
+
+# CMake and build files
+CMakeLists.txt text eol=crlf
+*.cmake text eol=crlf
+
+# Markdown and documentation
+*.md text eol=crlf
+*.txt text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.dds binary
+*.gr2 binary
+*.bin binary
+*.lib binary
+*.dll binary
+*.exe binary
