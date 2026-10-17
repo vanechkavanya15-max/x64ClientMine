@@ -141,13 +141,13 @@ void CCullingManager::Unregister(CullingHandle h)
 }
 
 CCullingManager::CCullingManager()
-	: m_RayFarDistance(-1.0f)
+	: m_RayFarDistance(kDefaultRayFarDistance)
 {
 	m_Factory = new SpherePackFactory(
-		10000,	// maximum count
-		6400,	// root radius
-		1600,	// leaf radius
-		400		// extra radius
+		kDefaultMaxSpheres,	// maximum count
+		kDefaultRootRadius,	// root radius
+		kDefaultLeafRadius,	// leaf radius
+		kDefaultExtraRadius	// extra radius
 		);
 }
 
@@ -164,7 +164,7 @@ void CCullingManager::FindRange(const Vector3d &p, float radius)
 
 void CCullingManager::FindRay(const Vector3d &p1, const Vector3d &dir)
 {
-	m_RayFarDistance = -1;
+	m_RayFarDistance = kDefaultRayFarDistance;
 	m_list.clear();
 	m_Factory->RayTrace(p1,dir,this);
 }

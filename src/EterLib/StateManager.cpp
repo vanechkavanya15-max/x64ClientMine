@@ -419,7 +419,7 @@ void CStateManager::RestoreRenderState(D3DRENDERSTATETYPE Type)
 		Tracef(" CStateManager::RestoreRenderState - This render state was not saved [%d]\n", Type);
 		StateManager_Assert(!" This render state was not saved!");
 	}
-#endif _DEBUG
+#endif // _DEBUG
 
 	if (m_RenderStateStack[Type].empty())
 		return;
@@ -592,7 +592,7 @@ void CStateManager::RestoreTextureStageState(DWORD dwStage, D3DTEXTURESTAGESTATE
 		Tracef(" CStateManager::RestoreTextureStageState - This texture stage state was not saved [%d, %d]\n", dwStage, Type);
 		StateManager_Assert(!" This texture stage state was not saved!");
 	}
-#endif _DEBUG
+#endif // _DEBUG
 
 	if (m_TextureStageStateStack[dwStage][Type].empty())
 		return;
@@ -630,7 +630,7 @@ void CStateManager::RestoreSamplerState(DWORD dwStage, D3DSAMPLERSTATETYPE Type)
 		Tracef(" CStateManager::RestoreSamplerState - This sampler state was not saved [%d, %d]\n", dwStage, Type);
 		StateManager_Assert(!" This sampler state was not saved!");
 	}
-#endif _DEBUG
+#endif // _DEBUG
 
 	if (m_SamplerStateStack[dwStage][Type].empty())
 		return;
@@ -811,7 +811,7 @@ void CStateManager::RestoreTransform(D3DTRANSFORMSTATETYPE Type)
 		Tracef(" CStateManager::RestoreTransform - This transform was not saved [%d]\n", Type);
 		StateManager_Assert(!" This render state was not saved!");
 	}
-#endif _DEBUG
+#endif // _DEBUG
 
 	if (m_TransformStack[Type].empty())
 		return;

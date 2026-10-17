@@ -38,9 +38,11 @@
 ///////////////////////////////////////////////////////////////////////  
 //	Constants
 
-const   float	c_fHalfMaxBright = 0.45f;
-const   float	c_fDistanceScale = 1.0f;
-const   int     c_nDepthTestDimension = 15;
+constexpr float	c_fHalfMaxBright = 0.45f;
+constexpr float	c_fDistanceScale = 1.0f;
+constexpr int   c_nDepthTestDimension = 15;
+constexpr float	kLensFlareMaxDistance = 99999999.0f; // Pozorny dystans slonca w jednostkach swiata
+constexpr float	kFlareIntensityScale = 0.85f;        // Wspolczynnik tlumienia jasnosci przy okluzji glebi
 
 
 ///////////////////////////////////////////////////////////////////////  

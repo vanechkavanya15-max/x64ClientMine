@@ -65,6 +65,12 @@ struct RangeTester : public SpherePackCallback
 class CCullingManager : public CSingleton<CCullingManager>, public SpherePackCallback, private CScreen
 {
 public:
+	static constexpr int   kDefaultMaxSpheres = 10000;
+	static constexpr float kDefaultRootRadius = 6400.0f;
+	static constexpr float kDefaultLeafRadius = 1600.0f;
+	static constexpr float kDefaultExtraRadius = 400.0f;
+	static constexpr float kDefaultRayFarDistance = -1.0f;
+
 	typedef SpherePack * CullingHandle;
 	typedef std::vector<CGraphicObjectInstance *> TRangeList;
 
@@ -147,3 +153,13 @@ protected:
 
 	SpherePackFactory * m_Factory;
 };
+
+namespace EterLib
+{
+	constexpr int   kDefaultCullingMaxSpheres = CCullingManager::kDefaultMaxSpheres;
+	constexpr float kDefaultCullingRootRadius = CCullingManager::kDefaultRootRadius;
+	constexpr float kDefaultCullingLeafRadius = CCullingManager::kDefaultLeafRadius;
+	constexpr float kDefaultCullingExtraRadius = CCullingManager::kDefaultExtraRadius;
+	constexpr float kDefaultCullingRayFarDistance = CCullingManager::kDefaultRayFarDistance;
+}
+

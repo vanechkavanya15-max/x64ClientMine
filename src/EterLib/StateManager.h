@@ -355,4 +355,4 @@ private:
 
 #include "StateManagerGuards.h"
 
-#endif __CSTATEMANAGER_H
+#endif // __CSTATEMANAGER_H

@@ -258,7 +258,7 @@ void CSpeedTreeWrapper::OnRender()
 		//LogBox("Vertex Shader not assigned. You must call CSpeedTreeWrapper::SetVertexShader for this");
 	}
 	
-	// ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ LOD ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	// Force LOD level to maximum (1.0f) when rendering a single tree
 	m_pSpeedTree->SetLodLevel(1.0f);
 	//Advance();
 	
