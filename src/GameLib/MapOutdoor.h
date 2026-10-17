@@ -260,8 +260,6 @@ class CMapOutdoor : public CMapBase
 		int						GetPatchTerrainVertexSize() const noexcept { return m_iPatchTerrainVertexSize; }
 		std::span<const uint32_t> GetVisibleQuadtreeNodes() const noexcept;
 		void					CollectVisibleQuadtreeNodes();
-		void					SubmitWaterPackets();
-		void					SubmitWaterPacket(long patchnum, float fWaterHeight, float fWaveTime);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Area
@@ -289,7 +287,6 @@ class CMapOutdoor : public CMapBase
 		BOOL			GetAreaPointer(const BYTE c_ucAreaNum, CArea ** ppArea);
 		void			RenderArea(bool bRenderAmbience = true);
 		void			RenderBlendArea();
-		void			RenderDungeon();
 		void			RenderEffect();
 		void			RenderPCBlocker();
 		void			RenderTree();

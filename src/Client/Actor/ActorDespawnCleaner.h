@@ -5,7 +5,6 @@
 #include "EterBase/StrongTypes.h"
 #include "EterBase/Result.h"
 #include "UserInterface/PlayerControllers/PlayerTargetController.h"
-#include "UserInterface/TextTail/ITargetHpBarService.h"
 #include "Client/Gameplay/ExchangeCommandHandler.h"
 
 namespace Client::Actor {
@@ -15,8 +14,7 @@ namespace Client::Actor {
  */
 enum class CleanDomain : uint8_t {
     TargetSelection = 1 << 0,
-    TargetHpBar     = 1 << 1,
-    ExchangeWindow  = 1 << 2,
+    ExchangeWindow  = 1 << 1,
     All             = 0xFF
 };
 
@@ -41,7 +39,6 @@ class ActorDespawnCleaner {
 public:
     ActorDespawnCleaner(
         UserInterface::PlayerControllers::PlayerTargetController* targetController = nullptr,
-        UserInterface::TextTail::ITargetHpBarService* targetHpBarService = nullptr,
         Client::Gameplay::ExchangeCommandHandler* exchangeHandler = nullptr
     ) noexcept;
     
@@ -52,7 +49,6 @@ public:
     ActorDespawnCleaner& operator=(const ActorDespawnCleaner&) = delete;
 
     void SetTargetController(UserInterface::PlayerControllers::PlayerTargetController* controller) noexcept { m_targetController = controller; }
-    void SetTargetHpBarService(UserInterface::TextTail::ITargetHpBarService* service) noexcept { m_targetHpBarService = service; }
     void SetExchangeHandler(Client::Gameplay::ExchangeCommandHandler* handler) noexcept { m_exchangeHandler = handler; }
 
     /**
@@ -67,11 +63,9 @@ public:
 
 private:
     void CleanTargetSelection(EterBase::EntityId deadActorId) const noexcept;
-    void CleanTargetHpBar(EterBase::EntityId deadActorId) const noexcept;
     void CleanExchangeWindow(EterBase::EntityId deadActorId) const noexcept;
 
     UserInterface::PlayerControllers::PlayerTargetController* m_targetController{nullptr};
-    UserInterface::TextTail::ITargetHpBarService* m_targetHpBarService{nullptr};
     Client::Gameplay::ExchangeCommandHandler* m_exchangeHandler{nullptr};
 };
 

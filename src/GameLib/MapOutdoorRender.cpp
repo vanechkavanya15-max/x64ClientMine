@@ -454,67 +454,22 @@ void CMapOutdoor::RenderArea(bool bRenderAmbience)
 
 	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
 
-	bool m_isDisableSortRendering=false;
+	static std::vector<CGraphicThingInstance*> s_kVct_pkOpaqueThingInstSort;
+	s_kVct_pkOpaqueThingInstSort.clear();
+	s_kVct_pkOpaqueThingInstSort.reserve(512);  // Pre-allocate to avoid reallocations
 
-	if (m_isDisableSortRendering)
+	for (int i = 0; i < AROUND_AREA_NUM; ++i)
 	{
-		for (int i = 0; i < AROUND_AREA_NUM; ++i)
+		CArea * pArea;
+		if (GetAreaPointer(i, &pArea))
 		{
-			CArea * pArea;
-			if (GetAreaPointer(i, &pArea))
-			{
-				pArea->Render();
-
-				m_dwRenderedCRCNum += pArea->DEBUG_GetRenderedCRCNum();
-				m_dwRenderedGraphicThingInstanceNum += pArea->DEBUG_GetRenderedGrapphicThingInstanceNum();
-
-				CArea::TCRCWithNumberVector & rCRCWithNumberVector = pArea->DEBUG_GetRenderedCRCWithNumVector();
-
-				CArea::TCRCWithNumberVector::iterator aIterator = rCRCWithNumberVector.begin();
-				while (aIterator != rCRCWithNumberVector.end())
-				{
-					DWORD dwCRC = (*aIterator++).dwCRC;
-
-					CArea::TCRCWithNumberVector::iterator aCRCWithNumberVectorIterator = 
-						std::find_if(m_dwRenderedCRCWithNumberVector.begin(), m_dwRenderedCRCWithNumberVector.end(), CArea::FFindIfCRC(dwCRC));
-
-					if ( m_dwRenderedCRCWithNumberVector.end() == aCRCWithNumberVectorIterator)
-					{
-						CArea::TCRCWithNumber aCRCWithNumber;
-						aCRCWithNumber.dwCRC = dwCRC;
-						aCRCWithNumber.dwNumber = 1;
-						m_dwRenderedCRCWithNumberVector.push_back(aCRCWithNumber);
-					}
-					else
-					{
-						CArea::TCRCWithNumber & rCRCWithNumber = *aCRCWithNumberVectorIterator;
-						rCRCWithNumber.dwNumber += 1;
-					}
-				}
-			}
-		}
-	
-		std::sort(m_dwRenderedCRCWithNumberVector.begin(), m_dwRenderedCRCWithNumberVector.end(), CArea::CRCNumComp());
-	}
-	else
-	{
-		static std::vector<CGraphicThingInstance*> s_kVct_pkOpaqueThingInstSort;
-		s_kVct_pkOpaqueThingInstSort.clear();
-		s_kVct_pkOpaqueThingInstSort.reserve(512);  // Pre-allocate to avoid reallocations
-
-		for (int i = 0; i < AROUND_AREA_NUM; ++i)
-		{
-			CArea * pArea;
-			if (GetAreaPointer(i, &pArea))
-			{
-				pArea->CollectRenderingObject(s_kVct_pkOpaqueThingInstSort);
-			}
-
+			pArea->CollectRenderingObject(s_kVct_pkOpaqueThingInstSort);
 		}
 
-		std::sort(s_kVct_pkOpaqueThingInstSort.begin(), s_kVct_pkOpaqueThingInstSort.end(), CMapOutdoor_LessThingInstancePtrRenderOrder());
-		std::for_each(s_kVct_pkOpaqueThingInstSort.begin(), s_kVct_pkOpaqueThingInstSort.end(), CMapOutdoor_FOpaqueThingInstanceRender());
 	}
+
+	std::sort(s_kVct_pkOpaqueThingInstSort.begin(), s_kVct_pkOpaqueThingInstSort.end(), CMapOutdoor_LessThingInstancePtrRenderOrder());
+	std::for_each(s_kVct_pkOpaqueThingInstSort.begin(), s_kVct_pkOpaqueThingInstSort.end(), CMapOutdoor_FOpaqueThingInstanceRender());
 
 	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
 
@@ -598,16 +553,6 @@ void CMapOutdoor::RenderBlendArea()
 		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
 		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
 		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
-	}
-}
-void CMapOutdoor::RenderDungeon()
-{
-	for (int i = 0; i < AROUND_AREA_NUM; ++i)
-	{
-		CArea * pArea;
-		if (!GetAreaPointer(i, &pArea))
-			continue;
-		pArea->RenderDungeon();
 	}
 }
 

@@ -142,16 +142,13 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 	if (m_pMainTreeMap.empty())
 		return;
 
-	// Przekazuj partie drzew do CRenderQueueManager tylko z glownego przebiegu kamery
-	// (przebiegi cienia i minimapy wywoluja Render() ponownie i duplikowaly pakiety)
-	if (!(ulRenderBitVector & Forest_RenderToShadow) && !(ulRenderBitVector & Forest_RenderToMiniMap))
-		SubmitTreePackets(ulRenderBitVector);
+	// Przekazuj partie drzew do CRenderQueueManager
+	SubmitTreePackets(ulRenderBitVector);
 
 	// Gwarancja RAII: wyczyszczenie deklaracji wierzcholkow po zakonczeniu renderowania drzew SpeedTree
 	ScopedD3DVertexDeclGuard speedTreeDeclGuard(nullptr, false);
 
-	if (!(ulRenderBitVector & Forest_RenderToShadow) && !(ulRenderBitVector & Forest_RenderToMiniMap))
-		UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
+	UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
 
 	DWORD dwLightState = STATEMANAGER.GetRenderState(D3DRS_LIGHTING);
 	DWORD dwColorVertexState = STATEMANAGER.GetRenderState(D3DRS_COLORVERTEX);
@@ -299,9 +296,6 @@ void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 					it->RenderLeaves();
 			}
 		}
-
-		while (itor != m_pMainTreeMap.end())
-			(itor++)->second->EndLeafForTreeType();
 
 		if (ulRenderBitVector & Forest_RenderToShadow || ulRenderBitVector & Forest_RenderToMiniMap)
 		{

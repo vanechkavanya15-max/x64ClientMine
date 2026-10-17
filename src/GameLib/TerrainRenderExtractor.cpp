@@ -5,16 +5,6 @@
 #include "TerrainPatch.h"
 #include "EterLib/RenderQueueManager.h"
 #include <algorithm>
-
-void CTerrainRenderExtractor::Initialize(size_t maxSectors)
-{
-	if (maxSectors == 0)
-		maxSectors = 256;
-
-	m_splatWeightBuffer.assign(maxSectors, 0xFFFFFFFF);
-	m_lastExtractedCount = 0;
-}
-
 bool CTerrainRenderExtractor::ExtractPatch(CMapOutdoor* pMapOutdoor, uint32_t patchNum, TTerrainSectorPacket& outPacket)
 {
 	if (!pMapOutdoor)
@@ -122,11 +112,6 @@ bool CTerrainRenderExtractor::ExtractPatch(CMapOutdoor* pMapOutdoor, uint32_t pa
 	{
 		outPacket.pSplatWeights = rawWeights.data();
 		outPacket.dwSplatWeightCount = static_cast<uint32_t>(rawWeights.size());
-	}
-	else if (!m_splatWeightBuffer.empty())
-	{
-		outPacket.pSplatWeights = m_splatWeightBuffer.data();
-		outPacket.dwSplatWeightCount = static_cast<uint32_t>(m_splatWeightBuffer.size());
 	}
 	else
 	{
