@@ -7012,8 +7012,18 @@ target_include_directories(test_c26_cpu_copies PRIVATE
 target_link_libraries(test_c26_cpu_copies PRIVATE
     EterLib
     EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
     DirectX
+    Dbghelp
     doctest
 )
 add_test(NAME test_c26_cpu_copies COMMAND test_c26_cpu_copies)
