@@ -139,5 +139,18 @@ static_assert(offsetof(TParticlePacket, billboardMode) == 70, "ABI: particle bil
 static_assert(offsetof(TParticlePacket, bStretch) == 71, "ABI: particle bStretch");
 static_assert(offsetof(TParticlePacket, dwEffectID) == 72, "ABI: particle dwEffectID");
 static_assert(offsetof(TParticlePacket, dwTextureID) == 80, "ABI: particle dwTextureID");
+static_assert(sizeof(TEffectMeshPacket) == 88, "ABI: TEffectMeshPacket != packets.rs");
+static_assert(offsetof(TEffectMeshPacket, matWorld) == 0, "ABI: effect mesh matWorld");
+static_assert(offsetof(TEffectMeshPacket, m_matWorld) == 0, "ABI: effect mesh m_matWorld");
+static_assert(offsetof(TEffectMeshPacket, textureHandle) == 64, "ABI: effect mesh textureHandle");
+static_assert(offsetof(TEffectMeshPacket, hTexture) == 64, "ABI: effect mesh hTexture");
+static_assert(offsetof(TEffectMeshPacket, textureFactorColor) == 68, "ABI: effect mesh textureFactorColor");
+static_assert(offsetof(TEffectMeshPacket, dwTFactor) == 68, "ABI: effect mesh dwTFactor");
+static_assert(offsetof(TEffectMeshPacket, colorOp) == 72, "ABI: effect mesh colorOp");
+static_assert(offsetof(TEffectMeshPacket, dwColorOp) == 72, "ABI: effect mesh dwColorOp");
+static_assert(offsetof(TEffectMeshPacket, srcBlend) == 76, "ABI: effect mesh srcBlend");
+static_assert(offsetof(TEffectMeshPacket, destBlend) == 77, "ABI: effect mesh destBlend");
+static_assert(offsetof(TEffectMeshPacket, vertexOffset) == 80, "ABI: effect mesh vertexOffset");
+static_assert(offsetof(TEffectMeshPacket, vertexCount) == 84, "ABI: effect mesh vertexCount");
 #endif
 

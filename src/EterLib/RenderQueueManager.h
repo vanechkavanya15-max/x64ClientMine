@@ -164,6 +164,7 @@ public:
 	const SSkyDescription* GetSkyDescription() const;
 	bool HasSkyDescription() const;
 	void SubmitDungeonBlock(const TDungeonBlockPacket& packet);
+	void SubmitEffectMesh(const TEffectMeshPacket& packet);
 	void SubmitWeaponTrace(const TWeaponTracePacket& packet);
 	void SubmitDebugLine(const TDebugLinePacket& packet);
 	void SubmitDebugLines(const TDebugLinePacket* pPackets, size_t count);
@@ -176,6 +177,7 @@ public:
 	const std::vector<TActorRenderPacket>& GetActorPackets() const;
 	const std::vector<TTerrainSectorPacket>& GetTerrainPackets() const;
 	const std::vector<TEffectInstancePacket>& GetEffectPackets() const;
+	const std::vector<TEffectMeshPacket>& GetEffectMeshPackets() const;
 	const std::vector<TWaterPacket>& GetWaterPackets() const;
 	const std::vector<TSkyBoxPacket>& GetSkyBoxPackets() const;
 	const std::vector<TDungeonBlockPacket>& GetDungeonPackets() const;
@@ -188,18 +190,23 @@ public:
 	TSpeedTreeInstanceData* AllocateSpeedTreeInstanceData(size_t count);
 	TPDTVertex* AllocateWeaponTraceVertexData(size_t count);
 	const TPDTVertex* GetWeaponTraceVertexData() const;
+	TPTVertex* AllocateEffectMeshVertexData(size_t count);
+	const TPTVertex* GetEffectMeshVertexData() const;
 
 	size_t GetDroppedParticles() const { return m_droppedParticles; }
 	size_t GetDroppedSpeedTree() const { return m_droppedSpeedTree; }
 	size_t GetDroppedWeaponTrace() const { return m_droppedWeaponTrace; }
-	void ResetDroppedCounters() { m_droppedParticles = 0; m_droppedSpeedTree = 0; m_droppedWeaponTrace = 0; }
+	size_t GetDroppedEffectMesh() const { return m_droppedEffectMesh; }
+	void ResetDroppedCounters() { m_droppedParticles = 0; m_droppedSpeedTree = 0; m_droppedWeaponTrace = 0; m_droppedEffectMesh = 0; }
 
 	size_t GetParticlePoolCapacity() const { return m_particleDataPool.size(); }
 	size_t GetSpeedTreePoolCapacity() const { return m_speedTreeInstancePool.size(); }
 	size_t GetWeaponTracePoolCapacity() const { return m_weaponTraceVertexPool.size(); }
+	size_t GetEffectMeshPoolCapacity() const { return m_effectMeshVertexPool.size(); }
 	size_t GetParticleDataOffset() const { return m_particleDataOffset; }
 	size_t GetSpeedTreeInstanceOffset() const { return m_speedTreeInstanceOffset; }
 	size_t GetWeaponTraceVertexOffset() const { return m_weaponTraceVertexOffset; }
+	size_t GetEffectMeshVertexOffset() const { return m_effectMeshVertexOffset; }
 
 	// Golden Master Frame Dumper (Faza 6) & Backend Switcher (Faza 8)
 	bool ExportFrameToBinary(const char* c_pszFileName) const;
@@ -227,6 +234,7 @@ private:
 	std::vector<TSkyBoxPacket> m_skyBoxPackets;
 	std::vector<TDungeonBlockPacket> m_dungeonPackets;
 	std::vector<TWeaponTracePacket> m_weaponTracePackets;
+	std::vector<TEffectMeshPacket> m_effectMeshPackets;
 	std::unique_ptr<SSkyDescription> m_pSkyDescription;
 	std::vector<TDebugLinePacket> m_debugLinePackets;
 
@@ -243,9 +251,13 @@ private:
 	std::vector<TPDTVertex> m_weaponTraceVertexPool;
 	size_t m_weaponTraceVertexOffset{ 0 };
 
+	std::vector<TPTVertex> m_effectMeshVertexPool;
+	size_t m_effectMeshVertexOffset{ 0 };
+
 	size_t m_droppedParticles{ 0 };
 	size_t m_droppedSpeedTree{ 0 };
 	size_t m_droppedWeaponTrace{ 0 };
+	size_t m_droppedEffectMesh{ 0 };
 
 	IRenderBackend* m_pActiveBackend{ nullptr };
 	bool m_bPendingDump{ false };

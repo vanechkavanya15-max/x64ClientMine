@@ -1394,6 +1394,116 @@ void CD3D9RenderBackend::RenderWeaponTrace(const TWeaponTracePacket* pPackets, u
 	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
 }
 
+void CD3D9RenderBackend::RenderEffectMesh(const TEffectMeshPacket* pPackets, unsigned int count)
+{
+	if (RenderOwnership::Owner(ERenderCategory::EffectMesh) != ERenderOwner::D3D9Backend)
+		return;
+
+	if (!pPackets || count == 0)
+		return;
+
+	const TPTVertex* pAllVertices = CRenderQueueManager::Instance().GetEffectMeshVertexData();
+	if (!pAllVertices)
+		return;
+
+	D3DXMATRIX matIdentity;
+	D3DXMatrixIdentity(&matIdentity);
+	STATEMANAGER.SaveTransform(D3DTS_WORLD, &matIdentity);
+	STATEMANAGER.SaveFVF(D3DFVF_XYZ | D3DFVF_TEX1);
+
+	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
+
+	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	STATEMANAGER.SaveRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
+
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_NONE);
+	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_NONE);
+
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
+	STATEMANAGER.SaveTextureStageState(0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
+	STATEMANAGER.SaveTextureStageState(1, D3DTSS_COLOROP,   D3DTOP_DISABLE);
+	STATEMANAGER.SaveTextureStageState(1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
+
+	for (unsigned int i = 0; i < count; ++i)
+	{
+		const TEffectMeshPacket& pkt = pPackets[i];
+		if (pkt.vertexCount < 3)
+			continue;
+
+		D3DXMATRIX matWorld;
+		std::memcpy(&matWorld, &pkt.m_matWorld, sizeof(D3DXMATRIX));
+		STATEMANAGER.SetTransform(D3DTS_WORLD, &matWorld);
+
+		if (pkt.srcBlend == BLEND_FACTOR_ONE && pkt.destBlend == BLEND_FACTOR_ZERO)
+		{
+			STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		}
+		else
+		{
+			STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, pkt.srcBlend ? pkt.srcBlend : D3DBLEND_SRCALPHA);
+			STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, pkt.destBlend ? pkt.destBlend : D3DBLEND_INVSRCALPHA);
+		}
+
+		STATEMANAGER.SetRenderState(D3DRS_TEXTUREFACTOR, pkt.dwTFactor);
+		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, pkt.dwColorOp ? pkt.dwColorOp : D3DTOP_MODULATE);
+
+		IDirect3DTexture9* pTexture = nullptr;
+		if (pkt.hTexture != kInvalidTextureHandle && CRenderResourceRegistry::InstancePtr())
+		{
+			pTexture = CRenderResourceRegistry::Instance().ResolveTexture(pkt.hTexture);
+		}
+		STATEMANAGER.SetTexture(0, pTexture);
+
+		const uint32_t primitiveCount = pkt.vertexCount / 3;
+		const TPTVertex* pVertices = pAllVertices + pkt.vertexOffset;
+
+		STATEMANAGER.DrawPrimitiveUP(
+			D3DPT_TRIANGLELIST,
+			primitiveCount,
+			pVertices,
+			sizeof(TPTVertex)
+		);
+	}
+
+	STATEMANAGER.SetTexture(0, nullptr);
+	STATEMANAGER.SetTexture(1, nullptr);
+
+	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_ALPHAOP);
+	STATEMANAGER.RestoreTextureStageState(1, D3DTSS_COLOROP);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAOP);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAARG2);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_ALPHAARG1);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLOROP);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG2);
+	STATEMANAGER.RestoreTextureStageState(0, D3DTSS_COLORARG1);
+
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MAGFILTER);
+	STATEMANAGER.RestoreSamplerState(0, D3DSAMP_MINFILTER);
+
+	STATEMANAGER.RestoreRenderState(D3DRS_TEXTUREFACTOR);
+	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+
+	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+
+	STATEMANAGER.RestoreFVF();
+	STATEMANAGER.RestoreTransform(D3DTS_WORLD);
+}
+
 void CD3D9RenderBackend::EndFrame()
 {
 }
