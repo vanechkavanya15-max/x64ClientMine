@@ -238,7 +238,7 @@ class CGraphicBase
 		void		UpdatePipeLineMatrix();
 
 	protected:
-		// 각종 D3DX Mesh 들 (컬루젼 데이터 등을 표시활 때 쓴다)
+		// D3DX debug meshes (for displaying collision data, etc.)
 		static LPD3DXMESH				ms_lpSphereMesh;
 		static LPD3DXMESH				ms_lpCylinderMesh;
 
@@ -272,7 +272,7 @@ class CGraphicBase
 		static float					ms_fNearY;
 		static float					ms_fFarY;
 
-		// 2004.11.18.myevan.DynamicVertexBuffer로 교체
+		// Replaced with DynamicVertexBuffer
 		/*
 		static std::vector<TIndex>		ms_lineIdxVector;
 		static std::vector<TIndex>		ms_lineTriIdxVector;
@@ -288,7 +288,7 @@ class CGraphicBase
 		static DWORD					ms_dwWavingEndTime;
 		static int						ms_iWavingPower;
 
-		// Terrain picking용 Ray... CCamera 이용하는 버전.. 기존의 Ray와 통합 필요...
+		// Terrain picking Ray using CCamera
  		static CRay						ms_Ray;
 
 		// 

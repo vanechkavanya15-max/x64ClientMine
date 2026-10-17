@@ -83,7 +83,7 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 
 			CURSOR_SHAPE_COUNT,
 
-			// 안정적인 네이밍 변환을 위한 임시 enumerate
+			// Backward compatibility enum aliases
 			NORMAL = CURSOR_SHAPE_NORMAL,
 			ATTACK = CURSOR_SHAPE_ATTACK,
 			TARGET = CURSOR_SHAPE_TARGET,
