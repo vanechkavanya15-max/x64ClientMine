@@ -6417,6 +6417,15 @@ target_include_directories(test_c26_render_queue_manager PRIVATE
 target_link_libraries(test_c26_render_queue_manager PRIVATE EterLib EterBase doctest)
 add_test(NAME RenderQueueManagerTest COMMAND test_c26_render_queue_manager)
 
+add_executable(test_c26_frame_dump test_c26_frame_dump.cpp)
+target_include_directories(test_c26_frame_dump PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_frame_dump PRIVATE EterLib EterBase doctest)
+add_test(NAME FrameDumpTest COMMAND test_c26_frame_dump)
+
 add_executable(test_c26_render_packet_abi test_c26_render_packet_abi.cpp)
 target_include_directories(test_c26_render_packet_abi PRIVATE
     ${CMAKE_SOURCE_DIR}/src

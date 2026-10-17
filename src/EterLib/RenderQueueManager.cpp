@@ -289,6 +289,11 @@ TSpeedTreeInstanceData* CRenderQueueManager::AllocateSpeedTreeInstanceData(size_
 
 bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
 {
+	return ExportFrameToBinaryV2(c_pszFileName);
+}
+
+bool CRenderQueueManager::ExportFrameToBinaryV2(const char* c_pszFileName) const
+{
 	if (!c_pszFileName)
 		return false;
 
@@ -296,115 +301,418 @@ bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
 	if (fopen_s(&fp, c_pszFileName, "wb") != 0 || !fp)
 		return false;
 
-	uint32_t magic = 0x5246324D; // "M2FR"
-	uint32_t version = 1;
-	uint32_t reserved[2] = { 0, 0 };
-	fwrite(&magic, sizeof(uint32_t), 1, fp);
-	fwrite(&version, sizeof(uint32_t), 1, fp);
-	fwrite(reserved, sizeof(uint32_t), 2, fp);
+	// 1. File Header
+	FrameDumpV2::THeader fileHdr{};
+	fileHdr.dwMagic = FrameDumpV2::M2FR_MAGIC;
+	fileHdr.dwVersion = FrameDumpV2::M2FR_VERSION;
+	fileHdr.dwChunkCount = 9;
+	fileHdr.dwReserved = 0;
+	fwrite(&fileHdr, sizeof(fileHdr), 1, fp);
 
-	fwrite(&m_frameUniforms, sizeof(TRenderFrameUniforms), 1, fp);
-
-	uint32_t terrainCount = static_cast<uint32_t>(m_terrainPackets.size());
-	fwrite(&terrainCount, sizeof(uint32_t), 1, fp);
-	for (const auto& pkt : m_terrainPackets)
+	// 2. Chunk: UNIFORMS ('UNIF')
 	{
-		TTerrainSectorPacket sanitized = pkt;
-		sanitized.pSplatTexture = nullptr;
-		for (int l = 0; l < 4; ++l)
-			sanitized.pLayerTextures[l] = nullptr;
-		sanitized.pVertexData = nullptr;
-		sanitized.pSplatWeights = nullptr;
-		sanitized.pHeightMap = nullptr;
-		sanitized.pTileMap = nullptr;
-		sanitized.pNormalMap = nullptr;
-		fwrite(&sanitized, sizeof(TTerrainSectorPacket), 1, fp);
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_UNIFORMS;
+		chunkHdr.dwCount = 1;
+		chunkHdr.dwElementSize = static_cast<uint32_t>(sizeof(TRenderFrameUniforms));
+		chunkHdr.dwDataSize = chunkHdr.dwElementSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
+
+		TRenderFrameUniforms sanitized{};
+		std::memset(&sanitized, 0, sizeof(sanitized));
+		sanitized = m_frameUniforms;
+		fwrite(&sanitized, sizeof(sanitized), 1, fp);
 	}
 
-	uint32_t waterCount = static_cast<uint32_t>(m_waterPackets.size());
-	fwrite(&waterCount, sizeof(uint32_t), 1, fp);
-	for (const auto& pkt : m_waterPackets)
+	// 3. Chunk: SKYBOX ('SKYB')
 	{
-		TWaterPacket sanitized = pkt;
-		sanitized.pWaterTexture = nullptr;
-		sanitized.pVertexBuffer = nullptr;
-		fwrite(&sanitized, sizeof(TWaterPacket), 1, fp);
-	}
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_SKYBOX;
+		chunkHdr.dwCount = static_cast<uint32_t>(m_skyBoxPackets.size());
+		chunkHdr.dwElementSize = static_cast<uint32_t>(sizeof(TSkyBoxPacket));
+		chunkHdr.dwDataSize = chunkHdr.dwCount * chunkHdr.dwElementSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
 
-	uint32_t treeCount = static_cast<uint32_t>(m_speedTreePackets.size());
-	fwrite(&treeCount, sizeof(uint32_t), 1, fp);
-	for (const auto& pkt : m_speedTreePackets)
-	{
-		fwrite(&pkt.dwTreeCRC, sizeof(uint32_t), 1, fp);
-		uint32_t flags = (pkt.bRenderBranches ? 1 : 0) |
-			((pkt.bRenderFronds ? 1 : 0) << 1) |
-			((pkt.bRenderLeaves ? 1 : 0) << 2) |
-			((pkt.bRenderBillboards ? 1 : 0) << 3);
-		fwrite(&flags, sizeof(uint32_t), 1, fp);
-		fwrite(&pkt.dwTreeTypeID, sizeof(uint32_t), 1, fp);
-		fwrite(&pkt.dwTrunkTextureID, sizeof(uint32_t), 1, fp);
-		fwrite(&pkt.dwLeafTextureID, sizeof(uint32_t), 1, fp);
-
-		uint32_t instCount = (pkt.pInstances != nullptr) ? pkt.dwInstanceCount : 0;
-		fwrite(&instCount, sizeof(uint32_t), 1, fp);
-		for (uint32_t idx = 0; idx < instCount; ++idx)
+		for (const auto& pkt : m_skyBoxPackets)
 		{
-			TSpeedTreeInstanceData sanitized = pkt.pInstances[idx];
-			sanitized.pTreeInstance = nullptr;
-			fwrite(&sanitized, sizeof(TSpeedTreeInstanceData), 1, fp);
+			TSkyBoxPacket sanitized{};
+			std::memset(&sanitized, 0, sizeof(sanitized));
+			sanitized = pkt;
+			sanitized.fPad = 0.0f;
+			fwrite(&sanitized, sizeof(TSkyBoxPacket), 1, fp);
 		}
 	}
 
-	uint32_t actorCount = static_cast<uint32_t>(m_actorPackets.size());
-	fwrite(&actorCount, sizeof(uint32_t), 1, fp);
-	for (const auto& pkt : m_actorPackets)
+	// 4. Chunk: TERRAIN ('TERR')
 	{
-		TActorRenderPacket sanitized = pkt;
-		sanitized.pBoneMatrices = nullptr;
-		fwrite(&sanitized, sizeof(TActorRenderPacket), 1, fp);
-	}
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_TERRAIN;
+		chunkHdr.dwCount = static_cast<uint32_t>(m_terrainPackets.size());
+		chunkHdr.dwElementSize = static_cast<uint32_t>(sizeof(TTerrainSectorPacket));
+		chunkHdr.dwDataSize = chunkHdr.dwCount * chunkHdr.dwElementSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
 
-	uint32_t effectCount = static_cast<uint32_t>(m_effectPackets.size());
-	fwrite(&effectCount, sizeof(uint32_t), 1, fp);
-	for (const auto& pkt : m_effectPackets)
-	{
-		fwrite(&pkt.dwEffectID, sizeof(uint32_t), 1, fp);
-		uint32_t texId32 = static_cast<uint32_t>(pkt.dwTextureID & 0xFFFFFFFF);
-		fwrite(&texId32, sizeof(uint32_t), 1, fp);
-		fwrite(&pkt.dwBlendMode, sizeof(uint32_t), 1, fp);
-		fwrite(&pkt.dwParticleCount, sizeof(uint32_t), 1, fp);
-		if (pkt.dwParticleCount > 0 && pkt.pParticles)
+		for (const auto& pkt : m_terrainPackets)
 		{
-			fwrite(pkt.pParticles, sizeof(TParticleInstanceData), pkt.dwParticleCount, fp);
+			TTerrainSectorPacket sanitized{};
+			std::memset(&sanitized, 0, sizeof(sanitized));
+			sanitized = pkt;
+			sanitized.pSplatTexture = nullptr;
+			for (int l = 0; l < 4; ++l)
+				sanitized.pLayerTextures[l] = nullptr;
+			sanitized.pVertexData = nullptr;
+			sanitized.pSplatWeights = nullptr;
+			sanitized.pHeightMap = nullptr;
+			sanitized.pTileMap = nullptr;
+			sanitized.pNormalMap = nullptr;
+			sanitized.fReserved = 0.0f;
+			fwrite(&sanitized, sizeof(TTerrainSectorPacket), 1, fp);
 		}
 	}
 
-	uint32_t uiCount = static_cast<uint32_t>(m_uiPackets.size());
-	fwrite(&uiCount, sizeof(uint32_t), 1, fp);
-	for (const auto& pkt : m_uiPackets)
+	// 5. Chunk: DUNGEON ('DUNG')
 	{
-		uint32_t texId = static_cast<uint32_t>(pkt.dwTextureID & 0xFFFFFFFF);
-		fwrite(&texId, sizeof(uint32_t), 1, fp);
-		uint32_t scissor = pkt.bUseScissor ? 1 : 0;
-		fwrite(&scissor, sizeof(uint32_t), 1, fp);
-		fwrite(&pkt.scissorRect, sizeof(RECT), 1, fp);
-		fwrite(&pkt.dwBlendMode, sizeof(uint32_t), 1, fp);
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_DUNGEON;
+		chunkHdr.dwCount = static_cast<uint32_t>(m_dungeonPackets.size());
+		chunkHdr.dwElementSize = static_cast<uint32_t>(sizeof(TDungeonBlockPacket));
+		chunkHdr.dwDataSize = chunkHdr.dwCount * chunkHdr.dwElementSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
 
-		uint32_t vtxCount = pkt.dwVertexCount;
-		const TUIVertex* pVtx = pkt.pVertices;
-		fwrite(&vtxCount, sizeof(uint32_t), 1, fp);
-		if (vtxCount > 0 && pVtx)
+		for (const auto& pkt : m_dungeonPackets)
 		{
-			fwrite(pVtx, sizeof(TUIVertex), vtxCount, fp);
+			TDungeonBlockPacket sanitized{};
+			std::memset(&sanitized, 0, sizeof(sanitized));
+			sanitized = pkt;
+			sanitized.pDiffuseTexture = nullptr;
+			sanitized.pLightmapTexture = nullptr;
+			sanitized.pVertexBuffer = nullptr;
+			sanitized.pIndexBuffer = nullptr;
+			sanitized.pVertices = nullptr;
+			sanitized.pIndices = nullptr;
+			sanitized.bPadDungeon[0] = 0;
+			sanitized.bPadDungeon[1] = 0;
+			sanitized.bPadDungeon[2] = 0;
+			sanitized.fPad = 0.0f;
+			fwrite(&sanitized, sizeof(TDungeonBlockPacket), 1, fp);
+		}
+	}
+
+	// 6. Chunk: WATER ('WATR')
+	{
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_WATER;
+		chunkHdr.dwCount = static_cast<uint32_t>(m_waterPackets.size());
+		chunkHdr.dwElementSize = static_cast<uint32_t>(sizeof(TWaterPacket));
+		chunkHdr.dwDataSize = chunkHdr.dwCount * chunkHdr.dwElementSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
+
+		for (const auto& pkt : m_waterPackets)
+		{
+			TWaterPacket sanitized{};
+			std::memset(&sanitized, 0, sizeof(sanitized));
+			sanitized = pkt;
+			sanitized.pWaterTexture = nullptr;
+			sanitized.pVertexBuffer = nullptr;
+			sanitized.fPad = 0.0f;
+			fwrite(&sanitized, sizeof(TWaterPacket), 1, fp);
+		}
+	}
+
+	// 7. Chunk: SPEEDTREE ('TREE')
+	{
+		uint32_t treeDataSize = 0;
+		for (const auto& pkt : m_speedTreePackets)
+		{
+			uint32_t instCount = (pkt.pInstances != nullptr) ? pkt.dwInstanceCount : 0;
+			treeDataSize += static_cast<uint32_t>(sizeof(FrameDumpV2::TSpeedTreeBatchHeader) + instCount * sizeof(TSpeedTreeInstanceData));
 		}
 
-		uint32_t idxCount = 0;
-		fwrite(&idxCount, sizeof(uint32_t), 1, fp);
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_SPEEDTREE;
+		chunkHdr.dwCount = static_cast<uint32_t>(m_speedTreePackets.size());
+		chunkHdr.dwElementSize = 0;
+		chunkHdr.dwDataSize = treeDataSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
+
+		for (const auto& pkt : m_speedTreePackets)
+		{
+			FrameDumpV2::TSpeedTreeBatchHeader batchHdr{};
+			batchHdr.dwTreeCRC = pkt.dwTreeCRC;
+			batchHdr.dwFlags = (pkt.bRenderBranches ? 1 : 0) |
+				((pkt.bRenderFronds ? 1 : 0) << 1) |
+				((pkt.bRenderLeaves ? 1 : 0) << 2) |
+				((pkt.bRenderBillboards ? 1 : 0) << 3);
+			batchHdr.uTreeTypeID = static_cast<uint64_t>(pkt.dwTreeTypeID);
+			batchHdr.uTrunkTextureID = static_cast<uint64_t>(pkt.dwTrunkTextureID);
+			batchHdr.uLeafTextureID = static_cast<uint64_t>(pkt.dwLeafTextureID);
+			uint32_t instCount = (pkt.pInstances != nullptr) ? pkt.dwInstanceCount : 0;
+			batchHdr.dwInstanceCount = instCount;
+			batchHdr.dwPad = 0;
+			fwrite(&batchHdr, sizeof(batchHdr), 1, fp);
+
+			for (uint32_t idx = 0; idx < instCount; ++idx)
+			{
+				TSpeedTreeInstanceData sanitized{};
+				std::memset(&sanitized, 0, sizeof(sanitized));
+				sanitized = pkt.pInstances[idx];
+				sanitized.pTreeInstance = nullptr;
+				sanitized.fPad[0] = 0.0f;
+				sanitized.fPad[1] = 0.0f;
+				sanitized.fPad[2] = 0.0f;
+				fwrite(&sanitized, sizeof(TSpeedTreeInstanceData), 1, fp);
+			}
+		}
+	}
+
+	// 8. Chunk: ACTORS ('ACTR')
+	{
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_ACTORS;
+		chunkHdr.dwCount = static_cast<uint32_t>(m_actorPackets.size());
+		chunkHdr.dwElementSize = static_cast<uint32_t>(sizeof(TActorRenderPacket));
+		chunkHdr.dwDataSize = chunkHdr.dwCount * chunkHdr.dwElementSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
+
+		for (const auto& pkt : m_actorPackets)
+		{
+			TActorRenderPacket sanitized{};
+			std::memset(&sanitized, 0, sizeof(sanitized));
+			sanitized = pkt;
+			sanitized.pBoneMatrices = nullptr;
+			fwrite(&sanitized, sizeof(TActorRenderPacket), 1, fp);
+		}
+	}
+
+	// 9. Chunk: EFFECTS ('EFCT')
+	{
+		uint32_t effectDataSize = 0;
+		for (const auto& pkt : m_effectPackets)
+		{
+			uint32_t partCount = (pkt.pParticles != nullptr) ? pkt.dwParticleCount : 0;
+			effectDataSize += static_cast<uint32_t>(sizeof(FrameDumpV2::TEffectBatchHeader) + partCount * sizeof(TParticleInstanceData));
+		}
+
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_EFFECTS;
+		chunkHdr.dwCount = static_cast<uint32_t>(m_effectPackets.size());
+		chunkHdr.dwElementSize = 0;
+		chunkHdr.dwDataSize = effectDataSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
+
+		for (const auto& pkt : m_effectPackets)
+		{
+			FrameDumpV2::TEffectBatchHeader batchHdr{};
+			batchHdr.dwEffectID = pkt.dwEffectID;
+			batchHdr.dwBlendMode = pkt.dwBlendMode;
+			batchHdr.uTextureID = static_cast<uint64_t>(pkt.dwTextureID);
+			uint32_t partCount = (pkt.pParticles != nullptr) ? pkt.dwParticleCount : 0;
+			batchHdr.dwParticleCount = partCount;
+			batchHdr.dwPad = 0;
+			fwrite(&batchHdr, sizeof(batchHdr), 1, fp);
+
+			for (uint32_t idx = 0; idx < partCount; ++idx)
+			{
+				TParticleInstanceData sanitized{};
+				std::memset(&sanitized, 0, sizeof(sanitized));
+				sanitized = pkt.pParticles[idx];
+				fwrite(&sanitized, sizeof(TParticleInstanceData), 1, fp);
+			}
+		}
+	}
+
+	// 10. Chunk: UI ('UIBD')
+	{
+		uint32_t uiDataSize = 0;
+		for (const auto& pkt : m_uiPackets)
+		{
+			uint32_t vtxCount = (pkt.pVertices != nullptr) ? pkt.dwVertexCount : 0;
+			uint32_t idxCount = 0;
+			uiDataSize += static_cast<uint32_t>(sizeof(FrameDumpV2::TUIBatchHeader) + vtxCount * sizeof(TUIVertex) + idxCount * sizeof(uint16_t));
+		}
+
+		FrameDumpV2::TChunkHeader chunkHdr{};
+		chunkHdr.dwTag = FrameDumpV2::CHUNK_UI;
+		chunkHdr.dwCount = static_cast<uint32_t>(m_uiPackets.size());
+		chunkHdr.dwElementSize = 0;
+		chunkHdr.dwDataSize = uiDataSize;
+		fwrite(&chunkHdr, sizeof(chunkHdr), 1, fp);
+
+		for (const auto& pkt : m_uiPackets)
+		{
+			FrameDumpV2::TUIBatchHeader batchHdr{};
+			batchHdr.uTextureID = static_cast<uint64_t>(pkt.dwTextureID);
+			batchHdr.bUseScissor = pkt.bUseScissor ? 1 : 0;
+			batchHdr.scissorRect.left = pkt.scissorRect.left;
+			batchHdr.scissorRect.top = pkt.scissorRect.top;
+			batchHdr.scissorRect.right = pkt.scissorRect.right;
+			batchHdr.scissorRect.bottom = pkt.scissorRect.bottom;
+			batchHdr.dwBlendMode = pkt.dwBlendMode;
+			uint32_t vtxCount = (pkt.pVertices != nullptr) ? pkt.dwVertexCount : 0;
+			batchHdr.dwVertexCount = vtxCount;
+			batchHdr.dwIndexCount = 0;
+			fwrite(&batchHdr, sizeof(batchHdr), 1, fp);
+
+			for (uint32_t idx = 0; idx < vtxCount; ++idx)
+			{
+				TUIVertex sanitized{};
+				std::memset(&sanitized, 0, sizeof(sanitized));
+				sanitized = pkt.pVertices[idx];
+				fwrite(&sanitized, sizeof(TUIVertex), 1, fp);
+			}
+		}
 	}
 
 	fclose(fp);
 	return true;
 }
+
+namespace FrameDumpV2
+{
+	bool ParseFrameDumpV2(const char* c_pszFileName, TDumpParsedFrame& outFrame)
+	{
+		if (!c_pszFileName)
+			return false;
+
+		FILE* fp = nullptr;
+		if (fopen_s(&fp, c_pszFileName, "rb") != 0 || !fp)
+			return false;
+
+		THeader hdr{};
+		if (fread(&hdr, sizeof(THeader), 1, fp) != 1)
+		{
+			fclose(fp);
+			return false;
+		}
+
+		if (hdr.dwMagic != M2FR_MAGIC || hdr.dwVersion != M2FR_VERSION)
+		{
+			fclose(fp);
+			return false;
+		}
+
+		outFrame = TDumpParsedFrame{};
+		outFrame.header = hdr;
+
+		for (uint32_t c = 0; c < hdr.dwChunkCount; ++c)
+		{
+			TChunkHeader chunkHdr{};
+			if (fread(&chunkHdr, sizeof(TChunkHeader), 1, fp) != 1)
+				break;
+
+			outFrame.chunkHeaders.push_back(chunkHdr);
+
+			switch (chunkHdr.dwTag)
+			{
+			case CHUNK_UNIFORMS:
+				if (chunkHdr.dwCount >= 1 && chunkHdr.dwDataSize >= sizeof(TRenderFrameUniforms))
+				{
+					fread(&outFrame.uniforms, sizeof(TRenderFrameUniforms), 1, fp);
+				}
+				break;
+
+			case CHUNK_SKYBOX:
+				outFrame.skyBoxPackets.resize(chunkHdr.dwCount);
+				for (uint32_t i = 0; i < chunkHdr.dwCount; ++i)
+				{
+					fread(&outFrame.skyBoxPackets[i], sizeof(TSkyBoxPacket), 1, fp);
+				}
+				break;
+
+			case CHUNK_TERRAIN:
+				outFrame.terrainPackets.resize(chunkHdr.dwCount);
+				for (uint32_t i = 0; i < chunkHdr.dwCount; ++i)
+				{
+					fread(&outFrame.terrainPackets[i], sizeof(TTerrainSectorPacket), 1, fp);
+				}
+				break;
+
+			case CHUNK_DUNGEON:
+				outFrame.dungeonPackets.resize(chunkHdr.dwCount);
+				for (uint32_t i = 0; i < chunkHdr.dwCount; ++i)
+				{
+					fread(&outFrame.dungeonPackets[i], sizeof(TDungeonBlockPacket), 1, fp);
+				}
+				break;
+
+			case CHUNK_WATER:
+				outFrame.waterPackets.resize(chunkHdr.dwCount);
+				for (uint32_t i = 0; i < chunkHdr.dwCount; ++i)
+				{
+					fread(&outFrame.waterPackets[i], sizeof(TWaterPacket), 1, fp);
+				}
+				break;
+
+			case CHUNK_SPEEDTREE:
+				outFrame.speedTreeBatches.resize(chunkHdr.dwCount);
+				for (uint32_t i = 0; i < chunkHdr.dwCount; ++i)
+				{
+					fread(&outFrame.speedTreeBatches[i].header, sizeof(TSpeedTreeBatchHeader), 1, fp);
+					uint32_t instCount = outFrame.speedTreeBatches[i].header.dwInstanceCount;
+					outFrame.speedTreeBatches[i].instances.resize(instCount);
+					for (uint32_t j = 0; j < instCount; ++j)
+					{
+						fread(&outFrame.speedTreeBatches[i].instances[j], sizeof(TSpeedTreeInstanceData), 1, fp);
+					}
+				}
+				break;
+
+			case CHUNK_ACTORS:
+				outFrame.actorPackets.resize(chunkHdr.dwCount);
+				for (uint32_t i = 0; i < chunkHdr.dwCount; ++i)
+				{
+					fread(&outFrame.actorPackets[i], sizeof(TActorRenderPacket), 1, fp);
+				}
+				break;
+
+			case CHUNK_EFFECTS:
+				outFrame.effectBatches.resize(chunkHdr.dwCount);
+				for (uint32_t i = 0; i < chunkHdr.dwCount; ++i)
+				{
+					fread(&outFrame.effectBatches[i].header, sizeof(TEffectBatchHeader), 1, fp);
+					uint32_t partCount = outFrame.effectBatches[i].header.dwParticleCount;
+					outFrame.effectBatches[i].particles.resize(partCount);
+					for (uint32_t j = 0; j < partCount; ++j)
+					{
+						fread(&outFrame.effectBatches[i].particles[j], sizeof(TParticleInstanceData), 1, fp);
+					}
+				}
+				break;
+
+			case CHUNK_UI:
+				outFrame.uiBatches.resize(chunkHdr.dwCount);
+				for (uint32_t i = 0; i < chunkHdr.dwCount; ++i)
+				{
+					fread(&outFrame.uiBatches[i].header, sizeof(TUIBatchHeader), 1, fp);
+					uint32_t vtxCount = outFrame.uiBatches[i].header.dwVertexCount;
+					outFrame.uiBatches[i].vertices.resize(vtxCount);
+					for (uint32_t j = 0; j < vtxCount; ++j)
+					{
+						fread(&outFrame.uiBatches[i].vertices[j], sizeof(TUIVertex), 1, fp);
+					}
+					uint32_t idxCount = outFrame.uiBatches[i].header.dwIndexCount;
+					outFrame.uiBatches[i].indices.resize(idxCount);
+					for (uint32_t j = 0; j < idxCount; ++j)
+					{
+						fread(&outFrame.uiBatches[i].indices[j], sizeof(uint16_t), 1, fp);
+					}
+				}
+				break;
+
+			default:
+				if (chunkHdr.dwDataSize > 0)
+				{
+					fseek(fp, chunkHdr.dwDataSize, SEEK_CUR);
+				}
+				break;
+			}
+		}
+
+		fclose(fp);
+		return true;
+	}
+}
+
 
 void CRenderQueueManager::RequestFrameDump(const std::string& filename)
 {
