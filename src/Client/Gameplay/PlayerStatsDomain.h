@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <array>
 #include "../Core/StrongTypes.h"
+#include "../Contracts/DomainDTOs.h"
 
 namespace Client::Gameplay {
 
@@ -27,7 +28,8 @@ public:
     uint64_t GetExp() const;
     
     void SetStatusPoint(uint32_t stIndex, uint16_t value);
-    uint16_t GetStatusPoint(uint32_t stIndex) const;
+    [[nodiscard]] Client::Contracts::PlayerStatsDTO ExportStatsDTO(uint32_t vid = 1) const noexcept;
+    void ImportStatsDTO(const Client::Contracts::PlayerStatsDTO& dto) noexcept;
 
     void Reset() noexcept;
     void Clear() noexcept { Reset(); }
