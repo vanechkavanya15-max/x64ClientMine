@@ -15,7 +15,7 @@ class CGraphicThing : public CResource
 		typedef CRef<CGraphicThing> TRef;
 
 	public:
-		static CGraphicThing::TType Type();
+		static TType Type();
 
 	public:
 		CGraphicThing(const char * c_szFileName);

@@ -1858,13 +1858,21 @@ target_include_directories(test_c26_inventory_item_validator PRIVATE
 )
 target_link_libraries(test_c26_inventory_item_validator PRIVATE
     Client2026
+    GameLib
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
     libzstd_static
     sodium
     lzo2
     mio
     ws2_32
+    DirectX
+    Dbghelp
 )
 add_test(NAME test_c26_inventory_item_validator COMMAND test_c26_inventory_item_validator)
 
