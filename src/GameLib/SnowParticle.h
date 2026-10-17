@@ -44,10 +44,20 @@ class CSnowParticle
 						  SParticleVertex & rv3Vertex3, SParticleVertex & rv3Vertex4);
 
 		const D3DXVECTOR3 & GetPosition() const noexcept { return m_v3Position; }
+		const D3DXVECTOR3 & GetVelocity() const noexcept { return m_v3Velocity; }
 		float GetHalfWidth() const noexcept { return m_fHalfWidth; }
 		float GetHalfHeight() const noexcept { return m_fHalfHeight; }
 		float GetCurRadian() const noexcept { return m_fcurRadian; }
+		float GetPeriod() const noexcept { return m_fPeriod; }
 		float GetRotation() const noexcept { return D3DXToDegree(m_fcurRadian); }
+
+		void SetPosition(const D3DXVECTOR3 & v3Pos) noexcept { m_v3Position = v3Pos; }
+		void SetVelocity(const D3DXVECTOR3 & v3Velocity) noexcept { m_v3Velocity = v3Velocity; }
+		void SetPeriod(float fPeriod) noexcept { m_fPeriod = fPeriod; }
+		void SetCurRadian(float fCurRadian) noexcept { m_fcurRadian = fCurRadian; }
+		void SetHalfWidth(float fHalfWidth) noexcept { m_fHalfWidth = fHalfWidth; }
+		void SetHalfHeight(float fHalfHeight) noexcept { m_fHalfHeight = fHalfHeight; }
+		void SetActivate(bool bActivate) noexcept { m_bActivate = bActivate; }
 
 	protected:
 		bool m_bActivate;

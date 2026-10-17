@@ -21,9 +21,19 @@ void CSnowParticle::Update(float fElapsedTime, const D3DXVECTOR3 & c_rv3Pos)
 {
 	m_v3Position += m_v3Velocity * fElapsedTime;
 
-	m_v3Position.x += m_v3Cross.x * std::sin(m_fcurRadian) / 10.0f;
-	m_v3Position.y += m_v3Cross.y * std::sin(m_fcurRadian) / 10.0f;
+	m_v3Position.x += m_v3Cross.x * std::sin(m_fcurRadian) * 6.0f * fElapsedTime;
+	m_v3Position.y += m_v3Cross.y * std::sin(m_fcurRadian) * 6.0f * fElapsedTime;
 	m_fcurRadian += m_fPeriod * fElapsedTime;
+
+	constexpr float c_fTwoPi = 6.28318530717958647692f;
+	if (m_fcurRadian > c_fTwoPi)
+	{
+		m_fcurRadian = std::fmod(m_fcurRadian, c_fTwoPi);
+	}
+	else if (m_fcurRadian < -c_fTwoPi)
+	{
+		m_fcurRadian = std::fmod(m_fcurRadian, c_fTwoPi);
+	}
 
 	if (m_v3Position.z < c_rv3Pos.z - 500.0f)
 		m_bActivate = false;

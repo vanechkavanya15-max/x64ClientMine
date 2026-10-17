@@ -6229,4 +6229,21 @@ target_include_directories(test_c26_texture_swizzle PRIVATE
 target_link_libraries(test_c26_texture_swizzle PRIVATE EterLib EterBase DirectX ws2_32)
 add_test(NAME TextureSwizzleTest COMMAND test_c26_texture_swizzle)
 
+add_executable(test_c26_snow_particle
+    test_c26_snow_particle.cpp
+    ${CMAKE_SOURCE_DIR}/src/GameLib/SnowParticle.cpp
+)
+target_include_directories(test_c26_snow_particle PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/GameLib
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_snow_particle PRIVATE
+    EterBase
+    DirectX
+)
+add_test(NAME SnowParticleTest COMMAND test_c26_snow_particle)
+
+
 
