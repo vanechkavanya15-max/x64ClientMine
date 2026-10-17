@@ -358,50 +358,6 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 		if (!pkt.pParticles || pkt.dwParticleCount == 0)
 			continue;
 
-		const uint32_t numQuads = (std::min)(pkt.dwParticleCount, 16380u);
-		if (s_particleVertices.size() < numQuads * 4)
-			s_particleVertices.resize(numQuads * 4);
-
-		EnsureSharedQuadIndices(s_sharedEffectIndices, numQuads);
-
-		for (uint32_t pIdx = 0; pIdx < numQuads; ++pIdx)
-		{
-			const TParticleInstanceData& p = pkt.pParticles[pIdx];
-			const D3DXVECTOR3 center(p.vWorldPos.x, p.vWorldPos.y, p.vWorldPos.z);
-			const float sx = (p.fPad[0] > 0.0f) ? p.fPad[0] : p.vWorldPos.w;
-			const float sy = (p.fPad[1] > 0.0f) ? p.fPad[1] : p.vWorldPos.w;
-
-			D3DXVECTOR3 axisX = vRight * sx;
-			D3DXVECTOR3 axisY = vUp * sy;
-			if (p.fRotation != 0.0f)
-			{
-				const float rad = D3DXToRadian(p.fRotation);
-				const float c = cosf(rad);
-				const float s = sinf(rad);
-				axisX = (vRight * c + vUp * s) * sx;
-				axisY = (-vRight * s + vUp * c) * sy;
-			}
-
-			const uint32_t packedColor = static_cast<DWORD>(p.vColor);
-			TUIVertex* v = &s_particleVertices[pIdx * 4];
-
-			v[0].position = center - axisX + axisY;
-			v[0].color = packedColor;
-			v[0].texCoord = D3DXVECTOR2(p.vTexCoordRect.x, p.vTexCoordRect.y);
-
-			v[1].position = center + axisX + axisY;
-			v[1].color = packedColor;
-			v[1].texCoord = D3DXVECTOR2(p.vTexCoordRect.z, p.vTexCoordRect.y);
-
-			v[2].position = center - axisX - axisY;
-			v[2].color = packedColor;
-			v[2].texCoord = D3DXVECTOR2(p.vTexCoordRect.x, p.vTexCoordRect.w);
-
-			v[3].position = center + axisX - axisY;
-			v[3].color = packedColor;
-			v[3].texCoord = D3DXVECTOR2(p.vTexCoordRect.z, p.vTexCoordRect.w);
-		}
-
 		if (pkt.dwBlendMode == EFFECT_BLEND_ADDITIVE)
 		{
 			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
@@ -435,16 +391,67 @@ void CD3D9RenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
 		}
 
-		STATEMANAGER.DrawIndexedPrimitiveUP(
-			D3DPT_TRIANGLELIST,
-			0,
-			numQuads * 4,
-			numQuads * 2,
-			s_sharedEffectIndices.data(),
-			D3DFMT_INDEX16,
-			s_particleVertices.data(),
-			static_cast<UINT>(sizeof(TUIVertex))
-		);
+		const uint32_t totalQuads = pkt.dwParticleCount;
+		uint32_t particleOffset = 0;
+		while (particleOffset < totalQuads)
+		{
+			const uint32_t numQuads = (std::min)(totalQuads - particleOffset, 16380u);
+			if (s_particleVertices.size() < numQuads * 4)
+				s_particleVertices.resize(numQuads * 4);
+
+			EnsureSharedQuadIndices(s_sharedEffectIndices, numQuads);
+
+			for (uint32_t pIdx = 0; pIdx < numQuads; ++pIdx)
+			{
+				const TParticleInstanceData& p = pkt.pParticles[particleOffset + pIdx];
+				const D3DXVECTOR3 center(p.vWorldPos.x, p.vWorldPos.y, p.vWorldPos.z);
+				const float sx = (p.fPad[0] > 0.0f) ? p.fPad[0] : p.vWorldPos.w;
+				const float sy = (p.fPad[1] > 0.0f) ? p.fPad[1] : p.vWorldPos.w;
+
+				D3DXVECTOR3 axisX = vRight * sx;
+				D3DXVECTOR3 axisY = vUp * sy;
+				if (p.fRotation != 0.0f)
+				{
+					const float rad = D3DXToRadian(p.fRotation);
+					const float c = cosf(rad);
+					const float s = sinf(rad);
+					axisX = (vRight * c + vUp * s) * sx;
+					axisY = (-vRight * s + vUp * c) * sy;
+				}
+
+				const uint32_t packedColor = static_cast<DWORD>(p.vColor);
+				TUIVertex* v = &s_particleVertices[pIdx * 4];
+
+				v[0].position = center - axisX + axisY;
+				v[0].color = packedColor;
+				v[0].texCoord = D3DXVECTOR2(p.vTexCoordRect.x, p.vTexCoordRect.y);
+
+				v[1].position = center + axisX + axisY;
+				v[1].color = packedColor;
+				v[1].texCoord = D3DXVECTOR2(p.vTexCoordRect.z, p.vTexCoordRect.y);
+
+				v[2].position = center - axisX - axisY;
+				v[2].color = packedColor;
+				v[2].texCoord = D3DXVECTOR2(p.vTexCoordRect.x, p.vTexCoordRect.w);
+
+				v[3].position = center + axisX - axisY;
+				v[3].color = packedColor;
+				v[3].texCoord = D3DXVECTOR2(p.vTexCoordRect.z, p.vTexCoordRect.w);
+			}
+
+			STATEMANAGER.DrawIndexedPrimitiveUP(
+				D3DPT_TRIANGLELIST,
+				0,
+				numQuads * 4,
+				numQuads * 2,
+				s_sharedEffectIndices.data(),
+				D3DFMT_INDEX16,
+				s_particleVertices.data(),
+				static_cast<UINT>(sizeof(TUIVertex))
+			);
+
+			particleOffset += numQuads;
+		}
 	}
 
 	STATEMANAGER.RestoreRenderState(D3DRS_LIGHTING);
@@ -559,9 +566,11 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
 		}
 
-		uint32_t numQuads = (std::min)(static_cast<uint32_t>(vtxCount / 4), 16380u);
-		if (numQuads > 0)
+		const uint32_t totalQuads = static_cast<uint32_t>(vtxCount / 4);
+		uint32_t quadsDrawn = 0;
+		while (quadsDrawn < totalQuads)
 		{
+			const uint32_t numQuads = (std::min)(totalQuads - quadsDrawn, 16380u);
 			EnsureSharedQuadIndices(s_sharedQuadIndices, numQuads);
 
 			STATEMANAGER.DrawIndexedPrimitiveUP(
@@ -571,9 +580,11 @@ void CD3D9RenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 				numQuads * 2,
 				s_sharedQuadIndices.data(),
 				D3DFMT_INDEX16,
-				pVtx,
+				pVtx + (quadsDrawn * 4),
 				static_cast<UINT>(sizeof(TUIVertex))
 			);
+
+			quadsDrawn += numQuads;
 		}
 	}
 

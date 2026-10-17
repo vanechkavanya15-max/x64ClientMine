@@ -4191,6 +4191,11 @@ target_include_directories(test_c26_dynamic_quad_batcher PRIVATE
 )
 target_link_libraries(test_c26_dynamic_quad_batcher PRIVATE
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
     libzstd_static
     sodium
@@ -4198,8 +4203,9 @@ target_link_libraries(test_c26_dynamic_quad_batcher PRIVATE
     mio
     ws2_32
     DirectX
+    Dbghelp
 )
-add_test(NAME test_c26_dynamic_quad_batcher COMMAND test_c26_dynamic_quad_batcher)
+add_test(NAME DynamicQuadBatcherTest COMMAND test_c26_dynamic_quad_batcher)
 
 # --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
 add_executable(test_c26_ui_hierarchy test_c26_ui_hierarchy.cpp)

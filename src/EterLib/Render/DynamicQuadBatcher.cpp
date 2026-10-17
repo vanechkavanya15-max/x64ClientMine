@@ -17,14 +17,29 @@ namespace EterLib::Render
     {
         m_frameVertexBuffer.resize(vertexCapacity);
         m_frameVertexOffset = 0;
+        m_activeVertexCount = 0;
         m_batchPool.resize(batchCapacity);
         m_activeBatchCount = 0;
+        m_overflowQuads = 0;
+        m_overflowVertices = 0;
+    }
+
+    void DynamicQuadBatcher::Reserve(size_t vertexCapacity, size_t batchCapacity)
+    {
+        if (vertexCapacity > m_frameVertexBuffer.size())
+            m_frameVertexBuffer.resize(vertexCapacity);
+
+        if (batchCapacity > m_batchPool.size())
+            m_batchPool.resize(batchCapacity);
     }
 
     void DynamicQuadBatcher::BeginFrame() noexcept
     {
         m_frameVertexOffset = 0;
+        m_activeVertexCount = 0;
         m_activeBatchCount = 0;
+        m_overflowQuads = 0;
+        m_overflowVertices = 0;
     }
 
     void DynamicQuadBatcher::SetWhiteTexture(uintptr_t dwTextureID, float u, float v) noexcept
@@ -79,7 +94,12 @@ namespace EterLib::Render
                 lastBatch.bUseScissor == (m_bScissorEnable ? 1u : 0u) &&
                 (!m_bScissorEnable || AreRectsEqual(lastBatch.scissorRect, m_currentScissorRect)))
             {
-                return;
+                // Jesli partia nie przekracza limitu 16380 czworokatow (65520 wierzcholkow), dopisujemy do niej
+                if (lastBatch.vertexCount + 4 <= MAX_VERTICES_PER_BATCH)
+                {
+                    return;
+                }
+                // W przeciwnym razie wymuszamy nowa podpartie (sub-batch split) dla zachowania limitu 16-bitowych indeksow
             }
         }
 
@@ -131,12 +151,15 @@ namespace EterLib::Render
                                              uintptr_t dwTextureID,
                                              uint32_t dwBlendMode)
     {
-        PrepareBatch(dwTextureID, dwBlendMode);
-
+        // Zakaz reallokacji / resize Vertex Buffera w trakcie rysowania klatki (eliminacja Use-After-Free)
         if (m_frameVertexOffset + 4 > m_frameVertexBuffer.size())
         {
-            m_frameVertexBuffer.resize(m_frameVertexBuffer.size() * 2);
+            ++m_overflowQuads;
+            m_overflowVertices += 4;
+            return;
         }
+
+        PrepareBatch(dwTextureID, dwBlendMode);
 
         TUIVertex* pDst = &m_frameVertexBuffer[m_frameVertexOffset];
         pDst[0] = vertices[0];
@@ -145,6 +168,7 @@ namespace EterLib::Render
         pDst[3] = vertices[3];
 
         m_frameVertexOffset += 4;
+        m_activeVertexCount += 4;
         m_batchPool[m_activeBatchCount - 1].vertexCount += 4;
     }
 
@@ -294,8 +318,9 @@ namespace EterLib::Render
 
     void DynamicQuadBatcher::Clear() noexcept
     {
-        // Resetujemy wylacznie licznik aktywnych partii.
+        // Resetujemy wylacznie licznik aktywnych partii i aktywnych wierzcholkow oczekujacych na Flush.
         // Wierzcholki w m_frameVertexBuffer pozostaja nienaruszone az do BeginFrame()!
         m_activeBatchCount = 0;
+        m_activeVertexCount = 0;
     }
 }
