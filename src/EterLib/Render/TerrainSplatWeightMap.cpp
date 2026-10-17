@@ -224,7 +224,7 @@ bool TerrainSplatWeightMap::UploadToGPU(LPDIRECT3DDEVICE9 dev) {
     }
 
     if (!m_gpuTexture) {
-        if (FAILED(dev->CreateTexture(m_width, m_height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &m_gpuTexture, nullptr))) {
+        if (FAILED(dev->CreateTexture(m_width, m_height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_gpuTexture, nullptr))) {
             return false;
         }
     }

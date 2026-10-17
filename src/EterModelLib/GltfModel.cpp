@@ -1,5 +1,6 @@
 #include "GltfModel.h"
 #include "GltfLoader.h"
+#include "EterBase/Debug.h"
 
 namespace EterModelLib
 {
@@ -163,9 +164,11 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     const UINT vbSize = static_cast<UINT>(m_modelData.vertices.size() * sizeof(GpuPackedGltfVertex));
     const UINT ibSize = static_cast<UINT>(m_modelData.indices.size() * sizeof(unsigned int));
 
-    if (FAILED(pDevice->CreateVertexBuffer(
-        vbSize, D3DUSAGE_WRITEONLY, 0, D3DPOOL_MANAGED, &m_pVertexBuffer, nullptr)))
+    HRESULT hrVB = pDevice->CreateVertexBuffer(
+        vbSize, D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &m_pVertexBuffer, nullptr);
+    if (FAILED(hrVB))
     {
+        TraceError("CGltfModel::EnsureGpuBuffers: CreateVertexBuffer failed hr=0x%08X size=%u", hrVB, vbSize);
         ReleaseGpuBuffers();
         return false;
     }
@@ -173,6 +176,7 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     GpuPackedGltfVertex* pLockedVB = nullptr;
     if (FAILED(m_pVertexBuffer->Lock(0, vbSize, reinterpret_cast<void**>(&pLockedVB), 0)))
     {
+        TraceError("CGltfModel::EnsureGpuBuffers: Lock VB failed");
         ReleaseGpuBuffers();
         return false;
     }
@@ -202,9 +206,11 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     }
     m_pVertexBuffer->Unlock();
 
-    if (FAILED(pDevice->CreateIndexBuffer(
-        ibSize, D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_MANAGED, &m_pIndexBuffer, nullptr)))
+    HRESULT hrIB = pDevice->CreateIndexBuffer(
+        ibSize, D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &m_pIndexBuffer, nullptr);
+    if (FAILED(hrIB))
     {
+        TraceError("CGltfModel::EnsureGpuBuffers: CreateIndexBuffer failed hr=0x%08X size=%u", hrIB, ibSize);
         ReleaseGpuBuffers();
         return false;
     }
@@ -212,6 +218,7 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     void* pLockedIB = nullptr;
     if (FAILED(m_pIndexBuffer->Lock(0, ibSize, &pLockedIB, 0)))
     {
+        TraceError("CGltfModel::EnsureGpuBuffers: Lock IB failed");
         ReleaseGpuBuffers();
         return false;
     }

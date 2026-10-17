@@ -330,7 +330,6 @@ void CActorInstance::RefreshActorInstance()
 {
 	if (!m_pkCurRaceData)
 	{
-		TraceError("void CActorInstance::RefreshActorInstance() - m_pkCurRaceData=NULL");
 		return;
 	}
 

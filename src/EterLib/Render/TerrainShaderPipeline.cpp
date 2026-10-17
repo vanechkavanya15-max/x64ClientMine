@@ -151,7 +151,7 @@ bool TerrainShaderPipeline::Initialize(LPDIRECT3DDEVICE9 dev) {
     }
 
     // Tekstura zapasowa 1x1 (R=255)
-    if (SUCCEEDED(dev->CreateTexture(1, 1, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &m_fallbackWhiteTex, nullptr))) {
+    if (SUCCEEDED(dev->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_fallbackWhiteTex, nullptr))) {
         D3DLOCKED_RECT lr{};
         if (SUCCEEDED(m_fallbackWhiteTex->LockRect(0, &lr, nullptr, 0))) {
             *static_cast<uint32_t*>(lr.pBits) = 0x00FF0000u; // R=1, G=0, B=0, A=0

@@ -1393,14 +1393,7 @@ void CGrannyLODController::ExecuteModelDrawItemD3D9(const TModelDrawItem& item)
 	}
 
 	// 1. Izolacja stanu cull mode (zachowanie i przywrocenie stanu wolajacego)
-	if (item.bTwoSided)
-	{
-		STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	}
-	else
-	{
-		STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-	}
+	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
 	// 2. Izolacja stanow specyficznych dla passu
 	const EModelPass pass = item.pass;

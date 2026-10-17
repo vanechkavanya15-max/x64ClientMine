@@ -551,6 +551,8 @@ void CMapOutdoor::RenderPCBlocker()
 		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP,	D3DTOP_DISABLE);
 
 		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 		STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		STATEMANAGER.SaveTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
@@ -561,7 +563,8 @@ void CMapOutdoor::RenderPCBlocker()
 		STATEMANAGER.SaveSamplerState(1, D3DSAMP_ADDRESSV,	D3DTADDRESS_CLAMP);
 
 		STATEMANAGER.SaveTransform(D3DTS_TEXTURE1, &m_matBuildingTransparent);
-		STATEMANAGER.SetTexture(1, m_BuildingTransparentImageInstance.GetTexturePointer()->GetD3DTexture());
+		LPDIRECT3DTEXTURE9 pTransparentTex = m_BuildingTransparentImageInstance.GetTexturePointer() ? m_BuildingTransparentImageInstance.GetTexturePointer()->GetD3DTexture() : NULL;
+		STATEMANAGER.SetTexture(1, pTransparentTex);
 
 		std::for_each(m_PCBlockerVector.begin(), m_PCBlockerVector.end(), FRenderPCBlocker());
 
@@ -576,7 +579,11 @@ void CMapOutdoor::RenderPCBlocker()
 		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 		STATEMANAGER.RestoreSamplerState(1, D3DSAMP_ADDRESSU);
 		STATEMANAGER.RestoreSamplerState(1, D3DSAMP_ADDRESSV);
+		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
 		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+
+		std::for_each(m_PCBlockerVector.begin(), m_PCBlockerVector.end(), std::mem_fn(&CGraphicObjectInstance::Show));
 	}
 }
 
