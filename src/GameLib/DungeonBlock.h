@@ -21,6 +21,8 @@ public:
 	friend class CDungeonBlockRenderExtractor;
 };
 
+class CGrannyLODController;
+
 class CDungeonBlock : public CGraphicObjectInstance
 {
 	public:
@@ -57,6 +59,8 @@ class CDungeonBlock : public CGraphicObjectInstance
 		void OnRenderShadow();
 		void OnRenderPCBlocker() {}
 
+		CGrannyLODController* GetLODController() const { return m_pLODController; }
+
 	protected:
 		void __Initialize();
 
@@ -67,4 +71,5 @@ class CDungeonBlock : public CGraphicObjectInstance
 		CGraphicThing * m_pThing;
 		TModelInstanceContainer m_ModelInstanceContainer;
 		CGraphicVertexBuffer	m_kDeformableVertexBuffer;
+		CGrannyLODController *	m_pLODController;
 };

@@ -6779,6 +6779,7 @@ target_link_libraries(test_c26_speedtree_packet PRIVATE
 add_test(NAME test_c26_speedtree_packet COMMAND test_c26_speedtree_packet)
 add_test(NAME SpeedTreePacketTest COMMAND test_c26_speedtree_packet)
 
+<<<<<<< HEAD
 add_executable(test_c26_imgui_movie test_c26_imgui_movie.cpp)
 target_include_directories(test_c26_imgui_movie PRIVATE
     ${CMAKE_SOURCE_DIR}/src
@@ -6822,5 +6823,36 @@ target_link_libraries(test_c26_shadow_minimap_pass PRIVATE
     doctest
 )
 add_test(NAME test_c26_shadow_minimap_pass COMMAND test_c26_shadow_minimap_pass)
+
+add_executable(test_c26_dungeon_parity test_c26_dungeon_parity.cpp)
+target_include_directories(test_c26_dungeon_parity PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_dungeon_parity PRIVATE
+    GameLib
+    EterGrnLib
+    EterModelLib
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
+add_test(NAME test_c26_dungeon_parity COMMAND test_c26_dungeon_parity)
+add_test(NAME DungeonParityTest COMMAND test_c26_dungeon_parity)
 
 

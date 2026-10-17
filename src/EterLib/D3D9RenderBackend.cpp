@@ -75,6 +75,21 @@ void CD3D9RenderBackend::InitVertexDeclarations()
 		};
 		pD3DDevice->CreateVertexDeclaration(dungeonDeclElements, &m_pDungeonVertexDecl);
 	}
+
+	if (!m_pDungeonGltfVertexDecl)
+	{
+		// Zgodnosc 1:1 z 72-bajtowym GpuSkinnedVertex dla siatek glTF w lochach
+		const D3DVERTEXELEMENT9 dungeonGltfDeclElements[] = {
+			{ 0, 0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION,     0 },
+			{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,       0 },
+			{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,     0 },
+			{ 0, 32, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,     1 },
+			{ 0, 40, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDINDICES, 0 },
+			{ 0, 56, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDWEIGHT,  0 },
+			D3DDECL_END()
+		};
+		pD3DDevice->CreateVertexDeclaration(dungeonGltfDeclElements, &m_pDungeonGltfVertexDecl);
+	}
 }
 
 void CD3D9RenderBackend::ReleaseVertexDeclarations()
@@ -88,6 +103,11 @@ void CD3D9RenderBackend::ReleaseVertexDeclarations()
 	{
 		m_pDungeonVertexDecl->Release();
 		m_pDungeonVertexDecl = nullptr;
+	}
+	if (m_pDungeonGltfVertexDecl)
+	{
+		m_pDungeonGltfVertexDecl->Release();
+		m_pDungeonGltfVertexDecl = nullptr;
 	}
 }
 
@@ -1336,7 +1356,7 @@ void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 	if (!pPackets || count == 0)
 		return;
 
-	if (!m_pDungeonVertexDecl)
+	if (!m_pDungeonVertexDecl || !m_pDungeonGltfVertexDecl)
 		InitVertexDeclarations();
 
 	D3DXMATRIX matIdentity;
@@ -1345,57 +1365,99 @@ void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 
 	STATEMANAGER.SaveRenderState(D3DRS_LIGHTING, FALSE);
 	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, TRUE);
 	STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
 
-	// Uzycie deklaracji wierzcholka TPNT2Vertex (pozycja, normalna, uv0_baza, uv1_lightmap)
-	if (m_pDungeonVertexDecl)
-		STATEMANAGER.SetVertexDeclaration(m_pDungeonVertexDecl);
-
-	// Konfiguracja kaskady 2-teksturowej dla bezpiecznego fallbacku D3D9
 	// Stopien 0: Baza diffuse
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_CURRENT);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
 
-	// Stopien 1: Lightmap z podwojnym mnozeniem (MODULATE2X prebaked lighting)
-	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_MODULATE2X);
+	// Stopien 1: Lightmap z D3DTOP_MODULATE (zgodnie z DEC-3 i budynkami w Area.cpp)
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
-	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
 	STATEMANAGER.SetTextureStageState(1, D3DTSS_TEXCOORDINDEX, 1);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+	bool bLastAlphaBlend = false;
+	bool bLastHasLightmap = false;
+	LPDIRECT3DVERTEXDECLARATION9 pLastVertexDecl = nullptr;
 
 	for (unsigned int i = 0; i < count; ++i)
 	{
 		const TDungeonBlockPacket& pkt = pPackets[i];
 		STATEMANAGER.SetTransform(D3DTS_WORLD, &pkt.matWorld);
 
+		// Dynamiczne przelaczanie przezroczystosci (bAlphaBlend)
+		const bool bPacketAlpha = (pkt.bAlphaBlend != 0);
+		if (bPacketAlpha != bLastAlphaBlend)
+		{
+			STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, bPacketAlpha ? TRUE : FALSE);
+			bLastAlphaBlend = bPacketAlpha;
+		}
+
 		// Ustawienie tekstury bazowej (diffuse)
 		LPDIRECT3DBASETEXTURE9 pBaseTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.pDiffuseTexture);
-		if (!pBaseTex && pkt.dwDiffuseTextureID >= 0x10000)
-			pBaseTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwDiffuseTextureID);
+		if (!pBaseTex && pkt.dwDiffuseTextureID != 0)
+		{
+			pBaseTex = CRenderResourceRegistry::SafeResolveTexture(static_cast<TRenderTextureHandle>(pkt.dwDiffuseTextureID));
+			if (!pBaseTex && pkt.dwDiffuseTextureID > 0x10000000)
+				pBaseTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwDiffuseTextureID);
+		}
 		STATEMANAGER.SetTexture(0, pBaseTex);
 
 		// Ustawienie tekstury mapy swiatla (lightmap)
 		LPDIRECT3DBASETEXTURE9 pLightmapTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.pLightmapTexture);
-		if (!pLightmapTex && pkt.dwLightmapTextureID >= 0x10000)
-			pLightmapTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwLightmapTextureID);
+		if (!pLightmapTex && pkt.dwLightmapTextureID != 0)
+		{
+			pLightmapTex = CRenderResourceRegistry::SafeResolveTexture(static_cast<TRenderTextureHandle>(pkt.dwLightmapTextureID));
+			if (!pLightmapTex && pkt.dwLightmapTextureID > 0x10000000)
+				pLightmapTex = reinterpret_cast<LPDIRECT3DBASETEXTURE9>(pkt.dwLightmapTextureID);
+		}
 		STATEMANAGER.SetTexture(1, pLightmapTex);
+
+		// Przelaczanie drugiego stopnia tekstury (MODULATE dla lightmapy wg DEC-3)
+		const bool bHasLightmap = (pLightmapTex != nullptr);
+		if (bHasLightmap != bLastHasLightmap)
+		{
+			if (bHasLightmap)
+			{
+				STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_MODULATE);
+				STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+			}
+			else
+			{
+				STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+				STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+			}
+			bLastHasLightmap = bHasLightmap;
+		}
+
+		// Ustalenie formatu i kroku wierzcholka (standardowy TPNT2Vertex 40B vs glTF GpuSkinnedVertex 72B)
+		const uint32_t vertexStride = (pkt.bPadDungeon[0] > 0) ? pkt.bPadDungeon[0] : sizeof(TPNT2Vertex);
+		LPDIRECT3DVERTEXDECLARATION9 pCurrentDecl = (vertexStride == 72 && m_pDungeonGltfVertexDecl)
+			? m_pDungeonGltfVertexDecl
+			: m_pDungeonVertexDecl;
+
+		if (pCurrentDecl && pCurrentDecl != pLastVertexDecl)
+		{
+			STATEMANAGER.SetVertexDeclaration(pCurrentDecl);
+			pLastVertexDecl = pCurrentDecl;
+		}
 
 		// Wariant 1: Rysowanie z buforow Direct3D9 (VertexBuffer / IndexBuffer)
 		if (pkt.pVertexBuffer)
 		{
 			auto* pVB = reinterpret_cast<LPDIRECT3DVERTEXBUFFER9>(pkt.pVertexBuffer);
-			STATEMANAGER.SetStreamSource(0, pVB, sizeof(TPNT2Vertex));
+			STATEMANAGER.SetStreamSource(0, pVB, vertexStride);
 
 			if (pkt.pIndexBuffer)
 			{
@@ -1439,7 +1501,7 @@ void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 						pkt.pIndices + pkt.dwStartIndex,
 						D3DFMT_INDEX16,
 						pkt.pVertices,
-						sizeof(TPNT2Vertex)
+						vertexStride
 					);
 				}
 			}
@@ -1448,11 +1510,12 @@ void CD3D9RenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 				const uint32_t primCount = pkt.dwPrimitiveCount > 0 ? pkt.dwPrimitiveCount : (pkt.dwVertexCount / 3);
 				if (primCount > 0)
 				{
+					const uint8_t* pByteVertices = reinterpret_cast<const uint8_t*>(pkt.pVertices);
 					STATEMANAGER.DrawPrimitiveUP(
 						D3DPT_TRIANGLELIST,
 						primCount,
-						pkt.pVertices + pkt.dwStartIndex,
-						sizeof(TPNT2Vertex)
+						pByteVertices + (pkt.dwStartIndex * vertexStride),
+						vertexStride
 					);
 				}
 			}

@@ -4,10 +4,11 @@
 #include <cstdint>
 
 class CDungeonModelInstance;
+class CGrannyLODController;
 
 /**
- * @brief Ekstraktor geometrii i tekstur wnetrz lochow (CDungeonModelInstance).
- * Pobiera stan siatek, wierzcholkow TPNT2Vertex, tekstur i map swiatla
+ * @brief Ekstraktor geometrii i tekstur wnetrz lochow (CDungeonModelInstance oraz glTF CGrannyLODController).
+ * Pobiera stan siatek, wierzcholkow TPNT2Vertex / glTF, tekstur i map swiatla
  * oraz emituje pakiety TDungeonBlockPacket do CRenderQueueManager.
  * Zgodny z Master Blueprint Faza 4 (SRP, zero alokacji na klatke).
  */
@@ -23,6 +24,14 @@ public:
 	 * @return true jesli wyemitowano co najmniej jeden pakiet, false w przeciwnym razie.
 	 */
 	static bool ExtractAndSubmit(CDungeonModelInstance* pInstance);
+
+	/**
+	 * @brief Ekstrahuje pakiety ze stanu CGrannyLODController (model glTF lochu) i emituje do CRenderQueueManager.
+	 * @param pController Wskaznik na kontroler LOD lochu glTF.
+	 * @param pmatWorld Wskaznik na macierz swiata.
+	 * @return true jesli wyemitowano co najmniej jeden pakiet, false w przeciwnym razie.
+	 */
+	static bool ExtractAndSubmit(CGrannyLODController* pController, const D3DXMATRIX* pmatWorld = nullptr);
 };
 
 using DungeonBlockRenderExtractor = CDungeonBlockRenderExtractor;

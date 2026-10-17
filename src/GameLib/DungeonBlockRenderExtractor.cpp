@@ -3,6 +3,10 @@
 #include "DungeonBlock.h"
 #include "EterGrnLib/Model.h"
 #include "EterGrnLib/ModelInstance.h"
+#include "EterGrnLib/LODController.h"
+#include "EterModelLib/GltfModel.h"
+#include "EterModelLib/GltfModelInstance.h"
+#include "EterLib/Render/ActorSkinningPipeline.h"
 #include "EterLib/RenderQueueManager.h"
 #include <algorithm>
 
@@ -88,6 +92,88 @@ bool CDungeonBlockRenderExtractor::ExtractAndSubmit(CDungeonModelInstance* pInst
 
 			pMeshNode = pMeshNode->pNextMeshNode;
 		}
+	}
+
+	return bSubmittedAny;
+}
+
+bool CDungeonBlockRenderExtractor::ExtractAndSubmit(CGrannyLODController* pController, const D3DXMATRIX* pmatWorld)
+{
+	if (!pController || !pController->isGltfModelInstance())
+		return false;
+
+	pController->EnsureGltfStaticGpuBuffers();
+
+	EterModelLib::CGltfModelInstance* pGltfInst = pController->GetGltfModelInstance();
+	if (!pGltfInst)
+		return false;
+
+	const EterModelLib::CGltfModel* pModel = pGltfInst->GetModel();
+	if (!pModel || !pModel->IsLoaded())
+		return false;
+
+	const GltfModelData& modelData = pModel->GetModelData();
+	if (modelData.submeshes.empty())
+		return false;
+
+	LPDIRECT3DVERTEXBUFFER9 pVB = pController->GetGltfStaticVertexBuffer();
+	LPDIRECT3DINDEXBUFFER9 pIB = pController->GetGltfStaticIndexBuffer();
+	if (!pVB || !pIB)
+		return false;
+
+	const auto& matStates = pController->GetGltfMaterialStates();
+	CRenderQueueManager& rqm = CRenderQueueManager::Instance();
+	bool bSubmittedAny = false;
+
+	D3DXMATRIX matIdentity;
+	D3DXMatrixIdentity(&matIdentity);
+	const D3DXMATRIX& rmatWorld = pmatWorld ? *pmatWorld : matIdentity;
+
+	for (size_t s = 0; s < modelData.submeshes.size(); ++s)
+	{
+		const GltfSubmesh& submesh = modelData.submeshes[s];
+		if (submesh.indexCount == 0)
+			continue;
+
+		TDungeonBlockPacket packet{};
+		packet.matWorld = rmatWorld;
+		packet.pVertexBuffer = pVB;
+		packet.pIndexBuffer = pIB;
+
+		packet.dwStartIndex = static_cast<uint32_t>(submesh.indexOffset);
+		packet.dwIndexCount = static_cast<uint32_t>(submesh.indexCount);
+		packet.dwPrimitiveCount = static_cast<uint32_t>(submesh.indexCount / 3);
+		packet.nBaseVertexIndex = static_cast<int32_t>(submesh.vertexOffset);
+		packet.dwVertexCount = static_cast<uint32_t>(submesh.vertexCount);
+
+		bool isBlend = false;
+		LPDIRECT3DTEXTURE9 pD3DTexture = nullptr;
+
+		if (submesh.materialIndex >= 0 && submesh.materialIndex < static_cast<int>(matStates.size()))
+		{
+			const CGrannyLODController::SGltfMaterialState& state = matStates[submesh.materialIndex];
+			isBlend = state.isBlend;
+			if (!state.roDiffuseImage.IsNull())
+			{
+				CGraphicImage* pImg = state.roDiffuseImage.GetPointer();
+				if (pImg && !pImg->IsEmpty() && pImg->GetTexturePointer())
+				{
+					pD3DTexture = pImg->GetTexturePointer()->GetD3DTexture();
+				}
+			}
+		}
+
+		packet.pDiffuseTexture = pD3DTexture;
+		packet.dwDiffuseTextureID = reinterpret_cast<uintptr_t>(pD3DTexture);
+		packet.pLightmapTexture = nullptr;
+		packet.dwLightmapTextureID = 0;
+
+		packet.fAlpha = isBlend ? 0.99f : 1.0f;
+		packet.bAlphaBlend = isBlend ? 1 : 0;
+		packet.bPadDungeon[0] = static_cast<uint8_t>(sizeof(EterLib::Render::GpuSkinnedVertex));
+
+		rqm.SubmitDungeonBlock(packet);
+		bSubmittedAny = true;
 	}
 
 	return bSubmittedAny;
