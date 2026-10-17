@@ -29,6 +29,7 @@ extern bool g_bHeadlessMode;
 #include "Client/IPC/HarnessEngineControlRouter.h"
 #include "Client/IPC/HarnessPlayerRpcRouter.h"
 #include "Client/IPC/HarnessWorldQueryRouter.h"
+#include "Client/Core/GameFramePipeline.h"
 
 #include <cmath>
 #include <format>
@@ -857,6 +858,25 @@ namespace UserInterface::TestHarness
             std::string engState = std::string(Client::IPC::to_string(m_engineControlRouter->GetState()));
             writer.Key("engine_state"); writer.String(engState.c_str());
         }
+
+        // Dolaczenie biezacej telemetrii potoku klatki
+        auto telemetry = Client::Core::GameFramePipeline::Instance().GetTelemetry();
+        writer.Key("last_frame_telemetry");
+        writer.StartObject();
+        writer.Key("frame_id"); writer.Uint64(telemetry.frameIndex);
+        writer.Key("tick_id"); writer.Uint64(telemetry.currentTick);
+        writer.Key("fps"); writer.Double(telemetry.deltaTimeSec > 0.0f ? 1.0 / telemetry.deltaTimeSec : 0.0);
+        writer.Key("frame_time_us"); writer.Uint64(telemetry.totalFrameDurationUs);
+        writer.Key("phases");
+        writer.StartObject();
+        writer.Key("ipc_ingest_us"); writer.Uint64(telemetry.ipcDurationUs);
+        writer.Key("input_update_us"); writer.Uint64(telemetry.inputDurationUs);
+        writer.Key("network_pump_us"); writer.Uint64(telemetry.networkDurationUs);
+        writer.Key("world_simulation_us"); writer.Uint64(telemetry.simulationDurationUs);
+        writer.Key("ui_sync_us"); writer.Uint64(telemetry.uiDurationUs);
+        writer.Key("telemetry_record_us"); writer.Uint64(0);
+        writer.EndObject();
+        writer.EndObject();
         writer.EndObject();
 
         writer.EndObject();
@@ -3075,6 +3095,15 @@ namespace UserInterface::TestHarness
         m_routes["get_world_megasnapshot"] = { false, megaSnapshotHandler };
         m_routes["game_get_tactical_snapshot"] = { false, megaSnapshotHandler };
         m_routes["get_tactical_snapshot"] = { false, megaSnapshotHandler };
+
+        // 25. get_frame_telemetry / game_get_frame_telemetry / explain_frame
+        auto telemetryHandler = [](const std::string&, const std::string& id) -> std::string {
+            std::string telemetryJson = Client::Core::GameFramePipeline::Instance().GetTelemetryJson();
+            return std::format("{{\"jsonrpc\":\"2.0\",\"ok\":true,\"id\":{},\"result\":{}}}", id, telemetryJson);
+        };
+        m_routes["get_frame_telemetry"] = { true, telemetryHandler };
+        m_routes["game_get_frame_telemetry"] = { true, telemetryHandler };
+        m_routes["explain_frame"] = { true, telemetryHandler };
     }
 
     bool TestHarnessServer::IsImmediateMethod(std::string_view method) const noexcept

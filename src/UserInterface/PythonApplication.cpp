@@ -19,6 +19,7 @@
 #include "TestHarness/TestHarnessServer.h"
 #include "TestHarness/DeterministicTickController.h"
 #include "TestHarness/MockWorldDriver.h"
+#include "Client/Core/GameFramePipeline.h"
 
 #include "ProcessScanner.h"
 #include "FastBootOverlay.h"
@@ -310,6 +311,8 @@ void CPythonApplication::RenderGame()
 
 void CPythonApplication::UpdateGame()
 {
+	Client::Core::ScopedPhaseTimer simTimer(Client::Core::FramePhase::WorldSimulation);
+
 	UserInterface::TestHarness::TestHarnessServer::Instance().ProcessMainThreadQueue();
 
 	POINT ptMouse;
@@ -354,14 +357,16 @@ void CPythonApplication::UpdateGame()
 
 bool CPythonApplication::Process()
 {
-	// Filar 4: TestHarnessEngine - Przetworzenie kolejki watku glownego z serwera Named Pipe
-	UserInterface::TestHarness::TestHarnessServer::Instance().ProcessMainThreadQueue();
-
-	// Filar 4: MockWorldDriver - wejscie w mock world jesli flaga --mock-world aktywna
-	if (UserInterface::TestHarness::MockWorldDriver::Instance().IsMockWorldEnabled() &&
-		!UserInterface::TestHarness::MockWorldDriver::Instance().HasEntered())
+	// Faza 1: IPC_INGEST - Obsluga zadan od agentow AI (Named Pipe) i MockWorld
 	{
-		UserInterface::TestHarness::MockWorldDriver::Instance().EnterMockWorld();
+		Client::Core::ScopedPhaseTimer ipcTimer(Client::Core::FramePhase::IpcIngest);
+		UserInterface::TestHarness::TestHarnessServer::Instance().ProcessMainThreadQueue();
+
+		if (UserInterface::TestHarness::MockWorldDriver::Instance().IsMockWorldEnabled() &&
+			!UserInterface::TestHarness::MockWorldDriver::Instance().HasEntered())
+		{
+			UserInterface::TestHarness::MockWorldDriver::Instance().EnterMockWorld();
+		}
 	}
 
 	ELTimer_SetFrameMSec();
@@ -391,19 +396,19 @@ bool CPythonApplication::Process()
 	// Update Time
 	static BOOL s_bFrameSkip = false;
 
-	//////////////////////
-	// Input Process (odswiezane przy kazdej klatce renderingu dla natychmiastowej responsywnosci 144Hz+)
-	// Keyboard
-	UpdateKeyboard();
+	// Faza 2: INPUT_UPDATE - Peryferia OS i wirtualne kontrolery (odswiezane przy kazdej klatce)
+	{
+		Client::Core::ScopedPhaseTimer inputTimer(Client::Core::FramePhase::InputUpdate);
+		UpdateKeyboard();
 
-	// Mouse
-	POINT Point;
-	if (GetCursorPos(&Point)) [[likely]] {
-		ScreenToClient(m_hWnd, &Point);
-		OnMouseMove(Point.x, Point.y);		
+		POINT Point;
+		if (GetCursorPos(&Point)) [[likely]] {
+			ScreenToClient(m_hWnd, &Point);
+			OnMouseMove(Point.x, Point.y);		
+		}
+
+		__UpdateCamera();
 	}
-
-	__UpdateCamera();
 
 	// Taktowanie logiki gry sztywnym krokiem czasowym (60Hz) lub kontrolerem deterministycznym
 	DWORD updatestart = ELTimer_GetMSec();
@@ -414,20 +419,24 @@ bool CPythonApplication::Process()
 		m_fGlobalTime = rkTimer.GetCurrentSecond();
 		m_fGlobalElapsedTime = rkTimer.GetElapsedSecond();
 
-		// Network I/O	
-		m_pyNetworkStream.Process();	
-		//m_pyNetworkDatagram.Process();
+		// Faza 3: NETWORK_PUMP - Przetwarzanie strumieni TCP pakietow
+		{
+			Client::Core::ScopedPhaseTimer netTimer(Client::Core::FramePhase::NetworkPump);
+			m_pyNetworkStream.Process();
+			m_kGuildMarkUploader.Process();
+			m_kGuildMarkDownloader.Process();
+			m_kAccountConnector.Process();
+			UserInterface::FastBoot::FastBootOverlay::Instance().Update();
+		}
 
-		m_kGuildMarkUploader.Process();
-		m_kGuildMarkDownloader.Process();
-		m_kAccountConnector.Process();
-		UserInterface::FastBoot::FastBootOverlay::Instance().Update();
-
-		// Update Game Playing
-		CResourceManager::Instance().Update();
-		OnCameraUpdate();
-		OnMouseUpdate();
-		OnUIUpdate();
+		// Faza 5: UI_SYNCHRONIZATION - Odswiezenie interfejsu i kamery
+		{
+			Client::Core::ScopedPhaseTimer uiTimer(Client::Core::FramePhase::UiSynchronization);
+			CResourceManager::Instance().Update();
+			OnCameraUpdate();
+			OnMouseUpdate();
+			OnUIUpdate();
+		}
 
 		++s_dwUpdateFrameCount;
 	};
@@ -453,6 +462,20 @@ bool CPythonApplication::Process()
 	}
 
 	m_dwCurUpdateTime = ELTimer_GetMSec() - updatestart;
+
+	// Faza 6: TELEMETRY_RECORD - Zapis telemetrii wykonawczej dla agentow AI
+	{
+		Client::Core::GameFramePipeline::Instance().RecordFrameComplete(
+			s_dwUpdateFrameCount,
+			UserInterface::TestHarness::DeterministicTickController::Instance().GetCurrentTick(),
+			m_fGlobalElapsedTime
+		);
+		Client::Core::GameFramePipeline::Instance().SetEngineModeFlags(
+			UserInterface::TestHarness::DeterministicTickController::Instance().IsTestMode(),
+			UserInterface::TestHarness::DeterministicTickController::Instance().IsFrozen(),
+			g_bHeadlessMode
+		);
+	}
 
 	// Stary mechanizm dlawiacy s_bFrameSkip wylaczony - taktowanie klatek logiki prowadzi FrameTimer (144Hz+)
 	s_bFrameSkip = false;

@@ -486,7 +486,7 @@ class HarnessBridge:
                     self.player_coords["y"] += (dy / dist) * step
                     self.player_motion = "RUN"
 
-            return {
+            resp_dict = {
                 "ok": True,
                 "frame_count": self.frame_count,
                 "ticks_applied": count,
@@ -501,6 +501,27 @@ class HarnessBridge:
                 "motion": self.player_motion,
                 "pipe_dispatched": pipe_resp is not None,
                 "pipe_response": pipe_resp
+            }
+            if pipe_resp and isinstance(pipe_resp, dict):
+                res_obj = pipe_resp.get("result", {})
+                if isinstance(res_obj, dict) and "last_frame_telemetry" in res_obj:
+                    resp_dict["frame_telemetry"] = res_obj["last_frame_telemetry"]
+            return resp_dict
+
+    def get_frame_telemetry(self) -> Dict[str, Any]:
+        """Pobiera zaawansowana telemetrie mikrosekundowa z GameFramePipeline C++23."""
+        with self.lock:
+            if self.is_connected:
+                pipe_resp = self._send_raw_pipe_cmd({"cmd": "get_frame_telemetry"})
+                if pipe_resp and pipe_resp.get("ok"):
+                    res = pipe_resp.get("result", {})
+                    if isinstance(res, dict):
+                        res["ok"] = True
+                        return res
+                    return {"ok": True, "telemetry": res}
+            return {
+                "ok": False,
+                "reason": "Brak aktywnego polaczenia z potokiem Named Pipe klienta gry"
             }
 
     # ------------------------------------------------------------------------
@@ -1379,6 +1400,15 @@ async def m2_tick_frame(count: int = 1, delta_ms: float = 16.6) -> str:
       delta_ms: czas trwania klatki w milisekundach (domyslnie 16.6 ms = 60 FPS).
     """
     res = bridge.tick_frame(count=count, delta_ms=delta_ms)
+    return json.dumps(res, ensure_ascii=False, indent=2)
+
+
+@server.tool(
+    description="Pobiera zaawansowana telemetrie mikrosekundowa 6 faz wykonania klatki z GameFramePipeline C++23."
+)
+async def m2_get_frame_telemetry() -> str:
+    """Zwraca telemetrie klatki, czasy faz (IpcIngest, InputUpdate, NetworkPump, WorldSimulation, UiSynchronization, TelemetryRecord) oraz FPS."""
+    res = bridge.get_frame_telemetry()
     return json.dumps(res, ensure_ascii=False, indent=2)
 
 

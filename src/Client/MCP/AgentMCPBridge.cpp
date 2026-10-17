@@ -1,5 +1,6 @@
 #include "AgentMCPBridge.h"
 #include "Client/Network/Protocol/IServerProtocolDriver.h"
+#include "Client/Core/GameFramePipeline.h"
 #include <sstream>
 #include <iomanip>
 #include <cmath>
@@ -266,6 +267,11 @@ namespace Client::MCP
         return ss.str();
     }
 
+    std::string AgentMCPBridge::Tool_GetFrameTelemetry() const
+    {
+        return Client::Core::GameFramePipeline::Instance().GetTelemetryJson();
+    }
+
     uint32_t AgentMCPBridge::GetMinAttackIntervalMs() const noexcept
     {
         if (m_overrideMinAttackIntervalMs.has_value())
@@ -398,6 +404,14 @@ namespace Client::MCP
                 windowType = ExtractNumericParam<uint8_t>(jsonRequest, "\"windowType\"", 1);
             uint16_t cell = ExtractNumericParam<uint16_t>(jsonRequest, "\"cell\"", 0);
             return "{\"jsonrpc\":\"2.0\",\"result\":" + Tool_ActionUseItem(windowType, cell) + ",\"id\":" + rpcId + "}";
+        }
+
+        // game_get_frame_telemetry / get_frame_telemetry / explain_frame
+        if (jsonRequest.find("\"game_get_frame_telemetry\"") != std::string_view::npos ||
+            jsonRequest.find("\"get_frame_telemetry\"") != std::string_view::npos ||
+            jsonRequest.find("\"explain_frame\"") != std::string_view::npos)
+        {
+            return "{\"jsonrpc\":\"2.0\",\"result\":" + Tool_GetFrameTelemetry() + ",\"id\":" + rpcId + "}";
         }
 
         return "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":" + rpcId + "}";

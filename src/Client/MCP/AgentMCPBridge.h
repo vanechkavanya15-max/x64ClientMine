@@ -48,6 +48,7 @@ namespace Client::MCP
         [[nodiscard]] std::string Tool_GetNearbyEntities(float radius) const;
         [[nodiscard]] std::string Tool_ActionAttack(uint32_t targetVid);
         [[nodiscard]] std::string Tool_ActionUseItem(uint8_t windowType, uint16_t cell);
+        [[nodiscard]] std::string Tool_GetFrameTelemetry() const;
 
         // Rate Limiter
         [[nodiscard]] uint32_t GetMinAttackIntervalMs() const noexcept;
