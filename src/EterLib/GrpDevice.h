@@ -64,6 +64,13 @@ protected:
 	LPDIRECT3DVERTEXDECLARATION9 CreatePNTStreamVertexShader();
 	LPDIRECT3DVERTEXDECLARATION9 CreatePNT2StreamVertexShader();
 
+	int				InitD3DInterface(D3DADAPTER_IDENTIFIER9& d3dAdapterId, D3DDISPLAYMODE& d3dDisplayMode, bool windowed);
+	DWORD			DetermineD3DBehavior(const D3DCAPS9& d3dCaps, int& iRet);
+	bool			CreateD3DDeviceWithFallback(HWND hWnd, int iHres, int iVres, bool windowed, int iReflashRate, const D3DDISPLAYMODE& d3dDisplayMode, int& iRet);
+	void			CheckTextureFormats(bool windowed, const D3DDISPLAYMODE& d3dDisplayMode);
+	bool			InitDeviceResources();
+	void			DetectHardwareCapsAndQuirks(const D3DADAPTER_IDENTIFIER9& d3dAdapterId);
+
 protected:
 	DWORD						m_uBackBufferCount;
 	std::map<UINT, std::string>	m_kMap_strWarningMessage;

@@ -342,7 +342,7 @@ namespace
 	};
 }
 
-void CStateManager::SetDefaultState()
+void CStateManager::ClearStateStacks()
 {
 	ResetState();
 
@@ -373,10 +373,10 @@ void CStateManager::SetDefaultState()
 	m_VertexDeclarationStack.clear();
 	m_VertexProcessingStack.clear();
 	m_IndexStack.clear();
+}
 
-	m_bScene = false;
-	m_bForce = true;
-
+void CStateManager::SetDefaultTransformsAndMaterials()
+{
 	D3DXMATRIX matIdentity;
 	D3DXMatrixIdentity(&matIdentity);
 
@@ -389,11 +389,22 @@ void CStateManager::SetDefaultState()
 	DefaultMat.Ambient = { 1.0f, 1.0f, 1.0f, 1.0f };
 	SetMaterial(&DefaultMat);
 
+	SaveVertexProcessing(FALSE);
+}
+
+void CStateManager::SetDefaultRenderStates()
+{
 	for (const auto& item : c_DefaultRenderStates)
 		SetRenderState(item.state, item.value);
 
-	SaveVertexProcessing(FALSE);
+	for (DWORD stage = 0; stage < STATEMANAGER_MAX_STAGES; ++stage)
+	{
+		SetRenderState(static_cast<D3DRENDERSTATETYPE>(D3DRS_WRAP0 + stage), 0);
+	}
+}
 
+void CStateManager::SetDefaultTextureStageStates()
+{
 	for (DWORD stage = 0; stage < STATEMANAGER_MAX_STAGES; ++stage)
 	{
 		const auto& cfg = c_StageDefaults[stage];
@@ -406,16 +417,24 @@ void CStateManager::SetDefaultState()
 		SetTextureStageState(stage, D3DTSS_TEXCOORDINDEX, stage);
 		SetTextureStageState(stage, D3DTSS_TEXTURETRANSFORMFLAGS, 0);
 
+		SetTexture(stage, NULL);
+	}
+}
+
+void CStateManager::SetDefaultSamplerStates()
+{
+	for (DWORD stage = 0; stage < STATEMANAGER_MAX_STAGES; ++stage)
+	{
 		SetSamplerState(stage, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
 		SetSamplerState(stage, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 		SetSamplerState(stage, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 		SetSamplerState(stage, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
 		SetSamplerState(stage, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-
-		SetTexture(stage, NULL);
-		SetRenderState(static_cast<D3DRENDERSTATETYPE>(D3DRS_WRAP0 + stage), 0);
 	}
+}
 
+void CStateManager::SetDefaultShadersAndConstants()
+{
 	SetVertexShader(0);
 	SetVertexDeclaration(0);
 	SetPixelShader(0);
@@ -425,6 +444,20 @@ void CStateManager::SetDefaultState()
 	memset(av4Null, 0, sizeof(av4Null));
 	SetVertexShaderConstant(0, av4Null, STATEMANAGER_MAX_VCONSTANTS);
 	SetPixelShaderConstant(0, av4Null, STATEMANAGER_MAX_PCONSTANTS);
+}
+
+void CStateManager::SetDefaultState()
+{
+	ClearStateStacks();
+
+	m_bScene = false;
+	m_bForce = true;
+
+	SetDefaultTransformsAndMaterials();
+	SetDefaultRenderStates();
+	SetDefaultTextureStageStates();
+	SetDefaultSamplerStates();
+	SetDefaultShadersAndConstants();
 
 	m_bForce = false;
 }

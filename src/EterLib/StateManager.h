@@ -194,6 +194,11 @@ public:
 	void	ResetState();
 	void	SetDefaultState();
 
+	// Default state helpers per subsystem
+	void	SetDefaultSamplerStates();
+	void	SetDefaultTextureStageStates();
+	void	SetDefaultRenderStates();
+
 	void	SetForce(bool bForce) { m_bForce = bForce; }
 	bool	GetForce() const { return m_bForce; }
 
@@ -324,6 +329,9 @@ public:
 
 private:
 	void SetDevice(LPDIRECT3DDEVICE9EX lpDevice);
+	void ClearStateStacks();
+	void SetDefaultTransformsAndMaterials();
+	void SetDefaultShadersAndConstants();
 
 private:
 

@@ -274,85 +274,80 @@ DWORD GetMaxTextureHeight()
 	return s_MaxTextureHeight;
 }
 
-int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /*iBit*/, int iReflashRate)
+int CGraphicDevice::InitD3DInterface(D3DADAPTER_IDENTIFIER9& d3dAdapterId, D3DDISPLAYMODE& d3dDisplayMode, bool windowed)
 {
-	int iRet = CREATE_OK;
-
-	Destroy();
-
-	ms_iWidth	= iHres;
-	ms_iHeight	= iVres;
-
-	ms_hWnd		= hWnd;
-	ms_hDC		= GetDC(hWnd);
 	Direct3DCreate9Ex(D3D_SDK_VERSION, &ms_lpd3d);
-
 	if (!ms_lpd3d)
 		return CREATE_NO_DIRECTX;
 
-	D3DADAPTER_IDENTIFIER9 d3dAdapterId;
 	ms_lpd3d->GetAdapterIdentifier(D3DADAPTER_DEFAULT, 0, &d3dAdapterId);
-
-	D3DDISPLAYMODE d3dDisplayMode;
 	ms_lpd3d->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &d3dDisplayMode);
 
-	if (Windowed &&
+	if (windowed &&
 		strnicmp(d3dAdapterId.Driver, "3dfx", 4) == 0 &&
 		D3DFMT_X8R8G8B8 == d3dDisplayMode.Format)
 	{
 		return CREATE_FORMAT;
 	}
 
-	D3DCAPS9 d3dCaps;
-	ms_lpd3d->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps);
+	return CREATE_OK;
+}
 
+DWORD CGraphicDevice::DetermineD3DBehavior(const D3DCAPS9& d3dCaps, int& iRet)
+{
+	DWORD dwBehavior = 0;
 	BOOL isFormatConfirmed = FALSE;
+
 	if (d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
 	{
 		if (d3dCaps.DevCaps & D3DDEVCAPS_PUREDEVICE)
 		{
-			ms_dwD3DBehavior = D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE;
-			isFormatConfirmed = EL3D_ConfirmDevice(d3dCaps, ms_dwD3DBehavior);
+			dwBehavior = D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE;
+			isFormatConfirmed = EL3D_ConfirmDevice(const_cast<D3DCAPS9&>(d3dCaps), dwBehavior);
 		}
 
 		if (!isFormatConfirmed)
 		{
-			ms_dwD3DBehavior = D3DCREATE_HARDWARE_VERTEXPROCESSING;
-			isFormatConfirmed = EL3D_ConfirmDevice(d3dCaps, ms_dwD3DBehavior);
+			dwBehavior = D3DCREATE_HARDWARE_VERTEXPROCESSING;
+			isFormatConfirmed = EL3D_ConfirmDevice(const_cast<D3DCAPS9&>(d3dCaps), dwBehavior);
 		}
 
 		if (!isFormatConfirmed)
 		{
-			ms_dwD3DBehavior = D3DCREATE_MIXED_VERTEXPROCESSING;
-			isFormatConfirmed = EL3D_ConfirmDevice(d3dCaps, ms_dwD3DBehavior);
+			dwBehavior = D3DCREATE_MIXED_VERTEXPROCESSING;
+			isFormatConfirmed = EL3D_ConfirmDevice(const_cast<D3DCAPS9&>(d3dCaps), dwBehavior);
 		}
 	}
 
 	if (!isFormatConfirmed)
 	{
-		ms_dwD3DBehavior = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
-		isFormatConfirmed = EL3D_ConfirmDevice(d3dCaps, ms_dwD3DBehavior);
+		dwBehavior = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
+		isFormatConfirmed = EL3D_ConfirmDevice(const_cast<D3DCAPS9&>(d3dCaps), dwBehavior);
 		iRet |= CREATE_NO_TNL;
 	}
 
-	bool deviceCreated = false;
+	return dwBehavior;
+}
+
+bool CGraphicDevice::CreateD3DDeviceWithFallback(HWND hWnd, int iHres, int iVres, bool windowed, int iReflashRate, const D3DDISPLAYMODE& d3dDisplayMode, int& iRet)
+{
 	bool disableMSAA = false;
 	const int maxAttempts = 2;
 
 	for (int attempt = 0; attempt < maxAttempts; ++attempt)
 	{
 		ZeroMemory(&ms_d3dPresentParameter, sizeof(ms_d3dPresentParameter));
-		
-		ms_d3dPresentParameter.Windowed							= Windowed;
+
+		ms_d3dPresentParameter.Windowed							= windowed;
 		ms_d3dPresentParameter.BackBufferWidth					= iHres;
 		ms_d3dPresentParameter.BackBufferHeight					= iVres;
 		ms_d3dPresentParameter.hDeviceWindow					= hWnd;
-		ms_d3dPresentParameter.BackBufferFormat					= Windowed ? D3DFMT_UNKNOWN : d3dDisplayMode.Format;
+		ms_d3dPresentParameter.BackBufferFormat					= windowed ? D3DFMT_UNKNOWN : d3dDisplayMode.Format;
 		ms_d3dPresentParameter.BackBufferCount					= m_uBackBufferCount;
 		ms_d3dPresentParameter.SwapEffect						= D3DSWAPEFFECT_DISCARD;
 		ms_d3dPresentParameter.MultiSampleType					= D3DMULTISAMPLE_NONE;
 
-		if (Windowed)
+		if (windowed)
 		{
 			ms_d3dPresentParameter.PresentationInterval			= D3DPRESENT_INTERVAL_DEFAULT;
 			ms_d3dPresentParameter.FullScreen_RefreshRateInHz	= 0;
@@ -367,7 +362,7 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 		ms_d3dPresentParameter.AutoDepthStencilFormat			= D3DFMT_D24S8;
 
 		// Enable MSAA only in fullscreen and only if supported for the chosen backbuffer format
-		if (!Windowed && !disableMSAA)
+		if (!windowed && !disableMSAA)
 		{
 			D3DFORMAT msaaCheckFormat = ms_d3dPresentParameter.BackBufferFormat;
 			if (SUCCEEDED(ms_lpd3d->CheckDeviceMultiSampleType(
@@ -404,7 +399,7 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 		displayModeEx.Format = d3dDisplayMode.Format;
 		displayModeEx.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
 
-		D3DDISPLAYMODEEX* pDisplayMode = Windowed ? NULL : &displayModeEx;
+		D3DDISPLAYMODEEX* pDisplayMode = windowed ? NULL : &displayModeEx;
 
 		ms_hLastResult = ms_lpd3d->CreateDeviceEx(
 			D3DADAPTER_DEFAULT,
@@ -417,8 +412,7 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 
 		if (SUCCEEDED(ms_hLastResult))
 		{
-			deviceCreated = true;
-			break;
+			return true;
 		}
 
 		switch (ms_hLastResult)
@@ -443,13 +437,12 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 		iRet |= CREATE_REFRESHRATE;
 	}
 
-	if (!deviceCreated)
-	{
-		return CREATE_DEVICE;
-	}
+	return false;
+}
 
-	// Check DXT Support Info
-	const D3DFORMAT baseFormatForTextureCheck = Windowed ? d3dDisplayMode.Format : ms_d3dPresentParameter.BackBufferFormat;
+void CGraphicDevice::CheckTextureFormats(bool windowed, const D3DDISPLAYMODE& d3dDisplayMode)
+{
+	const D3DFORMAT baseFormatForTextureCheck = windowed ? d3dDisplayMode.Format : ms_d3dPresentParameter.BackBufferFormat;
 	if (ms_lpd3d->CheckDeviceFormat(
 		D3DADAPTER_DEFAULT,
 		D3DDEVTYPE_HAL,
@@ -482,20 +475,10 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 	{
 		ms_bSupportDXT = false;
 	}
+}
 
-	if (FAILED((ms_hLastResult = ms_lpd3dDevice->GetDeviceCaps(&ms_d3dCaps))))
-	{
-		Tracenf("IDirect3DDevice.GetDeviceCaps - ERROR %d", ms_hLastResult);
-		return CREATE_GET_DEVICE_CAPS2;
-	}
-
-	if (!Windowed)
-		SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, iHres, iVres, SWP_SHOWWINDOW);
-
-	//Tracef("vertex shader version : %X\n",(DWORD)ms_d3dCaps.VertexShaderVersion);
-
-	ms_lpd3dDevice->GetViewport(&ms_Viewport);
-
+bool CGraphicDevice::InitDeviceResources()
+{
 	m_pStateManager = new CStateManager(ms_lpd3dDevice);
 
 	D3DXCreateMatrixStack(0, &ms_lpd3dMatStack);
@@ -509,18 +492,23 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 	D3DXMatrixIdentity(&ms_matView);
 	D3DXMatrixIdentity(&ms_matProj);
 	D3DXMatrixIdentity(&ms_matInverseView);
-	
+
 	D3DXCreateSphere(ms_lpd3dDevice, 1.0f, 32, 32, &ms_lpSphereMesh, NULL);
 	D3DXCreateCylinder(ms_lpd3dDevice, 1.0f, 1.0f, 1.0f, 8, 8, &ms_lpCylinderMesh, NULL);
 
 	ms_lpd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff000000, 1.0f, 0);
 
 	if (!__CreateDefaultIndexBufferList())
-		return CREATE_DEVICE;
+		return false;
 
 	if (!__CreatePDTVertexBufferList())
-		return CREATE_DEVICE;
-	
+		return false;
+
+	return true;
+}
+
+void CGraphicDevice::DetectHardwareCapsAndQuirks(const D3DADAPTER_IDENTIFIER9& d3dAdapterId)
+{
 	DWORD dwTexMemSize = GetAvailableTextureMemory();
 
 	if (dwTexMemSize < 64 * 1024 * 1024)
@@ -534,11 +522,10 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 		ms_isHighTextureMemory = false;
 
 	if (ms_d3dCaps.TextureAddressCaps & D3DPTADDRESSCAPS_BORDER)
-		GRAPHICS_CAPS_CAN_NOT_TEXTURE_ADDRESS_BORDER=false;
+		GRAPHICS_CAPS_CAN_NOT_TEXTURE_ADDRESS_BORDER = false;
 	else
-		GRAPHICS_CAPS_CAN_NOT_TEXTURE_ADDRESS_BORDER=true;
+		GRAPHICS_CAPS_CAN_NOT_TEXTURE_ADDRESS_BORDER = true;
 
-	//D3DADAPTER_IDENTIFIER9& rkD3DAdapterId=pkD3DAdapterInfo->GetIdentifier();
 	if (strnicmp(d3dAdapterId.Driver, "SIS", 3) == 0)
 	{
 		GRAPHICS_CAPS_CAN_NOT_DRAW_LINE = true;
@@ -558,8 +545,52 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 	__cpuid(cpuInfo, 1);
 
 	CPU_HAS_SSE2 = cpuInfo[3] & (1 << 26);
+}
 
-	return (iRet);
+int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /*iBit*/, int iReflashRate)
+{
+	int iRet = CREATE_OK;
+
+	Destroy();
+
+	ms_iWidth	= iHres;
+	ms_iHeight	= iVres;
+
+	ms_hWnd		= hWnd;
+	ms_hDC		= GetDC(hWnd);
+
+	D3DADAPTER_IDENTIFIER9 d3dAdapterId{};
+	D3DDISPLAYMODE d3dDisplayMode{};
+	int initRet = InitD3DInterface(d3dAdapterId, d3dDisplayMode, Windowed);
+	if (initRet != CREATE_OK)
+		return initRet;
+
+	D3DCAPS9 d3dCaps{};
+	ms_lpd3d->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps);
+	ms_dwD3DBehavior = DetermineD3DBehavior(d3dCaps, iRet);
+
+	if (!CreateD3DDeviceWithFallback(hWnd, iHres, iVres, Windowed, iReflashRate, d3dDisplayMode, iRet))
+		return CREATE_DEVICE;
+
+	CheckTextureFormats(Windowed, d3dDisplayMode);
+
+	if (FAILED((ms_hLastResult = ms_lpd3dDevice->GetDeviceCaps(&ms_d3dCaps))))
+	{
+		Tracenf("IDirect3DDevice.GetDeviceCaps - ERROR %d", ms_hLastResult);
+		return CREATE_GET_DEVICE_CAPS2;
+	}
+
+	if (!Windowed)
+		SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, iHres, iVres, SWP_SHOWWINDOW);
+
+	ms_lpd3dDevice->GetViewport(&ms_Viewport);
+
+	if (!InitDeviceResources())
+		return CREATE_DEVICE;
+
+	DetectHardwareCapsAndQuirks(d3dAdapterId);
+
+	return iRet;
 }
 
 void CGraphicDevice::__InitializePDTVertexBufferList()
