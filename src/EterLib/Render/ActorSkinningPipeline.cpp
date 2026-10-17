@@ -1,4 +1,6 @@
-#include "StdAfx.h"
+#ifndef TEST_MODE_DISABLE_STDAFX
+#include "../StdAfx.h"
+#endif
 #include "ActorSkinningPipeline.h"
 #include <algorithm>
 #include <cmath>
