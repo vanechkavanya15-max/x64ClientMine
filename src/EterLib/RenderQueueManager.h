@@ -176,7 +176,24 @@ namespace FrameDumpV2
 		std::vector<TDumpUIBatch> uiBatches;
 	};
 
+	struct TReplayStats
+	{
+		uint32_t skyBoxCount{ 0 };
+		uint32_t terrainCount{ 0 };
+		uint32_t dungeonCount{ 0 };
+		uint32_t waterCount{ 0 };
+		uint32_t speedTreeBatchCount{ 0 };
+		uint32_t actorCount{ 0 };
+		uint32_t effectBatchCount{ 0 };
+		uint32_t uiBatchCount{ 0 };
+		uint32_t totalPackets{ 0 };
+		bool bSuccess{ false };
+	};
+
 	bool ParseFrameDumpV2(const char* c_pszFileName, TDumpParsedFrame& outFrame);
+	bool ValidateFrameDump(const TDumpParsedFrame& frame);
+	bool ReplayFrame(const TDumpParsedFrame& frame, IRenderBackend* pBackend, TReplayStats* pOutStats = nullptr);
+	bool ReplayFrameDumpV2(const char* c_pszFileName, IRenderBackend* pBackend, TReplayStats* pOutStats = nullptr);
 }
 
 struct SFrameBuffer

@@ -1177,6 +1177,152 @@ namespace FrameDumpV2
 		fclose(fp);
 		return true;
 	}
+
+	bool ValidateFrameDump(const TDumpParsedFrame& frame)
+	{
+		if (frame.header.dwMagic != M2FR_MAGIC)
+			return false;
+		if (frame.header.dwVersion != M2FR_VERSION)
+			return false;
+		if (frame.chunkHeaders.empty())
+			return false;
+		return true;
+	}
+
+	bool ReplayFrame(const TDumpParsedFrame& frame, IRenderBackend* pBackend, TReplayStats* pOutStats)
+	{
+		if (!pBackend)
+			return false;
+
+		if (pOutStats)
+			*pOutStats = TReplayStats{};
+
+		pBackend->BeginFrame(frame.uniforms);
+
+		// 1. SkyBox
+		if (!frame.skyBoxPackets.empty())
+		{
+			pBackend->RenderSkyBox(frame.skyBoxPackets.data(), static_cast<unsigned int>(frame.skyBoxPackets.size()));
+			if (pOutStats)
+			{
+				pOutStats->skyBoxCount += static_cast<uint32_t>(frame.skyBoxPackets.size());
+				pOutStats->totalPackets += static_cast<uint32_t>(frame.skyBoxPackets.size());
+			}
+		}
+
+		// 2. Terrain
+		if (!frame.terrainPackets.empty())
+		{
+			pBackend->RenderTerrain(frame.terrainPackets.data(), static_cast<unsigned int>(frame.terrainPackets.size()));
+			if (pOutStats)
+			{
+				pOutStats->terrainCount += static_cast<uint32_t>(frame.terrainPackets.size());
+				pOutStats->totalPackets += static_cast<uint32_t>(frame.terrainPackets.size());
+			}
+		}
+
+		// 3. Dungeon
+		if (!frame.dungeonPackets.empty())
+		{
+			pBackend->RenderDungeonBlocks(frame.dungeonPackets.data(), static_cast<unsigned int>(frame.dungeonPackets.size()));
+			if (pOutStats)
+			{
+				pOutStats->dungeonCount += static_cast<uint32_t>(frame.dungeonPackets.size());
+				pOutStats->totalPackets += static_cast<uint32_t>(frame.dungeonPackets.size());
+			}
+		}
+
+		// 4. Water
+		if (!frame.waterPackets.empty())
+		{
+			pBackend->RenderWater(frame.waterPackets.data(), static_cast<unsigned int>(frame.waterPackets.size()));
+			if (pOutStats)
+			{
+				pOutStats->waterCount += static_cast<uint32_t>(frame.waterPackets.size());
+				pOutStats->totalPackets += static_cast<uint32_t>(frame.waterPackets.size());
+			}
+		}
+
+		// 5. SpeedTree
+		for (const auto& batch : frame.speedTreeBatches)
+		{
+			TSpeedTreePacket pkt{};
+			pkt.dwTreeTypeID = static_cast<DWORD>(batch.header.uTreeTypeID);
+			pkt.dwTrunkTextureID = static_cast<DWORD>(batch.header.uTrunkTextureID);
+			pkt.dwLeafTextureID = static_cast<DWORD>(batch.header.uLeafTextureID);
+			pkt.dwFlags = batch.header.dwFlags;
+			pkt.dwInstanceCount = batch.header.dwInstanceCount;
+			pkt.pInstances = const_cast<TSpeedTreeInstanceData*>(batch.instances.data());
+			pBackend->RenderSpeedTree(&pkt, 1);
+			if (pOutStats)
+			{
+				pOutStats->speedTreeBatchCount++;
+				pOutStats->totalPackets++;
+			}
+		}
+
+		// 6. Actors
+		if (!frame.actorPackets.empty())
+		{
+			pBackend->RenderActors(frame.actorPackets.data(), static_cast<unsigned int>(frame.actorPackets.size()));
+			if (pOutStats)
+			{
+				pOutStats->actorCount += static_cast<uint32_t>(frame.actorPackets.size());
+				pOutStats->totalPackets += static_cast<uint32_t>(frame.actorPackets.size());
+			}
+		}
+
+		// 7. Effects
+		for (const auto& batch : frame.effectBatches)
+		{
+			TEffectInstancePacket pkt{};
+			pkt.dwTextureID = batch.header.uTextureID;
+			pkt.dwBlendMode = batch.header.dwBlendMode;
+			pkt.dwParticleCount = batch.header.dwParticleCount;
+			pkt.pParticles = const_cast<TParticleInstanceData*>(batch.particles.data());
+			pBackend->RenderEffects(&pkt, 1);
+			if (pOutStats)
+			{
+				pOutStats->effectBatchCount++;
+				pOutStats->totalPackets++;
+			}
+		}
+
+		// 8. UI
+		for (const auto& batch : frame.uiBatches)
+		{
+			TUIBatchPacket pkt{};
+			pkt.dwTextureID = static_cast<uintptr_t>(batch.header.uTextureID);
+			pkt.bUseScissor = batch.header.bUseScissor;
+			std::memcpy(&pkt.scissorRect, &batch.header.scissorRect, sizeof(pkt.scissorRect));
+			pkt.dwBlendMode = batch.header.dwBlendMode;
+			pkt.dwVertexCount = batch.header.dwVertexCount;
+			pkt.pVertices = batch.vertices.data();
+			pBackend->RenderUI(&pkt, 1);
+			if (pOutStats)
+			{
+				pOutStats->uiBatchCount++;
+				pOutStats->totalPackets++;
+			}
+		}
+
+		pBackend->EndFrame();
+
+		if (pOutStats)
+			pOutStats->bSuccess = true;
+
+		return true;
+	}
+
+	bool ReplayFrameDumpV2(const char* c_pszFileName, IRenderBackend* pBackend, TReplayStats* pOutStats)
+	{
+		TDumpParsedFrame frame{};
+		if (!ParseFrameDumpV2(c_pszFileName, frame))
+			return false;
+		if (!ValidateFrameDump(frame))
+			return false;
+		return ReplayFrame(frame, pBackend, pOutStats);
+	}
 }
 
 

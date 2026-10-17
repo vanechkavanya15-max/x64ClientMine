@@ -7066,3 +7066,39 @@ target_link_libraries(test_c26_frame_double_buffer PRIVATE
 add_test(NAME test_c26_frame_double_buffer COMMAND test_c26_frame_double_buffer)
 add_test(NAME FrameDoubleBufferTest COMMAND test_c26_frame_double_buffer)
 
+# --- S7.6 M2FR Frame Replayer & Validator Test ---
+add_executable(test_c26_frame_replay test_c26_frame_replay.cpp)
+target_include_directories(test_c26_frame_replay PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_frame_replay PRIVATE
+    GameLib
+    EterGrnLib
+    EterModelLib
+    EterLib
+    EterImageLib
+    PRTerrainLib
+    AudioLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EffectLib
+    EterBase
+    DirectX
+    Dbghelp
+    sodium
+    freetype
+    libzstd_static
+    lzo2
+    mio
+    ws2_32
+    doctest
+)
+add_test(NAME test_c26_frame_replay COMMAND test_c26_frame_replay)
+add_test(NAME FrameReplayTest COMMAND test_c26_frame_replay)
+
