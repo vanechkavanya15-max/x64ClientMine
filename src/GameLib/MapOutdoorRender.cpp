@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "MapOutdoor.h"
+#include "MapOutdoorCharacterShadow.h"
 #include "TerrainPatch.h"
 #include "AreaTerrain.h"
 #include "TerrainQuadtree.h"

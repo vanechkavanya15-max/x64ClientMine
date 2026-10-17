@@ -5,6 +5,7 @@
 #include "EterLib/RenderOwnership.h"
 
 #include "MapOutdoor.h"
+#include "MapOutdoorWater.h"
 #include "TerrainPatch.h"
 
 void CMapOutdoor::LoadWaterTexture()
@@ -84,7 +85,7 @@ void CMapOutdoor::RenderWater()
 	// Plynne, harmoniczne falowanie tafli wody bez skokowych zmian wysokosci
 	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
 	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
-	const float fWaterHeightCurrent = -6.0f + 5.0f * sinf(fTimeSec * 1.5f) + 1.0f * sinf(fTimeSec * 3.1f);
+	const float fWaterHeightCurrent = CalculateWaterWaveHeight(0.0f, 0.0f, fTimeSec);
 	m_matWorldForCommonUse._43 = fWaterHeightCurrent;
 
 	m_matWorldForCommonUse._41 = 0.0f;
@@ -166,7 +167,7 @@ void CMapOutdoor::DrawWater(long patchnum)
 	// Obliczenie harmonicznego ukladu fal (zero alokacji)
 	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
 	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
-	const float fWaterHeightCurrent = -6.0f + 5.0f * sinf(fTimeSec * 1.5f) + 1.0f * sinf(fTimeSec * 3.1f);
+	const float fWaterHeightCurrent = CalculateWaterWaveHeight(0.0f, 0.0f, fTimeSec);
 
 	// Emisja pakietu do CRenderQueueManager
 	TWaterPacket kWaterPacket{};

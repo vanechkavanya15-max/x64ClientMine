@@ -6480,6 +6480,20 @@ target_include_directories(test_c26_render_conventions PRIVATE
 target_link_libraries(test_c26_render_conventions PRIVATE EterLib EterBase doctest)
 add_test(NAME RenderConventionsTest COMMAND test_c26_render_conventions)
 
+add_executable(test_c26_map_outdoor_helpers test_c26_map_outdoor_helpers.cpp)
+target_include_directories(test_c26_map_outdoor_helpers PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_map_outdoor_helpers PRIVATE
+    GameLib
+    SphereLib
+    DirectX
+    doctest
+)
+add_test(NAME MapOutdoorHelpersTest COMMAND test_c26_map_outdoor_helpers)
+
 
 
 
