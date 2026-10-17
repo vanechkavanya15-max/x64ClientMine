@@ -150,6 +150,24 @@ std::string CFontManager::ResolveFontPath(const char* faceName)
 	}
 #endif
 
+	// Fallback: If requested font was not found (e.g. Korean gulim on non-Korean Windows),
+	// fall back to standard system fonts (tahoma -> arial -> segoeui)
+#ifdef _WIN32
+	if (!s_fontsDir.empty())
+	{
+		const char* fallbackFonts[] = { "tahoma.ttf", "arial.ttf", "segoeui.ttf" };
+		for (const char* fb : fallbackFonts)
+		{
+			std::string fallbackPath = s_fontsDir + fb;
+			if (FileExists(fallbackPath))
+			{
+				TraceError("CFontManager::ResolveFontPath - Font '%s' not found, falling back to '%s'", faceName, fallbackPath.c_str());
+				return fallbackPath;
+			}
+		}
+	}
+#endif
+
 	TraceError("CFontManager::ResolveFontPath - Could not find font: %s", faceName);
 	return "";
 }

@@ -276,16 +276,16 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 			return NULL;
 	}
 
-	if (FT_Load_Glyph(m_ftFace, glyphIndex, FT_LOAD_TARGET_LCD) != 0)
+	if (FT_Load_Glyph(m_ftFace, glyphIndex, FT_LOAD_DEFAULT) != 0)
 		return NULL;
 
-	if (FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_LCD) != 0)
+	if (FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL) != 0)
 		return NULL;
 
 	FT_GlyphSlot slot = m_ftFace->glyph;
 	FT_Bitmap& bitmap = slot->bitmap;
 
-	int glyphBitmapWidth = bitmap.width / 3;  // LCD bitmap is 3x wider (R,G,B per pixel)
+	int glyphBitmapWidth = (bitmap.pixel_mode == FT_PIXEL_MODE_LCD) ? (bitmap.width / 3) : bitmap.width;
 	int glyphBitmapHeight = bitmap.rows;
 	int bearingX = slot->bitmap_left;
 	int bearingY = slot->bitmap_top;
@@ -346,7 +346,7 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 		}
 	}
 
-	// Copy LCD subpixel FreeType bitmap into atlas buffer (R,G,B per-channel coverage)
+	// Copy FreeType glyph bitmap into atlas buffer (A8R8G8B8: Alpha = coverage, RGB = 0xFFFFFF for pure modulation)
 	for (int row = 0; row < glyphBitmapHeight; ++row)
 	{
 		int atlasY = m_y + yOffset + row;
@@ -356,17 +356,40 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 		unsigned char* srcRow = bitmap.buffer + row * bitmap.pitch;
 		DWORD* dstRow = m_pAtlasBuffer + atlasY * m_atlasWidth + m_x;
 
-		for (int col = 0; col < glyphBitmapWidth; ++col)
+		if (bitmap.pixel_mode == FT_PIXEL_MODE_LCD)
 		{
-			unsigned char r = srcRow[col * 3 + 0];
-			unsigned char g = srcRow[col * 3 + 1];
-			unsigned char b = srcRow[col * 3 + 2];
-			if (r | g | b)
+			for (int col = 0; col < glyphBitmapWidth; ++col)
 			{
+				unsigned char r = srcRow[col * 3 + 0];
+				unsigned char g = srcRow[col * 3 + 1];
+				unsigned char b = srcRow[col * 3 + 2];
 				unsigned char a = (r > g) ? r : g;
 				if (b > a) a = b;
-				// A8R8G8B8: A=max_coverage, R=r_cov, G=g_cov, B=b_cov
-				dstRow[col] = ((DWORD)a << 24) | ((DWORD)r << 16) | ((DWORD)g << 8) | (DWORD)b;
+				if (a > 0)
+				{
+					dstRow[col] = ((DWORD)a << 24) | 0x00FFFFFF;
+				}
+			}
+		}
+		else if (bitmap.pixel_mode == FT_PIXEL_MODE_MONO)
+		{
+			for (int col = 0; col < glyphBitmapWidth; ++col)
+			{
+				if (srcRow[col >> 3] & (0x80 >> (col & 7)))
+				{
+					dstRow[col] = 0xFFFFFFFF;
+				}
+			}
+		}
+		else // FT_PIXEL_MODE_GRAY (default)
+		{
+			for (int col = 0; col < glyphBitmapWidth; ++col)
+			{
+				unsigned char a = srcRow[col];
+				if (a > 0)
+				{
+					dstRow[col] = ((DWORD)a << 24) | 0x00FFFFFF;
+				}
 			}
 		}
 	}

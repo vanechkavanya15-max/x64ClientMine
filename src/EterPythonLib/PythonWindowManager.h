@@ -137,6 +137,9 @@ namespace UI
 			void		RunPressEscapeKey();
 			void		RunPressExitKey();
 
+			void		SetDefaultFontName(const char* c_szFontName);
+			const std::string& GetDefaultFontName() const;
+
 		private:
 			void		SetMousePosition(long x, long y);
 			CWindow *	__PickWindow(long x, long y);
@@ -183,6 +186,7 @@ namespace UI
 			CWindow *							m_pRootWindow;
 			TWindowContainer					m_LayerWindowList;
 			TLayerContainer						m_LayerWindowMap;
+			std::string							m_strDefaultFontName;
 	};
 
 	PyObject * BuildEmptyTuple();

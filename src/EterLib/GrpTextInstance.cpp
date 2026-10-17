@@ -569,12 +569,21 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 	for (auto& pair : s_mainBatches)
 		pair.second.clear();
 
+	STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 	STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 	STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	STATEMANAGER.SaveRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
 	DWORD dwFogEnable = STATEMANAGER.GetRenderState(D3DRS_FOGENABLE);
 	DWORD dwLighting = STATEMANAGER.GetRenderState(D3DRS_LIGHTING);
 	STATEMANAGER.SetRenderState(D3DRS_FOGENABLE, FALSE);
 	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
+	STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	STATEMANAGER.SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
 	STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
@@ -583,10 +592,6 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1,	D3DTA_TEXTURE);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2,	D3DTA_DIFFUSE);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP,	D3DTOP_MODULATE);
-
-	// LCD subpixel rendering: mask alpha writes to prevent corruption during two-pass blending
-	STATEMANAGER.SaveRenderState(D3DRS_COLORWRITEENABLE,
-		D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE);
 
 	{
 		const float fFontHalfWeight=1.0f;
@@ -908,46 +913,21 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 		}
 	}
 
-	// LCD subpixel two-pass rendering: correct per-channel alpha blending
-	auto DrawBatchLCD = [](const std::unordered_map<LPDIRECT3DTEXTURE9, std::vector<SVertex>>& batches, bool skipPass2) {
+	// Single-pass standard alpha blending: optimal for both D3D9 and WGPU
+	auto DrawBatch = [](const std::unordered_map<LPDIRECT3DTEXTURE9, std::vector<SVertex>>& batches) {
 		for (const auto& [pTexture, vtxBatch] : batches) {
 			if (vtxBatch.empty())
 				continue;
 
 			STATEMANAGER.SetTexture(0, pTexture);
-
-			// Pass 1: dest.rgb *= (1 - coverage.rgb)
-			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
-			STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCCOLOR);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-			STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 			STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLELIST,
 				vtxBatch.size() / 3, vtxBatch.data(), sizeof(SVertex));
-
-			if (!skipPass2) {
-				// Pass 2: dest.rgb += textColor.rgb * coverage.rgb
-				STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-				STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
-				STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-				STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-				STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-				STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-				STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-				STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-				STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLELIST,
-					vtxBatch.size() / 3, vtxBatch.data(), sizeof(SVertex));
-			}
 		}
 	};
 
-	// Draw outline batches first (skip Pass 2 for black outlines — MODULATE with black = 0)
-	bool outlineIsBlack = ((m_dwOutLineColor & 0x00FFFFFF) == 0);
-	DrawBatchLCD(s_outlineBatches, outlineIsBlack);
-
-	// Draw main text batches (always both passes)
-	DrawBatchLCD(s_mainBatches, false);
+	// Draw outline batches first, then main text batches
+	DrawBatch(s_outlineBatches);
+	DrawBatch(s_mainBatches);
 
 	if (m_isCursor)
 	{
@@ -1055,9 +1035,11 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 		}
 	}
 
-	STATEMANAGER.RestoreRenderState(D3DRS_COLORWRITEENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+	STATEMANAGER.RestoreRenderState(D3DRS_ZENABLE);
 	STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+	STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
 
 	STATEMANAGER.SetRenderState(D3DRS_FOGENABLE, dwFogEnable);
 	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, dwLighting);
