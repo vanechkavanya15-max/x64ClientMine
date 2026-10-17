@@ -4,6 +4,7 @@
 
 #include "EterLib/StateManager.h"
 #include "EterLib/RenderOwnership.h"
+#include "EterGrnLib/LODController.h"
 
 void CDungeonModelInstance::RenderDungeonBlock()
 {
@@ -74,6 +75,12 @@ void CDungeonBlock::Update()
 {
 	Transform();
 
+	if (m_pLODController)
+	{
+		m_pLODController->DeformNoSkin(&m_worldMatrix);
+		return;
+	}
+
 	FUpdate Update;
 	Update.fElapsedTime = 0.0f;
 	Update.pmatWorld = &m_worldMatrix;
@@ -90,8 +97,19 @@ struct FRender
 
 void CDungeonBlock::Render()
 {
-//	if (!isShow())
-//		return;
+	if (!isShow())
+		return;
+
+	if (m_pLODController)
+	{
+		CDungeonBlockRenderExtractor::ExtractAndSubmit(m_pLODController, &m_worldMatrix);
+		if (RenderOwnership::LegacyDraws(ERenderCategory::Dungeon))
+		{
+			m_pLODController->RenderGltfModel(EModelPass::Opaque);
+			m_pLODController->RenderGltfModel(EModelPass::Blend);
+		}
+		return;
+	}
 
 	for_each(m_ModelInstanceContainer.begin(), m_ModelInstanceContainer.end(), FRender());
 }
@@ -106,6 +124,18 @@ struct FRenderShadow
 
 void CDungeonBlock::OnRenderShadow()
 {
+	if (!isShow())
+		return;
+
+	if (m_pLODController)
+	{
+		if (RenderOwnership::LegacyDraws(ERenderCategory::Dungeon))
+		{
+			m_pLODController->RenderGltfModel(EModelPass::ShadowDepth);
+		}
+		return;
+	}
+
 	for_each(m_ModelInstanceContainer.begin(), m_ModelInstanceContainer.end(), FRenderShadow());
 }
 
@@ -158,6 +188,16 @@ bool CDungeonBlock::OnGetObjectHeight(float fX, float fY, float * pfHeight)
 
 void CDungeonBlock::BuildBoundingSphere()
 {
+	if (m_pLODController)
+	{
+		D3DXVECTOR3 v3Min, v3Max;
+		GetBoundBox(&v3Min, &v3Max);
+		m_v3Center = (v3Min + v3Max) * 0.5f;
+		const auto vv = (v3Max - v3Min);
+		m_fRadius = D3DXVec3Length(&vv) * 0.5f + 150.0f;
+		return;
+	}
+
 	if (m_ModelInstanceContainer.empty())
 	{
 		m_v3Center = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
@@ -175,6 +215,11 @@ void CDungeonBlock::BuildBoundingSphere()
 
 bool CDungeonBlock::Intersect(float * pfu, float * pfv, float * pft)
 {
+	if (m_pLODController)
+	{
+		return m_pLODController->Intersect(&CGraphicObjectInstance::GetTransform(), pfu, pfv, pft);
+	}
+
 	TModelInstanceContainer::iterator itor = m_ModelInstanceContainer.begin();
 	for (; itor != m_ModelInstanceContainer.end(); ++itor)
 	{
@@ -188,6 +233,12 @@ bool CDungeonBlock::Intersect(float * pfu, float * pfv, float * pft)
 
 void CDungeonBlock::GetBoundBox(D3DXVECTOR3 * pv3Min, D3DXVECTOR3 * pv3Max)
 {
+	if (m_pLODController)
+	{
+		m_pLODController->GetBoundBox(pv3Min, pv3Max);
+		return;
+	}
+
 	if (m_ModelInstanceContainer.empty())
 	{
 		*pv3Min = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
@@ -225,10 +276,16 @@ bool CDungeonBlock::Load(const char * c_szFileName)
 	Destroy();
 
 	m_pThing = (CGraphicThing *)CResourceManager::Instance().GetResourcePointer(c_szFileName);
+	if (!m_pThing)
+		return false;
 
 	m_pThing->AddReference();
 	if (m_pThing->IsGltf())
 	{
+		m_pLODController = new CGrannyLODController;
+		m_pLODController->AddModel(m_pThing, 0);
+		m_pLODController->InitGltfMaterials();
+		BuildBoundingSphere();
 		return true;
 	}
 
@@ -263,6 +320,7 @@ void CDungeonBlock::__Initialize()
 	m_fRadius = 0.0f;
 
 	m_pThing = NULL;
+	m_pLODController = NULL;
 }
 
 void CDungeonBlock::Destroy()
@@ -271,6 +329,12 @@ void CDungeonBlock::Destroy()
 	{
 		m_pThing->Release();
 		m_pThing = NULL;
+	}
+
+	if (m_pLODController)
+	{
+		delete m_pLODController;
+		m_pLODController = NULL;
 	}
 
 	stl_wipe(m_ModelInstanceContainer);

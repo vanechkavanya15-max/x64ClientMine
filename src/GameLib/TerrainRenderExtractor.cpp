@@ -108,7 +108,7 @@ bool CTerrainRenderExtractor::ExtractPatch(
 	outPacket.pShadowTexture = static_cast<void*>(pTerrain->GetShadowTexture());
 	outPacket.pChrShadowTexture = static_cast<void*>(pMapOutdoor->m_lpCharacterShadowMapTexture);
 	outPacket.bHasWater = pProxy->isWaterExists();
-	outPacket.fWaterHeight = pProxy->GetWaterHeight();
+	outPacket.fWaterHeight = 0.0f;
 
 	// Macierze HTP transformacji
 	D3DXMATRIX matWorldCommon = pMapOutdoor->m_matWorldForCommonUse;

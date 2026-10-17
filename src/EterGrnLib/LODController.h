@@ -283,13 +283,16 @@ class CGrannyLODController : public CGraphicCollisionObject
 		void					SetModelID(DWORD dwID) { m_dwModelID = dwID; }
 		DWORD					GetModelID() const { return m_dwModelID; }
 
+		bool					EnsureGltfStaticGpuBuffers();
+		LPDIRECT3DVERTEXBUFFER9 GetGltfStaticVertexBuffer() const { return m_pGltfStaticVB; }
+		LPDIRECT3DINDEXBUFFER9  GetGltfStaticIndexBuffer() const { return m_pGltfStaticIB; }
+
 		static void				RegisterLODController(uint32_t modelId, CGrannyLODController* pController);
 		static void				UnregisterLODController(uint32_t modelId);
 		static CGrannyLODController* GetLODController(uint32_t modelId);
 		static CGrannyLODController* GetCurrentActiveController();
 
 	protected:
-		bool	EnsureGltfStaticGpuBuffers();
 		void	ReleaseGltfStaticGpuBuffers();
 		void	SetCurrentModelInstance(CGrannyModelInstance * pgrnModelInstance);
 		void	RefreshAttachedModelInstance();

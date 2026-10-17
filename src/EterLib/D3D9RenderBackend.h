@@ -67,6 +67,7 @@ private:
 	std::unique_ptr<EterLib::Render::TerrainShaderPipeline> m_pTerrainPipeline;
 	LPDIRECT3DVERTEXDECLARATION9 m_pUIVertexDecl{ nullptr };
 	LPDIRECT3DVERTEXDECLARATION9 m_pDungeonVertexDecl{ nullptr };
+	LPDIRECT3DVERTEXDECLARATION9 m_pDungeonGltfVertexDecl{ nullptr };
 
 	std::vector<TUIVertex> m_particleVertices;
 	std::vector<uint16_t> m_sharedEffectIndices;
