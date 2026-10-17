@@ -6428,4 +6428,14 @@ target_include_directories(test_c26_ui_scissor PRIVATE
 target_link_libraries(test_c26_ui_scissor PRIVATE EterLib EterBase DirectX ws2_32 doctest)
 add_test(NAME UIScissorTest COMMAND test_c26_ui_scissor)
 
+add_executable(test_c26_render_bypass_guard test_c26_render_bypass_guard.cpp)
+target_include_directories(test_c26_render_bypass_guard PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_render_bypass_guard PRIVATE EterLib EterBase doctest)
+add_test(NAME RenderBypassGuardTest COMMAND test_c26_render_bypass_guard)
+
+
 

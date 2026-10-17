@@ -35,6 +35,9 @@ enum class ERenderOwner
 class RenderOwnership
 {
 public:
+	using ERenderCategory = ::ERenderCategory;
+	using ERenderOwner = ::ERenderOwner;
+
 	static bool LegacyDraws(ERenderCategory cat);
 	static ERenderOwner Owner(ERenderCategory cat);
 	static void SetOwner(ERenderCategory cat, ERenderOwner owner);
