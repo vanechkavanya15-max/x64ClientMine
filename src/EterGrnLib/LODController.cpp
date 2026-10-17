@@ -143,6 +143,51 @@ void CGrannyLODController::SetSpecularInfo(const char* c_szMtrlName, BOOL bEnabl
 	}
 }
 
+static std::map<uint32_t, CGrannyLODController*> s_activeLODControllers;
+static CGrannyLODController* s_pCurrentActiveController = nullptr;
+
+void CGrannyLODController::RegisterLODController(uint32_t modelId, CGrannyLODController* pController)
+{
+	if (modelId != 0 && pController)
+	{
+		s_activeLODControllers[modelId] = pController;
+		pController->m_dwModelID = modelId;
+	}
+}
+
+void CGrannyLODController::UnregisterLODController(uint32_t modelId)
+{
+	if (modelId != 0)
+	{
+		s_activeLODControllers.erase(modelId);
+	}
+}
+
+CGrannyLODController* CGrannyLODController::GetLODController(uint32_t modelId)
+{
+	auto it = s_activeLODControllers.find(modelId);
+	if (it != s_activeLODControllers.end())
+		return it->second;
+	return nullptr;
+}
+
+CGrannyLODController* CGrannyLODController::GetCurrentActiveController()
+{
+	return s_pCurrentActiveController;
+}
+
+void ExecuteModelDrawItemD3D9(const TModelDrawItem& item)
+{
+	CGrannyLODController* pController = CGrannyLODController::GetLODController(item.modelId);
+	if (!pController)
+		pController = CGrannyLODController::GetCurrentActiveController();
+
+	if (pController)
+	{
+		pController->ExecuteModelDrawItemD3D9(item);
+	}
+}
+
 CGrannyLODController::CGrannyLODController() : 
 	m_pCurrentModelInstance(NULL),
 	m_bLODLevel(0),
@@ -151,6 +196,7 @@ CGrannyLODController::CGrannyLODController() :
 	m_fLODDistance(0.0f),
 	m_dwLODAniFPS(CGrannyModelInstance::ANIFPS_MAX),
 	m_pkSharedDeformableVertexBuffer(NULL),
+	m_dwModelID(0),
 	m_pGltfModelInstance(NULL),
 	m_pGltfStaticVB(NULL),
 	m_pGltfStaticIB(NULL),
@@ -171,6 +217,15 @@ CGrannyLODController::~CGrannyLODController()
 	{
 		delete m_pGltfModelInstance;
 		m_pGltfModelInstance = NULL;
+	}
+
+	if (m_dwModelID != 0)
+	{
+		UnregisterLODController(m_dwModelID);
+	}
+	if (s_pCurrentActiveController == this)
+	{
+		s_pCurrentActiveController = nullptr;
 	}
 }
 
@@ -482,7 +537,7 @@ void CGrannyLODController::RenderWithOneTexture()
 	{
 		if (m_pGltfModelInstance)
 		{
-			RenderGltfModel();
+			RenderGltfModel(EModelPass::Opaque);
 			return;
 		}
 
@@ -500,7 +555,7 @@ void CGrannyLODController::BlendRenderWithOneTexture()
 		if (m_pGltfModelInstance)
 		{
 			if (HaveBlendThing())
-				RenderGltfModel();
+				RenderGltfModel(EModelPass::Blend);
 			return;
 		}
 
@@ -517,7 +572,7 @@ void CGrannyLODController::RenderWithTwoTexture()
 	{
 		if (m_pGltfModelInstance)
 		{
-			RenderGltfModel();
+			RenderGltfModel(EModelPass::Opaque);
 			return;
 		}
 
@@ -535,7 +590,7 @@ void CGrannyLODController::BlendRenderWithTwoTexture()
 		if (m_pGltfModelInstance)
 		{
 			if (HaveBlendThing())
-				RenderGltfModel();
+				RenderGltfModel(EModelPass::Blend);
 			return;
 		}
 
@@ -549,7 +604,18 @@ void CGrannyLODController::BlendRenderWithTwoTexture()
 bool CGrannyLODController::HaveBlendThing()
 {
 	if (m_pGltfModelInstance)
+	{
+		if (!m_gltfMaterials.empty())
+		{
+			for (const auto& matState : m_gltfMaterials)
+			{
+				if (matState.isBlend)
+					return true;
+			}
+			return false;
+		}
 		return m_pGltfModelInstance->HaveBlendThing();
+	}
 	return (0 != GetModelInstance()) ? GetModelInstance()->HaveBlendThing() : false;
 }
 
@@ -783,7 +849,7 @@ void CGrannyLODController::RenderToShadowMap()
 	{
 		if (m_pGltfModelInstance)
 		{
-			RenderGltfModel();
+			RenderGltfModel(EModelPass::ShadowDepth);
 			return;
 		}
 
@@ -798,7 +864,7 @@ void CGrannyLODController::RenderShadow()
 	{
 		if (m_pGltfModelInstance)
 		{
-			RenderGltfModel();
+			RenderGltfModel(EModelPass::ShadowDepth);
 			return;
 		}
 
@@ -1060,6 +1126,14 @@ void CGrannyLODController::InitGltfMaterials()
 	const GltfModelData& modelData = pModel->GetModelData();
 	m_gltfMaterials.resize(modelData.materials.size());
 
+	// Klasyfikacja isBlend oraz isTwoSided raz dla wszystkich materialow glTF
+	for (size_t i = 0; i < modelData.materials.size(); ++i)
+	{
+		const GltfMaterial& mat = modelData.materials[i];
+		m_gltfMaterials[i].isTwoSided = mat.doubleSided;
+		m_gltfMaterials[i].isBlend = (!mat.opacityTexture.empty() || (!mat.name.empty() && !_strnicmp(mat.name.c_str(), "blend", 5)));
+	}
+
 	std::string localPath;
 	if (!pModel->GetName().empty())
 	{
@@ -1249,7 +1323,7 @@ bool CGrannyLODController::EnsureGltfStaticGpuBuffers()
 	return true;
 }
 
-void CGrannyLODController::RenderGltfModel()
+void CGrannyLODController::RenderGltfModel(EModelPass pass)
 {
 	if (!m_pGltfModelInstance)
 		return;
@@ -1269,6 +1343,8 @@ void CGrannyLODController::RenderGltfModel()
 	{
 		InitGltfMaterials();
 	}
+
+	s_pCurrentActiveController = this;
 
 	auto& pipeline = EterLib::Render::ActorSkinningPipeline::Instance();
 	if (!pipeline.IsInitialized() && ms_lpd3dDevice)
@@ -1309,79 +1385,155 @@ void CGrannyLODController::RenderGltfModel()
 
 		bool isBlend = false;
 		bool isTwoSided = false;
-		LPDIRECT3DTEXTURE9 pD3DTexture = NULL;
 
-		if (submesh.materialIndex >= 0 && submesh.materialIndex < (int)modelData.materials.size())
+		if (submesh.materialIndex >= 0 && submesh.materialIndex < (int)m_gltfMaterials.size())
 		{
-			const GltfMaterial& mat = modelData.materials[submesh.materialIndex];
-			if (mat.doubleSided)
-				isTwoSided = true;
-
-			if (!mat.opacityTexture.empty() || (!mat.name.empty() && !_strnicmp(mat.name.c_str(), "blend", 5)))
-				isBlend = true;
-
-			if (submesh.materialIndex < (int)m_gltfMaterials.size())
-			{
-				const SGltfMaterialState& state = m_gltfMaterials[submesh.materialIndex];
-				if (!state.roDiffuseImage.IsNull())
-				{
-					CGraphicImage* pImg = state.roDiffuseImage.GetPointer();
-					if (pImg && !pImg->IsEmpty() && pImg->GetTexturePointer())
-					{
-						pD3DTexture = pImg->GetTexturePointer()->GetD3DTexture();
-					}
-				}
-			}
+			const SGltfMaterialState& state = m_gltfMaterials[submesh.materialIndex];
+			isBlend = state.isBlend;
+			isTwoSided = state.isTwoSided;
 		}
 
-		if (isTwoSided)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-		}
-		else
-		{
-			STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-		}
+		// Filtr submeshy per pass (wg DEC-4: eliminacja podwojnego rysowania opaque submeshy)
+		if (pass == EModelPass::Opaque && isBlend)
+			continue;
+		if (pass == EModelPass::Blend && !isBlend)
+			continue;
 
-		if (isBlend)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-			STATEMANAGER.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-			STATEMANAGER.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-			STATEMANAGER.SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-			STATEMANAGER.SetRenderState(D3DRS_ALPHAREF, 0x01);
-			STATEMANAGER.SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
-		}
-		else
-		{
-			STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-			STATEMANAGER.SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-		}
+		TModelDrawItem item{};
+		item.modelId = m_dwModelID;
+		item.submeshIndex = static_cast<uint32_t>(s);
+		item.pass = pass;
+		item.matWorld = ToAbi(m_matWorld);
+		item.bTwoSided = isTwoSided ? 1 : 0;
+		item.fAlpha = 1.0f;
+		item.materialColor = 0xffffffff;
 
-		STATEMANAGER.SetTexture(0, pD3DTexture);
-		STATEMANAGER.SetTexture(1, NULL);
-
-		UINT minVertexIndex = submesh.vertexOffset;
-		UINT numVertices = submesh.vertexCount > 0 ? submesh.vertexCount : (UINT)m_dwGltfStaticVertexCount;
-
-		STATEMANAGER.DrawIndexedPrimitive(
-			D3DPT_TRIANGLELIST,
-			minVertexIndex,
-			numVertices,
-			submesh.indexOffset,
-			primitiveCount
-		);
+		ExecuteModelDrawItemD3D9(item);
 	}
 
 	if (bUsingShader)
 	{
 		pipeline.End();
 	}
+}
 
-	// Przywrocenie domyslnych stanow D3D9 po zakonczeniu renderowania glTF
-	STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-	STATEMANAGER.SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-	STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-	STATEMANAGER.SetTexture(0, NULL);
-	STATEMANAGER.SetTexture(1, NULL);
+void CGrannyLODController::ExecuteModelDrawItemD3D9(const TModelDrawItem& item)
+{
+	if (!m_pGltfModelInstance)
+		return;
+
+	const EterModelLib::CGltfModel* pModel = m_pGltfModelInstance->GetModel();
+	if (!pModel || !pModel->IsLoaded())
+		return;
+
+	const GltfModelData& modelData = pModel->GetModelData();
+	if (item.submeshIndex >= modelData.submeshes.size())
+		return;
+
+	const GltfSubmesh& submesh = modelData.submeshes[item.submeshIndex];
+	if (submesh.indexCount == 0)
+		return;
+
+	UINT primitiveCount = submesh.indexCount / 3;
+	if (primitiveCount == 0 || (submesh.indexOffset + submesh.indexCount) > modelData.indices.size())
+		return;
+
+	EnsureGltfStaticGpuBuffers();
+	if (m_pGltfStaticVB && m_pGltfStaticIB)
+	{
+		STATEMANAGER.SetStreamSource(0, m_pGltfStaticVB, sizeof(EterLib::Render::GpuSkinnedVertex));
+		STATEMANAGER.SetIndices(m_pGltfStaticIB, 0);
+	}
+
+	LPDIRECT3DTEXTURE9 pD3DTexture = NULL;
+	if (submesh.materialIndex >= 0 && submesh.materialIndex < (int)m_gltfMaterials.size())
+	{
+		const SGltfMaterialState& state = m_gltfMaterials[submesh.materialIndex];
+		if (!state.roDiffuseImage.IsNull())
+		{
+			CGraphicImage* pImg = state.roDiffuseImage.GetPointer();
+			if (pImg && !pImg->IsEmpty() && pImg->GetTexturePointer())
+			{
+				pD3DTexture = pImg->GetTexturePointer()->GetD3DTexture();
+			}
+		}
+	}
+
+	// 1. Izolacja stanu cull mode (zachowanie i przywrocenie stanu wolajacego)
+	if (item.bTwoSided)
+	{
+		STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	}
+	else
+	{
+		STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+	}
+
+	// 2. Izolacja stanow specyficznych dla passu
+	const EModelPass pass = item.pass;
+	if (pass == EModelPass::Blend)
+	{
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		STATEMANAGER.SaveRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		STATEMANAGER.SaveRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x01);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+	}
+	else if (pass == EModelPass::ShadowDepth)
+	{
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_ZWRITEENABLE, TRUE);
+	}
+	else // EModelPass::Opaque
+	{
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+	}
+
+	// 3. Izolacja tekstur
+	STATEMANAGER.SaveTexture(0, pD3DTexture);
+	STATEMANAGER.SaveTexture(1, NULL);
+
+	// 4. Rysowanie prymitywow
+	UINT minVertexIndex = submesh.vertexOffset;
+	UINT numVertices = submesh.vertexCount > 0 ? submesh.vertexCount : (UINT)m_dwGltfStaticVertexCount;
+
+	STATEMANAGER.DrawIndexedPrimitive(
+		D3DPT_TRIANGLELIST,
+		minVertexIndex,
+		numVertices,
+		submesh.indexOffset,
+		primitiveCount
+	);
+
+	// 5. Przywrocenie tekstur
+	STATEMANAGER.RestoreTexture(1);
+	STATEMANAGER.RestoreTexture(0);
+
+	// 6. Przywrocenie stanow passu
+	if (pass == EModelPass::Blend)
+	{
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_DESTBLEND);
+		STATEMANAGER.RestoreRenderState(D3DRS_SRCBLEND);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	}
+	else if (pass == EModelPass::ShadowDepth)
+	{
+		STATEMANAGER.RestoreRenderState(D3DRS_ZWRITEENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	}
+	else // Opaque
+	{
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+		STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+	}
+
+	// 7. Przywrocenie stanu cull mode
+	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
 }

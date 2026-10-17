@@ -5,6 +5,7 @@
 #include <deque>
 #include "Thing.h"
 #include "ModelInstance.h"
+#include "ModelDrawItem.h"
 #include "Eterlib/GrpCollisionObject.h"
 #include "EterModelLib/GltfTypes.h"
 
@@ -276,9 +277,18 @@ class CGrannyLODController : public CGraphicCollisionObject
 
 		CGrannyLODController *	GetAttachedParentModel() const { return m_pAttachedParentModel; }
 
+		void					RenderGltfModel(EModelPass pass = EModelPass::Opaque);
+		void					ExecuteModelDrawItemD3D9(const TModelDrawItem& item);
+		void					InitGltfMaterials();
+		void					SetModelID(DWORD dwID) { m_dwModelID = dwID; }
+		DWORD					GetModelID() const { return m_dwModelID; }
+
+		static void				RegisterLODController(uint32_t modelId, CGrannyLODController* pController);
+		static void				UnregisterLODController(uint32_t modelId);
+		static CGrannyLODController* GetLODController(uint32_t modelId);
+		static CGrannyLODController* GetCurrentActiveController();
+
 	protected:
-		void	RenderGltfModel();
-		void	InitGltfMaterials();
 		bool	EnsureGltfStaticGpuBuffers();
 		void	ReleaseGltfStaticGpuBuffers();
 		void	SetCurrentModelInstance(CGrannyModelInstance * pgrnModelInstance);
@@ -312,6 +322,7 @@ class CGrannyLODController : public CGraphicCollisionObject
 		CGraphicVertexBuffer*	m_pkSharedDeformableVertexBuffer;
 		// END_OF_WORK
 
+		DWORD								m_dwModelID;
 		EterModelLib::CGltfModelInstance *	m_pGltfModelInstance;
 		D3DXMATRIX							m_matWorld;
 		LPDIRECT3DVERTEXBUFFER9				m_pGltfStaticVB;
@@ -319,10 +330,16 @@ class CGrannyLODController : public CGraphicCollisionObject
 		DWORD								m_dwGltfStaticVertexCount;
 		DWORD								m_dwGltfStaticIndexCount;
 
+	public:
 		struct SGltfMaterialState
 		{
 			CGraphicImage::TRef roDiffuseImage;
 			CGraphicImage::TRef roOpacityImage;
+			bool isBlend{ false };
+			bool isTwoSided{ false };
 		};
+		const std::vector<SGltfMaterialState>& GetGltfMaterialStates() const { return m_gltfMaterials; }
+
+	protected:
 		std::vector<SGltfMaterialState>		m_gltfMaterials;
 };

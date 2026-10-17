@@ -211,7 +211,6 @@ void CRenderQueueManager::SubmitDebugLines(const TDebugLinePacket* pPackets, siz
 	m_debugLinePackets.insert(m_debugLinePackets.end(), pPackets, pPackets + count);
 }
 
-
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
 	if (!pBackend)
