@@ -69,6 +69,8 @@ void CPythonMiniMap::Update(float fCenterX, float fCenterY)
 	if (m_fCenterX != fCenterX || m_fCenterY != fCenterY )
 		SetCenterPosition(fCenterX, fCenterY);
 
+	__SetPosition();
+
 	// 캐릭터 리스트 갱신
 	m_OtherPCPositionVector.clear();
 	m_PartyPCPositionVector.clear();
@@ -216,7 +218,6 @@ void CPythonMiniMap::Render(float fScreenX, float fScreenY)
 	{
 		m_fScreenX = fScreenX;
 		m_fScreenY = fScreenY;
-		__SetPosition();
 	}
 
 	STATEMANAGER.SaveSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_POINT);

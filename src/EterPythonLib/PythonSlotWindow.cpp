@@ -1097,8 +1097,59 @@ void CSlotWindow::OnUpdate()
 	for (TSlotListIterator itor = m_SlotList.begin(); itor != m_SlotList.end(); ++itor)
 	{
 		TSlot & rSlot = *itor;
+
+		if (rSlot.pSlotButton)
+		{
+			rSlot.pSlotButton->SetPosition(rSlot.ixPosition + 1, rSlot.iyPosition + 19);
+		}
+		if (rSlot.pSignImage)
+		{
+			rSlot.pSignImage->SetPosition(rSlot.ixPosition - 7, rSlot.iyPosition + 10);
+		}
+		if (rSlot.pCoverButton)
+		{
+			rSlot.pCoverButton->SetPosition(rSlot.ixPosition, rSlot.iyPosition);
+		}
+
+		if (rSlot.pNumberLine)
+		{
+			int ix = rSlot.byxPlacedItemSize * ITEM_WIDTH + rSlot.ixPosition - 4;
+			int iy = rSlot.iyPosition + rSlot.byyPlacedItemSize * ITEM_HEIGHT - 12 + 2;
+			rSlot.pNumberLine->SetPosition(ix, iy);
+			rSlot.pNumberLine->Update();
+		}
+
 		if (rSlot.pFinishCoolTimeEffect)
+		{
+			rSlot.pFinishCoolTimeEffect->SetPosition(rSlot.ixPosition, rSlot.iyPosition);
 			rSlot.pFinishCoolTimeEffect->Update();
+		}
+
+		if (!rSlot.isItem)
+		{
+			if (IS_SET(rSlot.dwState, SLOT_STATE_ALWAYS_RENDER_COVER))
+			{
+				if (rSlot.pCoverButton)
+				{
+					rSlot.pCoverButton->Show();
+				}
+			}
+			continue;
+		}
+
+		if (rSlot.fCoolTime != 0.0f)
+		{
+			float fcurTime = CTimer::Instance().GetCurrentSecond();
+			if (fcurTime - rSlot.fStartCoolTime >= rSlot.fCoolTime)
+			{
+				// 쿨타임이 끝난지 1초 이내라면..
+				if ((fcurTime - rSlot.fStartCoolTime) - rSlot.fCoolTime < 1.0f)
+					__CreateFinishCoolTimeEffect(&rSlot);
+
+				rSlot.fCoolTime = 0.0f;
+				rSlot.fStartCoolTime = 0.0f;
+			}
+		}
 	}
 
 	if (m_pSlotActiveEffect)
@@ -1160,15 +1211,6 @@ void CSlotWindow::OnRender()
 	{
 		TSlot & rSlot = *itor;
 
-		if (rSlot.pSlotButton)
-		{
-			rSlot.pSlotButton->SetPosition(rSlot.ixPosition + 1, rSlot.iyPosition + 19);
-		}
-		if (rSlot.pSignImage)
-		{
-			rSlot.pSignImage->SetPosition(rSlot.ixPosition - 7, rSlot.iyPosition + 10);
-		}
-
 		if (rSlot.pInstance)
 		{
 			rSlot.pInstance->SetPosition(m_rect.left + rSlot.ixPosition, m_rect.top + rSlot.iyPosition);
@@ -1184,8 +1226,6 @@ void CSlotWindow::OnRender()
 			{
 				if (rSlot.pCoverButton)
 				{
-					rSlot.pCoverButton->Show();
-					rSlot.pCoverButton->SetPosition(rSlot.ixPosition, rSlot.iyPosition);
 					rSlot.pCoverButton->RenderButton();
 				}
 			}
@@ -1208,37 +1248,20 @@ void CSlotWindow::OnRender()
 			float fcurTime = CTimer::Instance().GetCurrentSecond();
 			float fPercentage = (fcurTime - rSlot.fStartCoolTime) / rSlot.fCoolTime;
 			CPythonGraphic::Instance().RenderCoolTimeBox(m_rect.left + rSlot.ixPosition + 16.0f, m_rect.top + rSlot.iyPosition + 16.0f, 16.0f, fPercentage);
-
-			if (fcurTime - rSlot.fStartCoolTime >= rSlot.fCoolTime)
-			{
-				// 쿨타임이 끝난지 1초 이내라면..
-				if ((fcurTime - rSlot.fStartCoolTime) - rSlot.fCoolTime < 1.0f)
-					__CreateFinishCoolTimeEffect(&rSlot);
-
-				rSlot.fCoolTime = 0.0f;
-				rSlot.fStartCoolTime = 0.0f;
-			}
 		}
 
 		if (rSlot.pCoverButton)
 		{
-			rSlot.pCoverButton->SetPosition(rSlot.ixPosition, rSlot.iyPosition);
 			rSlot.pCoverButton->RenderButton();
 		}
 
 		if (rSlot.pNumberLine)
 		{
-			int ix = rSlot.byxPlacedItemSize * ITEM_WIDTH + rSlot.ixPosition - 4;
-			int iy = rSlot.iyPosition + rSlot.byyPlacedItemSize * ITEM_HEIGHT - 12 + 2;
-			rSlot.pNumberLine->SetPosition(ix, iy);
-			rSlot.pNumberLine->Update();
 			rSlot.pNumberLine->Render();
 		}
 
 		if (rSlot.pFinishCoolTimeEffect)
 		{
-			rSlot.pFinishCoolTimeEffect->SetPosition(rSlot.ixPosition, rSlot.iyPosition);
-			rSlot.pFinishCoolTimeEffect->Update();
 			rSlot.pFinishCoolTimeEffect->Render();
 		}
 

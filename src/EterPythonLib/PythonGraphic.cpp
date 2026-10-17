@@ -545,14 +545,14 @@ void CPythonGraphic::RenderCoolTimeBox(float fxCenter, float fyCenter, float fRa
 	vertex.position.z = 0.0f;
 	vertex.diffuse = color;
 	vertex.texCoord.x = 0.0f;
-	vertex.texCoord.x = 0.0f;
+	vertex.texCoord.y = 0.0f;
 	vertices.push_back(vertex);
 	vertex.position.x = fxCenter;
 	vertex.position.y = fyCenter - fRadius;
 	vertex.position.z = 0.0f;
 	vertex.diffuse = color;
 	vertex.texCoord.x = 0.0f;
-	vertex.texCoord.x = 0.0f;
+	vertex.texCoord.y = 0.0f;
 	vertices.push_back(vertex);
 
 	for (int j = 0; j < iTriCount; ++j)
