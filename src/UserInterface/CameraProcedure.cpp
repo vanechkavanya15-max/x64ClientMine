@@ -7,8 +7,6 @@
 
 extern void SetHeightLog(bool isLog);
 
-float CCamera::CAMERA_MIN_DISTANCE = 200.0f;
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
 
 void CCamera::ProcessTerrainCollision()
 {

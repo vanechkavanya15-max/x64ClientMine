@@ -6976,6 +6976,7 @@ target_link_libraries(test_c26_naming_conventions PRIVATE
 )
 add_test(NAME test_c26_naming_conventions COMMAND test_c26_naming_conventions)
 
+# --- S7.4 Render queue statistics test ---
 add_executable(test_c26_queue_stats test_c26_queue_stats.cpp)
 target_include_directories(test_c26_queue_stats PRIVATE
     ${CMAKE_SOURCE_DIR}/src
@@ -7029,5 +7030,39 @@ target_link_libraries(test_c26_cpu_copies PRIVATE
 add_test(NAME test_c26_cpu_copies COMMAND test_c26_cpu_copies)
 add_test(NAME CpuCopiesTest COMMAND test_c26_cpu_copies)
 
-
+# --- S7.5 Double buffered frame pools test ---
+add_executable(test_c26_frame_double_buffer test_c26_frame_double_buffer.cpp)
+target_include_directories(test_c26_frame_double_buffer PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_frame_double_buffer PRIVATE
+    GameLib
+    EterGrnLib
+    EterModelLib
+    EterLib
+    EterImageLib
+    PRTerrainLib
+    AudioLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EffectLib
+    EterBase
+    DirectX
+    Dbghelp
+    sodium
+    freetype
+    libzstd_static
+    lzo2
+    mio
+    ws2_32
+    doctest
+)
+add_test(NAME test_c26_frame_double_buffer COMMAND test_c26_frame_double_buffer)
+add_test(NAME FrameDoubleBufferTest COMMAND test_c26_frame_double_buffer)
 

@@ -192,8 +192,38 @@ bool CTerrainRenderExtractor::ExtractPatch(
 
 		const uint32_t numPasses = static_cast<uint32_t>(m_splatPassPool.size() - passStartIndex);
 		outPacket.dwPassCount = numPasses;
-		outPacket.pPassPackets = (numPasses > 0) ? &m_passPacketPool[passPktStartIndex] : nullptr;
-		outPacket.pPassData = (numPasses > 0) ? &m_splatPassPool[passStartIndex] : nullptr;
+		if (numPasses > 0)
+		{
+			STerrainSplatPass* pFramePasses = CRenderQueueManager::Instance().AllocateFrameData<STerrainSplatPass>(numPasses);
+			if (pFramePasses)
+			{
+				std::memcpy(pFramePasses, &m_splatPassPool[passStartIndex], numPasses * sizeof(STerrainSplatPass));
+				outPacket.pPassData = pFramePasses;
+			}
+			else
+			{
+				outPacket.pPassData = nullptr;
+			}
+
+			TTerrainPassPacket* pFramePackets = CRenderQueueManager::Instance().AllocateFrameData<TTerrainPassPacket>(numPasses);
+			if (pFramePackets)
+			{
+				std::memcpy(pFramePackets, &m_passPacketPool[passPktStartIndex], numPasses * sizeof(TTerrainPassPacket));
+				outPacket.pPassPackets = pFramePackets;
+			}
+
+			// Poniewaz w TTerrainSectorPacket pola pPassPackets i pPassData naleza do unii,
+			// a backend Direct3D9 oraz testy oczekuja wskaznika STerrainSplatPass*:
+			if (pFramePasses)
+			{
+				outPacket.pPassData = pFramePasses;
+			}
+		}
+		else
+		{
+			outPacket.pPassPackets = nullptr;
+			outPacket.pPassData = nullptr;
+		}
 		m_totalExtractedPasses += numPasses;
 	}
 
