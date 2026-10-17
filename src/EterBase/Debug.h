@@ -442,12 +442,7 @@ inline void TraceErrorOnceKeyed(
 }
 
 #define TRACE_ERROR_ONCE_KEYED(key, fmt, ...) \
-    do { \
-        static std::atomic_flag s_onceFlagKeyed = ATOMIC_FLAG_INIT; \
-        if (!s_onceFlagKeyed.test(std::memory_order_relaxed) && !s_onceFlagKeyed.test_and_set(std::memory_order_relaxed)) { \
-            TraceErrorOnceKeyed(static_cast<uint64_t>(key), ::std::source_location::current(), fmt, ##__VA_ARGS__); \
-        } \
-    } while (0)
+    TraceErrorOnceKeyed(static_cast<uint64_t>(key), ::std::source_location::current(), fmt, ##__VA_ARGS__)
 
 #define CHECK_RETURN(flag, string)          \
     if (flag)                               \
