@@ -1207,17 +1207,18 @@ BYTE CGraphicThingInstance::GetLODLevel(DWORD dwModelInstance)
 
 float CGraphicThingInstance::GetHeight()
 {
-	if (m_LODControllerVector.empty())
+	if (m_LODControllerVector.empty() || !m_LODControllerVector[0])
 		return 0.0f;
 
-	CGrannyModelInstance * pModelInstance = m_LODControllerVector[0]->GetModelInstance();
-	if (!pModelInstance)
-		return 0.0f;
+	D3DXVECTOR3 vtMin(0.0f, 0.0f, 0.0f), vtMax(0.0f, 0.0f, 0.0f);
+	if (GetBoundBox(0, &vtMin, &vtMax))
+	{
+		float fHeight = fabs(vtMin.z - vtMax.z);
+		if (fHeight > 0.0f)
+			return fHeight;
+	}
 
-	D3DXVECTOR3 vtMin, vtMax;
-	pModelInstance->GetBoundBox(&vtMin, &vtMax);
-
-	return fabs(vtMin.z - vtMax.z);
+	return 0.0f;
 }
 
 void CGraphicThingInstance::ReloadTexture()

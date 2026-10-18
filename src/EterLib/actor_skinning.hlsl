@@ -5,27 +5,27 @@
 // ============================================================================
 // Constant Register Mapping (Collision-Free):
 //   c0   - c3   : g_matViewProj    (View-Projection Matrix)
-//   c4   - c183 : g_matBones[60]   (Bone Matrix Palette, 60 * 4x3 matrices = 180 regs)
-//   c184        : g_vLightDir      (Normalized world space light direction)
-//   c185        : g_vLightDiffuse  (Light diffuse color RGBA)
-//   c186        : g_vLightAmbient  (Light ambient color RGBA)
-//   c187        : g_vMaterialColor (Actor material diffuse tint & alpha)
-//   c188        : g_vFogParams     (x = Near, y = Far, z = 1.0 / (Far - Near), w = Enable)
-//   c189 - c192 : g_matWorld       (World Transformation Matrix)
+//   c4   - c243 : g_matBones[80]   (Bone Matrix Palette, 80 * 4x3 matrices = 240 regs)
+//   c244        : g_vLightDir      (Normalized world space light direction)
+//   c245        : g_vLightDiffuse  (Light diffuse color RGBA)
+//   c246        : g_vLightAmbient  (Light ambient color RGBA)
+//   c247        : g_vMaterialColor (Actor material diffuse tint & alpha)
+//   c248        : g_vFogParams     (x = Near, y = Far, z = 1.0 / (Far - Near), w = Enable)
+//   c249 - c252 : g_matWorld       (World Transformation Matrix)
 //
 // Sampler Mapping:
 //   s0          : DiffuseTexture   (Model diffuse texture)
 // ============================================================================
 
 float4x4 g_matViewProj       : register(c0);
-float4x3 g_matBones[60]      : register(c4);   // Bone matrix palette occupying c4..c183
+float4x3 g_matBones[80]      : register(c4);   // Bone matrix palette occupying c4..c243
 
-float4   g_vLightDir         : register(c184);
-float4   g_vLightDiffuse     : register(c185);
-float4   g_vLightAmbient     : register(c186);
-float4   g_vMaterialColor    : register(c187);
-float4   g_vFogParams        : register(c188);
-float4x4 g_matWorld          : register(c189); // World matrix occupying c189..c192
+float4   g_vLightDir         : register(c244);
+float4   g_vLightDiffuse     : register(c245);
+float4   g_vLightAmbient     : register(c246);
+float4   g_vMaterialColor    : register(c247);
+float4   g_vFogParams        : register(c248);
+float4x4 g_matWorld          : register(c249); // World matrix occupying c249..c252
 
 sampler2D DiffuseTexture     : register(s0);
 
@@ -67,7 +67,7 @@ VS_OUTPUT vs_main(VS_INPUT input)
         [unroll]
         for (int i = 0; i < 4; ++i)
         {
-            int boneIdx = clamp(indices[i], 0, 59);
+            int boneIdx = clamp(indices[i], 0, 79);
             float w = weights[i];
 
             if (w > 0.0001f)

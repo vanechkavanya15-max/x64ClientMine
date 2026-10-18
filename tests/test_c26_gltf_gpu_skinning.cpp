@@ -84,32 +84,32 @@ float3 SimulateHlslVertexSkinning(
 
 } // namespace
 
-// 1. Weryfikacja bezkolizyjnego ukladu rejestrow stalych HLSL dla palety 60 kosci
+// 1. Weryfikacja bezkolizyjnego ukladu rejestrow stalych HLSL dla palety 80 kosci
 TEST_CASE("HlslConstantRegistersHaveZeroCollision")
 {
     using Consts = EterLib::Render::ActorSkinningShaderConstants;
 
-    // c0..c3: ViewProj, c4..c183: 60 bones * 3 registers, c184..c192: Light/Fog/World
+    // c0..c3: ViewProj, c4..c243: 80 bones * 3 registers, c244..c252: Light/Fog/World
     CHECK(Consts::kRegViewProj == 0u);
     CHECK(Consts::kRegBonePalette == 4u);
-    CHECK(Consts::kMaxBones == 60u);
+    CHECK(Consts::kMaxBones == 80u);
     CHECK(Consts::kRegsPerBone == 3u);
-    CHECK(Consts::kLastBoneReg == 183u);
-    CHECK(Consts::kRegLightDir == 184u);
-    CHECK(Consts::kRegLightDiffuse == 185u);
-    CHECK(Consts::kRegLightAmbient == 186u);
-    CHECK(Consts::kRegMaterialColor == 187u);
-    CHECK(Consts::kRegFogParams == 188u);
-    CHECK(Consts::kRegWorld == 189u);
+    CHECK(Consts::kLastBoneReg == 243u);
+    CHECK(Consts::kRegLightDir == 244u);
+    CHECK(Consts::kRegLightDiffuse == 245u);
+    CHECK(Consts::kRegLightAmbient == 246u);
+    CHECK(Consts::kRegMaterialColor == 247u);
+    CHECK(Consts::kRegFogParams == 248u);
+    CHECK(Consts::kRegWorld == 249u);
 
     std::string hlslSource = ReadProjectFile("src/EterLib/actor_skinning.hlsl");
     REQUIRE_FALSE(hlslSource.empty());
 
-    CHECK(hlslSource.find("float4x3 g_matBones[60]") != std::string::npos);
+    CHECK(hlslSource.find("float4x3 g_matBones[80]") != std::string::npos);
     CHECK(hlslSource.find("register(c4)") != std::string::npos);
-    CHECK(hlslSource.find("register(c184)") != std::string::npos);
-    CHECK(hlslSource.find("register(c188)") != std::string::npos);
-    CHECK(hlslSource.find("register(c189)") != std::string::npos);
+    CHECK(hlslSource.find("register(c244)") != std::string::npos);
+    CHECK(hlslSource.find("register(c248)") != std::string::npos);
+    CHECK(hlslSource.find("register(c249)") != std::string::npos);
 
     // Upewnij sie, ze stare kolidujace rejestry c61..c65 nie sa juz uzywane dla swiatla/fog
     CHECK(hlslSource.find("register(c61)") == std::string::npos);

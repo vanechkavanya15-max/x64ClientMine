@@ -13,14 +13,14 @@ namespace EterLib::Render {
 
 static const char* s_szActorSkinningShaderSrc = R"HLSL(
 float4x4 g_matViewProj       : register(c0);
-float4x3 g_matBones[60]      : register(c4);
+float4x3 g_matBones[80]      : register(c4);
 
-float4   g_vLightDir         : register(c184);
-float4   g_vLightDiffuse     : register(c185);
-float4   g_vLightAmbient     : register(c186);
-float4   g_vMaterialColor    : register(c187);
-float4   g_vFogParams        : register(c188);
-float4x4 g_matWorld          : register(c189);
+float4   g_vLightDir         : register(c244);
+float4   g_vLightDiffuse     : register(c245);
+float4   g_vLightAmbient     : register(c246);
+float4   g_vMaterialColor    : register(c247);
+float4   g_vFogParams        : register(c248);
+float4x4 g_matWorld          : register(c249);
 
 sampler2D DiffuseTexture     : register(s0);
 
@@ -60,7 +60,7 @@ VS_OUTPUT vs_main(VS_INPUT input)
         [unroll]
         for (int i = 0; i < 4; ++i)
         {
-            int boneIdx = clamp(indices[i], 0, 59);
+            int boneIdx = clamp(indices[i], 0, 79);
             float w = weights[i];
 
             if (w > 0.0001f)

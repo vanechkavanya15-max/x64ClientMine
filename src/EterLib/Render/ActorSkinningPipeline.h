@@ -9,16 +9,16 @@ namespace EterLib::Render {
 
 struct ActorSkinningShaderConstants {
     static constexpr UINT kRegViewProj      = 0;   // c0..c3     (4 regs)
-    static constexpr UINT kRegBonePalette   = 4;   // c4..c183   (60 bones * 3 regs = 180 regs)
-    static constexpr UINT kMaxBones         = 60;
+    static constexpr UINT kRegBonePalette   = 4;   // c4..c243   (80 bones * 3 regs = 240 regs)
+    static constexpr UINT kMaxBones         = 80;
     static constexpr UINT kRegsPerBone      = 3;
-    static constexpr UINT kLastBoneReg      = kRegBonePalette + (kMaxBones * kRegsPerBone) - 1; // 183
-    static constexpr UINT kRegLightDir      = 184; // c184       (1 reg)
-    static constexpr UINT kRegLightDiffuse  = 185; // c185       (1 reg)
-    static constexpr UINT kRegLightAmbient  = 186; // c186       (1 reg)
-    static constexpr UINT kRegMaterialColor = 187; // c187       (1 reg)
-    static constexpr UINT kRegFogParams     = 188; // c188       (1 reg)
-    static constexpr UINT kRegWorld         = 189; // c189..c192 (4 regs)
+    static constexpr UINT kLastBoneReg      = kRegBonePalette + (kMaxBones * kRegsPerBone) - 1; // 243
+    static constexpr UINT kRegLightDir      = 244; // c244       (1 reg)
+    static constexpr UINT kRegLightDiffuse  = 245; // c245       (1 reg)
+    static constexpr UINT kRegLightAmbient  = 246; // c246       (1 reg)
+    static constexpr UINT kRegMaterialColor = 247; // c247       (1 reg)
+    static constexpr UINT kRegFogParams     = 248; // c248       (1 reg)
+    static constexpr UINT kRegWorld         = 249; // c249..c252 (4 regs)
 };
 
 // 72-byte hardware vertex structure matching GltfVertex size and offsets
