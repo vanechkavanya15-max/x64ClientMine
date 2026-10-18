@@ -4,8 +4,7 @@
 #include <span>
 #include <cstring>
 
-#define _MOCK_PACKET_H
-#include "src/Client/Network/ExchangePacketCodec.h"
+#include "Client/Network/ExchangePacketCodec.h"
 
 using namespace Client::Network;
 

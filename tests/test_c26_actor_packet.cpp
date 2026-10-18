@@ -104,7 +104,7 @@ TEST_CASE("TActorRenderPacket_ABILayoutAndOffsets")
 	static_assert(offsetof(TActorRenderPacket, matWorld) == 16, "TActorRenderPacket matWorld offset != 16");
 	static_assert(offsetof(TActorRenderPacket, pBoneMatrices) == 80, "TActorRenderPacket pBoneMatrices offset != 80");
 	static_assert(offsetof(TActorRenderPacket, boneMatrices) == 96, "TActorRenderPacket boneMatrices offset != 96");
-	static_assert(offsetof(TActorRenderPacket, fShadowSize) == 5036, "TActorRenderPacket fShadowSize offset != 5036");
+	static_assert(offsetof(TActorRenderPacket, fShadowSize) == 5032, "TActorRenderPacket fShadowSize offset != 5032");
 
 	TActorRenderPacket packet{};
 	CHECK(packet.dwActorID == 0u);

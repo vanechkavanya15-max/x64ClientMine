@@ -53,8 +53,8 @@ void TerrainSplatWeightMap::Initialize(uint32_t width, uint32_t height) {
         m_width = width;
         m_height = height;
     }
-    // Domyslnie pelna waga (255) na warstwie 0 (kanal R)
-    m_weights.assign(static_cast<size_t>(width) * height, PackD3DColor(255, 0, 0, 0));
+    // Domyslnie wyczyszczone wagi (0)
+    m_weights.assign(static_cast<size_t>(width) * height, 0);
     m_dominantLayers = {1, 0, 0, 0};
     m_isDirty = true;
 }

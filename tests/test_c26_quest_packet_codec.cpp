@@ -5,64 +5,8 @@
 #include <iostream>
 #include <cstring>
 
-#pragma pack(push, 1)
-
-#define QUEST_INPUT_STRING_MAX_NUM 64
-
-namespace CG {
-    constexpr uint16_t SCRIPT_ANSWER      = 0x0901;
-    constexpr uint16_t QUEST_CONFIRM      = 0x0905;
-}
-
-namespace GC {
-    constexpr uint16_t SCRIPT             = 0x0910;
-    constexpr uint16_t QUEST_CONFIRM      = 0x0911;
-    constexpr uint16_t QUEST_INFO         = 0x0912;
-}
-
-typedef struct command_script_answer {
-    uint16_t    header;
-    uint16_t    length;
-    uint8_t     answer;
-} TPacketCGScriptAnswer;
-
-typedef struct command_quest_confirm {
-    uint16_t    header;
-    uint16_t    length;
-    uint8_t     answer;
-    uint32_t    requestPID;
-} TPacketCGQuestConfirm;
-
-typedef struct packet_quest_info {
-    uint16_t    header;
-    uint16_t    length;
-    uint16_t    index;
-    uint8_t     flag;
-} TPacketGCQuestInfo;
-
-typedef struct packet_quest_confirm {
-    uint16_t    header;
-    uint16_t    length;
-    char        msg[64+1];
-    int32_t     timeout;
-    uint32_t    requestPID;
-} TPacketGCQuestConfirm;
-
-typedef struct packet_header {
-    uint16_t    header;
-} TPacketHeader;
-
-typedef struct command_dynamic_size {
-    uint16_t    header;
-    uint16_t    length;
-} TDynamicSizePacketHeader;
-
-#pragma pack(pop)
-
-#define PACKET_MOCK_H
-
-#include "../src/Client/Network/QuestPacketCodec.h"
-#include "../src/Client/Network/QuestPacketCodec.cpp"
+#include "Client/Network/QuestPacketCodec.h"
+#include "Client/Network/Protocol/Protocol.h"
 
 using namespace Client::Network;
 
@@ -102,7 +46,7 @@ void test_DecodeQuestConfirm_Success() {
     packet->length = sizeof(TPacketGCQuestConfirm);
     packet->timeout = 1000;
     packet->requestPID = 12345;
-    std::strncpy(packet->msg, "Hello Quest", sizeof(packet->msg));
+    std::strncpy(packet->msg, "Hello Quest", sizeof(packet->msg) - 1);
 
     auto result = QuestPacketCodec::DecodeQuestConfirm(buffer);
     assert(result.has_value());
@@ -113,17 +57,17 @@ void test_DecodeQuestConfirm_Success() {
 }
 
 void test_DecodeScript_BufferUnderflow_Header() {
-    std::vector<uint8_t> buffer(sizeof(TDynamicSizePacketHeader) - 1, 0);
+    std::vector<uint8_t> buffer(sizeof(TPacketGCScript) - 1, 0);
     auto result = QuestPacketCodec::DecodeScript(buffer);
     assert(!result.has_value());
     assert(result.error() == EterBase::PacketError::BufferUnderflow);
 }
 
 void test_DecodeScript_BufferUnderflow_Data() {
-    std::vector<uint8_t> buffer(sizeof(TDynamicSizePacketHeader) + 5, 0);
-    TDynamicSizePacketHeader* header = reinterpret_cast<TDynamicSizePacketHeader*>(buffer.data());
+    std::vector<uint8_t> buffer(sizeof(TPacketGCScript) + 5, 0);
+    TPacketGCScript* header = reinterpret_cast<TPacketGCScript*>(buffer.data());
     header->header = GC::SCRIPT;
-    header->length = sizeof(TDynamicSizePacketHeader) + 10; // claims more data than buffer size
+    header->length = sizeof(TPacketGCScript) + 10; // claims more data than buffer size
 
     auto result = QuestPacketCodec::DecodeScript(buffer);
     assert(!result.has_value());
@@ -131,14 +75,14 @@ void test_DecodeScript_BufferUnderflow_Data() {
 }
 
 void test_DecodeScript_Success() {
-    std::string scriptText = "Hello Script\0";
-    std::vector<uint8_t> buffer(sizeof(TDynamicSizePacketHeader) + scriptText.size(), 0);
+    std::string scriptText = "Hello Script";
+    std::vector<uint8_t> buffer(sizeof(TPacketGCScript) + scriptText.size() + 1, 0);
     
-    TDynamicSizePacketHeader* header = reinterpret_cast<TDynamicSizePacketHeader*>(buffer.data());
+    TPacketGCScript* header = reinterpret_cast<TPacketGCScript*>(buffer.data());
     header->header = GC::SCRIPT;
-    header->length = buffer.size();
+    header->length = static_cast<uint16_t>(buffer.size());
 
-    std::memcpy(buffer.data() + sizeof(TDynamicSizePacketHeader), scriptText.data(), scriptText.size());
+    std::memcpy(buffer.data() + sizeof(TPacketGCScript), scriptText.data(), scriptText.size());
 
     auto result = QuestPacketCodec::DecodeScript(buffer);
     assert(result.has_value());
@@ -176,6 +120,7 @@ int main() {
     test_DecodeScript_Success();
     test_EncodeScriptAnswer();
     test_EncodeQuestConfirmAnswer();
-    std::cout << "All tests passed!" << std::endl;
+    std::cout << "All quest packet codec tests passed!" << std::endl;
     return 0;
 }
+

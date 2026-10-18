@@ -1,5 +1,9 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest/doctest.h"
 #define ETERBASE_STDAFX_H // Disable stdafx include
 #include <cstdint>
+#include <vector>
+#include <cstring>
 
 // Mocks for testing without UserInterface/Packet.h
 namespace GC {
@@ -62,13 +66,10 @@ typedef struct command_fishing
 #include "../src/Client/Network/WorldPacketCodec.h"
 #include "../src/Client/Network/WorldPacketCodec.cpp"
 
-#include <gtest/gtest.h>
-#include <vector>
-#include <cstring>
-
 using namespace Client::Network;
+using EterBase::PacketError;
 
-TEST(WorldPacketCodecTest, DecodeTime_Success) {
+TEST_CASE("WorldPacketCodecTest: DecodeTime_Success") {
     TPacketGCTime expectedPacket{};
     expectedPacket.header = GC::TIME;
     expectedPacket.length = sizeof(TPacketGCTime);
@@ -78,20 +79,20 @@ TEST(WorldPacketCodecTest, DecodeTime_Success) {
     std::memcpy(buffer.data(), &expectedPacket, sizeof(TPacketGCTime));
 
     auto result = WorldPacketCodec::DecodeTime(buffer);
-    ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result.value().header, expectedPacket.header);
-    EXPECT_EQ(result.value().length, expectedPacket.length);
-    EXPECT_EQ(result.value().time, expectedPacket.time);
+    REQUIRE(result.has_value());
+    CHECK(result.value().header == expectedPacket.header);
+    CHECK(result.value().length == expectedPacket.length);
+    CHECK(result.value().time == expectedPacket.time);
 }
 
-TEST(WorldPacketCodecTest, DecodeTime_BufferTooSmall) {
+TEST_CASE("WorldPacketCodecTest: DecodeTime_BufferTooSmall") {
     std::vector<uint8_t> buffer(sizeof(TPacketGCTime) - 1);
     auto result = WorldPacketCodec::DecodeTime(buffer);
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), PacketError::BufferTooSmall);
+    CHECK_FALSE(result.has_value());
+    CHECK(result.error() == PacketError::BufferUnderflow);
 }
 
-TEST(WorldPacketCodecTest, DecodeDungeon_Success) {
+TEST_CASE("WorldPacketCodecTest: DecodeDungeon_Success") {
     TPacketGCDungeon expectedPacket{};
     expectedPacket.header = GC::DUNGEON;
     expectedPacket.length = sizeof(TPacketGCDungeon);
@@ -101,20 +102,20 @@ TEST(WorldPacketCodecTest, DecodeDungeon_Success) {
     std::memcpy(buffer.data(), &expectedPacket, sizeof(TPacketGCDungeon));
 
     auto result = WorldPacketCodec::DecodeDungeon(buffer);
-    ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result.value().header, expectedPacket.header);
-    EXPECT_EQ(result.value().length, expectedPacket.length);
-    EXPECT_EQ(result.value().subheader, expectedPacket.subheader);
+    REQUIRE(result.has_value());
+    CHECK(result.value().header == expectedPacket.header);
+    CHECK(result.value().length == expectedPacket.length);
+    CHECK(result.value().subheader == expectedPacket.subheader);
 }
 
-TEST(WorldPacketCodecTest, DecodeDungeon_BufferTooSmall) {
+TEST_CASE("WorldPacketCodecTest: DecodeDungeon_BufferTooSmall") {
     std::vector<uint8_t> buffer(sizeof(TPacketGCDungeon) - 1);
     auto result = WorldPacketCodec::DecodeDungeon(buffer);
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), PacketError::BufferTooSmall);
+    CHECK_FALSE(result.has_value());
+    CHECK(result.error() == PacketError::BufferUnderflow);
 }
 
-TEST(WorldPacketCodecTest, DecodeFishing_Success) {
+TEST_CASE("WorldPacketCodecTest: DecodeFishing_Success") {
     TPacketGCFishing expectedPacket{};
     expectedPacket.header = GC::FISHING;
     expectedPacket.length = sizeof(TPacketGCFishing);
@@ -126,22 +127,22 @@ TEST(WorldPacketCodecTest, DecodeFishing_Success) {
     std::memcpy(buffer.data(), &expectedPacket, sizeof(TPacketGCFishing));
 
     auto result = WorldPacketCodec::DecodeFishing(buffer);
-    ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result.value().header, expectedPacket.header);
-    EXPECT_EQ(result.value().length, expectedPacket.length);
-    EXPECT_EQ(result.value().subheader, expectedPacket.subheader);
-    EXPECT_EQ(result.value().info, expectedPacket.info);
-    EXPECT_EQ(result.value().dir, expectedPacket.dir);
+    REQUIRE(result.has_value());
+    CHECK(result.value().header == expectedPacket.header);
+    CHECK(result.value().length == expectedPacket.length);
+    CHECK(result.value().subheader == expectedPacket.subheader);
+    CHECK(result.value().info == expectedPacket.info);
+    CHECK(result.value().dir == expectedPacket.dir);
 }
 
-TEST(WorldPacketCodecTest, DecodeFishing_BufferTooSmall) {
+TEST_CASE("WorldPacketCodecTest: DecodeFishing_BufferTooSmall") {
     std::vector<uint8_t> buffer(sizeof(TPacketGCFishing) - 1);
     auto result = WorldPacketCodec::DecodeFishing(buffer);
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), PacketError::BufferTooSmall);
+    CHECK_FALSE(result.has_value());
+    CHECK(result.error() == PacketError::BufferUnderflow);
 }
 
-TEST(WorldPacketCodecTest, DecodeChannel_Success) {
+TEST_CASE("WorldPacketCodecTest: DecodeChannel_Success") {
     TPacketGCChannel expectedPacket{};
     expectedPacket.header = GC::CHANNEL;
     expectedPacket.length = sizeof(TPacketGCChannel);
@@ -151,29 +152,29 @@ TEST(WorldPacketCodecTest, DecodeChannel_Success) {
     std::memcpy(buffer.data(), &expectedPacket, sizeof(TPacketGCChannel));
 
     auto result = WorldPacketCodec::DecodeChannel(buffer);
-    ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result.value().header, expectedPacket.header);
-    EXPECT_EQ(result.value().length, expectedPacket.length);
-    EXPECT_EQ(result.value().channel, expectedPacket.channel);
+    REQUIRE(result.has_value());
+    CHECK(result.value().header == expectedPacket.header);
+    CHECK(result.value().length == expectedPacket.length);
+    CHECK(result.value().channel == expectedPacket.channel);
 }
 
-TEST(WorldPacketCodecTest, DecodeChannel_BufferTooSmall) {
+TEST_CASE("WorldPacketCodecTest: DecodeChannel_BufferTooSmall") {
     std::vector<uint8_t> buffer(sizeof(TPacketGCChannel) - 1);
     auto result = WorldPacketCodec::DecodeChannel(buffer);
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), PacketError::BufferTooSmall);
+    CHECK_FALSE(result.has_value());
+    CHECK(result.error() == PacketError::BufferUnderflow);
 }
 
-TEST(WorldPacketCodecTest, EncodeFishing_Success) {
+TEST_CASE("WorldPacketCodecTest: EncodeFishing_Success") {
     int32_t rotation = 20;
     auto buffer = WorldPacketCodec::EncodeFishing(rotation);
     
-    ASSERT_EQ(buffer.size(), sizeof(TPacketCGFishing));
+    REQUIRE(buffer.size() == sizeof(TPacketCGFishing));
     
     TPacketCGFishing decodedPacket;
     std::memcpy(&decodedPacket, buffer.data(), sizeof(TPacketCGFishing));
     
-    EXPECT_EQ(decodedPacket.header, CG::FISHING);
-    EXPECT_EQ(decodedPacket.length, sizeof(TPacketCGFishing));
-    EXPECT_EQ(decodedPacket.dir, rotation / 5);
+    CHECK(decodedPacket.header == CG::FISHING);
+    CHECK(decodedPacket.length == sizeof(TPacketCGFishing));
+    CHECK(decodedPacket.dir == rotation / 5);
 }

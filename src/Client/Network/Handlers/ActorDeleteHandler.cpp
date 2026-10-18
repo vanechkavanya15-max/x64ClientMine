@@ -24,7 +24,7 @@ namespace Client::Network::Handlers {
         if (!spawnResult) {
             if (spawnResult.error() == EterBase::EntityError::InvalidType) {
                 // Workaround: Entity exists but is incomplete. We add dummy info to allow TakeSpawn to remove it.
-                Client::Network::TPacketGCCharacterAdditionalInfo dummyInfo{};
+                ::TPacketGCCharacterAdditionalInfo dummyInfo{};
                 dummyInfo.dwVID = vid.get();
                 if (spawnRegistry.RegisterAdditionalInfo(vid, dummyInfo)) {
                     // Ignore result, as the goal is merely to remove it.

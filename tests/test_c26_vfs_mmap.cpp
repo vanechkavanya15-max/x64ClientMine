@@ -119,11 +119,14 @@ TEST_CASE("VfsMemoryMappedBuffer tests") {
         REQUIRE(!buffer2.IsMapped());
         REQUIRE(buffer2.GetSize() == 0);
 
-        std::filesystem::remove(secondTestPath);
+        buffer1.Unmap();
+        std::error_code ec;
+        std::filesystem::remove(secondTestPath, ec);
     }
     
     // Clean up
-    std::filesystem::remove(testFilePath);
+    std::error_code ec;
+    std::filesystem::remove(testFilePath, ec);
 }
 
 TEST_CASE("VfsMemoryMappedBuffer edge cases") {
@@ -137,6 +140,7 @@ TEST_CASE("VfsMemoryMappedBuffer edge cases") {
         REQUIRE(!result.has_value());
         REQUIRE(result.error() == VfsMemoryMappedBufferError::InvalidSize);
         
-        std::filesystem::remove(emptyFilePath);
+        std::error_code ec;
+        std::filesystem::remove(emptyFilePath, ec);
     }
 }

@@ -46,25 +46,25 @@ TEST_CASE("SpeedTreePacket - Layout and ABI Compatibility")
 
 	// Offsety TSpeedTreeInstanceData
 	CHECK(offsetof(TSpeedTreeInstanceData, pTreeInstance) == 0u);
-	CHECK(offsetof(TSpeedTreeInstanceData, matWorld) == 8u);
-	CHECK(offsetof(TSpeedTreeInstanceData, v3Position) == 72u);
-	CHECK(offsetof(TSpeedTreeInstanceData, dwTreeCRC) == 84u);
-	CHECK(offsetof(TSpeedTreeInstanceData, fWindStrength) == 88u);
-	CHECK(offsetof(TSpeedTreeInstanceData, fPad) == 92u);
-	CHECK(offsetof(TSpeedTreeInstanceData, fAlphaRefBranch) == 92u);
-	CHECK(offsetof(TSpeedTreeInstanceData, fAlphaRefFrond) == 96u);
-	CHECK(offsetof(TSpeedTreeInstanceData, fAlphaRefLeaf) == 100u);
-	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefBranch) == 92u);
-	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefFrond) == 93u);
-	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefLeaf0) == 94u);
-	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefLeaf1) == 95u);
-	CHECK(offsetof(TSpeedTreeInstanceData, nBranchLod) == 96u);
-	CHECK(offsetof(TSpeedTreeInstanceData, nFrondLod) == 97u);
-	CHECK(offsetof(TSpeedTreeInstanceData, nLeafLod0) == 98u);
-	CHECK(offsetof(TSpeedTreeInstanceData, nLeafLod1) == 99u);
-	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefBillboard0) == 100u);
-	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefBillboard1) == 101u);
-	CHECK(offsetof(TSpeedTreeInstanceData, wInstanceFlags) == 102u);
+	CHECK(offsetof(TSpeedTreeInstanceData, matWorld) == 16u);
+	CHECK(offsetof(TSpeedTreeInstanceData, v3Position) == 80u);
+	CHECK(offsetof(TSpeedTreeInstanceData, dwTreeCRC) == 92u);
+	CHECK(offsetof(TSpeedTreeInstanceData, fWindStrength) == 96u);
+	CHECK(offsetof(TSpeedTreeInstanceData, fPad) == 100u);
+	CHECK(offsetof(TSpeedTreeInstanceData, fAlphaRefBranch) == 100u);
+	CHECK(offsetof(TSpeedTreeInstanceData, fAlphaRefFrond) == 104u);
+	CHECK(offsetof(TSpeedTreeInstanceData, fAlphaRefLeaf) == 108u);
+	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefBranch) == 100u);
+	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefFrond) == 101u);
+	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefLeaf0) == 102u);
+	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefLeaf1) == 103u);
+	CHECK(offsetof(TSpeedTreeInstanceData, nBranchLod) == 104u);
+	CHECK(offsetof(TSpeedTreeInstanceData, nFrondLod) == 105u);
+	CHECK(offsetof(TSpeedTreeInstanceData, nLeafLod0) == 106u);
+	CHECK(offsetof(TSpeedTreeInstanceData, nLeafLod1) == 107u);
+	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefBillboard0) == 108u);
+	CHECK(offsetof(TSpeedTreeInstanceData, ucAlphaRefBillboard1) == 109u);
+	CHECK(offsetof(TSpeedTreeInstanceData, wInstanceFlags) == 110u);
 
 	// Offsety TSpeedTreeBillboardVertex
 	CHECK(offsetof(TSpeedTreeBillboardVertex, position) == 0u);

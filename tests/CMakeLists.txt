@@ -565,8 +565,14 @@ target_include_directories(test_c30_d3d9_state_guards PRIVATE
 )
 target_link_libraries(test_c30_d3d9_state_guards PRIVATE
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
     DirectX
+    Dbghelp
     sodium
     freetype
     libzstd_static
@@ -724,7 +730,14 @@ target_link_libraries(test_c31_debug_renderer PRIVATE
     Client2026
     DirectX
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
+    Dbghelp
+    freetype
     libzstd_static
     sodium
     lzo2
@@ -838,6 +851,7 @@ target_link_libraries(test_c36_vfs_mapmanager_fixes PRIVATE
     mio
     ws2_32
     Dbghelp
+    winmm
 )
 add_test(NAME VfsMapManagerFixesTest COMMAND test_c36_vfs_mapmanager_fixes)
 
@@ -2059,6 +2073,11 @@ target_include_directories(test_c26_item_manager_modern_loader PRIVATE
 )
 target_link_libraries(test_c26_item_manager_modern_loader PRIVATE
     Client2026
+    PackLib
+    EterImageLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterLib
     EterBase
     libzstd_static
@@ -2066,6 +2085,8 @@ target_link_libraries(test_c26_item_manager_modern_loader PRIVATE
     lzo2
     mio
     ws2_32
+    DirectX
+    Dbghelp
 )
 add_test(NAME test_c26_item_manager_modern_loader COMMAND test_c26_item_manager_modern_loader)
 
@@ -2213,11 +2234,19 @@ target_link_libraries(test_c26_minimap_radar PRIVATE
     Client2026
     EterLib
     EterBase
+    SphereLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    DirectX
     libzstd_static
     sodium
     lzo2
     mio
     ws2_32
+    winmm
+    Dbghelp
 )
 add_test(NAME test_c26_minimap_radar COMMAND test_c26_minimap_radar)
 
@@ -2783,6 +2812,11 @@ target_include_directories(test_c26_proto_json_parser_modern PRIVATE
 )
 target_link_libraries(test_c26_proto_json_parser_modern PRIVATE
     Client2026
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterLib
     EterBase
     libzstd_static
@@ -2790,6 +2824,8 @@ target_link_libraries(test_c26_proto_json_parser_modern PRIVATE
     lzo2
     mio
     ws2_32
+    DirectX
+    Dbghelp
 )
 add_test(NAME test_c26_proto_json_parser_modern COMMAND test_c26_proto_json_parser_modern)
 
@@ -3561,7 +3597,15 @@ target_include_directories(test_c26_terrain_shader_pipeline PRIVATE
 target_link_libraries(test_c26_terrain_shader_pipeline PRIVATE
     Client2026
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
+    DirectX
+    Dbghelp
+    freetype
     libzstd_static
     sodium
     lzo2
@@ -6295,7 +6339,23 @@ target_include_directories(test_c26_texture_swizzle PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/include
 )
-target_link_libraries(test_c26_texture_swizzle PRIVATE EterLib EterBase DirectX ws2_32)
+target_link_libraries(test_c26_texture_swizzle PRIVATE
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
 add_test(NAME TextureSwizzleTest COMMAND test_c26_texture_swizzle)
 
 add_executable(test_c26_snow_particle
@@ -6329,7 +6389,23 @@ target_include_directories(test_c26_texture_ownership PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/include
 )
-target_link_libraries(test_c26_texture_ownership PRIVATE EterLib EterImageLib PackLib EterBase DirectX ws2_32)
+target_link_libraries(test_c26_texture_ownership PRIVATE
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
 add_test(NAME TextureOwnershipTest COMMAND test_c26_texture_ownership)
 
 
@@ -6358,6 +6434,7 @@ target_link_libraries(test_c26_speedtree_update PRIVATE
     lzo2
     mio
     ws2_32
+    winmm
     Dbghelp
 )
 add_test(NAME SpeedTreeUpdateTest COMMAND test_c26_speedtree_update)
@@ -6404,9 +6481,19 @@ target_include_directories(test_c26_eterlib_small_fixes PRIVATE
 target_link_libraries(test_c26_eterlib_small_fixes PRIVATE
     EterLib
     EterBase
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
     SphereLib
     DirectX
+    libzstd_static
+    sodium
+    lzo2
+    mio
     ws2_32
+    winmm
+    Dbghelp
 )
 add_test(NAME EterlibSmallFixesTest COMMAND test_c26_eterlib_small_fixes)
 
@@ -6704,7 +6791,23 @@ target_include_directories(test_c26_weapon_trace PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/include
 )
-target_link_libraries(test_c26_weapon_trace PRIVATE EterLib EterBase DirectX doctest)
+target_link_libraries(test_c26_weapon_trace PRIVATE
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+    doctest
+)
 add_test(NAME test_c26_weapon_trace COMMAND test_c26_weapon_trace)
 
 add_executable(test_c26_sky_description test_c26_sky_description.cpp)
@@ -7017,6 +7120,7 @@ target_link_libraries(test_c26_actor_packet PRIVATE
     lzo2
     mio
     ws2_32
+    winmm
     doctest
 )
 add_test(NAME test_c26_actor_packet COMMAND test_c26_actor_packet)
@@ -7315,7 +7419,7 @@ target_link_libraries(test_c26_terrain_quadtree_audit PRIVATE
 add_test(NAME test_c26_terrain_quadtree_audit COMMAND test_c26_terrain_quadtree_audit)
 
 # --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
-add_executable(test_c26_skeletal_math test_c26_skeletal_math.cpp)
+add_executable(test_c26_skeletal_math test_c26_skeletal_math.cpp ${CMAKE_SOURCE_DIR}/src/EterModelLib/SkeletalMath.cpp)
 target_include_directories(test_c26_skeletal_math PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/Client
@@ -7336,134 +7440,7 @@ target_link_libraries(test_c26_skeletal_math PRIVATE
 )
 add_test(NAME test_c26_skeletal_math COMMAND test_c26_skeletal_math)
 
-# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
-add_executable(test_statemanager test_statemanager.cpp)
-target_include_directories(test_statemanager PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_statemanager PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_statemanager COMMAND test_statemanager)
 
-# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
-add_executable(test_c99_actor_render_extractor test_c99_actor_render_extractor.cpp)
-target_include_directories(test_c99_actor_render_extractor PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c99_actor_render_extractor PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c99_actor_render_extractor COMMAND test_c99_actor_render_extractor)
-
-# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
-add_executable(test_jules_render test_jules_render.cpp)
-target_include_directories(test_jules_render PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_jules_render PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_jules_render COMMAND test_jules_render)
-
-add_executable(test_jules_render2 test_jules_render2.cpp)
-target_include_directories(test_jules_render2 PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_jules_render2 PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_jules_render2 COMMAND test_jules_render2)
-
-add_executable(test_jules_render_align test_jules_render_align.cpp)
-target_include_directories(test_jules_render_align PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_jules_render_align PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_jules_render_align COMMAND test_jules_render_align)
-
-add_executable(test_jules_render_sort test_jules_render_sort.cpp)
-target_include_directories(test_jules_render_sort PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_jules_render_sort PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_jules_render_sort COMMAND test_jules_render_sort)
 
 add_executable(test_render_queue_concurrency test_render_queue_concurrency.cpp)
 target_include_directories(test_render_queue_concurrency PRIVATE
@@ -7477,7 +7454,13 @@ target_include_directories(test_render_queue_concurrency PRIVATE
 target_link_libraries(test_render_queue_concurrency PRIVATE
     Client2026
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
+    DirectX
     libzstd_static
     sodium
     lzo2
@@ -7497,11 +7480,22 @@ target_include_directories(test_dungeon_block_render_extractor PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
 )
 target_link_libraries(test_dungeon_block_render_extractor PRIVATE
+    GameLib
+    EterGrnLib
+    EterModelLib
     Client2026
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
+    DirectX
+    Dbghelp
     libzstd_static
     sodium
+    freetype
     lzo2
     mio
     ws2_32
@@ -7519,14 +7513,24 @@ target_include_directories(test_c37_gltf_renderer_audit PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
 )
 target_link_libraries(test_c37_gltf_renderer_audit PRIVATE
-    Client2026
+    EterModelLib
+    EterGrnLib
     EterLib
+    EterImageLib
+    PackLib
+    SphereLib
+    SpeedTreeLib
+    SpeedTree
+    Client2026
     EterBase
     libzstd_static
     sodium
     lzo2
     mio
     ws2_32
+    DirectX
+    Dbghelp
+    freetype
 )
 add_test(NAME test_c37_gltf_renderer_audit COMMAND test_c37_gltf_renderer_audit)
 
@@ -7573,11 +7577,19 @@ target_link_libraries(test_c26_culling_manager PRIVATE
     Client2026
     EterLib
     EterBase
+    SphereLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    DirectX
     libzstd_static
     sodium
     lzo2
     mio
     ws2_32
+    winmm
+    Dbghelp
 )
 add_test(NAME test_c26_culling_manager COMMAND test_c26_culling_manager)
 
@@ -7593,6 +7605,11 @@ target_include_directories(test_c26_speedtree_audit PRIVATE
 )
 target_link_libraries(test_c26_speedtree_audit PRIVATE
     Client2026
+    SpeedTreeLib
+    SpeedTree
+    EterImageLib
+    PackLib
+    SphereLib
     EterLib
     EterBase
     libzstd_static
@@ -7600,6 +7617,8 @@ target_link_libraries(test_c26_speedtree_audit PRIVATE
     lzo2
     mio
     ws2_32
+    DirectX
+    Dbghelp
 )
 add_test(NAME test_c26_speedtree_audit COMMAND test_c26_speedtree_audit)
 
@@ -7681,67 +7700,31 @@ target_include_directories(test_map_outdoor PRIVATE
 )
 target_link_libraries(test_map_outdoor PRIVATE
     GameLib
+    EterGrnLib
+    EterModelLib
+    EterLib
+    EterImageLib
     PRTerrainLib
+    AudioLib
+    PackLib
     SpeedTreeLib
     SpeedTree
     SphereLib
     EffectLib
-    Client2026
-    EterLib
     EterBase
-    libzstd_static
+    DirectX
+    Dbghelp
     sodium
+    freetype
+    libzstd_static
     lzo2
     mio
     ws2_32
-    DirectX
-    Dbghelp
-    freetype
+    winmm
+    doctest
 )
 add_test(NAME test_map_outdoor COMMAND test_map_outdoor)
 
-# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
-add_executable(test_c27_gltf_model_audit test_c27_gltf_model_audit.cpp)
-target_include_directories(test_c27_gltf_model_audit PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c27_gltf_model_audit PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c27_gltf_model_audit COMMAND test_c27_gltf_model_audit)
-
-add_executable(test_c27_gltf_model_audit_no_main test_c27_gltf_model_audit_no_main.cpp)
-target_include_directories(test_c27_gltf_model_audit_no_main PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Client
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/extern/include
-    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
-    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
-)
-target_link_libraries(test_c27_gltf_model_audit_no_main PRIVATE
-    Client2026
-    EterLib
-    EterBase
-    libzstd_static
-    sodium
-    lzo2
-    mio
-    ws2_32
-)
-add_test(NAME test_c27_gltf_model_audit_no_main COMMAND test_c27_gltf_model_audit_no_main)
 
 # --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
 add_executable(test_c40_actor_skinning_audit test_c40_actor_skinning_audit.cpp)
@@ -7756,7 +7739,15 @@ target_include_directories(test_c40_actor_skinning_audit PRIVATE
 target_link_libraries(test_c40_actor_skinning_audit PRIVATE
     Client2026
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
+    DirectX
+    Dbghelp
+    freetype
     libzstd_static
     sodium
     lzo2
@@ -7896,5 +7887,8 @@ target_link_libraries(test_c26_network_framing_and_snapshot PRIVATE
     ws2_32
 )
 add_test(NAME test_c26_network_framing_and_snapshot COMMAND test_c26_network_framing_and_snapshot)
+
+
+
 
 

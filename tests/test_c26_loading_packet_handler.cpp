@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 
-#include "src/Client/Network/Handlers/LoadingPacketHandler.h"
-#include "src/UserInterface/Packet.h"
+#include "Client/Network/Handlers/LoadingPacketHandler.h"
+#include "Client/Network/Protocol/Protocol.h"
 #include <cassert>
 #include <vector>
 #include <cstring>

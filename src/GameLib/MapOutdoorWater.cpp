@@ -138,6 +138,13 @@ void CMapOutdoor::RenderWater()
 
 void CMapOutdoor::DrawWater(long patchnum)
 {
+	if (!m_pTerrainPatchProxyList)
+		return;
+
+	const long lMaxPatches = static_cast<long>(m_wPatchCount * m_wPatchCount);
+	if (patchnum < 0 || patchnum >= lMaxPatches)
+		return;
+
 	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
 	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
 	const float fWaterHeightCurrent = ComputeWaterWaveHeight(0.0f, 0.0f, fTimeSec, 1.5f, 5.0f);

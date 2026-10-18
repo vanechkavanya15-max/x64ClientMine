@@ -1,8 +1,7 @@
 #pragma once
 
-#ifndef DOCTEST_SINGLE_MAIN_ALLOWED
-#undef DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#undef DOCTEST_CONFIG_IMPLEMENT
+#ifndef DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #endif
 
 #include "../../doctest.h"
@@ -44,23 +43,14 @@ namespace internal {
 #define TEST(test_case_name, test_name) \
     DOCTEST_TEST_CASE(#test_case_name "." #test_name)
 
+#define DOCTEST_GTEST_FIXTURE_NAME(f, n) DOCTEST_CAT(f, DOCTEST_CAT(_, n))
+
 #define TEST_F(fixture, test_name) \
-    namespace { \
-    struct DOCTEST_ANONYMOUS(DOCTEST_ANON_CLASS_) : public fixture { \
-        void f(); \
+    struct DOCTEST_GTEST_FIXTURE_NAME(fixture, test_name) : public fixture { \
+        DOCTEST_GTEST_FIXTURE_NAME(fixture, test_name)() { SetUp(); } \
+        ~DOCTEST_GTEST_FIXTURE_NAME(fixture, test_name)() override { TearDown(); } \
     }; \
-    static inline void DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_)() { \
-        DOCTEST_ANONYMOUS(DOCTEST_ANON_CLASS_) v; \
-        v.SetUp(); \
-        struct Guard { \
-            fixture& ref; \
-            ~Guard() { ref.TearDown(); } \
-        } guard{v}; \
-        v.f(); \
-    } \
-    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), #fixture "." #test_name) \
-    } \
-    inline void DOCTEST_ANONYMOUS(DOCTEST_ANON_CLASS_)::f()
+    TEST_CASE_FIXTURE(DOCTEST_GTEST_FIXTURE_NAME(fixture, test_name), #fixture "." #test_name)
 
 // Asercje EXPECT
 #define EXPECT_TRUE(cond) \

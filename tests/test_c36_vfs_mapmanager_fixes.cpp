@@ -13,7 +13,6 @@ public:
 };
 int CPythonSystem::GetFogLevel() { return 0; }
 
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
 
 void TestPackManagerSecurity()
 {

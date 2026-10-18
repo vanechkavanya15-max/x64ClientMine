@@ -88,7 +88,7 @@ void TestItemSet() {
 void TestItemDel() {
     TPacketGCItemDel original{};
     original.header = 5;
-    original.pos = 42;
+    original.pos.cell = 42;
 
     auto encoded = ItemPacketCodec::EncodeItemDel(original);
     assert(encoded.has_value());
@@ -96,18 +96,18 @@ void TestItemDel() {
     auto decoded = ItemPacketCodec::DecodeItemDel(encoded.value());
     assert(decoded.has_value());
     assert(decoded->header == 5);
-    assert(decoded->pos == 42);
+    assert(decoded->pos.cell == 42);
     std::cout << "TestItemDel passed\n";
 }
 
 void TestItemGroundAdd() {
     TPacketGCItemGroundAdd original{};
     original.header = 6;
-    original.pos = TItemPos(4, 50);
-    original.vnum = 54321;
-    original.count = 10;
-    original.flags = 1;
-    original.anti_flags = 2;
+    original.lX = 100;
+    original.lY = 200;
+    original.lZ = 300;
+    original.dwVID = 12345;
+    original.dwVnum = 54321;
 
     auto encoded = ItemPacketCodec::EncodeItemGroundAdd(original);
     assert(encoded.has_value());
@@ -115,12 +115,11 @@ void TestItemGroundAdd() {
     auto decoded = ItemPacketCodec::DecodeItemGroundAdd(encoded.value());
     assert(decoded.has_value());
     assert(decoded->header == 6);
-    assert(decoded->pos.window_type == 4);
-    assert(decoded->pos.cell == 50);
-    assert(decoded->vnum == 54321);
-    assert(decoded->count == 10);
-    assert(decoded->flags == 1);
-    assert(decoded->anti_flags == 2);
+    assert(decoded->lX == 100);
+    assert(decoded->lY == 200);
+    assert(decoded->lZ == 300);
+    assert(decoded->dwVID == 12345);
+    assert(decoded->dwVnum == 54321);
     std::cout << "TestItemGroundAdd passed\n";
 }
 
@@ -133,8 +132,4 @@ int main() {
     TestItemGroundAdd();
     std::cout << "All tests passed successfully.\n";
     return 0;
-}
-
-extern "C" void OutputDebugStringA(const char* msg) {
-    std::cout << "[OutputDebugStringA] " << msg << "\n";
 }

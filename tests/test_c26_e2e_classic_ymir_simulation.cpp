@@ -17,6 +17,18 @@ using namespace Client::Core;
 TEST(ClassicYmirE2ESimulation, EncryptionAndMovementCommand) {
     // 1. Wczytanie profilu servers/classic_ymir.json.
     std::ifstream ifs("servers/classic_ymir.json");
+    if (!ifs.is_open()) {
+        ifs.open("../servers/classic_ymir.json");
+    }
+    if (!ifs.is_open()) {
+        ifs.open("../../servers/classic_ymir.json");
+    }
+    if (!ifs.is_open()) {
+        ifs.open("m2dev-client-main/servers/classic_ymir.json");
+    }
+    if (!ifs.is_open()) {
+        ifs.open("../m2dev-client-main/servers/classic_ymir.json");
+    }
     ASSERT_TRUE(ifs.is_open()) << "Failed to open servers/classic_ymir.json";
     
     std::string jsonStr((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());

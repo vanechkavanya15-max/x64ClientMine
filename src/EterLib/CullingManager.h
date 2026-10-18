@@ -137,7 +137,7 @@ public:
 	void ForInRayDistance(const Vector3d &p, const Vector3d &dir, float distance, T* pFunc)
 	{
 		RangeTester<T> r(pFunc, distance);
-		m_Factory->RayTrace(p, dir, &r/*this*/);		
+		m_Factory->RayTrace(p, dir * distance, &r/*this*/);		
 	}
 
 	CullingHandle Register(CGraphicObjectInstance * ob);

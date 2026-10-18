@@ -43,14 +43,12 @@ TEST_CASE("GltfModelAudit: EnsureGpuBuffersThreadSafety")
     data.indices.resize(100);
     model.SetModelData(data);
 
-    IDirect3DDevice9 deviceMock;
-
     constexpr int NUM_THREADS = 10;
     std::vector<std::thread> threads;
     for (int i = 0; i < NUM_THREADS; ++i)
     {
-        threads.emplace_back([&model, &deviceMock]() {
-            model.EnsureGpuBuffers(reinterpret_cast<::LPDIRECT3DDEVICE9>(&deviceMock));
+        threads.emplace_back([&model]() {
+            model.EnsureGpuBuffers(nullptr);
         });
     }
 

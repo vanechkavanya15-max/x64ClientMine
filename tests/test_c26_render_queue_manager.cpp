@@ -271,8 +271,8 @@ TEST_CASE("RenderQueueManager - ABI Version and Packet Sizes")
 	const auto sizeList = CRenderQueueManager::GetPacketSizes();
 	const auto sizeMap = CRenderQueueManager::GetPacketSizeMap();
 
-	CHECK(sizeList.size() == 13u);
-	CHECK(sizeMap.size() == 13u);
+	CHECK(sizeList.size() == 14u);
+	CHECK(sizeMap.size() == 14u);
 
 	// Weryfikacja zgodnosci kazdego typu z sizeof w C++
 	CHECK(sizeMap.at("TRenderFrameUniforms") == sizeof(TRenderFrameUniforms));
@@ -293,7 +293,7 @@ TEST_CASE("RenderQueueManager - ABI Version and Packet Sizes")
 	// Dokladne rozmiary struktur x64 zgodne z FFI Rust (packets.rs)
 	CHECK(sizeMap.at("TRenderFrameUniforms") == 288u);
 	CHECK(sizeMap.at("TTerrainSectorPacket") == 176u);
-	CHECK(sizeMap.at("TActorRenderPacket") == 5008u);
+	CHECK(sizeMap.at("TActorRenderPacket") == 5040u);
 	CHECK(sizeMap.at("TWaterPacket") == 176u);
 	CHECK(sizeMap.at("TSkyBoxPacket") == 112u);
 	CHECK(sizeMap.at("TSpeedTreeInstanceData") == 112u);
@@ -303,10 +303,11 @@ TEST_CASE("RenderQueueManager - ABI Version and Packet Sizes")
 	CHECK(sizeMap.at("TUIVertex") == 24u);
 	CHECK(sizeMap.at("TUIBatchPacket") == 64u);
 	CHECK(sizeMap.at("TDungeonBlockPacket") == 160u);
+	CHECK(sizeMap.at("TEffectMeshPacket") == 88u);
 	CHECK(sizeMap.at("TRenderFramePacket") == 416u);
 #endif
 
 	// Weryfikacja wolnych funkcji pomocniczych
-	CHECK(GetRenderPacketSizes().size() == 13u);
-	CHECK(GetRenderPacketSizeMap().size() == 13u);
+	CHECK(GetRenderPacketSizes().size() == 14u);
+	CHECK(GetRenderPacketSizeMap().size() == 14u);
 }

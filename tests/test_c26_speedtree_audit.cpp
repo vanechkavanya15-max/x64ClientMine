@@ -1,12 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 #include <cmath>
-#include "SpeedTreeForest.h"
-#include "SpeedTreeWrapper.h"
+#include "SpeedTreeLib/SpeedTreeForest.h"
+#include "SpeedTreeLib/SpeedTreeWrapper.h"
 
-// Stubs for external dependencies
+// External dependencies
 #include "EterLib/Camera.h"
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
 
 TEST_SUITE("SpeedTreeAudit")
 {

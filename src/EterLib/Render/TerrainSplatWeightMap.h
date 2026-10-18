@@ -50,19 +50,19 @@ public:
     [[nodiscard]] bool IsDirty() const noexcept { return m_isDirty; }
 
 private:
-    // Pakowanie Little-Endian dla D3DFMT_A8R8G8B8: B(0), G(8), R(16), A(24)
-    static constexpr uint32_t PackD3DColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) noexcept {
-        return (static_cast<uint32_t>(b)) |
-               (static_cast<uint32_t>(g) << 8) |
-               (static_cast<uint32_t>(r) << 16) |
-               (static_cast<uint32_t>(a) << 24);
+    // Pakowanie 4 wag splattingu: Layer 0 (b0), Layer 1 (b1), Layer 2 (b2), Layer 3 (b3)
+    static constexpr uint32_t PackD3DColor(uint8_t w0, uint8_t w1, uint8_t w2, uint8_t w3) noexcept {
+        return (static_cast<uint32_t>(w0)) |
+               (static_cast<uint32_t>(w1) << 8) |
+               (static_cast<uint32_t>(w2) << 16) |
+               (static_cast<uint32_t>(w3) << 24);
     }
 
     static constexpr void UnpackD3DColor(uint32_t packed, uint8_t (&outW)[4]) noexcept {
-        outW[0] = static_cast<uint8_t>((packed >> 16) & 0xFF); // R - Layer 0
-        outW[1] = static_cast<uint8_t>((packed >> 8) & 0xFF);  // G - Layer 1
-        outW[2] = static_cast<uint8_t>(packed & 0xFF);         // B - Layer 2
-        outW[3] = static_cast<uint8_t>((packed >> 24) & 0xFF); // A - Layer 3
+        outW[0] = static_cast<uint8_t>(packed & 0xFF);         // Layer 0
+        outW[1] = static_cast<uint8_t>((packed >> 8) & 0xFF);  // Layer 1
+        outW[2] = static_cast<uint8_t>((packed >> 16) & 0xFF); // Layer 2
+        outW[3] = static_cast<uint8_t>((packed >> 24) & 0xFF); // Layer 3
     }
 
     uint32_t m_width{0};

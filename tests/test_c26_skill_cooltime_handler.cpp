@@ -1,9 +1,11 @@
 #include "../src/Client/Network/Handlers/SkillCooltimeHandler.h"
 #include "../src/Client/Gameplay/SkillDomain.h"
-#include "../src/UserInterface/Core/EventBus.h"
+#include "../src/Client/Core/EventBus.h"
 #include <iostream>
 #include <cassert>
 #include <vector>
+
+using namespace Client::Network::Handlers;
 
 void test_buffer_underflow() {
     Client::Gameplay::SkillDomain domain;
@@ -30,7 +32,7 @@ void test_successful_handling() {
     std::vector<uint8_t> buffer(reinterpret_cast<uint8_t*>(&packet), reinterpret_cast<uint8_t*>(&packet) + sizeof(packet));
 
     bool eventReceived = false;
-    auto subId = UserInterface::Core::EventBus::GetInstance().Subscribe<SkillCooltimeEndEvent>(
+    auto subId = Client::Core::EventBus::GetInstance().Subscribe<SkillCooltimeEndEvent>(
         [&eventReceived](const SkillCooltimeEndEvent& event) {
             if (event.skillId.value() == 10) {
                 eventReceived = true;
@@ -42,7 +44,7 @@ void test_successful_handling() {
     assert(domain.IsSkillReady(10) && "Cooldown should be reset in the domain");
     assert(eventReceived && "EventBus should have published the event");
 
-    UserInterface::Core::EventBus::GetInstance().Unsubscribe<SkillCooltimeEndEvent>(subId);
+    Client::Core::EventBus::GetInstance().Unsubscribe<SkillCooltimeEndEvent>(subId);
 
     std::cout << "test_successful_handling passed.\n";
 }

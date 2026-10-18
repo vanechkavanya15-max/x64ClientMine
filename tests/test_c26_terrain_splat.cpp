@@ -2,7 +2,7 @@
 #include "doctest.h"
 
 #define TEST_MODE_DISABLE_STDAFX 1
-#include "src/Client/Terrain/TerrainTextureSplatting.h"
+#include "Client/Terrain/TerrainTextureSplatting.h"
 
 using namespace Client::Terrain;
 

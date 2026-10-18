@@ -1,9 +1,10 @@
-#include <gtest/gtest.h>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest/doctest.h"
 #include <thread>
 #include <vector>
 #include "../src/GameLib/DungeonBlockRenderExtractor.h"
 
-TEST(DungeonBlockRenderExtractorTest, IsActive_AtomicThreadSafety) {
+TEST_CASE("DungeonBlockRenderExtractorTest IsActive_AtomicThreadSafety") {
     // Reset to false
     CDungeonBlockRenderExtractor::SetActive(false);
     
@@ -18,8 +19,6 @@ TEST(DungeonBlockRenderExtractorTest, IsActive_AtomicThreadSafety) {
                     CDungeonBlockRenderExtractor::SetActive(j % 2 == 0);
                 } else {
                     bool state = CDungeonBlockRenderExtractor::IsActive();
-                    // We don't assert on state because it changes concurrently,
-                    // we just want to ensure it doesn't crash or trigger sanitizers.
                     (void)state;
                 }
             }
@@ -30,5 +29,5 @@ TEST(DungeonBlockRenderExtractorTest, IsActive_AtomicThreadSafety) {
         t.join();
     }
     
-    SUCCEED();
+    CHECK(true);
 }

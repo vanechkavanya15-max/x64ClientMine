@@ -21,6 +21,12 @@ public:
     void OnUpdateCollisionData(const CStaticCollisionDataVector*) override {}
     void OnUpdateHeighInstance(CAttributeInstance*) override {}
     bool OnGetObjectHeight(float, float, float*) override { return false; }
+    int GetType() const override { return 0; }
+    bool GetBoundingSphere(D3DXVECTOR3& v3Center, float& fRadius) override {
+        v3Center = m_v3Position;
+        fRadius = 10.0f;
+        return true;
+    }
 };
 
 TEST_CASE("CullingManager Lifecycle and Logic") {
@@ -30,6 +36,7 @@ TEST_CASE("CullingManager Lifecycle and Logic") {
     obj1.UpdateBoundingSphere(); // updates local bounds
     auto handle1 = cullingMgr.Register(&obj1);
     CHECK(handle1 != nullptr);
+    cullingMgr.Update();
 
     SUBCASE("FindRange Tests") {
         cullingMgr.FindRange(Vector3d(100.0f, 100.0f, 0.0f), 50.0f);
@@ -82,6 +89,7 @@ TEST_CASE("RangeTester actual distance logic") {
     obj.SetPosition(100.0f, 0.0f, 0.0f);
     obj.UpdateBoundingSphere();
     auto handle = cullingMgr.Register(&obj);
+    cullingMgr.Update();
 
     s_RayTestResults.clear();
     MockCallbackFunction callback;

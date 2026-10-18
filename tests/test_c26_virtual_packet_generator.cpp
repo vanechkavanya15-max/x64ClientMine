@@ -1,4 +1,14 @@
-#include <gtest/gtest.h>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest.h"
+#define TEST(suite, name) TEST_CASE(#suite "_" #name)
+#define EXPECT_EQ(a, b) CHECK((a) == (b))
+#define EXPECT_NE(a, b) CHECK((a) != (b))
+#define EXPECT_TRUE(a) CHECK(a)
+#define EXPECT_FALSE(a) CHECK(!(a))
+#define ASSERT_EQ(a, b) REQUIRE((a) == (b))
+#define ASSERT_TRUE(a) REQUIRE(a)
+#define ASSERT_FALSE(a) REQUIRE(!(a))
+
 #include "../src/Client/Simulation/VirtualPacketGenerator.h"
 
 #include <cstring>

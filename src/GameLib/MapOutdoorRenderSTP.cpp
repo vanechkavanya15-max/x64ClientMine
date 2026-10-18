@@ -681,6 +681,9 @@ void CMapOutdoor::__SoftwareTransformPatch_Initialize()
 
 bool CMapOutdoor::__SoftwareTransformPatch_Create()
 {
+	if (!CStateManager::InstancePtr())
+		return true;
+
 	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
 	if (!lpDevice)
 		return true;

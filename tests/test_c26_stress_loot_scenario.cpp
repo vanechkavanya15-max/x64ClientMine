@@ -8,8 +8,8 @@
 using namespace Client::Simulation;
 
 void TestStressAndLootScenario() {
-    SessionSimulationHarness harness;
-    auto result = harness.RunStressAndLootScenario();
+    StressAndLootSimulationScenario scenario;
+    auto result = scenario.RunStressAndLootScenario();
 
     assert(result.success == true);
     assert(result.monstersSpawned == 100);

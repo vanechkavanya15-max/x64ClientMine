@@ -1,10 +1,10 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #define TEST_MODE_DISABLE_STDAFX
 #ifdef _WIN32
 #include <windows.h>
 #endif
 #include "../src/EterLib/Render/ActorSkinningPipeline.h"
-#include "../src/EterLib/Render/ActorSkinningPipeline.cpp"
 
 using namespace EterLib::Render;
 

@@ -1,21 +1,14 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
-// Define Windows types mocked for tests to compile cleanly without StdAfx.h
-using BYTE = unsigned char;
-using WORD = unsigned short;
-using DWORD = unsigned int;
-#define WORD_MAX 0xffff
-
-// Fake some types before UserInterface/Packet.h
-typedef struct TPixelPosition { float x, y, z; } TPixelPosition;
-typedef unsigned int UINT;
-typedef struct RECT { long left; long top; long right; long bottom; } RECT;
-
-#include "../src/UserInterface/Packet.h"
 #include "../src/Client/Network/RefineCommandEncoder.h"
 #include <cstring>
 #include <array>
+#include <vector>
+
+#ifndef WORD_MAX
+#define WORD_MAX 0xffff
+#endif
 
 using namespace Client::Network;
 

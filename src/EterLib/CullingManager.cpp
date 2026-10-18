@@ -153,5 +153,5 @@ void CCullingManager::FindRayDistance(const Vector3d &p1, const Vector3d &dir, f
 	m_RayFarDistance = distance;
 	m_list.clear();
 	m_list.reserve(64);
-	m_Factory->RayTrace(p1,dir,this);
+	m_Factory->RayTrace(p1, dir * distance, this);
 }

@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
 #include "../src/Client/Network/Handlers/ActorMoveHandler.h"
 #include "../src/Client/World/SpatialHashGrid.h"
-#include "../src/UserInterface/InstanceBase.h"
 
 using namespace Client::Network;
 using namespace Client::World;
 using namespace EterBase;
+
+constexpr uint8_t FUNC_WAIT = 0;
+constexpr uint8_t FUNC_MOVE = 1;
 
 class ActorMoveHandlerTest : public ::testing::Test {
 protected:
@@ -36,7 +38,7 @@ TEST_F(ActorMoveHandlerTest, Handle_ValidWalk_UpdatesGrid) {
     packet.dwVID = 12345;
     packet.lX = 500;
     packet.lY = 600;
-    packet.bFunc = CInstanceBase::FUNC_MOVE; // Valid
+    packet.bFunc = FUNC_MOVE; // Valid
 
     auto result = ActorMoveHandler::Handle(&packet, grid);
     EXPECT_TRUE(result.has_value());
@@ -51,7 +53,7 @@ TEST_F(ActorMoveHandlerTest, Handle_ValidWait_UpdatesGrid) {
     packet.dwVID = 67890;
     packet.lX = -200;
     packet.lY = 300;
-    packet.bFunc = CInstanceBase::FUNC_WAIT; // Valid
+    packet.bFunc = FUNC_WAIT; // Valid
 
     auto result = ActorMoveHandler::Handle(&packet, grid);
     EXPECT_TRUE(result.has_value());

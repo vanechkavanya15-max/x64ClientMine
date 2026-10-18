@@ -1,36 +1,34 @@
-#include <gtest/gtest.h>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest.h"
 #include <vector>
 #include <span>
+#include <cstring>
 
 #include "../src/Client/Network/Handlers/DeadHandler.h"
 #include "../src/Client/Network/CombatPacketCodec.h"
-#include "../src/UserInterface/Packet.h"
+#include "../src/Client/Network/Protocol/Protocol.h"
 
 using namespace Client::Network::Handlers;
-using namespace Client::World;
 
-class DeadHandlerTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        capturedVid = EntityVid{0};
-        capturedState = World::MotionState::Count;
-        callbackCalled = false;
-    }
+static EterBase::EntityId s_capturedVid{0};
+static ::World::MotionState s_capturedState{::World::MotionState::Count};
+static bool s_callbackCalled = false;
 
-    EntityVid capturedVid{0};
-    World::MotionState capturedState{World::MotionState::Count};
-    bool callbackCalled = false;
-};
+static void TestCallback(EterBase::EntityId vid, ::World::MotionState state) {
+    s_capturedVid = vid;
+    s_capturedState = state;
+    s_callbackCalled = true;
+}
 
-TEST_F(DeadHandlerTest, ProcessDeadPacket_SuccessfulDecoding_CallsCallbackWithCorrectData) {
-    DeadHandler handler([this](EntityVid vid, World::MotionState state) {
-        capturedVid = vid;
-        capturedState = state;
-        callbackCalled = true;
-    });
+TEST_CASE("DeadHandler - ProcessDeadPacket_SuccessfulDecoding_CallsCallbackWithCorrectData") {
+    s_capturedVid = EterBase::EntityId{0};
+    s_capturedState = ::World::MotionState::Count;
+    s_callbackCalled = false;
 
-    TPacketGCDead packet;
-    packet.header = 1; // dummy header
+    DeadHandler handler(TestCallback);
+
+    TPacketGCDead packet{};
+    packet.header = 1;
     packet.length = sizeof(TPacketGCDead);
     packet.vid = 12345;
 
@@ -39,30 +37,29 @@ TEST_F(DeadHandlerTest, ProcessDeadPacket_SuccessfulDecoding_CallsCallbackWithCo
 
     auto result = handler.ProcessDeadPacket(buffer);
 
-    ASSERT_TRUE(result.has_value());
-    EXPECT_TRUE(callbackCalled);
-    EXPECT_EQ(capturedVid.value(), 12345);
-    EXPECT_EQ(capturedState, World::MotionState::Dead);
+    CHECK(result.has_value());
+    CHECK(s_callbackCalled);
+    CHECK(s_capturedVid.value() == 12345);
+    CHECK(s_capturedState == ::World::MotionState::Dead);
 }
 
-TEST_F(DeadHandlerTest, ProcessDeadPacket_BufferUnderflow_ReturnsError) {
-    DeadHandler handler([this](EntityVid vid, World::MotionState state) {
-        callbackCalled = true;
-    });
+TEST_CASE("DeadHandler - ProcessDeadPacket_BufferUnderflow_ReturnsError") {
+    s_callbackCalled = false;
+    DeadHandler handler(TestCallback);
 
     std::vector<uint8_t> buffer(sizeof(TPacketGCDead) - 1); // Too small
 
     auto result = handler.ProcessDeadPacket(buffer);
 
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), EterBase::PacketError::BufferUnderflow);
-    EXPECT_FALSE(callbackCalled);
+    CHECK(!result.has_value());
+    CHECK(result.error() == EterBase::PacketError::BufferUnderflow);
+    CHECK(!s_callbackCalled);
 }
 
-TEST_F(DeadHandlerTest, ProcessDeadPacket_NoCallback_SucceedsWithoutCrashing) {
+TEST_CASE("DeadHandler - ProcessDeadPacket_NoCallback_SucceedsWithoutCrashing") {
     DeadHandler handler(nullptr);
 
-    TPacketGCDead packet;
+    TPacketGCDead packet{};
     packet.header = 1;
     packet.length = sizeof(TPacketGCDead);
     packet.vid = 54321;
@@ -72,5 +69,5 @@ TEST_F(DeadHandlerTest, ProcessDeadPacket_NoCallback_SucceedsWithoutCrashing) {
 
     auto result = handler.ProcessDeadPacket(buffer);
 
-    ASSERT_TRUE(result.has_value());
+    CHECK(result.has_value());
 }

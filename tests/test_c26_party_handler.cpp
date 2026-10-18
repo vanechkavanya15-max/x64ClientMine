@@ -1,7 +1,6 @@
-#include "dummy_headers.h"
 #include "../src/Client/Network/Handlers/PartyHandler.h"
 #include "../src/Client/Gameplay/SocialDomain.h"
-#include "../src/UserInterface/Packet.h"
+#include "../src/Client/Network/Protocol/Protocol.h"
 #include "../src/EterBase/StrongTypes.h"
 #include <iostream>
 #include <cassert>

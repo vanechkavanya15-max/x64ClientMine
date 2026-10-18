@@ -19,11 +19,11 @@ void Test_ActorDeleteHandler_Success() {
     // Set up test data
     grid.Insert(vid, 100.0f, 200.0f);
     
-    Client::Network::TPacketGCCharacterAdd addPacket{};
+    ::TPacketGCCharacterAdd addPacket{};
     addPacket.dwVID = vid.get();
     registry.RegisterSpawn(vid, addPacket);
 
-    Client::Network::TPacketGCCharacterAdditionalInfo addInfo{};
+    ::TPacketGCCharacterAdditionalInfo addInfo{};
     addInfo.dwVID = vid.get();
     registry.RegisterAdditionalInfo(vid, addInfo);
 
@@ -58,7 +58,7 @@ void Test_ActorDeleteHandler_IncompleteSpawn() {
     EntityVid vid{ 5678 };
 
     // Register spawn but NO additional info
-    Client::Network::TPacketGCCharacterAdd addPacket{};
+    ::TPacketGCCharacterAdd addPacket{};
     addPacket.dwVID = vid.get();
     registry.RegisterSpawn(vid, addPacket);
 

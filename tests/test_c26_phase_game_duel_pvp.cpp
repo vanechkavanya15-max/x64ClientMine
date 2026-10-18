@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 #include "Client/Bridge/PhaseGameDuelPvpBridge.h"
 #include "Client/Bridge/MockPythonRuntime.h"

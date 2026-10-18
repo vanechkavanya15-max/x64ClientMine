@@ -13,32 +13,6 @@
 #include "EterLib/GrpFontTexture.h"
 #include "EterLib/TextureUploadBridge.h"
 
-// Stubs for external symbols pulled in when linking EterLib
-#include "EterLib/Camera.h"
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
-
-class CSpeedTreeWrapper
-{
-public:
-    void SetupBranchForTreeType(void) const;
-    void SetupFrondForTreeType(void) const;
-    void SetupLeafForTreeType(void) const;
-    void EndLeafForTreeType(void);
-    void RenderBranches(void) const;
-    void RenderFronds(void) const;
-    void RenderLeaves(void) const;
-    void RenderBillboards(void) const;
-};
-
-void CSpeedTreeWrapper::SetupBranchForTreeType(void) const {}
-void CSpeedTreeWrapper::SetupFrondForTreeType(void) const {}
-void CSpeedTreeWrapper::SetupLeafForTreeType(void) const {}
-void CSpeedTreeWrapper::EndLeafForTreeType(void) {}
-void CSpeedTreeWrapper::RenderBranches(void) const {}
-void CSpeedTreeWrapper::RenderFronds(void) const {}
-void CSpeedTreeWrapper::RenderLeaves(void) const {}
-void CSpeedTreeWrapper::RenderBillboards(void) const {}
-
 // Minimal Mock for IDirect3DTexture9 with reference counting
 class MockDirect3DTexture9 : public IDirect3DTexture9
 {

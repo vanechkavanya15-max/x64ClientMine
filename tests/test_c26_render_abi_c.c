@@ -31,7 +31,7 @@ C_STATIC_ASSERT(sizeof(TUIVertex) == 24, "Size: TUIVertex");
 C_STATIC_ASSERT(sizeof(TPNT2Vertex) == 40, "Size: TPNT2Vertex");
 C_STATIC_ASSERT(sizeof(TRenderFrameUniforms) == 288, "Size: TRenderFrameUniforms");
 C_STATIC_ASSERT(sizeof(TTerrainSectorPacket) == 176, "Size: TTerrainSectorPacket");
-C_STATIC_ASSERT(sizeof(TActorRenderPacket) == 5008, "Size: TActorRenderPacket");
+C_STATIC_ASSERT(sizeof(TActorRenderPacket) == 5040, "Size: TActorRenderPacket");
 C_STATIC_ASSERT(sizeof(TWaterPacket) == 176, "Size: TWaterPacket");
 C_STATIC_ASSERT(sizeof(TSpeedTreeInstanceData) == 112, "Size: TSpeedTreeInstanceData");
 C_STATIC_ASSERT(sizeof(TSpeedTreePacket) == 48, "Size: TSpeedTreePacket");
@@ -119,22 +119,22 @@ C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwTextureID) == 8, "TActorRenderPac
 C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwBoneCount) == 12, "TActorRenderPacket::dwBoneCount");
 C_STATIC_ASSERT(offsetof(TActorRenderPacket, matWorld) == 16, "TActorRenderPacket::matWorld");
 C_STATIC_ASSERT(offsetof(TActorRenderPacket, pBoneMatrices) == 80, "TActorRenderPacket::pBoneMatrices");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, boneMatrices) == 88, "TActorRenderPacket::boneMatrices");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwWeaponMeshID) == 4184, "TActorRenderPacket::dwWeaponMeshID");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwWeaponTextureID) == 4188, "TActorRenderPacket::dwWeaponTextureID");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, matWeaponSocket) == 4192, "TActorRenderPacket::matWeaponSocket");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, matWeaponLeftSocket) == 4256, "TActorRenderPacket::matWeaponLeftSocket");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, matHelmetSocket) == 4320, "TActorRenderPacket::matHelmetSocket");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, matHairSocket) == 4384, "TActorRenderPacket::matHairSocket");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwAuraEffectCount) == 4448, "TActorRenderPacket::dwAuraEffectCount");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, matAuraEffectSockets) == 4452, "TActorRenderPacket::matAuraEffectSockets");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwAuraEffectIDs) == 4964, "TActorRenderPacket::dwAuraEffectIDs");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, bRenderShadow) == 4996, "TActorRenderPacket::bRenderShadow");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, bIsDead) == 4997, "TActorRenderPacket::bIsDead");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, bSelected) == 4998, "TActorRenderPacket::bSelected");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, bAlphaBlend) == 4999, "TActorRenderPacket::bAlphaBlend");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, fAlpha) == 5000, "TActorRenderPacket::fAlpha");
-C_STATIC_ASSERT(offsetof(TActorRenderPacket, fShadowSize) == 5004, "TActorRenderPacket::fShadowSize");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, boneMatrices) == 96, "TActorRenderPacket::boneMatrices");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwWeaponMeshID) == 4192, "TActorRenderPacket::dwWeaponMeshID");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwWeaponTextureID) == 4196, "TActorRenderPacket::dwWeaponTextureID");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, matWeaponSocket) == 4208, "TActorRenderPacket::matWeaponSocket");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, matWeaponLeftSocket) == 4272, "TActorRenderPacket::matWeaponLeftSocket");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, matHelmetSocket) == 4336, "TActorRenderPacket::matHelmetSocket");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, matHairSocket) == 4400, "TActorRenderPacket::matHairSocket");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwAuraEffectCount) == 4464, "TActorRenderPacket::dwAuraEffectCount");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, matAuraEffectSockets) == 4480, "TActorRenderPacket::matAuraEffectSockets");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, dwAuraEffectIDs) == 4992, "TActorRenderPacket::dwAuraEffectIDs");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, bRenderShadow) == 5024, "TActorRenderPacket::bRenderShadow");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, bIsDead) == 5025, "TActorRenderPacket::bIsDead");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, bSelected) == 5026, "TActorRenderPacket::bSelected");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, bAlphaBlend) == 5027, "TActorRenderPacket::bAlphaBlend");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, fAlpha) == 5028, "TActorRenderPacket::fAlpha");
+C_STATIC_ASSERT(offsetof(TActorRenderPacket, fShadowSize) == 5032, "TActorRenderPacket::fShadowSize");
 
 /* === 6. TWaterPacket === */
 C_STATIC_ASSERT(offsetof(TWaterPacket, fWorldPosX) == 0, "TWaterPacket::fWorldPosX");
@@ -172,15 +172,14 @@ C_STATIC_ASSERT(offsetof(TSkyBoxPacket, fCloudScale) == 76, "TSkyBoxPacket::fClo
 C_STATIC_ASSERT(offsetof(TSkyBoxPacket, fCloudHeight) == 80, "TSkyBoxPacket::fCloudHeight");
 C_STATIC_ASSERT(offsetof(TSkyBoxPacket, fCloudScrollSpeed) == 84, "TSkyBoxPacket::fCloudScrollSpeed");
 C_STATIC_ASSERT(offsetof(TSkyBoxPacket, fPad) == 88, "TSkyBoxPacket::fPad");
-C_STATIC_ASSERT(offsetof(TSkyBoxPacket, vSkyColor) == 92, "TSkyBoxPacket::vSkyColor");
+C_STATIC_ASSERT(offsetof(TSkyBoxPacket, vSkyColor) == 96, "TSkyBoxPacket::vSkyColor");
 
 /* === 8. TSpeedTreeInstanceData === */
 C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, pTreeInstance) == 0, "TSpeedTreeInstanceData::pTreeInstance");
-C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, matWorld) == 8, "TSpeedTreeInstanceData::matWorld");
-C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, v3Position) == 72, "TSpeedTreeInstanceData::v3Position");
-C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, dwTreeCRC) == 84, "TSpeedTreeInstanceData::dwTreeCRC");
-C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, fWindStrength) == 88, "TSpeedTreeInstanceData::fWindStrength");
-C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, fPad) == 92, "TSpeedTreeInstanceData::fPad");
+C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, matWorld) == 16, "TSpeedTreeInstanceData::matWorld");
+C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, v3Position) == 80, "TSpeedTreeInstanceData::v3Position");
+C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, dwTreeCRC) == 92, "TSpeedTreeInstanceData::dwTreeCRC");
+C_STATIC_ASSERT(offsetof(TSpeedTreeInstanceData, fWindStrength) == 96, "TSpeedTreeInstanceData::fWindStrength");
 
 /* === 9. TSpeedTreePacket === */
 C_STATIC_ASSERT(offsetof(TSpeedTreePacket, pMainTree) == 0, "TSpeedTreePacket::pMainTree");
@@ -219,7 +218,7 @@ C_STATIC_ASSERT(offsetof(TUIBatchPacket, dwTextureID) == 0, "TUIBatchPacket::dwT
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, dwBlendMode) == 8, "TUIBatchPacket::dwBlendMode");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, dwVertexCount) == 12, "TUIBatchPacket::dwVertexCount");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, bUseScissor) == 16, "TUIBatchPacket::bUseScissor");
-C_STATIC_ASSERT(offsetof(TUIBatchPacket, scissorRect) == 20, "TUIBatchPacket::scissorRect");
+C_STATIC_ASSERT(offsetof(TUIBatchPacket, scissorRect) == 24, "TUIBatchPacket::scissorRect");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, pVertices) == 40, "TUIBatchPacket::pVertices");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, fPad) == 48, "TUIBatchPacket::fPad");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, stateKey) == 48, "TUIBatchPacket::stateKey");
@@ -282,7 +281,7 @@ int main(void)
     assert(sizeof(TPNT2Vertex) == 40);
     assert(sizeof(TRenderFrameUniforms) == 288);
     assert(sizeof(TTerrainSectorPacket) == 176);
-    assert(sizeof(TActorRenderPacket) == 5008);
+    assert(sizeof(TActorRenderPacket) == 5040);
     assert(sizeof(TWaterPacket) == 176);
     assert(sizeof(TSpeedTreeInstanceData) == 112);
     assert(sizeof(TSpeedTreePacket) == 48);
@@ -361,22 +360,22 @@ int main(void)
     assert(offsetof(TActorRenderPacket, dwBoneCount) == 12);
     assert(offsetof(TActorRenderPacket, matWorld) == 16);
     assert(offsetof(TActorRenderPacket, pBoneMatrices) == 80);
-    assert(offsetof(TActorRenderPacket, boneMatrices) == 88);
-    assert(offsetof(TActorRenderPacket, dwWeaponMeshID) == 4184);
-    assert(offsetof(TActorRenderPacket, dwWeaponTextureID) == 4188);
-    assert(offsetof(TActorRenderPacket, matWeaponSocket) == 4192);
-    assert(offsetof(TActorRenderPacket, matWeaponLeftSocket) == 4256);
-    assert(offsetof(TActorRenderPacket, matHelmetSocket) == 4320);
-    assert(offsetof(TActorRenderPacket, matHairSocket) == 4384);
-    assert(offsetof(TActorRenderPacket, dwAuraEffectCount) == 4448);
-    assert(offsetof(TActorRenderPacket, matAuraEffectSockets) == 4452);
-    assert(offsetof(TActorRenderPacket, dwAuraEffectIDs) == 4964);
-    assert(offsetof(TActorRenderPacket, bRenderShadow) == 4996);
-    assert(offsetof(TActorRenderPacket, bIsDead) == 4997);
-    assert(offsetof(TActorRenderPacket, bSelected) == 4998);
-    assert(offsetof(TActorRenderPacket, bAlphaBlend) == 4999);
-    assert(offsetof(TActorRenderPacket, fAlpha) == 5000);
-    assert(offsetof(TActorRenderPacket, fShadowSize) == 5004);
+    assert(offsetof(TActorRenderPacket, boneMatrices) == 96);
+    assert(offsetof(TActorRenderPacket, dwWeaponMeshID) == 4192);
+    assert(offsetof(TActorRenderPacket, dwWeaponTextureID) == 4196);
+    assert(offsetof(TActorRenderPacket, matWeaponSocket) == 4208);
+    assert(offsetof(TActorRenderPacket, matWeaponLeftSocket) == 4272);
+    assert(offsetof(TActorRenderPacket, matHelmetSocket) == 4336);
+    assert(offsetof(TActorRenderPacket, matHairSocket) == 4400);
+    assert(offsetof(TActorRenderPacket, dwAuraEffectCount) == 4464);
+    assert(offsetof(TActorRenderPacket, matAuraEffectSockets) == 4480);
+    assert(offsetof(TActorRenderPacket, dwAuraEffectIDs) == 4992);
+    assert(offsetof(TActorRenderPacket, bRenderShadow) == 5024);
+    assert(offsetof(TActorRenderPacket, bIsDead) == 5025);
+    assert(offsetof(TActorRenderPacket, bSelected) == 5026);
+    assert(offsetof(TActorRenderPacket, bAlphaBlend) == 5027);
+    assert(offsetof(TActorRenderPacket, fAlpha) == 5028);
+    assert(offsetof(TActorRenderPacket, fShadowSize) == 5032);
 
     /* 6. TWaterPacket */
     assert(offsetof(TWaterPacket, fWorldPosX) == 0);
@@ -413,15 +412,14 @@ int main(void)
     assert(offsetof(TSkyBoxPacket, fCloudHeight) == 80);
     assert(offsetof(TSkyBoxPacket, fCloudScrollSpeed) == 84);
     assert(offsetof(TSkyBoxPacket, fPad) == 88);
-    assert(offsetof(TSkyBoxPacket, vSkyColor) == 92);
+    assert(offsetof(TSkyBoxPacket, vSkyColor) == 96);
 
     /* 8. TSpeedTreeInstanceData */
     assert(offsetof(TSpeedTreeInstanceData, pTreeInstance) == 0);
-    assert(offsetof(TSpeedTreeInstanceData, matWorld) == 8);
-    assert(offsetof(TSpeedTreeInstanceData, v3Position) == 72);
-    assert(offsetof(TSpeedTreeInstanceData, dwTreeCRC) == 84);
-    assert(offsetof(TSpeedTreeInstanceData, fWindStrength) == 88);
-    assert(offsetof(TSpeedTreeInstanceData, fPad) == 92);
+    assert(offsetof(TSpeedTreeInstanceData, matWorld) == 16);
+    assert(offsetof(TSpeedTreeInstanceData, v3Position) == 80);
+    assert(offsetof(TSpeedTreeInstanceData, dwTreeCRC) == 92);
+    assert(offsetof(TSpeedTreeInstanceData, fWindStrength) == 96);
 
     /* 9. TSpeedTreePacket */
     assert(offsetof(TSpeedTreePacket, pMainTree) == 0);
@@ -459,7 +457,7 @@ int main(void)
     assert(offsetof(TUIBatchPacket, dwBlendMode) == 8);
     assert(offsetof(TUIBatchPacket, dwVertexCount) == 12);
     assert(offsetof(TUIBatchPacket, bUseScissor) == 16);
-    assert(offsetof(TUIBatchPacket, scissorRect) == 20);
+    assert(offsetof(TUIBatchPacket, scissorRect) == 24);
     assert(offsetof(TUIBatchPacket, pVertices) == 40);
     assert(offsetof(TUIBatchPacket, fPad) == 48);
 

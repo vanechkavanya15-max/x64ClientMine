@@ -24,8 +24,8 @@ TEST_CASE("RenderConventions - Cloud Projection Constants")
 	CHECK(kCloudFovRad == 1.04719755f);
 	CHECK(EterLib::kCloudFovRad == 1.04719755f);
 
-	CHECK(kCloudAspect == 1.33333333f);
-	CHECK(EterLib::kCloudAspect == 1.33333333f);
+	CHECK(kCloudAspect == doctest::Approx(1.33333333f));
+	CHECK(EterLib::kCloudAspect == doctest::Approx(1.33333333f));
 
 	// 60 degrees in radians is pi / 3 (~1.047197551)
 	const float expectedRad = 3.14159265358979323846f / 3.0f;

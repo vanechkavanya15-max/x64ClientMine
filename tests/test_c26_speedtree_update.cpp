@@ -4,8 +4,6 @@
 #include "EterLib/Camera.h"
 #include <cmath>
 
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
-
 class CTestSpeedTreeForest : public CSpeedTreeForest
 {
 public:

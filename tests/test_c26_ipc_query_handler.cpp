@@ -33,14 +33,14 @@ void TestPlayerState() {
 
 void TestInventory() {
     WorldContext ctx;
-    ctx.inventory.push_back({0, 11299, 1}); // Armor
-    ctx.inventory.push_back({1, 2799, 200}); // Potions
+    ctx.inventory.SetItem(Client::Gameplay::InventoryWindow::Inventory, EterBase::ItemSlot{0}, Client::Gameplay::ItemData{.vnum = EterBase::ItemVnum{11299}, .count = 1});
+    ctx.inventory.SetItem(Client::Gameplay::InventoryWindow::Inventory, EterBase::ItemSlot{1}, Client::Gameplay::ItemData{.vnum = EterBase::ItemVnum{2799}, .count = 200});
 
     std::string json = IPCQueryHandler::HandleQueryInventory(ctx);
     std::string expected = R"({"inventory":[{"slot":0,"vnum":11299,"count":1},{"slot":1,"vnum":2799,"count":200}]})";
     assert(json == expected);
 
-    ctx.inventory.clear();
+    ctx.inventory.Clear();
     json = IPCQueryHandler::HandleQueryInventory(ctx);
     expected = R"({"inventory":[]})";
     assert(json == expected);

@@ -12,12 +12,12 @@ TEST_CASE("SkillPacketCodec::DecodeSkillLevel")
 {
     std::vector<uint8_t> buffer(sizeof(TPacketGCSkillLevel), 0);
     TPacketGCSkillLevel* p = reinterpret_cast<TPacketGCSkillLevel*>(buffer.data());
-    p->header = CG::SKILL_LEVEL;
+    p->header = GC::SKILL_LEVEL;
     p->length = sizeof(TPacketGCSkillLevel);
     
     auto result = SkillPacketCodec::DecodeSkillLevel(buffer);
     REQUIRE(result.has_value());
-    CHECK(result->header == CG::SKILL_LEVEL);
+    CHECK(result->header == GC::SKILL_LEVEL);
     CHECK(result->length == sizeof(TPacketGCSkillLevel));
     
     std::vector<uint8_t> small_buffer(1);
@@ -29,7 +29,7 @@ TEST_CASE("SkillPacketCodec::DecodeSkillLevelNew")
 {
     std::vector<uint8_t> buffer(sizeof(TPacketGCSkillLevelNew), 0);
     TPacketGCSkillLevelNew* p = reinterpret_cast<TPacketGCSkillLevelNew*>(buffer.data());
-    p->header = CG::SKILL_LEVEL_NEW;
+    p->header = GC::SKILL_LEVEL_NEW;
     p->length = sizeof(TPacketGCSkillLevelNew);
     
     // In our isolated test with the actual packet header, time_t on 64-bit Linux is 8 bytes, struct aligns to 8 bytes, making it exactly 2554 on x64.
@@ -37,7 +37,7 @@ TEST_CASE("SkillPacketCodec::DecodeSkillLevelNew")
     {
         auto result = SkillPacketCodec::DecodeSkillLevelNew(buffer);
         REQUIRE(result.has_value());
-        CHECK(result->header == CG::SKILL_LEVEL_NEW);
+        CHECK(result->header == GC::SKILL_LEVEL_NEW);
     }
     else
     {
@@ -50,13 +50,13 @@ TEST_CASE("SkillPacketCodec::DecodeSkillCooltimeEnd")
 {
     std::vector<uint8_t> buffer(sizeof(TPacketGCSkillCoolTimeEnd), 0);
     TPacketGCSkillCoolTimeEnd* p = reinterpret_cast<TPacketGCSkillCoolTimeEnd*>(buffer.data());
-    p->header = CG::SKILL_COOLTIME_END;
+    p->header = GC::SKILL_COOLTIME_END;
     p->length = sizeof(TPacketGCSkillCoolTimeEnd);
     p->bSkill = 1;
     
     auto result = SkillPacketCodec::DecodeSkillCooltimeEnd(buffer);
     REQUIRE(result.has_value());
-    CHECK(result->header == CG::SKILL_COOLTIME_END);
+    CHECK(result->header == GC::SKILL_COOLTIME_END);
     CHECK(result->bSkill == 1);
 }
 

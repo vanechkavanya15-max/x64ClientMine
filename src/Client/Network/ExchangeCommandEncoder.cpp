@@ -1,4 +1,3 @@
-#include "StdAfx.h"
 #include "ExchangeCommandEncoder.h"
 #include "Protocol/Protocol.h"
 

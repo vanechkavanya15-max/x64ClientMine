@@ -1,5 +1,5 @@
-#include "src/Client/Network/Handlers/StunHandler.h"
-#include "src/UserInterface/Core/EventBus.h"
+#include "Client/Network/Handlers/StunHandler.h"
+#include "Client/Core/EventBus.h"
 #include "EterBase/LogModern.h"
 #include <iostream>
 #include <vector>

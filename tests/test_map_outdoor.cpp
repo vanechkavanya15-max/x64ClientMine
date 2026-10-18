@@ -1,8 +1,18 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
+#include <windows.h>
+#include <d3d9.h>
+#include <d3dx9.h>
 #include "../src/GameLib/MapOutdoor.h"
 #include "../src/GameLib/TerrainPatch.h"
 #include "../src/PRTerrainLib/Terrain.h"
+
+class CPythonSystem
+{
+public:
+    int GetFogLevel();
+};
+int CPythonSystem::GetFogLevel() { return 0; }
 
 // Note: Testing actual D3D code without a window requires mocking STATEMANAGER.
 // For the bounds checks, we can test that calling out-of-bounds doesn't crash.

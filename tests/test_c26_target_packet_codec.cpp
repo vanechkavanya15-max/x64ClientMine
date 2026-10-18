@@ -2,7 +2,7 @@
 #include <doctest/doctest.h>
 
 #include "Client/Network/TargetPacketCodec.h"
-#include "EterBase/Error/PacketError.h"
+#include "EterBase/Result.h"
 
 // Define missing namespaces/constants for the test in case they differ.
 // Note: We use GC::TARGET directly because they are defined in Packet.h which is included.

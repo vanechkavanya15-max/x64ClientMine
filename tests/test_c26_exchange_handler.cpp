@@ -1,9 +1,9 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <span>
 #include "Client/Network/Handlers/ExchangeHandler.h"
-#include "UserInterface/Packets/Packet_Exchange.h"
-#include "UserInterface/Packet.h"
+#include "Client/Network/Protocol/Protocol.h"
 
 using namespace Client::Network::Handlers;
 using namespace Client::Gameplay;
@@ -30,9 +30,9 @@ int main() {
     {
         TPacketGCExchange pack{};
         pack.subheader = ExchangeSub::GC::ITEM_ADD;
-        pack.isInitiator = 1; // targets self
-        pack.itemPos.cell = 5;
-        pack.value1 = 5001; // vnum
+        pack.is_me = 1; // targets self
+        pack.arg2.cell = 5;
+        pack.arg1 = 5001; // vnum
         
         auto span = std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&pack), sizeof(pack));
         auto result = ExchangeHandler::HandleExchangePacket(span, &exchange, selfId, targetId);
@@ -48,8 +48,8 @@ int main() {
     {
         TPacketGCExchange pack{};
         pack.subheader = ExchangeSub::GC::ELK_ADD;
-        pack.isInitiator = 0; // targets other
-        pack.value1 = 10000;
+        pack.is_me = 0; // targets other
+        pack.arg1 = 10000;
         
         auto span = std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&pack), sizeof(pack));
         auto result = ExchangeHandler::HandleExchangePacket(span, &exchange, selfId, targetId);
@@ -63,8 +63,8 @@ int main() {
     {
         TPacketGCExchange pack{};
         pack.subheader = ExchangeSub::GC::ACCEPT;
-        pack.isInitiator = 1; // targets self
-        pack.value1 = 1; // true
+        pack.is_me = 1; // targets self
+        pack.arg1 = 1; // true
         
         auto span = std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&pack), sizeof(pack));
         auto result = ExchangeHandler::HandleExchangePacket(span, &exchange, selfId, targetId);
@@ -96,6 +96,6 @@ int main() {
         assert(result.error() == PacketError::BufferUnderflow);
     }
 
-    std::cout << "All tests passed successfully.\n";
+    std::cout << "All ExchangeHandler tests passed successfully.\n";
     return 0;
 }

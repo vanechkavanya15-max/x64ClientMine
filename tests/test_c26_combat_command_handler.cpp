@@ -1,25 +1,24 @@
-#include "../src/Client/Gameplay/CombatCommandHandler.h"
+#include "Client/Gameplay/CombatCommandHandler.h"
 #include <iostream>
 #include <cassert>
 #include <unordered_map>
 
-using namespace Client;
 
 // ============================================================================
 // Mock interfejsu zapytan o encje
 // ============================================================================
-class MockCombatEntityQuery : public Gameplay::ICombatEntityQuery {
+class MockCombatEntityQuery : public Client::Gameplay::ICombatEntityQuery {
 public:
     struct EntityData {
         bool isValid = false;
         bool isDead = false;
     };
 
-    void SetupEntity(Core::EntityVid vid, bool isValid, bool isDead) {
+    void SetupEntity(Client::Core::EntityVid vid, bool isValid, bool isDead) {
         m_entities[vid] = EntityData{isValid, isDead};
     }
 
-    [[nodiscard]] bool IsValidEntity(Core::EntityVid vid) const noexcept override {
+    [[nodiscard]] bool IsValidEntity(Client::Core::EntityVid vid) const noexcept override {
         auto it = m_entities.find(vid);
         if (it != m_entities.end()) {
             return it->second.isValid;
@@ -27,7 +26,7 @@ public:
         return false;
     }
 
-    [[nodiscard]] bool IsEntityDead(Core::EntityVid vid) const noexcept override {
+    [[nodiscard]] bool IsEntityDead(Client::Core::EntityVid vid) const noexcept override {
         auto it = m_entities.find(vid);
         if (it != m_entities.end()) {
             return it->second.isDead;
@@ -36,7 +35,7 @@ public:
     }
 
 private:
-    std::unordered_map<Core::EntityVid, EntityData> m_entities;
+    std::unordered_map<Client::Core::EntityVid, EntityData> m_entities;
 };
 
 // ============================================================================
@@ -45,121 +44,121 @@ private:
 
 void Test_HandleAttack_PlayerIsDead() {
     MockCombatEntityQuery query;
-    Gameplay::CombatCommandHandler handler(query);
+    Client::Gameplay::CombatCommandHandler handler(query);
 
-    Core::WorldContext ctx;
-    ctx.localPlayerVid = Core::EntityVid{100};
+    Client::Core::WorldContext ctx;
+    ctx.localPlayerVid = Client::Core::EntityVid{100};
     ctx.isDead = true; 
 
-    Core::EntityVid targetVid{200};
+    Client::Core::EntityVid targetVid{200};
     query.SetupEntity(targetVid, true, false); 
 
-    Core::AttackCommand cmd;
+    Client::Core::AttackCommand cmd;
     cmd.targetVid = targetVid;
     cmd.attackType = 0;
 
     auto result = handler.HandleAttack(cmd, ctx);
     
     assert(!result.has_value());
-    assert(result.error() == Core::CommandError::MovementBlocked);
+    assert(result.error() == Client::Core::CommandError::MovementBlocked);
     std::cout << "[OK] Test_HandleAttack_PlayerIsDead\n";
 }
 
 void Test_HandleAttack_TargetIdIsZero() {
     MockCombatEntityQuery query;
-    Gameplay::CombatCommandHandler handler(query);
+    Client::Gameplay::CombatCommandHandler handler(query);
 
-    Core::WorldContext ctx;
-    ctx.localPlayerVid = Core::EntityVid{100};
+    Client::Core::WorldContext ctx;
+    ctx.localPlayerVid = Client::Core::EntityVid{100};
     ctx.isDead = false;
 
-    Core::AttackCommand cmd;
-    cmd.targetVid = Core::EntityVid{0}; 
+    Client::Core::AttackCommand cmd;
+    cmd.targetVid = Client::Core::EntityVid{0}; 
     cmd.attackType = 0;
 
     auto result = handler.HandleAttack(cmd, ctx);
     
     assert(!result.has_value());
-    assert(result.error() == Core::CommandError::InvalidTarget);
+    assert(result.error() == Client::Core::CommandError::InvalidTarget);
     std::cout << "[OK] Test_HandleAttack_TargetIdIsZero\n";
 }
 
 void Test_HandleAttack_TargetIsSelf() {
     MockCombatEntityQuery query;
-    Gameplay::CombatCommandHandler handler(query);
+    Client::Gameplay::CombatCommandHandler handler(query);
 
-    Core::WorldContext ctx;
-    ctx.localPlayerVid = Core::EntityVid{100};
+    Client::Core::WorldContext ctx;
+    ctx.localPlayerVid = Client::Core::EntityVid{100};
     ctx.isDead = false;
 
-    query.SetupEntity(Core::EntityVid{100}, true, false);
+    query.SetupEntity(Client::Core::EntityVid{100}, true, false);
 
-    Core::AttackCommand cmd;
-    cmd.targetVid = Core::EntityVid{100}; 
+    Client::Core::AttackCommand cmd;
+    cmd.targetVid = Client::Core::EntityVid{100}; 
     cmd.attackType = 0;
 
     auto result = handler.HandleAttack(cmd, ctx);
     
     assert(!result.has_value());
-    assert(result.error() == Core::CommandError::InvalidTarget);
+    assert(result.error() == Client::Core::CommandError::InvalidTarget);
     std::cout << "[OK] Test_HandleAttack_TargetIsSelf\n";
 }
 
 void Test_HandleAttack_TargetDoesNotExist() {
     MockCombatEntityQuery query;
-    Gameplay::CombatCommandHandler handler(query);
+    Client::Gameplay::CombatCommandHandler handler(query);
 
-    Core::WorldContext ctx;
-    ctx.localPlayerVid = Core::EntityVid{100};
+    Client::Core::WorldContext ctx;
+    ctx.localPlayerVid = Client::Core::EntityVid{100};
     ctx.isDead = false;
 
     // Encja 999 nie zostala dodana do moka
 
-    Core::AttackCommand cmd;
-    cmd.targetVid = Core::EntityVid{999}; 
+    Client::Core::AttackCommand cmd;
+    cmd.targetVid = Client::Core::EntityVid{999}; 
     cmd.attackType = 0;
 
     auto result = handler.HandleAttack(cmd, ctx);
     
     assert(!result.has_value());
-    assert(result.error() == Core::CommandError::InvalidTarget);
+    assert(result.error() == Client::Core::CommandError::InvalidTarget);
     std::cout << "[OK] Test_HandleAttack_TargetDoesNotExist\n";
 }
 
 void Test_HandleAttack_TargetIsDead() {
     MockCombatEntityQuery query;
-    Gameplay::CombatCommandHandler handler(query);
+    Client::Gameplay::CombatCommandHandler handler(query);
 
-    Core::WorldContext ctx;
-    ctx.localPlayerVid = Core::EntityVid{100};
+    Client::Core::WorldContext ctx;
+    ctx.localPlayerVid = Client::Core::EntityVid{100};
     ctx.isDead = false;
 
-    Core::EntityVid targetVid{200};
+    Client::Core::EntityVid targetVid{200};
     query.SetupEntity(targetVid, true, true); // Istnieje, ale jest martwy
 
-    Core::AttackCommand cmd;
+    Client::Core::AttackCommand cmd;
     cmd.targetVid = targetVid;
     cmd.attackType = 0;
 
     auto result = handler.HandleAttack(cmd, ctx);
     
     assert(!result.has_value());
-    assert(result.error() == Core::CommandError::InvalidTarget);
+    assert(result.error() == Client::Core::CommandError::InvalidTarget);
     std::cout << "[OK] Test_HandleAttack_TargetIsDead\n";
 }
 
 void Test_HandleAttack_ValidCommand() {
     MockCombatEntityQuery query;
-    Gameplay::CombatCommandHandler handler(query);
+    Client::Gameplay::CombatCommandHandler handler(query);
 
-    Core::WorldContext ctx;
-    ctx.localPlayerVid = Core::EntityVid{100};
+    Client::Core::WorldContext ctx;
+    ctx.localPlayerVid = Client::Core::EntityVid{100};
     ctx.isDead = false; // Gracz zyje
 
-    Core::EntityVid targetVid{200};
+    Client::Core::EntityVid targetVid{200};
     query.SetupEntity(targetVid, true, false); // Cel istnieje i zyje
 
-    Core::AttackCommand cmd;
+    Client::Core::AttackCommand cmd;
     cmd.targetVid = targetVid;
     cmd.attackType = 1;
 

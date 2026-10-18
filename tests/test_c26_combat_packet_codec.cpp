@@ -10,10 +10,10 @@ void Test_Attack_Codec()
     TPacketCGAttack packet{};
     packet.header = 0x02;
     packet.length = sizeof(TPacketCGAttack);
-    packet.type = 1;
-    packet.targetId = 12345;
-    packet.crcMagicCubeProcPiece = 0xAA;
-    packet.crcMagicCubeFilePiece = 0xBB;
+    packet.bType = 1;
+    packet.dwVictimVID = 12345;
+    packet.bCRCMagicCubeProcPiece = 0xAA;
+    packet.bCRCMagicCubeFilePiece = 0xBB;
 
     auto encodedResult = EncodeAttack(packet);
     assert(encodedResult.has_value());
@@ -25,8 +25,8 @@ void Test_Attack_Codec()
     const auto& decoded = decodedResult.value();
 
     assert(decoded.header == packet.header);
-    assert(decoded.type == packet.type);
-    assert(decoded.targetId == packet.targetId);
+    assert(decoded.bType == packet.bType);
+    assert(decoded.dwVictimVID == packet.dwVictimVID);
 }
 
 void Test_Shoot_Codec()
@@ -49,7 +49,7 @@ void Test_DamageInfo_Codec_Valid()
     TPacketGCDamageInfo packet{};
     packet.header = 0x04;
     packet.length = sizeof(TPacketGCDamageInfo);
-    packet.targetId = 54321;
+    packet.dwVID = 54321;
     packet.damage = 999;
     packet.flag = (1 << 5); // DAMAGE_CRITICAL
 
@@ -67,7 +67,7 @@ void Test_DamageInfo_Codec_InvalidFlag()
     TPacketGCDamageInfo packet{};
     packet.header = 0x04;
     packet.length = sizeof(TPacketGCDamageInfo);
-    packet.targetId = 54321;
+    packet.dwVID = 54321;
     packet.damage = 999;
     // (1<<6) is invalid, max is (1<<5)
     packet.flag = (1 << 6); 

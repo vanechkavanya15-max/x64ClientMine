@@ -68,10 +68,13 @@ struct FGetPickingPoint
 
 CMapOutdoor::CMapOutdoor()
 {
-	CGraphicImage * pAttrImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer("d:/ymir work/special/white.dds");
-	CGraphicImage * pBuildTransparentImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer("d:/ymir Work/special/PCBlockerAlpha.dds");
-	m_attrImageInstance.SetImagePointer(pAttrImage);
-	m_BuildingTransparentImageInstance.SetImagePointer(pBuildTransparentImage);
+	if (CResourceManager::InstancePtr())
+	{
+		CGraphicImage * pAttrImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer("d:/ymir work/special/white.dds");
+		CGraphicImage * pBuildTransparentImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer("d:/ymir Work/special/PCBlockerAlpha.dds");
+		m_attrImageInstance.SetImagePointer(pAttrImage);
+		m_BuildingTransparentImageInstance.SetImagePointer(pBuildTransparentImage);
+	}
 
 	Initialize();
 
@@ -213,7 +216,8 @@ bool CMapOutdoor::Destroy()
 
 	m_rkList_kGuildArea.clear();
 	m_kPool_kMonsterAreaInfo.Destroy();
-	CSpeedTreeForestDirectX::Instance().Clear();
+	if (CSpeedTreeForestDirectX::InstancePtr())
+		CSpeedTreeForestDirectX::Instance().Clear();
 
 	return true;
 }

@@ -181,6 +181,7 @@ std::vector<std::pair<std::string, size_t>> CRenderQueueManager::GetPacketSizes(
 		{ "TUIVertex", sizeof(TUIVertex) },
 		{ "TUIBatchPacket", sizeof(TUIBatchPacket) },
 		{ "TDungeonBlockPacket", sizeof(TDungeonBlockPacket) },
+		{ "TEffectMeshPacket", sizeof(TEffectMeshPacket) },
 		{ "TRenderFramePacket", sizeof(TRenderFramePacket) }
 	};
 }

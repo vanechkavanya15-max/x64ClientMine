@@ -198,6 +198,12 @@ void EvaluateHierarchy(
     std::vector<Matrix4x4>& outWorldTransforms,
     std::vector<uint8_t>& state)
 {
+    if (parentIndices.size() != localTransforms.size()) {
+        outWorldTransforms.clear();
+        state.clear();
+        return;
+    }
+
     const size_t count = localTransforms.size();
     outWorldTransforms.resize(count);
     if (count == 0) return;

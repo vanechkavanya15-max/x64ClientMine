@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "../src/Client/Network/Handlers/ActorSpawnHandler.h"
 #include "../src/Client/Network/PendingSpawnRegistry.h"
-#include "../src/UserInterface/Packet.h"
+#include "../src/Client/Network/Protocol/Protocol.h"
 #include <vector>
 #include <cstring>
 

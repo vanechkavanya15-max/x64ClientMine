@@ -2,12 +2,14 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <span>
 #include "../src/Client/Network/Handlers/PlayerPointsHandler.h"
+#include "../src/Client/Network/Protocol/Protocol.h"
 
-using namespace Network::Handlers;
+using namespace Client::Network::Handlers;
+using namespace Client::Gameplay;
 
-// Dummy implementation of IPlayerStatsService for testing
-namespace UserInterface::Services
+namespace
 {
     class MockPlayerStatsService : public IPlayerStatsService
     {
@@ -36,7 +38,7 @@ namespace UserInterface::Services
 
 void Test_PlayerPointsHandler_Valid()
 {
-    UserInterface::Services::MockPlayerStatsService mockService;
+    MockPlayerStatsService mockService;
     
     TPacketGCPoints packet{};
     std::memset(packet.points, 0, sizeof(packet.points));
@@ -66,7 +68,7 @@ void Test_PlayerPointsHandler_Valid()
 
 void Test_PlayerPointsHandler_DivByZero_Protection()
 {
-    UserInterface::Services::MockPlayerStatsService mockService;
+    MockPlayerStatsService mockService;
     
     TPacketGCPoints packet{};
     std::memset(packet.points, 0, sizeof(packet.points));
@@ -92,7 +94,7 @@ void Test_PlayerPointsHandler_DivByZero_Protection()
 
 void Test_PlayerPointsHandler_BufferUnderflow()
 {
-    UserInterface::Services::MockPlayerStatsService mockService;
+    MockPlayerStatsService mockService;
     
     std::vector<uint8_t> shortBuffer(sizeof(TPacketGCPoints) - 1, 0);
     std::span<const uint8_t> payload(shortBuffer);
@@ -107,7 +109,6 @@ int main()
     Test_PlayerPointsHandler_Valid();
     Test_PlayerPointsHandler_DivByZero_Protection();
     Test_PlayerPointsHandler_BufferUnderflow();
-
     std::cout << "All PlayerPointsHandler tests passed successfully!" << std::endl;
     return 0;
 }

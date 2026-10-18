@@ -3,8 +3,9 @@
 #include "EterBase/LogModern.h"
 
 using namespace Client::Gameplay;
-using namespace Client::Core;
-using namespace EterBase;
+using Client::Core::CommandError;
+using EterBase::EntityId;
+using EterBase::ModernLogger;
 
 int main() {
     EntityId p1(100);

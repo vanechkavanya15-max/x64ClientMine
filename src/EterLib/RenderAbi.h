@@ -489,7 +489,7 @@ typedef struct RENDER_ABI_ALIGN(16) TWaterPacket
         fWaveFrequency = 1.5f;
         fWaveAmplitude = 5.0f;
 #if defined(RENDER_COLOR4_TYPE) && !defined(RENDER_ABI_C_ONLY)
-        vWaterColor = RENDER_COLOR4_TYPE(0.2f, 0.5f, 0.7f, 0.6f);
+        vWaterColor = { 0.2f, 0.5f, 0.7f, 0.6f };
 #else
         std::memset(&vWaterColor, 0, sizeof(vWaterColor));
 #endif
@@ -744,10 +744,10 @@ typedef struct RENDER_ABI_ALIGN(16) TDungeonBlockPacket
     TDungeonBlockPacket()
     {
         std::memset(this, 0, sizeof(*this));
-        std::memset(&matWorld, 0, sizeof(matWorld));
-        
-        
-        
+        matWorld._11 = 1.0f;
+        matWorld._22 = 1.0f;
+        matWorld._33 = 1.0f;
+        matWorld._44 = 1.0f;
         fAlpha = 1.0f;
     }
 #endif
@@ -899,10 +899,10 @@ typedef struct TModelDrawItem
     TModelDrawItem()
     {
         std::memset(this, 0, sizeof(*this));
-        std::memset(&matWorld, 0, sizeof(matWorld));
-        
-        
-        
+        matWorld._11 = 1.0f;
+        matWorld._22 = 1.0f;
+        matWorld._33 = 1.0f;
+        matWorld._44 = 1.0f;
         fAlpha = 1.0f;
         materialColor = 0xffffffff;
         pass = EModelPass::Opaque;

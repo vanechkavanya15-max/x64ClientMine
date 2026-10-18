@@ -3,8 +3,8 @@
 #include "Client/Gameplay/ExchangeCommandHandler.h"
 
 using namespace Client::Gameplay;
-using namespace Client::Core;
-using namespace EterBase;
+using Client::Core::CommandError;
+using EterBase::EntityId;
 
 void TestExchangeLifecycle() {
     ExchangeCommandHandler handler;

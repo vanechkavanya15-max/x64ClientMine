@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "../src/Client/Network/ExchangeCommandEncoder.h"
-#include "../src/UserInterface/Packet.h"
+#include "../src/Client/Network/Protocol/Protocol.h"
 
 using namespace Client::Network;
 

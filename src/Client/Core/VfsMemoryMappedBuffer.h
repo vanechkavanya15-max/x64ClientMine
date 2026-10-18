@@ -8,6 +8,7 @@
 #include <memory>
 #include <expected>
 #include <format>
+#include <filesystem>
 
 // mio - minimalist C++11 header-only memory mapped file library
 #include "../../../vendor/mio/single_include/mio/mio.hpp"
@@ -49,6 +50,14 @@ public:
 
     [[nodiscard]] static std::expected<VfsMemoryMappedBuffer, VfsMemoryMappedBufferError> MapFile(const std::string& path) {
         std::error_code ec;
+        if (!std::filesystem::exists(path, ec)) {
+            return std::unexpected(VfsMemoryMappedBufferError::FileNotFound);
+        }
+        const auto sz = std::filesystem::file_size(path, ec);
+        if (ec || sz == 0) {
+            return std::unexpected(VfsMemoryMappedBufferError::InvalidSize);
+        }
+
         VfsMemoryMappedBuffer buffer;
         buffer.m_mmap.map(path, ec);
 
@@ -69,6 +78,10 @@ public:
         }
 
         return buffer;
+    }
+
+    void Unmap() noexcept {
+        m_mmap.unmap();
     }
 
     [[nodiscard]] std::span<const uint8_t> GetSpan() const noexcept {

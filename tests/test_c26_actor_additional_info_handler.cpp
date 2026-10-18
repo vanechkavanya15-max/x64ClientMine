@@ -4,7 +4,7 @@
 #include <cassert>
 #include "Client/Network/Handlers/ActorAdditionalInfoHandler.h"
 #include "Client/Network/PendingSpawnRegistry.h"
-#include "Client/Network/ActorPacketCodec.h"
+#include "Client/Network/Protocol/Protocol.h"
 #include "EterBase/Result.h"
 
 int main() {
@@ -12,14 +12,14 @@ int main() {
     
     // Create an entity to test against
     EterBase::EntityId vid(12345);
-    Client::Network::TPacketGCCharacterAdd spawnPacket{};
+    TPacketGCCharacterAdd spawnPacket{};
     spawnPacket.dwVID = vid.value();
     
     auto spawnResult = registry.RegisterSpawn(vid, spawnPacket);
     assert(spawnResult.has_value() && "Spawn registration failed");
 
     // Test 1: Valid TPacketGCCharacterAdditionalInfo
-    Client::Network::TPacketGCCharacterAdditionalInfo validPacket{};
+    TPacketGCCharacterAdditionalInfo validPacket{};
     validPacket.dwVID = vid.value();
     validPacket.dwLevel = 50;
     
@@ -36,7 +36,7 @@ int main() {
     assert(takeResult->additionalInfo->dwLevel == 50 && "Data should match");
 
     // Test 2: Malformed Payload
-    std::vector<uint8_t> malformedPayload(sizeof(Client::Network::TPacketGCCharacterAdditionalInfo) - 1, 0);
+    std::vector<uint8_t> malformedPayload(sizeof(TPacketGCCharacterAdditionalInfo) - 1, 0);
     std::span<const uint8_t> malformedSpan{malformedPayload};
 
     auto resultMalformed = Client::Network::Handlers::HandleActorAdditionalInfo(malformedSpan, registry);
