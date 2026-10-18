@@ -44,4 +44,5 @@ public:
 	static bool IsWgpuConfigured();
 
 	static void ResetDefaults();
+	static void SetAllWgpu();
 };

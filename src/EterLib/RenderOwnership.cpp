@@ -80,8 +80,22 @@ bool RenderOwnership::IsWgpuConfigured()
 	return s_bWgpuConfigured;
 }
 
+void RenderOwnership::SetAllWgpu()
+{
+	for (size_t i = 0; i < static_cast<size_t>(ERenderCategory::Count); ++i)
+	{
+		s_owners[i].store(ERenderOwner::Wgpu, std::memory_order_relaxed);
+	}
+}
+
 void RenderOwnership::ResetDefaults()
 {
+	if (IsWgpuConfigured())
+	{
+		SetAllWgpu();
+		return;
+	}
+
 	for (size_t i = 0; i < static_cast<size_t>(ERenderCategory::Count); ++i)
 	{
 		s_owners[i].store(ERenderOwner::Legacy, std::memory_order_relaxed);

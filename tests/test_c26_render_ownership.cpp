@@ -98,3 +98,21 @@ TEST_CASE("RenderOwnership - Out of bounds safety")
 	CHECK(RenderOwnership::Owner(ERenderCategory::Count) == ERenderOwner::Legacy);
 	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::Count) == true);
 }
+
+TEST_CASE("RenderOwnership - SetAllWgpu Wave W5 Transition (T228)")
+{
+	RenderOwnership::ResetDefaults();
+
+	// T228: Przelaczenie wszystkich 18 kategorii na Wgpu
+	RenderOwnership::SetAllWgpu();
+
+	for (size_t i = 0; i < static_cast<size_t>(ERenderCategory::Count); ++i)
+	{
+		auto cat = static_cast<ERenderCategory>(i);
+		CHECK(RenderOwnership::Owner(cat) == ERenderOwner::Wgpu);
+		CHECK_FALSE(RenderOwnership::LegacyDraws(cat));
+	}
+
+	// Przywrocenie domyslnego stanu
+	RenderOwnership::ResetDefaults();
+}
