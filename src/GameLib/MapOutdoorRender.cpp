@@ -121,6 +121,11 @@ int	CMapOutdoor::__RenderTerrain_RecurseRenderQuadTree_CheckBoundingCircle(const
 void CMapOutdoor::__RenderTerrain_AppendPatch(const D3DXVECTOR3& c_rv3Center, float fDistance, long lPatchNum)
 {
 	assert(NULL!=m_pTerrainPatchProxyList && "CMapOutdoor::__RenderTerrain_AppendPatch");
+
+	const long lMaxPatches = static_cast<long>(m_wPatchCount * m_wPatchCount);
+	if (lPatchNum < 0 || lPatchNum >= lMaxPatches)
+		return;
+
 	if (!m_pTerrainPatchProxyList[lPatchNum].isUsed())
 		return;
 
@@ -774,6 +779,12 @@ void CMapOutdoor::NEW_DrawWireFrame(CTerrainPatchProxy * pTerrainPatchProxy, WOR
 void CMapOutdoor::DrawWireFrame(long patchnum, WORD wPrimitiveCount, D3DPRIMITIVETYPE ePrimitiveType)
 {
 	assert(NULL!=m_pTerrainPatchProxyList && "CMapOutdoor::DrawWireFrame");
+	if (!m_pTerrainPatchProxyList)
+		return;
+
+	const long lMaxPatches = static_cast<long>(m_wPatchCount * m_wPatchCount);
+	if (patchnum < 0 || patchnum >= lMaxPatches)
+		return;
 
 	CTerrainPatchProxy * pTerrainPatchProxy= &m_pTerrainPatchProxyList[patchnum];
 
@@ -911,6 +922,13 @@ void CMapOutdoor::RecurseRenderAttr(CTerrainQuadtreeNode *Node, bool bCullEnable
 
 void CMapOutdoor::DrawPatchAttr(long patchnum)
 {
+	if (!m_pTerrainPatchProxyList)
+		return;
+
+	const long lMaxPatches = static_cast<long>(m_wPatchCount * m_wPatchCount);
+	if (patchnum < 0 || patchnum >= lMaxPatches)
+		return;
+
 	CTerrainPatchProxy * pTerrainPatchProxy = &m_pTerrainPatchProxyList[patchnum];
 	if (!pTerrainPatchProxy->isUsed())
 		return;

@@ -96,10 +96,10 @@ void CMapOutdoor::RenderWater()
 		STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorldForCommonUse);
 	}
 
-	for (auto i = m_PatchVector.begin(); i != m_PatchVector.end(); ++i)
+	for (const auto& patch : m_PatchVector)
 	{
-		if (i->first < fFogDistance)
-			DrawWater(i->second, false, hWaterTexture, pD3DTexture, matTexTransformWater, fWaterHeightCurrent, fTimeSec, fFogDistance);
+		if (patch.first < fFogDistance)
+			DrawWater(patch.second, false, hWaterTexture, pD3DTexture, matTexTransformWater, fWaterHeightCurrent, fTimeSec, fFogDistance);
 	}
 
 	if (bLegacyDraws)
@@ -108,10 +108,10 @@ void CMapOutdoor::RenderWater()
 		STATEMANAGER.SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 	}
 
-	for (auto i = m_PatchVector.begin(); i != m_PatchVector.end(); ++i)
+	for (const auto& patch : m_PatchVector)
 	{
-		if (i->first >= fFogDistance)
-			DrawWater(i->second, true, hWaterTexture, pD3DTexture, matTexTransformWater, fWaterHeightCurrent, fTimeSec, fFogDistance);
+		if (patch.first >= fFogDistance)
+			DrawWater(patch.second, true, hWaterTexture, pD3DTexture, matTexTransformWater, fWaterHeightCurrent, fTimeSec, fFogDistance);
 	}
 
 	if (bLegacyDraws)
