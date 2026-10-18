@@ -7662,3 +7662,25 @@ target_link_libraries(test_c37_buffer_pool_audit PRIVATE
 )
 add_test(NAME test_c37_buffer_pool_audit COMMAND test_c37_buffer_pool_audit)
 
+# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
+add_executable(test_map_outdoor test_map_outdoor.cpp)
+target_include_directories(test_map_outdoor PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_map_outdoor PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_map_outdoor COMMAND test_map_outdoor)
+
