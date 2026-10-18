@@ -1,13 +1,4 @@
-// Terrain.h: interface for the CTerrainImpl class.
-//
-//////////////////////////////////////////////////////////////////////
-
-#if !defined(AFX_TERRAIN_H__1C9108E1_69A7_4392_9B68_0E6CD4E1BFBA__INCLUDED_)
-#define AFX_TERRAIN_H__1C9108E1_69A7_4392_9B68_0E6CD4E1BFBA__INCLUDED_
-
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #include "TextureSet.h"
 #include "TerrainType.h"
@@ -40,7 +31,7 @@ class CTerrainImpl
 			SPLATALPHA_RAW_YSIZE = YSIZE*2+2,
 			SPLATALPHA_ZCOUNT	= 7,
 			HEIGHT_TILE_XRATIO	= TILEMAP_XSIZE / XSIZE,
-			HEIGHT_TILE_YRATIO	= TILEMAP_XSIZE / XSIZE,
+			HEIGHT_TILE_YRATIO	= TILEMAP_YSIZE / YSIZE,
 
 			PATCH_XSIZE			= TERRAIN_PATCHSIZE,
 			PATCH_YSIZE			= TERRAIN_PATCHSIZE,
@@ -82,16 +73,16 @@ class CTerrainImpl
 		virtual ~CTerrainImpl();
 		
 		TTerrainSplatPatch &	GetTerrainSplatPatch() {return m_TerrainSplatPatch;}
-		DWORD					GetNumTextures()						{ return ms_pTextureSet->GetTextureCount(); }
-		TTerrainTexture &		GetTexture(const long & c_rlTextureNum)	{ return ms_pTextureSet->GetTexture(c_rlTextureNum); }
-// 		int						GetHeightTileMapRatio()					{ return m_iHeightTileRatio; }
+		[[nodiscard]] DWORD		GetNumTextures() const					{ return GetTextureSet()->GetTextureCount(); }
+		[[nodiscard]] TTerrainTexture &	GetTexture(unsigned long ulTextureNum)	{ return GetTextureSet()->GetTexture(ulTextureNum); }
+		[[nodiscard]] const TTerrainTexture & GetTexture(unsigned long ulTextureNum) const { return GetTextureSet()->GetTexture(ulTextureNum); }
 
 		bool					LoadWaterMap(const char * c_szWaterMapName);
 		bool					LoadWaterMapFile(const char * c_szWaterMapName);
 		
-		LPDIRECT3DTEXTURE9		GetShadowTexture()						{ return m_lpShadowTexture; }
+		[[nodiscard]] LPDIRECT3DTEXTURE9	GetShadowTexture() const	{ return m_lpShadowTexture; }
 
-		DWORD					GetShadowMapColor(float fx, float fy);		
+		[[nodiscard]] DWORD		GetShadowMapColor(float fx, float fy) const;		
 
 	protected:
 		void					Initialize();
@@ -101,7 +92,8 @@ class CTerrainImpl
 		bool					LoadHeightMap(const char *c_szFileName);
 		bool					RAW_LoadTileMap(const char * c_szFileName);
 		bool					LoadAttrMap(const char *c_pszFileName);
-		inline WORD				GetHeightMapValue(short sx, short sy) {
+		[[nodiscard]] inline WORD GetHeightMapValue(short sx, short sy) const {
+			assert(sx >= -1 && sx < HEIGHTMAP_RAW_XSIZE - 1 && sy >= -1 && sy < HEIGHTMAP_RAW_YSIZE - 1);
 			return m_awRawHeightMap[(sy + 1) * HEIGHTMAP_RAW_XSIZE + sx + 1];
 		}
 
@@ -129,10 +121,6 @@ class CTerrainImpl
 		//////////////////////////////////////////////////////////////////////////
 
 		//////////////////////////////////////////////////////////////////////////
-		// TileMap과 HeightMap 비율
-// 		int						m_iHeightTileRatio;
-
-		//////////////////////////////////////////////////////////////////////////
 		// Shadow Map
 		LPDIRECT3DTEXTURE9		m_lpShadowTexture;
 		WORD					m_awShadowMap[SHADOWMAP_YSIZE*SHADOWMAP_XSIZE];	// 16bit R5 G6 B5
@@ -142,4 +130,3 @@ class CTerrainImpl
 		long					m_lSplatTilesY;
 };
 
-#endif // !defined(AFX_TERRAIN_H__1C9108E1_69A7_4392_9B68_0E6CD4E1BFBA__INCLUDED_)

@@ -1,12 +1,11 @@
-#ifndef __TERRAIn_TYPES__
-#define __TERRAIn_TYPES__
+#pragma once
 
 #include "EterLib/GrpVertexBuffer.h"
 #include "EterLib/GrpIndexBuffer.h"
 
 #define TERRAIN_PATCHSIZE	16
 #define TERRAIN_SIZE		128
-#define TERRAIN_PATCHCOUNT	TERRAIN_SIZE/TERRAIN_PATCHSIZE
+#define TERRAIN_PATCHCOUNT	(TERRAIN_SIZE / TERRAIN_PATCHSIZE)
 #define MAXTERRAINTEXTURES	256
 
 typedef struct
@@ -66,6 +65,4 @@ typedef struct
 /* Converts a floating point number to an integer by truncation, using
    the FISTP instruction */
 
-#define PR_FLOAT_TO_INT(inreal, outint) (outint) = static_cast<int>(inreal);
-
-#endif //__TERRAIn_TYPES__
+#define PR_FLOAT_TO_INT(inreal, outint) ((outint) = static_cast<int>(inreal))

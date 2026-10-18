@@ -7265,5 +7265,33 @@ target_link_libraries(test_c26_spherelib_audit PRIVATE
 )
 add_test(NAME test_c26_spherelib_audit COMMAND test_c26_spherelib_audit)
 
+add_executable(test_c26_terrain_textureset_audit test_c26_terrain_textureset_audit.cpp)
+target_include_directories(test_c26_terrain_textureset_audit PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/PRTerrainLib
+    ${CMAKE_SOURCE_DIR}/vendor/DirectX9/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_terrain_textureset_audit PRIVATE
+    PRTerrainLib
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    DirectX
+    Dbghelp
+    sodium
+    libzstd_static
+    lzo2
+    mio
+    ws2_32
+    doctest
+)
+add_test(NAME test_c26_terrain_textureset_audit COMMAND test_c26_terrain_textureset_audit)
+
+
 
 

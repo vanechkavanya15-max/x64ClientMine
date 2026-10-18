@@ -17,8 +17,28 @@ void CTextureSet::Initialize()
 
 void CTextureSet::Create()
 {
-	CResource * pResource = CResourceManager::Instance().GetResourcePointer("d:/ymir work/special/error.tga");
-	m_ErrorTexture.ImageInstance.SetImagePointer(static_cast<CGraphicImage *> (pResource));
+	CResourceManager * pResourceManager = CResourceManager::InstancePtr();
+	if (pResourceManager)
+	{
+		CResource * pResource = pResourceManager->GetResourcePointer("d:/ymir work/special/error.tga");
+		if (pResource && pResource->IsType(CGraphicImage::Type()))
+		{
+			m_ErrorTexture.ImageInstance.SetImagePointer(static_cast<CGraphicImage *>(pResource));
+			if (m_ErrorTexture.ImageInstance.GetTexturePointer())
+				m_ErrorTexture.pd3dTexture = m_ErrorTexture.ImageInstance.GetTexturePointer()->GetD3DTexture();
+			else
+				m_ErrorTexture.pd3dTexture = NULL;
+		}
+		else
+		{
+			m_ErrorTexture.pd3dTexture = NULL;
+		}
+	}
+	else
+	{
+		m_ErrorTexture.pd3dTexture = NULL;
+	}
+
 	AddEmptyTexture();	// 지우개 텍스춰를 처음에 추가 해야 함
 }
 
@@ -40,7 +60,8 @@ bool CTextureSet::Load(const char * c_szTextureSetFileName, float fTerrainTexCoo
 		return false;
 	}
 	
-	if (stTokenVectorMap.end() == stTokenVectorMap.find("texturecount"))
+	auto itCount = stTokenVectorMap.find("texturecount");
+	if (itCount == stTokenVectorMap.end() || itCount->second.empty())
 	{
 		TraceError("TextureSet::Load : syntax error, TextureCount (filename: %s)", c_szTextureSetFileName);
 		return false;
@@ -48,11 +69,14 @@ bool CTextureSet::Load(const char * c_szTextureSetFileName, float fTerrainTexCoo
 
 	Create();
 
-	const std::string & c_rstrCount = stTokenVectorMap["texturecount"][0];
+	const long lCount = atol(itCount->second[0].c_str());
+	if (lCount < 0 || lCount > 255)
+	{
+		TraceError("TextureSet::Load : invalid texture count %ld (filename: %s)", lCount, c_szTextureSetFileName);
+		return false;
+	}
 
-	long lCount = atol(c_rstrCount.c_str());
 	char szTextureName[32 + 1];
-
 	m_Textures.resize(lCount + 1);
 
 	std::vector<std::string> textureFiles;
@@ -60,15 +84,13 @@ bool CTextureSet::Load(const char * c_szTextureSetFileName, float fTerrainTexCoo
 
 	for (long i = 0; i < lCount; ++i)
 	{
-		_snprintf(szTextureName, sizeof(szTextureName), "texture%03d", i + 1);
+		_snprintf(szTextureName, sizeof(szTextureName), "texture%03ld", i + 1);
 
-		if (stTokenVectorMap.end() == stTokenVectorMap.find(szTextureName))
+		auto itTex = stTokenVectorMap.find(szTextureName);
+		if (itTex == stTokenVectorMap.end() || itTex->second.empty())
 			continue;
 
-		const CTokenVector & rVector = stTokenVectorMap[szTextureName];
-		const std::string & c_rstrFileName = rVector[0].c_str();
-
-		textureFiles.push_back(c_rstrFileName);
+		textureFiles.push_back(itTex->second[0]);
 	}
 
 	for (const auto& filename : textureFiles)
@@ -78,33 +100,35 @@ bool CTextureSet::Load(const char * c_szTextureSetFileName, float fTerrainTexCoo
 
 	for (long i = 0; i < lCount; ++i)
 	{
-		_snprintf(szTextureName, sizeof(szTextureName), "texture%03d", i + 1);
+		_snprintf(szTextureName, sizeof(szTextureName), "texture%03ld", i + 1);
 
-		if (stTokenVectorMap.end() == stTokenVectorMap.find(szTextureName))
+		auto itTex = stTokenVectorMap.find(szTextureName);
+		if (itTex == stTokenVectorMap.end())
 			continue;
 
-		const CTokenVector & rVector = stTokenVectorMap[szTextureName];
+		const CTokenVector & rVector = itTex->second;
+		if (rVector.size() < 8)
+		{
+			TraceError("TextureSet::Load : %s expected at least 8 tokens, got %zu (filename: %s)", szTextureName, rVector.size(), c_szTextureSetFileName);
+			continue;
+		}
 
-		const std::string & c_rstrFileName	= rVector[0].c_str();
-		const std::string & c_rstrUScale	= rVector[1].c_str();
-		const std::string & c_rstrVScale	= rVector[2].c_str();
-		const std::string & c_rstrUOffset	= rVector[3].c_str();
-		const std::string & c_rstrVOffset	= rVector[4].c_str();
-		const std::string & c_rstrbSplat	= rVector[5].c_str();
-		const std::string & c_rstrBegin		= rVector[6].c_str();
-		const std::string & c_rstrEnd		= rVector[7].c_str();
+		const std::string & c_rstrFileName	= rVector[0];
+		const std::string & c_rstrUScale	= rVector[1];
+		const std::string & c_rstrVScale	= rVector[2];
+		const std::string & c_rstrUOffset	= rVector[3];
+		const std::string & c_rstrVOffset	= rVector[4];
+		const std::string & c_rstrbSplat	= rVector[5];
+		const std::string & c_rstrBegin		= rVector[6];
+		const std::string & c_rstrEnd		= rVector[7];
 
-		float fuScale, fvScale, fuOffset, fvOffset;
-		bool bSplat;
-		unsigned short usBegin, usEnd;
-
-		fuScale	= atof(c_rstrUScale.c_str());
-		fvScale = atof(c_rstrVScale.c_str());
-		fuOffset = atof(c_rstrUOffset.c_str());
-		fvOffset = atof(c_rstrVOffset.c_str());
-		bSplat = 0 != atoi(c_rstrbSplat.c_str());
-		usBegin = static_cast<unsigned short>(atoi(c_rstrBegin.c_str()));
-		usEnd = static_cast<unsigned short>(atoi(c_rstrEnd.c_str()));
+		float fuScale = static_cast<float>(atof(c_rstrUScale.c_str()));
+		float fvScale = static_cast<float>(atof(c_rstrVScale.c_str()));
+		float fuOffset = static_cast<float>(atof(c_rstrUOffset.c_str()));
+		float fvOffset = static_cast<float>(atof(c_rstrVOffset.c_str()));
+		bool bSplat = 0 != atoi(c_rstrbSplat.c_str());
+		unsigned short usBegin = static_cast<unsigned short>(atoi(c_rstrBegin.c_str()));
+		unsigned short usEnd = static_cast<unsigned short>(atoi(c_rstrEnd.c_str()));
 
 		if (!SetTexture(i + 1, c_rstrFileName.c_str(), fuScale, fvScale, fuOffset, fvOffset, bSplat, usBegin, usEnd, fTerrainTexCoordBase))
 			TraceError("CTextureSet::Load : SetTexture failed : Filename: %s", c_rstrFileName.c_str());
@@ -117,6 +141,7 @@ bool CTextureSet::Load(const char * c_szTextureSetFileName, float fTerrainTexCoo
 void CTextureSet::Clear()
 {
 	m_ErrorTexture.ImageInstance.Destroy();
+	m_ErrorTexture.pd3dTexture = NULL;
 	m_Textures.clear();
 	Initialize();
 }
@@ -127,14 +152,22 @@ void CTextureSet::AddEmptyTexture()
 	m_Textures.push_back(eraser);
 }
 
-unsigned long CTextureSet::GetTextureCount()
+unsigned long CTextureSet::GetTextureCount() const
 {
-	return m_Textures.size();
+	return static_cast<unsigned long>(m_Textures.size());
 }
 
 TTerrainTexture	& CTextureSet::GetTexture(unsigned long ulIndex)
 {
-	if (GetTextureCount() <= ulIndex)
+	if (ulIndex >= GetTextureCount())
+		return m_ErrorTexture;
+
+	return m_Textures[ulIndex];
+}
+
+const TTerrainTexture & CTextureSet::GetTexture(unsigned long ulIndex) const
+{
+	if (ulIndex >= GetTextureCount())
 		return m_ErrorTexture;
 
 	return m_Textures[ulIndex];
@@ -151,18 +184,22 @@ bool CTextureSet::SetTexture(unsigned long ulIndex,
 							 unsigned short usEnd,
 							 float fTerrainTexCoordBase)
 {
-
 	if (ulIndex >= m_Textures.size())
 	{
-		TraceError("CTextureSet::SetTexture : Index Error : Index(%d) is Larger than TextureSet Size(%d)", ulIndex, m_Textures.size());
+		TraceError("CTextureSet::SetTexture : Index Error : Index(%lu) is Larger than TextureSet Size(%zu)", ulIndex, m_Textures.size());
 		return false;
 	}
 
 	CResource * pResource = CResourceManager::Instance().GetResourcePointer(c_szFileName);
+	if (!pResource)
+	{
+		TraceError("CTextureSet::SetTexture : %s resource pointer is NULL", c_szFileName);
+		return false;
+	}
 
 	if (!pResource->IsType(CGraphicImage::Type()))
 	{
-		TraceError("CTerrainImpl::GenerateTexture : %s is NOT Image File", pResource->GetFileName());
+		TraceError("CTextureSet::SetTexture : %s is NOT Image File", pResource->GetFileName());
 		return false;
 	}
 
@@ -177,8 +214,10 @@ bool CTextureSet::SetTexture(unsigned long ulIndex,
 	tex.Begin = usBegin;
 	tex.End = usEnd;
 	tex.ImageInstance.SetImagePointer(static_cast<CGraphicImage *>(pResource));
-	tex.pd3dTexture = tex.ImageInstance.GetTexturePointer()->GetD3DTexture();
-	
+	if (tex.ImageInstance.GetTexturePointer())
+		tex.pd3dTexture = tex.ImageInstance.GetTexturePointer()->GetD3DTexture();
+	else
+		tex.pd3dTexture = NULL;
 	
 	D3DXMatrixScaling(&tex.m_matTransform, fTerrainTexCoordBase * tex.UScale, -fTerrainTexCoordBase * tex.VScale, 0.0f);
 	tex.m_matTransform._41 = tex.UOffset;
@@ -192,8 +231,18 @@ void CTextureSet::Reload(float fTerrainTexCoordBase)
 	{
 		TTerrainTexture & tex = m_Textures[dwIndex];
 
-		tex.ImageInstance.ReloadImagePointer((CGraphicImage *) CResourceManager::Instance().GetResourcePointer(tex.stFilename.c_str()));
-		tex.pd3dTexture = tex.ImageInstance.GetTexturePointer()->GetD3DTexture();
+		if (tex.stFilename.empty())
+			continue;
+
+		CResource * pResource = CResourceManager::Instance().GetResourcePointer(tex.stFilename.c_str());
+		if (pResource)
+		{
+			tex.ImageInstance.ReloadImagePointer(static_cast<CGraphicImage *>(pResource));
+			if (tex.ImageInstance.GetTexturePointer())
+				tex.pd3dTexture = tex.ImageInstance.GetTexturePointer()->GetD3DTexture();
+			else
+				tex.pd3dTexture = NULL;
+		}
 
 		D3DXMatrixScaling(&tex.m_matTransform, fTerrainTexCoordBase * tex.UScale, -fTerrainTexCoordBase * tex.VScale, 0.0f);
 		tex.m_matTransform._41 = tex.UOffset;
@@ -213,46 +262,44 @@ bool CTextureSet::AddTexture(const char * c_szFileName,
 {
 	if (GetTextureCount() >= 256)
 	{
-		LogBox("텍스처를 더 이상 추가할 수 없습니다.", "최대 텍스처 개수 255개");
+		TraceError("CTextureSet::AddTexture: Maximum texture count (256) reached");
 		return false;
 	}
 
 	for (unsigned long i = 1; i < GetTextureCount(); ++i)
 	{
-		if (0 == m_Textures[i].stFilename.compare(c_szFileName))
+		if (_stricmp(m_Textures[i].stFilename.c_str(), c_szFileName) == 0)
 		{
-			LogBox("동일한 이름의 텍스처가 이미 있습니다.", "중복");
+			TraceError("CTextureSet::AddTexture: Duplicate texture name %s", c_szFileName);
 			return false;
 		}
 	}
 
-	CResource * pResource = CResourceManager::Instance().GetResourcePointer(c_szFileName);
+	m_Textures.emplace_back();
+	const unsigned long newIndex = static_cast<unsigned long>(m_Textures.size() - 1);
 
-	if (!pResource->IsType(CGraphicImage::Type()))
+	if (!SetTexture(newIndex,
+				   c_szFileName,
+				   fuScale,
+				   fvScale,
+				   fuOffset,
+				   fvOffset,
+				   bSplat,
+				   usBegin,
+				   usEnd,
+				   fTerrainTexCoordBase))
 	{
-		LogBox("CTerrainImpl::GenerateTexture : 이미지 파일이 아닙니다. %s", pResource->GetFileName());
+		m_Textures.pop_back();
 		return false;
 	}
-	
-	m_Textures.reserve(m_Textures.size() + 1);
-
-	SetTexture(m_Textures.size() - 1,
-			   c_szFileName,
-			   fuScale,
-			   fvScale,
-			   fuOffset,
-			   fvOffset,
-			   bSplat,
-			   usBegin,
-			   usEnd,
-			   fTerrainTexCoordBase);
 
 	return true;
 }
 
 bool CTextureSet::RemoveTexture(unsigned long ulIndex)
 {
-	if (GetTextureCount() <= ulIndex)
+	// Slot 0 jest zarezerwowany dla gumki (eraser) - usuniecie zabronione
+	if (ulIndex == 0 || ulIndex >= GetTextureCount())
 		return false;
 
 	TTextureVector::iterator itor = m_Textures.begin() + ulIndex;
@@ -270,23 +317,25 @@ bool CTextureSet::Save(const char * c_pszFileName)
 	fprintf(pFile, "TextureSet\n");
 	fprintf(pFile, "\n");
 	
-	fprintf(pFile, "TextureCount %ld\n", GetTextureCount() - 1);	// -1 을 하는 이유는 지우개 때문임
+	const unsigned long count = GetTextureCount();
+	const unsigned long saveCount = (count > 0) ? (count - 1) : 0;
+	fprintf(pFile, "TextureCount %lu\n", saveCount);	// -1 poniewaz slot 0 to gumka
 	fprintf(pFile, "\n");
 
-	for (DWORD i = 1; i < GetTextureCount(); ++i)
+	for (DWORD i = 1; i < count; ++i)
 	{
 		TTerrainTexture & rTex = m_Textures[i];
 		
-		fprintf(pFile, "Start Texture%03d\n", i);
+		fprintf(pFile, "Start Texture%03lu\n", i);
 		fprintf(pFile, "    \"%s\"\n", rTex.stFilename.c_str());
 		fprintf(pFile, "    %f\n", rTex.UScale);
 		fprintf(pFile, "    %f\n", rTex.VScale);
 		fprintf(pFile, "    %f\n", rTex.UOffset);
 		fprintf(pFile, "    %f\n", rTex.VOffset);
-		fprintf(pFile, "    %d\n", rTex.bSplat);
+		fprintf(pFile, "    %d\n", rTex.bSplat ? 1 : 0);
 		fprintf(pFile, "    %hu\n", rTex.Begin);
 		fprintf(pFile, "    %hu\n", rTex.End);
-		fprintf(pFile, "End Texture%03d\n", i);
+		fprintf(pFile, "End Texture%03lu\n", i);
 	}
 	
 	fclose(pFile);

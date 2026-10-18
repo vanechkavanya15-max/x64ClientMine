@@ -1,5 +1,4 @@
-#ifndef __INC_TERRAINLIB_TEXTURESET_H__
-#define __INC_TERRAINLIB_TEXTURESET_H__
+#pragma once
 
 #include "EterLib/GrpImageInstance.h"
 
@@ -14,10 +13,7 @@ typedef struct STerrainTexture
 		Begin(0),
 		End(0)
 	{
-	}
-	
-	~STerrainTexture()
-	{
+		D3DXMatrixIdentity(&m_matTransform);
 	}
 
 	std::string					stFilename;
@@ -48,9 +44,10 @@ class CTextureSet
 		bool			Load(const char * c_pszFileName, float fTerrainTexCoordBase);
 		bool			Save(const char * c_pszFileName);
 		
-		unsigned long	GetTextureCount();
+		unsigned long	GetTextureCount() const;
 		
 		TTerrainTexture	& GetTexture(unsigned long ulIndex);
+		const TTerrainTexture & GetTexture(unsigned long ulIndex) const;
 		bool			RemoveTexture(unsigned long ulIndex);
 
 		bool			SetTexture(unsigned long ulIndex,
@@ -76,7 +73,7 @@ class CTextureSet
 								   unsigned short usEnd,
 								   float fTerrainTexCoordBase);
 
-		const char *	GetFileName()	{ return m_stFileName.c_str(); }
+		const char *	GetFileName() const	{ return m_stFileName.c_str(); }
 
 	protected:
 		void			AddEmptyTexture();
@@ -87,4 +84,3 @@ class CTextureSet
 		std::string				m_stFileName;
 };
 
-#endif
