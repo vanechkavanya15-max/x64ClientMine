@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "EterLib/GrpMath.h"
+#include "Client/Actors/CollisionMathClean.h"
 
 #include "ActorInstance.h"
 
@@ -86,14 +87,10 @@ void CActorInstance::UpdatePointInstance(TCollisionPointInstance * pPointInstanc
 	{
 		const TSphereData & c = sit->GetAttribute();//c_pCollisionData->SphereDataVector[j].GetAttribute();
 
-		D3DXMATRIX matPoint;
-		D3DXMatrixTranslation(&matPoint, c.v3Position.x, c.v3Position.y, c.v3Position.z);
-		matPoint = matPoint * matBone;
-
 		dit->v3LastPosition = dit->v3Position;
-		dit->v3Position.x = matPoint._41;
-		dit->v3Position.y = matPoint._42;
-		dit->v3Position.z = matPoint._43;
+		dit->v3Position.x = c.v3Position.x * matBone._11 + c.v3Position.y * matBone._21 + c.v3Position.z * matBone._31 + matBone._41;
+		dit->v3Position.y = c.v3Position.x * matBone._12 + c.v3Position.y * matBone._22 + c.v3Position.z * matBone._32 + matBone._42;
+		dit->v3Position.z = c.v3Position.x * matBone._13 + c.v3Position.y * matBone._23 + c.v3Position.z * matBone._33 + matBone._43;
 	}
 }
 
@@ -108,7 +105,6 @@ void CActorInstance::UpdateAdvancingPointInstance()
 	if (m_pkHorse)
 		m_pkHorse->UpdateAdvancingPointInstance();
 
-	D3DXMATRIX matPoint;
 	D3DXMATRIX matCenter;
 
 	// Optimized: Cache end iterator
@@ -158,12 +154,9 @@ void CActorInstance::UpdateAdvancingPointInstance()
 				const TSphereData & c = c_pCollisionData->SphereDataVector[j].GetAttribute();
 				CDynamicSphereInstance & rSphereInstance = rInstance.SphereInstanceVector[j];
 
-				D3DXMatrixTranslation(&matPoint, c.v3Position.x, c.v3Position.y, c.v3Position.z);
-				matPoint = matPoint * matCenter;
-
-				rSphereInstance.v3LastPosition.x = matPoint._41;
-				rSphereInstance.v3LastPosition.y = matPoint._42;
-				rSphereInstance.v3LastPosition.z = matPoint._43;
+				rSphereInstance.v3LastPosition.x = c.v3Position.x * matCenter._11 + c.v3Position.y * matCenter._21 + c.v3Position.z * matCenter._31 + matCenter._41;
+				rSphereInstance.v3LastPosition.y = c.v3Position.x * matCenter._12 + c.v3Position.y * matCenter._22 + c.v3Position.z * matCenter._32 + matCenter._42;
+				rSphereInstance.v3LastPosition.z = c.v3Position.x * matCenter._13 + c.v3Position.y * matCenter._23 + c.v3Position.z * matCenter._33 + matCenter._43;
 				rSphereInstance.v3Position = rSphereInstance.v3LastPosition;
 				rSphereInstance.v3Position += v3Movement;
 			}
@@ -278,10 +271,12 @@ bool CActorInstance::CreateCollisionInstancePiece(DWORD dwAttachingModelIndex, c
 
 BOOL CActorInstance::__SplashAttackProcess(CActorInstance & rVictim)
 {
-	// Optimized: Use squared distance to avoid sqrt
-	D3DXVECTOR3 v3Distance(rVictim.m_x - m_x, rVictim.m_z - m_z, rVictim.m_z - m_z);
-	float fDistanceSq = D3DXVec3LengthSq(&v3Distance);
-	if (fDistanceSq >= 1000.0f*1000.0f)
+	// Optimized: Pure C++23 squared distance without D3DX (T315 [W8.5])
+	float dx = rVictim.m_x - m_x;
+	float dy = rVictim.m_y - m_y;
+	float dz = rVictim.m_z - m_z;
+	float fDistanceSq = dx * dx + dy * dy + dz * dz;
+	if (fDistanceSq >= 1000.0f * 1000.0f)
 		return FALSE;
 
 	// Check Distance
@@ -347,9 +342,11 @@ BOOL CActorInstance::__NormalAttackProcess(CActorInstance & rVictim)
 {
 	// Check Distance
 	// NOTE - 일단 근접 체크만 하고 있음
-	// Optimized: Already using squared distance comparison
-	D3DXVECTOR3 v3Distance(rVictim.m_x - m_x, rVictim.m_y - m_y, rVictim.m_z - m_z);
-	float fDistanceSq = D3DXVec3LengthSq(&v3Distance);
+	// Optimized: Pure C++23 squared distance without D3DX (T315 [W8.5])
+	float dx = rVictim.m_x - m_x;
+	float dy = rVictim.m_y - m_y;
+	float dz = rVictim.m_z - m_z;
+	float fDistanceSq = dx * dx + dy * dy + dz * dz;
 
 	extern bool IS_HUGE_RACE(unsigned int vnum);
 	if (IS_HUGE_RACE(rVictim.GetRace()))
@@ -398,8 +395,9 @@ BOOL CActorInstance::__NormalAttackProcess(CActorInstance & rVictim)
 		NRaceData::THitTimePositionMap::const_iterator range_start, range_end;
 		range_start = c_rHitData.mapHitPosition.lower_bound(motiontime-CTimer::Instance().GetElapsedSecond());
 		range_end = c_rHitData.mapHitPosition.upper_bound(motiontime);
-		float c = cosf(D3DXToRadian(GetRotation()));
-		float s = sinf(D3DXToRadian(GetRotation()));
+		float rad = Client::Collision::CleanDegreeToRadian(GetRotation());
+		float c = std::cos(rad);
+		float s = std::sin(rad);
 
 		for(;range_start!=range_end;++range_start)
 		{
@@ -517,10 +515,12 @@ BOOL CActorInstance::TestPhysicsBlendingCollision(CActorInstance & rVictim)
 	TPixelPosition kPPosLast;
 	GetBlendingPosition( &kPPosLast );
 
-	// Optimized: Already using squared distance comparison
-	D3DXVECTOR3 v3Distance = D3DXVECTOR3(rVictim.m_x - kPPosLast.x, rVictim.m_y - kPPosLast.y, rVictim.m_z - kPPosLast.z);
-	float fDistanceSq = D3DXVec3LengthSq(&v3Distance);
-	if (fDistanceSq > 800.0f*800.0f)
+	// Optimized: Pure C++23 squared distance without D3DX (T315 [W8.5])
+	float dx = rVictim.m_x - kPPosLast.x;
+	float dy = rVictim.m_y - kPPosLast.y;
+	float dz = rVictim.m_z - kPPosLast.z;
+	float fDistanceSq = dx * dx + dy * dy + dz * dz;
+	if (fDistanceSq > 800.0f * 800.0f)
 		return FALSE;
 	
 	// NOTE : 공격 중일때는 Defending Sphere로 Collision Check를 합니다.
@@ -619,10 +619,12 @@ BOOL CActorInstance::TestActorCollision(CActorInstance & rVictim)
 	//        프레임 스킵시나 대상 오브젝트의 크기가 클경우 문제가 생길 여지가 있음
 	//        캐릭터가 자신의 Body Sphere Radius 보다 더 크게 이동했는지를 체크하고,
 	//        만약 그렇지 않다면 거리로 체크해서 걸러준다.
-	// Optimized: Already using squared distance comparison
-	D3DXVECTOR3 v3Distance = D3DXVECTOR3(rVictim.m_x - m_x, rVictim.m_y - m_y, rVictim.m_z - m_z);
-	float fDistanceSq = D3DXVec3LengthSq(&v3Distance);
-	if (fDistanceSq > 800.0f*800.0f)
+	// Optimized: Pure C++23 squared distance without D3DX (T315 [W8.5])
+	float dx = rVictim.m_x - m_x;
+	float dy = rVictim.m_y - m_y;
+	float dz = rVictim.m_z - m_z;
+	float fDistanceSq = dx * dx + dy * dy + dz * dz;
+	if (fDistanceSq > 800.0f * 800.0f)
 		return FALSE;
 	
 	// NOTE : 공격 중일때는 Defending Sphere로 Collision Check를 합니다.
