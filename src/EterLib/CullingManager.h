@@ -5,6 +5,8 @@
 
 #include "Eterbase/Singleton.h"
 #include "SphereLib/spherepack.h"
+#include <memory>
+#include <vector>
 
 class CGraphicObjectInstance;
 template <class T>
@@ -16,38 +18,38 @@ struct RangeTester : public SpherePackCallback
 		: f(fn), dist(distance)
 	{}
 
-	virtual ~RangeTester()
-	{}
+	virtual ~RangeTester() = default;
 
 
-	virtual void RayTraceCallback(const Vector3d &p1,          // source pos of ray
+	void RayTraceCallback(const Vector3d &p1,          // source pos of ray
 		const Vector3d &dir,          // dest pos of ray
 		float distance,
 		const Vector3d &sect,
-		SpherePack *sphere)
+		SpherePack *sphere) override
 	{
 #ifdef SPHERELIB_STRICT
 		if (sphere->IS_SPHERE)
 			puts("RangeTester::RayTraceCallback");
 #endif	
-		if (dist<=0.0f || dist>=distance)
-			(*f)((CGraphicObjectInstance *)sphere->GetUserData());
+		float actualDist = p1.Distance(sect);
+		if (dist<=0.0f || dist>=actualDist)
+			(*f)(static_cast<CGraphicObjectInstance *>(sphere->GetUserData()));
 	};
 	
 	
-	virtual void VisibilityCallback(const Frustum &f,SpherePack *sphere,ViewState state){};
+	void VisibilityCallback(const Frustum &f,SpherePack *sphere,ViewState state) override {};
 
-	virtual void RangeTestCallback(const Vector3d &p,float distance,SpherePack *sphere,ViewState state)
+	void RangeTestCallback(const Vector3d &p,float distance,SpherePack *sphere,ViewState state) override
 	{
 #ifdef SPHERELIB_STRICT
 		if (sphere->IS_SPHERE)
 			puts("RangeTester::RangeTestCallback");
 #endif	
 		if (state!=VS_OUTSIDE)
-			(*f)((CGraphicObjectInstance *)sphere->GetUserData());
+			(*f)(static_cast<CGraphicObjectInstance *>(sphere->GetUserData()));
 	}
 
-	virtual void PointTest2dCallback(const Vector3d &p, SpherePack *sphere,ViewState state)
+	void PointTest2dCallback(const Vector3d &p, SpherePack *sphere,ViewState state) override
 	{
 #ifdef SPHERELIB_STRICT
 		if (sphere->IS_SPHERE)
@@ -58,7 +60,7 @@ struct RangeTester : public SpherePackCallback
 #ifdef SPHERELIB_STRICT
 			puts("FIND!!");
 #endif
-			(*f)((CGraphicObjectInstance *)sphere->GetUserData());
+			(*f)(static_cast<CGraphicObjectInstance *>(sphere->GetUserData()));
 		}
 	}
 };
@@ -76,18 +78,21 @@ public:
 	typedef std::vector<CGraphicObjectInstance *> TRangeList;
 
 	CCullingManager();
-	virtual ~CCullingManager();
+	~CCullingManager() override;
 
-	virtual void RayTraceCallback(const Vector3d &p1,          // source pos of ray
+	CCullingManager(const CCullingManager&) = delete;
+	CCullingManager& operator=(const CCullingManager&) = delete;
+
+	void RayTraceCallback(const Vector3d &p1,          // source pos of ray
 		const Vector3d &dir,          // dest pos of ray
 		float distance,
 		const Vector3d &sect,
-		SpherePack *sphere);
+		SpherePack *sphere) override;
 	
 	
-	virtual void VisibilityCallback(const Frustum &f,SpherePack *sphere,ViewState state);
+	void VisibilityCallback(const Frustum &f,SpherePack *sphere,ViewState state) override;
 	
-	void RangeTestCallback(const Vector3d &p,float distance,SpherePack *sphere,ViewState state);	
+	void RangeTestCallback(const Vector3d &p,float distance,SpherePack *sphere,ViewState state) override;	
 
 	void Reset();
 	void Update();
@@ -125,12 +130,6 @@ public:
 	void ForInRay(const Vector3d &p1, const Vector3d &dir, T* pFunc)
 	{
 		RangeTester<T> r(pFunc);
-		/*Vector3d p2;
-		//p2.Set(p.x+(dir.x*50000.0f),p.y+(dir.y*50000.0f),p.z+(dir.z*50000.0f));
-		p2.x = p.x+50000.0f*dir.x;
-		p2.y = p.y+50000.0f*dir.y;
-		p2.z = p.z+50000.0f*dir.z;
-			// p + (50000.0f*dir);//(p.x+(dir.x*50000.0f),p.y+(dir.y*50000.0f),p.z+(dir.z*50000.0f));*/
 		m_Factory->RayTrace(p1, dir, &r/*this*/);		
 	}
 
@@ -152,9 +151,5 @@ protected:
 
 	float m_RayFarDistance;
 
-	SpherePackFactory * m_Factory;
+	std::unique_ptr<SpherePackFactory> m_Factory;
 };
-
-// Stale konwencji renderera i aliasy przestrzeni nazw EterLib
-// zostaly zdefiniowane w RenderConventions.h
-

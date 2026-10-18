@@ -9,24 +9,21 @@
 int showingcount = 0;
 #endif
 
-void CCullingManager::RayTraceCallback(const Vector3d &/*p1*/,          // source pos of ray
+void CCullingManager::RayTraceCallback(const Vector3d &p1,          // source pos of ray
 							  const Vector3d &/*dir*/,          // dest pos of ray
-							  float distance,
-							  const Vector3d &/*sect*/,
+							  float /*distance*/,
+							  const Vector3d &sect,
 							  SpherePack *sphere)
 {
-	//if (state!=VS_OUTSIDE)
-	//{
-	if (m_RayFarDistance<=0.0f || m_RayFarDistance>=distance)
+	float actualDist = p1.Distance(sect);
+	if (m_RayFarDistance<=0.0f || m_RayFarDistance>=actualDist)
 	{
 #ifdef SPHERELIB_STRICT
 		if (sphere->IS_SPHERE)
 			puts("CCullingManager::RayTraceCallback");
 #endif		
-		m_list.push_back((CGraphicObjectInstance *)sphere->GetUserData());
+		m_list.push_back(static_cast<CGraphicObjectInstance *>(sphere->GetUserData()));
 	}
-		//f((CGraphicObjectInstance *)sphere->GetUserData());
-	//}
 }
 
 
@@ -37,14 +34,7 @@ void CCullingManager::VisibilityCallback(const Frustum &/*f*/,SpherePack *sphere
 			puts("CCullingManager::VisibilityCallback");
 #endif
 
-	CGraphicObjectInstance * pInstance = (CGraphicObjectInstance*)sphere->GetUserData();
-	/*if (state == VS_PARTIAL)
-	{
-		Vector3d v;
-		float r;
-		pInstance->GetBoundingSphere(v,r);
-		state = f.ViewVolumeTest(v,r);
-	}*/
+	auto * pInstance = static_cast<CGraphicObjectInstance*>(sphere->GetUserData());
 	if (state == VS_OUTSIDE)
 	{
 #ifdef COUNT_SHOWING_SPHERE
@@ -80,10 +70,8 @@ void CCullingManager::RangeTestCallback(const Vector3d &/*p*/,float /*distance*/
 #endif
 	if (state!=VS_OUTSIDE)
 	{
-		m_list.push_back((CGraphicObjectInstance *)sphere->GetUserData());
-		//f((CGraphicObjectInstance *)sphere->GetUserData());
+		m_list.push_back(static_cast<CGraphicObjectInstance *>(sphere->GetUserData()));
 	}
-	//assert(false && "NOT REACHED");
 }
 
 void CCullingManager::Reset()
@@ -93,25 +81,15 @@ void CCullingManager::Reset()
 
 void CCullingManager::Update()
 {
-	// TODO : update each object
-	// 하지말고 각자 하게 해보자
-
-	//DWORD time = ELTimer_GetMSec();
-	//Reset();
-
 	m_Factory->Process();
-	//Tracef("cull update : %3d  ",ELTimer_GetMSec()-time);
 }
 
 void CCullingManager::Process()
 {
-	//DWORD time = ELTimer_GetMSec();
-	//Frustum f;
 	UpdateViewMatrix();
 	UpdateProjMatrix();
 	BuildViewFrustum();
 	m_Factory->FrustumTest(GetFrustum(), this);
-	//Tracef("cull process : %3d  ",ELTimer_GetMSec()-time);
 }
 
 CCullingManager::CullingHandle CCullingManager::Register(CGraphicObjectInstance * obj)
@@ -131,7 +109,7 @@ CCullingManager::CullingHandle CCullingManager::Register(CGraphicObjectInstance 
 void CCullingManager::Unregister(CullingHandle h)
 {
 #ifdef COUNT_SHOWING_SPHERE
-	if (((CGraphicObjectInstance*)h->GetUserData())->isShow())
+	if (static_cast<CGraphicObjectInstance*>(h->GetUserData())->isShow())
 	{
 		Tracef("DE : %p  ",h->GetUserData());
 		showingcount--;
@@ -144,7 +122,7 @@ void CCullingManager::Unregister(CullingHandle h)
 CCullingManager::CCullingManager()
 	: m_RayFarDistance(kDefaultCullingRayFarDistance)
 {
-	m_Factory = new SpherePackFactory(
+	m_Factory = std::make_unique<SpherePackFactory>(
 		kDefaultCullingMaxSpheres,	// maximum count
 		kDefaultCullingRootRadius,	// root radius
 		kDefaultCullingRadius,		// leaf radius
@@ -152,14 +130,13 @@ CCullingManager::CCullingManager()
 		);
 }
 
-CCullingManager::~CCullingManager()
-{
-	delete m_Factory;
-}
+CCullingManager::~CCullingManager() = default;
 
 void CCullingManager::FindRange(const Vector3d &p, float radius)
 {
 	m_list.clear();
+	// reserve to avoid reallocations
+	m_list.reserve(256);
 	m_Factory->RangeTest(p, radius, this);
 }
 
@@ -167,6 +144,7 @@ void CCullingManager::FindRay(const Vector3d &p1, const Vector3d &dir)
 {
 	m_RayFarDistance = kDefaultCullingRayFarDistance;
 	m_list.clear();
+	m_list.reserve(64);
 	m_Factory->RayTrace(p1,dir,this);
 }
 
@@ -174,5 +152,6 @@ void CCullingManager::FindRayDistance(const Vector3d &p1, const Vector3d &dir, f
 {
 	m_RayFarDistance = distance;
 	m_list.clear();
+	m_list.reserve(64);
 	m_Factory->RayTrace(p1,dir,this);
 }

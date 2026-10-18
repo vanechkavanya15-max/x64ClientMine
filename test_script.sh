@@ -1,2 +1,2 @@
-sed -i 's/add_executable(test_c26_ime_os_hook test_c26_ime_os_hook.cpp ${CMAKE_SOURCE_DIR}\/src\/Client\/Input\/IMEOsHookController.cpp)/add_executable(test_c26_ime_os_hook test_c26_ime_os_hook.cpp test_main.cpp ${CMAKE_SOURCE_DIR}\/src\/Client\/Input\/IMEOsHookController.cpp ${CMAKE_SOURCE_DIR}\/src\/Client\/Input\/IMECompositionManager.cpp ${CMAKE_SOURCE_DIR}\/src\/Client\/Input\/IMECandidateListController.cpp ${CMAKE_SOURCE_DIR}\/src\/Client\/Core\/Result.cpp)/g' tests/CMakeLists.txt
-sed -i 's/target_link_libraries(test_c26_ime_os_hook PRIVATE Client2026 EterLib EterBase ws2_32)//g' tests/CMakeLists.txt
+cmake --build build --config Release --target test_c26_culling_manager -- /m:1
+ctest --test-dir build -C Release -R CullingManagerTest --output-on-failure
