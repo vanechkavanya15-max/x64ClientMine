@@ -1,32 +1,51 @@
 # =============================================================================
-# .gitignore - SourceCodeClient (Metin2 x64 C++23) dla Jules Swarm & Antigravity
+# .gitignore - SourceCodeClient (Metin2 x64 C++23)
+# Zoptymalizowany dla czystego repozytorium kodu zrodlowego (src, tests, extern)
 # =============================================================================
 
-# ─── 1. DUZE FOLDERY RUNTIME I ZASOBOW KLIENTA (4.5+ GB) ────────────────────
-# Caly runtime klienta gry, nieskompresowane asety i archiwa gry
-/m2dev-client-main/
-/assets/
-/pack/
-/bgm/
-/upload/
-/mark/
-/servers/
+# ─── 1. ZAGNIEZDZONE KLONY I KOPIE BACKUPU ──────────────────────────────────
+m2dev client backlup/
+m2dev-client-backlup/
+*backup*/
+*backlup*/
 
-# ─── 2. ARTEFAKTY BUDOWANIA CMAKE I MSVC (6.0+ GB) ──────────────────────────
-/build/
-/buildtool/bin/
-/bin/
-/x64/
-/x86/
-/Debug/
-/Release/
-/RelWithDebInfo/
-/MinSizeRel/
-/Testing/
-/CMakeFiles/
+# ─── 2. DUZE FOLDERY RUNTIME, ASSETY I ZRZUTY GRY (4.5+ GB) ──────────────────
+# Caly runtime klienta gry, nieskompresowane asety i archiwa gry
+m2dev-client-main/
+assets/
+pack/
+bgm/
+upload/
+mark/
+servers/
+dump/
+DUMP/
+*dump/
+*DUMP/
+client/
+output/
+
+# ─── 3. ARTEFAKTY BUDOWANIA CMAKE, MSVC I NINJA (6.0+ GB) ────────────────────
+build/
+buildtool/bin/
+bin/
+out/
+x64/
+x86/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+Testing/
+CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
 Makefile
+build.ninja
+.ninja_deps
+.ninja_log
 
 # Pliki obiektowe, symbole debugowania i logi kompilatora
 *.obj
@@ -39,8 +58,10 @@ Makefile
 *.iobj
 *.ipdb
 *.pch
+*.exp
+vc*.pdb
 
-# Pliki wykonywalne i biblioteki generowane lokalnie (z wyjatkiem extern/library)
+# Pliki wykonywalne i biblioteki generowane lokalnie
 *.exe
 *.dll
 *.dump
@@ -48,28 +69,56 @@ Makefile
 *.crash
 *.stackdump
 
-# Odblokowanie tylko zewnetrznych bibliotek SDK w extern/library/
+# Pliki tymczasowych binarek testowych w katalogu glownym
+test_bin
+test_runner
+test_actor_texttail
+test_c26_actor_combat_state
+test_c26_ui_event_listener
+test_vfs_mmap_asan
+
+# Odblokowanie tylko zewnetrznych bibliotek SDK w extern/library/ i vendor/
 !/extern/library/**/*.lib
 !/extern/library/**/*.dll
+!/vendor/**/*.lib
 
-# ─── 3. LOGI I PLIKI TYMCZASOWE ──────────────────────────────────────────────
-/log/
-/Logs/
-/Temp/
+# ─── 4. LOGI I PLIKI TYMCZASOWE ──────────────────────────────────────────────
+log/
+Logs/
+Temp/
+temp/
 *.log
 *.tmp
 *.temp
 *.swp
 *~
+build_*.log
 
-# ─── 4. KESZ I INDEKSY KODU AI / GRAPHIFY ───────────────────────────────────
-/graphify-out/
-/.pytest_cache/
-/__pycache__/
+# ─── 5. KESZ I INDEKSY KODU AI (GRAPHIFY, XERJ, PYTEST) ─────────────────────
+# Graphify (w roocie i wszystkich podkatalogach)
+graphify-out/
+**/graphify-out/
+.graphify/
+**/.graphify/
+*.graphify_root
+
+# Xerj & Gemini
+.xerj/
+*.xerjignore
+.xerjignore
+src/.xerjignore
+.gemini/session_window.json
+.agents/session_window.json
+Docs/state/ALLOW_STOP
+
+# Python caches
+.pytest_cache/
+__pycache__/
 *.pyc
 *.pyo
+*.pyd
 
-# ─── 5. SRODOWISKA IDE I EDYTORY ────────────────────────────────────────────
+# ─── 6. SRODOWISKA IDE I EDYTORY ────────────────────────────────────────────
 .vs/
 .vscode/
 .idea/
@@ -78,55 +127,28 @@ Makefile
 *.sln.docstates
 *.opensdf
 *.sdf
+*.aps
+*.ncb
+*.opt
+*.clw
+*.plg
+*.vsp
+*.vspx
+*.vsdconfig
 
-# ─── 6. PLIKI KOPII ZAPASOWYCH (*.bak, *.bk) ─────────────────────────────────
-*_BK
-*_Bk
-*_bK
-*_bk
-*.BK
-*.Bk
-*.bK
-*.bk
-*.*.BK
-*.*.Bk
-*.*.bK
-*.*.bk
-*_BAK
-*_BAk
-*_BaK
-*_Bak
-*_bAK
-*_bAk
-*_baK
-*_bak
-*.BAK
-*.BAk
-*.BaK
-*.Bak
-*.bAK
-*.bAk
-*.baK
+# ─── 7. PLIKI KOPII ZAPASOWYCH I SMIECI SYSTEMOWE ────────────────────────────
 *.bak
-*.*.BAK
-*.*.BAk
-*.*.BaK
-*.*.Bak
-*.*.bAK
-*.*.bAk
-*.*.baK
-*.*.bak
+*.bk
+*.orig
+*.rej
+*~
+Thumbs.db
+desktop.ini
+.DS_Store
 
-# ─── 7. ARTEFAKTY HARNESSU I LATKI ROBOCZE ──────────────────────────────────
+# ─── 8. ARTEFAKTY HARNESSU, LATKI ROBOCZE I WORKTREES ───────────────────────
 solution.patch
 patch.diff
 *.patch
 *.diff
-.gemini/ALLOW_STOP
-.agents/ALLOW_STOP
-Docs/state/ALLOW_STOP
-.gemini/session_window.json
-.agents/session_window.json
-
 .worktrees/
-
