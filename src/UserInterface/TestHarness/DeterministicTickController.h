@@ -1,64 +1,75 @@
 #pragma once
 
-#include <cstdint>
 #include <atomic>
+#include <cstdint>
+#include <mutex>
+#include <condition_variable>
 #include <string_view>
 
 namespace UserInterface::TestHarness
 {
     /**
      * @brief Deterministyczny kontroler klatek i taktu logiki gry pod MCP i testy automatyczne.
-     * 
-     * Obsluguje flagi wiersza polecen:
-     *   --test-mode: aktywuje deterministyczny zarzadca klatek
-     *   --freeze-on-start: zatrzymuje uplyw czasu logiki od pierwszej klatki
      */
     class DeterministicTickController
     {
     public:
         static DeterministicTickController& Instance() noexcept;
 
-        DeterministicTickController() noexcept = default;
-        ~DeterministicTickController() = default;
-
         DeterministicTickController(const DeterministicTickController&) = delete;
         DeterministicTickController& operator=(const DeterministicTickController&) = delete;
 
-        /**
-         * @brief Skanuje parametry wiersza polecen w poszukiwaniu flag --test-mode i --freeze-on-start.
-         */
         void InitFromCommandLine(const char* lpCmdLine) noexcept;
-
-        [[nodiscard]] bool IsTestMode() const noexcept { return m_isTestMode.load(std::memory_order_relaxed); }
-        [[nodiscard]] bool IsFrozen() const noexcept { return m_isFrozen.load(std::memory_order_relaxed); }
-
-        void SetTestMode(bool bMode) noexcept { m_isTestMode.store(bMode, std::memory_order_relaxed); }
-        void SetFrozen(bool bFrozen) noexcept { m_isFrozen.store(bFrozen, std::memory_order_relaxed); }
-
-        /**
-         * @brief Zleca wykonanie dokladnie zadanej liczby klatek deterministycznych.
-         * @param count Liczba klatek logiki do przepchniecia.
-         * @param deltaTime Krok czasowy klatki w sekundach (domyslnie 1/60 s).
-         */
-        void Step(uint32_t count = 1, float deltaTime = 1.0f / 60.0f) noexcept;
-
-        /**
-         * @brief Pobiera i zeruje licznik oczekujacych krokow deterministycznych.
-         */
-        [[nodiscard]] uint32_t ConsumePendingSteps() noexcept;
-
-        [[nodiscard]] float GetStepDeltaTime() const noexcept { return m_stepDeltaTime.load(std::memory_order_relaxed); }
-
-        void IncrementTickCount() noexcept { m_currentTick.fetch_add(1, std::memory_order_relaxed); }
-        [[nodiscard]] uint64_t GetCurrentTick() const noexcept { return m_currentTick.load(std::memory_order_relaxed); }
-
         void Reset() noexcept;
 
+        // Konfiguracja trybow
+        void SetTestMode(bool enabled) noexcept { m_isTestMode.store(enabled, std::memory_order_release); }
+        [[nodiscard]] bool IsTestMode() const noexcept { return m_isTestMode.load(std::memory_order_acquire); }
+
+        void SetFrozen(bool frozen) noexcept;
+        [[nodiscard]] bool IsFrozen() const noexcept { return m_isFrozen.load(std::memory_order_acquire); }
+
+        // Zlecanie krokow symulacji (zwraca docelowy numer ticku po wykonaniu)
+        uint64_t Step(uint32_t count = 1, float deltaTime = 1.0f / 60.0f) noexcept;
+
+        // Synchroniczne oczekiwanie watku IPC na fizyczne wykonanie zleconych krokow przez watek glowny
+        bool WaitForTickReached(uint64_t targetTick, uint32_t timeoutMs) noexcept;
+
+        // Wywolywane w glownym watku gry (CPythonApplication::Process)
+        [[nodiscard]] uint32_t ConsumePendingSteps() noexcept;
+        void NotifyTickCompleted(float stepDeltaSec) noexcept;
+        void IncrementTickCount() noexcept { m_currentTick.fetch_add(1, std::memory_order_acq_rel); }
+
+        // Wybudzenie watku glownego (np. gdy przyszlo zadanie IPC w trybie Frozen)
+        void WakeMainThread() noexcept;
+
+        // Hybrydowy dlawik dla trybu Frozen (0.0% CPU) oraz Headless 60Hz (<0.2% CPU)
+        void ThrottleFrameLoop(bool isHeadless, uint32_t targetFps = 60) noexcept;
+
+        // Deterministyczny zegar wirtualny (zastepuje GetTickCount64 / ELTimer_GetMSec w testach)
+        [[nodiscard]] float GetStepDeltaTime() const noexcept { return m_stepDeltaTime.load(std::memory_order_acquire); }
+        [[nodiscard]] uint64_t GetCurrentTick() const noexcept { return m_currentTick.load(std::memory_order_acquire); }
+        [[nodiscard]] uint64_t GetLogicalTimeMs() const noexcept { return m_logicalTimeUs.load(std::memory_order_acquire) / 1000ULL; }
+        [[nodiscard]] uint64_t GetLogicalTimeUs() const noexcept { return m_logicalTimeUs.load(std::memory_order_acquire); }
+        [[nodiscard]] double GetLogicalTimeSec() const noexcept { return static_cast<double>(m_logicalTimeUs.load(std::memory_order_acquire)) * 1e-6; }
+
     private:
+        DeterministicTickController() noexcept;
+        ~DeterministicTickController() noexcept;
+
         std::atomic<bool> m_isTestMode{false};
         std::atomic<bool> m_isFrozen{false};
         std::atomic<uint32_t> m_pendingSteps{0};
         std::atomic<float> m_stepDeltaTime{1.0f / 60.0f};
         std::atomic<uint64_t> m_currentTick{0};
+        std::atomic<uint64_t> m_logicalTimeUs{0};
+
+        mutable std::mutex m_syncMutex;
+        std::condition_variable m_wakeMainCv;
+        std::condition_variable m_tickDoneCv;
+
+        void* m_hHighResTimer{nullptr};
+        int64_t m_nextFrameQpc{0};
+        int64_t m_qpcFreq{0};
     };
 }

@@ -224,16 +224,17 @@ void CPythonNetworkStream::GamePhase()
 #endif
 
 	const DWORD MAX_RECV_COUNT = 32;
-	const DWORD SAFE_RECV_BUFSIZE = 8192;
+	const DWORD MAX_DISPATCH_TIME_MS = 8;
+	const DWORD dwBeginTime = ELTimer_GetMSec();
 	DWORD dwRecvCount = 0;
 
-	while (true)
+	while (m_strPhase == "Game")
 	{
-		if (dwRecvCount++ >= MAX_RECV_COUNT-1 && GetRecvBufferSize() < SAFE_RECV_BUFSIZE
-			&& m_strPhase == "Game")
+		if (!DispatchPacket(m_gameHandlers))
 			break;
 
-		if (!DispatchPacket(m_gameHandlers))
+		++dwRecvCount;
+		if (dwRecvCount >= MAX_RECV_COUNT || (ELTimer_GetMSec() - dwBeginTime) >= MAX_DISPATCH_TIME_MS)
 			break;
 	}
 
@@ -249,118 +250,42 @@ void CPythonNetworkStream::GamePhase()
 	}
 #endif
 
-	static DWORD s_nextRefreshTime = ELTimer_GetMSec();
+	FlushPendingUIWindowRefreshes();
+}
 
-	DWORD curTime = ELTimer_GetMSec();
+void CPythonNetworkStream::FlushPendingUIWindowRefreshes()
+{
+	if (m_strPhase != "Game" || !m_apoPhaseWnd[PHASE_WINDOW_GAME])
+		return;
+
+	static DWORD s_nextRefreshTime = 0;
+	const DWORD curTime = ELTimer_GetMSec();
 	if (s_nextRefreshTime > curTime)
-		return;	
-	
-	
+		return;
 
-	if (m_isRefreshCharacterWnd)
-	{
-		m_isRefreshCharacterWnd=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshCharacter", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
+	auto TryRefreshOneWindow = [&](bool& rFlag, const char* szMethodName) -> bool {
+		if (!rFlag) return false;
+		rFlag = false;
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], szMethodName, Py_BuildValue("()"));
+		s_nextRefreshTime = curTime + 50;
+		return true;
+	};
 
-	if (m_isRefreshEquipmentWnd)
-	{
-		m_isRefreshEquipmentWnd=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshEquipment", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshInventoryWnd)
-	{
-		m_isRefreshInventoryWnd=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshInventory", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshExchangeWnd)
-	{
-		m_isRefreshExchangeWnd=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshExchange", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshSkillWnd)
-	{
-		m_isRefreshSkillWnd=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshSkill", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshSafeboxWnd)
-	{
-		m_isRefreshSafeboxWnd=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshSafebox", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshMallWnd)
-	{
-		m_isRefreshMallWnd=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshMall", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshStatus)
-	{
-		m_isRefreshStatus=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshStatus", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshMessengerWnd)
-	{
-		m_isRefreshMessengerWnd=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshMessenger", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshGuildWndInfoPage)
-	{
-		m_isRefreshGuildWndInfoPage=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshGuildInfoPage", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshGuildWndBoardPage)
-	{
-		m_isRefreshGuildWndBoardPage=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshGuildBoardPage", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshGuildWndMemberPage)
-	{
-		m_isRefreshGuildWndMemberPage=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshGuildMemberPage", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshGuildWndMemberPageGradeComboBox)
-	{
-		m_isRefreshGuildWndMemberPageGradeComboBox=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshGuildMemberPageGradeComboBox", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshGuildWndSkillPage)
-	{
-		m_isRefreshGuildWndSkillPage=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshGuildSkillPage", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}
-
-	if (m_isRefreshGuildWndGradePage)
-	{
-		m_isRefreshGuildWndGradePage=false;
-		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshGuildGradePage", Py_BuildValue("()"));
-		s_nextRefreshTime = curTime + 300;
-	}	
+	if (TryRefreshOneWindow(m_isRefreshStatus, "RefreshStatus")) return;
+	if (TryRefreshOneWindow(m_isRefreshInventoryWnd, "RefreshInventory")) return;
+	if (TryRefreshOneWindow(m_isRefreshEquipmentWnd, "RefreshEquipment")) return;
+	if (TryRefreshOneWindow(m_isRefreshCharacterWnd, "RefreshCharacter")) return;
+	if (TryRefreshOneWindow(m_isRefreshSkillWnd, "RefreshSkill")) return;
+	if (TryRefreshOneWindow(m_isRefreshExchangeWnd, "RefreshExchange")) return;
+	if (TryRefreshOneWindow(m_isRefreshSafeboxWnd, "RefreshSafebox")) return;
+	if (TryRefreshOneWindow(m_isRefreshMallWnd, "RefreshMall")) return;
+	if (TryRefreshOneWindow(m_isRefreshMessengerWnd, "RefreshMessenger")) return;
+	if (TryRefreshOneWindow(m_isRefreshGuildWndInfoPage, "RefreshGuildInfoPage")) return;
+	if (TryRefreshOneWindow(m_isRefreshGuildWndBoardPage, "RefreshGuildBoardPage")) return;
+	if (TryRefreshOneWindow(m_isRefreshGuildWndMemberPage, "RefreshGuildMemberPage")) return;
+	if (TryRefreshOneWindow(m_isRefreshGuildWndMemberPageGradeComboBox, "RefreshGuildMemberPageGradeComboBox")) return;
+	if (TryRefreshOneWindow(m_isRefreshGuildWndSkillPage, "RefreshGuildSkillPage")) return;
+	if (TryRefreshOneWindow(m_isRefreshGuildWndGradePage, "RefreshGuildGradePage")) return;
 }
 
 void CPythonNetworkStream::__InitializeGamePhase()
@@ -414,38 +339,41 @@ void CPythonNetworkStream::SetGamePhase()
 
 bool CPythonNetworkStream::RecvDuelStartPacket()
 {
-	TPacketGCDuelStart kDuelStartPacket;
+	TPacketGCDuelStart kDuelStartPacket{};
+	if (!Peek(sizeof(kDuelStartPacket), &kDuelStartPacket))
+		return false;
+
+	if (kDuelStartPacket.length < sizeof(kDuelStartPacket))
+		return false;
+
+	const DWORD payloadBytes = kDuelStartPacket.length - sizeof(kDuelStartPacket);
+	if (payloadBytes % sizeof(DWORD) != 0 || !Peek(static_cast<int>(kDuelStartPacket.length)))
+		return false;
+
 	if (!Recv(sizeof(kDuelStartPacket), &kDuelStartPacket))
 		return false;
-	
-	DWORD count = (kDuelStartPacket.length - sizeof(kDuelStartPacket))/sizeof(DWORD);
 
-	CPythonCharacterManager & rkChrMgr = CPythonCharacterManager::Instance();
-
-	CInstanceBase* pkInstMain=rkChrMgr.GetMainActorPtr();
+	const DWORD count = payloadBytes / sizeof(DWORD);
+	CPythonCharacterManager& rkChrMgr = CPythonCharacterManager::Instance();
+	CInstanceBase* pkInstMain = rkChrMgr.GetMainActorPtr();
 	if (!pkInstMain)
 	{
 		TraceError("CPythonNetworkStream::RecvDuelStartPacket - MainCharacter is NULL");
 		return false;
 	}
-	DWORD dwVIDSrc = pkInstMain->GetVirtualID();
-	DWORD dwVIDDest;
 
-	for ( DWORD i = 0; i < count; i++)
+	const DWORD dwVIDSrc = pkInstMain->GetVirtualID();
+	for (DWORD i = 0; i < count; ++i)
 	{
-		Recv(sizeof(dwVIDDest),&dwVIDDest);
-		CInstanceBase::InsertDUELKey(dwVIDSrc,dwVIDDest);
+		DWORD dwVIDDest = 0;
+		if (!Recv(sizeof(dwVIDDest), &dwVIDDest))
+			return false;
+		CInstanceBase::InsertDUELKey(dwVIDSrc, dwVIDDest);
 	}
-	
-	if(count == 0)
-		pkInstMain->SetDuelMode(CInstanceBase::DUEL_CANNOTATTACK);
-	else
-		pkInstMain->SetDuelMode(CInstanceBase::DUEL_START);
-	
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "CloseTargetBoard", Py_BuildValue("()"));
-	
-	rkChrMgr.RefreshAllPCTextTail();
 
+	pkInstMain->SetDuelMode(count == 0 ? CInstanceBase::DUEL_CANNOTATTACK : CInstanceBase::DUEL_START);
+	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "CloseTargetBoard", Py_BuildValue("()"));
+	rkChrMgr.RefreshAllPCTextTail();
 	return true;
 }
 
@@ -1042,7 +970,16 @@ bool CPythonNetworkStream::RecvMotionPacket()
 
 bool CPythonNetworkStream::RecvShopPacket()
 {
-	TPacketGCShop packet_shop;
+	TPacketGCShop packet_shop{};
+	if (!Peek(sizeof(packet_shop), &packet_shop))
+		return false;
+
+	if (packet_shop.length < sizeof(packet_shop))
+		return false;
+
+	if (!Peek(static_cast<int>(packet_shop.length)))
+		return false;
+
 	if (!Recv(sizeof(packet_shop), &packet_shop))
 		return false;
 
@@ -1051,7 +988,7 @@ bool CPythonNetworkStream::RecvShopPacket()
 	if (iSize > 0)
 	{
 		buf.resize(iSize);
-		if (!Recv(iSize, &buf[0]))
+		if (!Recv(iSize, buf.data()))
 			return false;
 	}
 
@@ -1471,7 +1408,16 @@ bool CPythonNetworkStream::SendSyncPositionElementPacket(DWORD dwVictimVID, DWOR
 
 bool CPythonNetworkStream::RecvMessenger()
 {
-	TPacketGCMessenger p;
+	TPacketGCMessenger p{};
+	if (!Peek(sizeof(p), &p))
+		return false;
+
+	if (p.length < sizeof(p))
+		return false;
+
+	if (!Peek(static_cast<int>(p.length)))
+		return false;
+
 	if (!Recv(sizeof(p), &p))
 		return false;
 
@@ -1708,7 +1654,16 @@ bool CPythonNetworkStream::RecvViewEquipPacket()
 
 bool CPythonNetworkStream::RecvLandPacket()
 {
-	TPacketGCLandList kLandList;
+	TPacketGCLandList kLandList{};
+	if (!Peek(sizeof(kLandList), &kLandList))
+		return false;
+
+	if (kLandList.length < sizeof(kLandList))
+		return false;
+
+	if (!Peek(static_cast<int>(kLandList.length)))
+		return false;
+
 	if (!Recv(sizeof(kLandList), &kLandList))
 		return false;
 
@@ -1724,7 +1679,7 @@ bool CPythonNetworkStream::RecvLandPacket()
 	int iPacketSize = (kLandList.length - sizeof(TPacketGCLandList));
 	for (; iPacketSize > 0; iPacketSize-=sizeof(TLandPacketElement))
 	{
-		TLandPacketElement kElement;
+		TLandPacketElement kElement{};
 		if (!Recv(sizeof(TLandPacketElement), &kElement))
 			return false;
 

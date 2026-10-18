@@ -476,6 +476,14 @@ HRESULT CGraphicBase::GetLastResult()
 	return ms_hLastResult;
 }
 
+HRESULT CGraphicBase::CheckDeviceState()
+{
+	if (!ms_lpd3dDevice)
+		return D3DERR_DEVICELOST;
+
+	return ms_lpd3dDevice->CheckDeviceState(ms_hWnd);
+}
+
 CGraphicBase::CGraphicBase()
 {
 }

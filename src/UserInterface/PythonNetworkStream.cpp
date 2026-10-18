@@ -394,17 +394,7 @@ bool CPythonNetworkStream::DispatchPacket(const PacketHandlerMap& handlers)
 		peekLen > 2 ? peekBuffer[2] : 0,
 		peekLen > 3 ? peekBuffer[3] : 0);
 
-	// Pomijanie zerowego wyrownania (np. padding po krypto)
-	size_t zeroCount = 0;
-	while (zeroCount < peekBuffer.size() && peekBuffer[zeroCount] == 0)
-	{
-		zeroCount++;
-	}
-	if (zeroCount > 0)
-	{
-		Recv(static_cast<int>(zeroCount));
-		return false;
-	}
+	// T182 FIX: Usunieto zjadanie bajtow 0x00 desynchronizujace strumien TCP (zeroCount)
 
 	// Badamy ramke przez aktywny sterownik
 	std::span<const uint8_t> peekSpan(peekBuffer.data(), peekBuffer.size());
@@ -459,27 +449,36 @@ bool CPythonNetworkStream::DispatchPacket(const PacketHandlerMap& handlers)
 			return false;
 		}
 
-		// Fallback: tradycyjne ramkowanie
-		TDynamicSizePacketHeader packetFrame;
-		if (!Peek(sizeof(TDynamicSizePacketHeader), &packetFrame))
-			return false;
-
-		constexpr uint16_t MAX_PACKET_LENGTH = 65000;
-		if (packetFrame.length < PACKET_HEADER_SIZE || packetFrame.length > MAX_PACKET_LENGTH)
+		// Fallback: tradycyjne ramkowanie z uzyciem zarejestrowanego minSize
+		const uint16_t expectedSize = it->second.minSize;
+		if (expectedSize > 0)
 		{
-			TraceError("DispatchPacket: Invalid packet length: header 0x%04X length: %u", header, packetFrame.length);
-			DumpRecentPackets();
-			ClearRecvBuffer();
-			PostQuitMessage(0);
-			return false;
+			if (!Peek(expectedSize))
+				return false;
 		}
+		else
+		{
+			TDynamicSizePacketHeader packetFrame;
+			if (!Peek(sizeof(TDynamicSizePacketHeader), &packetFrame))
+				return false;
 
-		if (!Peek(packetFrame.length))
-			return false;
+			constexpr uint16_t MAX_PACKET_LENGTH = 65000;
+			if (packetFrame.length < PACKET_HEADER_SIZE || packetFrame.length > MAX_PACKET_LENGTH)
+			{
+				TraceError("DispatchPacket: Invalid packet length: header 0x%04X length: %u", header, packetFrame.length);
+				DumpRecentPackets();
+				ClearRecvBuffer();
+				PostQuitMessage(0);
+				return false;
+			}
+
+			if (!Peek(packetFrame.length))
+				return false;
+		}
 
 		const bool bExitPhase = it->second.exitPhase;
 		const std::string curPhase = m_strPhase;
-		LogRecvPacket(header, packetFrame.length);
+		LogRecvPacket(header, expectedSize > 0 ? expectedSize : sizeof(TDynamicSizePacketHeader));
 		bool ret = (this->*(it->second.handler))();
 		return ret && !bExitPhase && (m_strPhase == curPhase) && !m_isStartGame;
 	}
@@ -622,21 +621,7 @@ bool CPythonNetworkStream::RecvPingPacket()
 
 bool CPythonNetworkStream::OnProcess()
 {
-	if (m_isStartGame)
-	{
-		m_isStartGame = FALSE;
-		if (m_poHandler)
-			PyCallClassMemberFunc(m_poHandler, "SetGamePhase", Py_BuildValue("()"));
-	}
-
-	m_rokNetActorMgr->Update();
-
-	if (m_phaseProcessFunc.IsEmpty())
-		return true;
-
-	m_phaseProcessFunc.Run();
-
-	return true;
+	return PumpNetworkFrames();
 }
 
 
@@ -1268,5 +1253,215 @@ void CPythonNetworkStream::DumpRecentPackets() const
 			: i;
 		const auto& e = m_aSentPacketLog[idx % SENT_PACKET_LOG_SIZE];
 		TraceError("  SENT #%u: header=0x%04X len=%u", e.seq, e.header, e.length);
+	}
+}
+
+bool CPythonNetworkStream::ExtractAndEnqueueNextFrame(const PacketHandlerMap& handlers)
+{
+	const int nAvail = GetRecvBufferSize();
+	if (nAvail <= 0)
+		return false;
+
+	auto* pDriver = Network::Protocol::ProtocolDriverRegistry::Instance().GetActiveDriver();
+	if (!pDriver)
+	{
+		Network::Protocol::ProtocolDriverRegistry::Instance().InitializeDefaults();
+		pDriver = Network::Protocol::ProtocolDriverRegistry::Instance().GetActiveDriver();
+	}
+
+	uint8_t peekStorage[64];
+	const int peekLen = std::min(nAvail, static_cast<int>(sizeof(peekStorage)));
+	if (!Peek(peekLen, reinterpret_cast<char*>(peekStorage)))
+		return false;
+
+	std::span<const uint8_t> peekSpan(peekStorage, static_cast<size_t>(peekLen));
+	auto frameOpt = pDriver ? pDriver->InspectFrame(peekSpan) : std::nullopt;
+
+	uint16_t unifiedOpcode = 0;
+	size_t totalFrameLength = 0;
+
+	if (frameOpt.has_value())
+	{
+		unifiedOpcode = frameOpt->unifiedOpcode;
+		totalFrameLength = frameOpt->packetLength;
+	}
+	else
+	{
+		TPacketHeader rawHeader = 0;
+		if (!Peek(sizeof(TPacketHeader), &rawHeader))
+			return false;
+
+		unifiedOpcode = rawHeader;
+
+		auto it = handlers.find(rawHeader);
+		if (it != handlers.end() && it->second.minSize > 0)
+		{
+			totalFrameLength = it->second.minSize;
+		}
+		else
+		{
+			TDynamicSizePacketHeader dynHeader{};
+			if (!Peek(sizeof(TDynamicSizePacketHeader), &dynHeader))
+				return false;
+
+			constexpr uint16_t MAX_PACKET_LENGTH = 65000;
+			if (dynHeader.length < PACKET_HEADER_SIZE || dynHeader.length > MAX_PACKET_LENGTH)
+			{
+				TraceError("[NET_PUMP] Corrupted frame length %u for header 0x%04X in phase %s.",
+					dynHeader.length, rawHeader, m_strPhase.c_str());
+				DumpRecentPackets();
+				Disconnect();
+				return false;
+			}
+			totalFrameLength = dynHeader.length;
+		}
+	}
+
+	// Wait if complete frame has not arrived yet
+	if (static_cast<size_t>(nAvail) < totalFrameLength)
+		return false;
+
+	// Control / crypto / handshake packets must be handled immediately
+	if ((pDriver && pDriver->IsHandshakeOpcode(unifiedOpcode)) ||
+		unifiedOpcode == GC::KEY_CHALLENGE ||
+		unifiedOpcode == GC::KEY_COMPLETE)
+	{
+		std::array<uint8_t, 4096> controlStackBuf{};
+		std::vector<uint8_t> controlHeapBuf;
+		uint8_t* targetBuf = controlStackBuf.data();
+		if (totalFrameLength > controlStackBuf.size())
+		{
+			controlHeapBuf.resize(totalFrameLength);
+			targetBuf = controlHeapBuf.data();
+		}
+
+		if (!Recv(static_cast<int>(totalFrameLength), reinterpret_cast<char*>(targetBuf)))
+			return false;
+
+		LogRecvPacket(unifiedOpcode, static_cast<uint16_t>(totalFrameLength));
+		std::span<const uint8_t> controlSpan(targetBuf, totalFrameLength);
+
+		if (pDriver && pDriver->IsHandshakeOpcode(unifiedOpcode))
+			return pDriver->HandleHandshakePacket(unifiedOpcode, controlSpan, *this);
+
+		ActiveFrameScope frameScope(*this, controlSpan);
+		if (unifiedOpcode == GC::KEY_CHALLENGE)
+			return RecvKeyChallenge();
+		if (unifiedOpcode == GC::KEY_COMPLETE)
+			return RecvKeyComplete();
+	}
+
+	// Enqueue to RingBuffer
+	std::array<uint8_t, 4096> stackFrameBuf{};
+	std::vector<uint8_t> heapFrameBuf;
+	uint8_t* frameDataPtr = stackFrameBuf.data();
+
+	if (totalFrameLength > stackFrameBuf.size())
+	{
+		heapFrameBuf.resize(totalFrameLength);
+		frameDataPtr = heapFrameBuf.data();
+	}
+
+	if (!Peek(static_cast<int>(totalFrameLength), reinterpret_cast<char*>(frameDataPtr)))
+		return false;
+
+	std::span<const uint8_t> fullPacketSpan(frameDataPtr, totalFrameLength);
+	const uint32_t nowMs = ELTimer_GetMSec();
+
+	if (!m_gamePacketQueue.TryEnqueue(unifiedOpcode, fullPacketSpan, nowMs))
+		return false; // Backpressure
+
+	Recv(static_cast<int>(totalFrameLength));
+	LogRecvPacket(unifiedOpcode, static_cast<uint16_t>(totalFrameLength));
+	return true;
+}
+
+bool CPythonNetworkStream::PumpNetworkFrames()
+{
+	const PacketHandlerMap* pActiveMap = &m_gameHandlers;
+	if (m_strPhase == "OffLine")        pActiveMap = &m_offlineHandlers;
+	else if (m_strPhase == "HandShake") pActiveMap = &m_handshakeHandlers;
+	else if (m_strPhase == "Login")     pActiveMap = &m_loginHandlers;
+	else if (m_strPhase == "Select")    pActiveMap = &m_selectHandlers;
+	else if (m_strPhase == "Loading")   pActiveMap = &m_loadingHandlers;
+
+	while (ExtractAndEnqueueNextFrame(*pActiveMap))
+	{
+	}
+	return true;
+}
+
+bool CPythonNetworkStream::ExecuteQueuedFrame(
+	const UserInterface::Network::PacketFrameView& frameView,
+	const PacketHandlerMap& handlers)
+{
+	const uint16_t header = frameView.meta.opcode;
+	const std::span<const uint8_t> packetSpan = frameView.data;
+
+	auto it = handlers.find(header);
+	if (it == handlers.end() && (&handlers != &m_gameHandlers) &&
+		(m_strPhase == "Loading" || m_strPhase == "Game" || m_isStartGame))
+	{
+		it = m_gameHandlers.find(header);
+	}
+
+	if (it != handlers.end())
+	{
+		if (packetSpan.size() < it->second.minSize)
+		{
+			TraceError("[FIXED_UPDATE] Packet 0x%04X truncated: got %zu bytes, expected min %u",
+				header, packetSpan.size(), it->second.minSize);
+			return false;
+		}
+
+		ActiveFrameScope scope(*this, packetSpan);
+		const bool bExitPhase = it->second.exitPhase;
+		const std::string curPhase = m_strPhase;
+		const bool ret = (this->*(it->second.handler))();
+
+		return ret && !bExitPhase && (m_strPhase == curPhase) && !m_isStartGame;
+	}
+
+	auto* pDriver = Network::Protocol::ProtocolDriverRegistry::Instance().GetActiveDriver();
+	if (pDriver && pDriver->DispatchInbound(header, packetSpan, nullptr))
+		return true;
+
+	auto res = Network::Dispatchers::NetworkStreamPhaseGameBridge::RouteGamePacket(header, packetSpan);
+	return true;
+}
+
+void CPythonNetworkStream::FlushGamePacketsFixedUpdate(uint32_t maxTimeBudgetMs)
+{
+	if (m_isStartGame)
+	{
+		m_isStartGame = FALSE;
+		if (m_poHandler)
+			PyCallClassMemberFunc(m_poHandler, "SetGamePhase", Py_BuildValue("()"));
+	}
+
+	const DWORD startTimeMs = ELTimer_GetMSec();
+	const PacketHandlerMap* pActiveMap = &m_gameHandlers;
+	if (m_strPhase == "OffLine")        pActiveMap = &m_offlineHandlers;
+	else if (m_strPhase == "HandShake") pActiveMap = &m_handshakeHandlers;
+	else if (m_strPhase == "Login")     pActiveMap = &m_loginHandlers;
+	else if (m_strPhase == "Select")    pActiveMap = &m_selectHandlers;
+	else if (m_strPhase == "Loading")   pActiveMap = &m_loadingHandlers;
+
+	m_gamePacketQueue.DrainAll([&](const UserInterface::Network::PacketFrameView& frame) -> bool {
+		bool continueBatch = ExecuteQueuedFrame(frame, *pActiveMap);
+		if (!continueBatch)
+			return false;
+
+		if ((ELTimer_GetMSec() - startTimeMs) >= maxTimeBudgetMs)
+			return false;
+
+		return true;
+	});
+
+	m_rokNetActorMgr->Update();
+
+	if (m_strPhase == "Game")
+	{
+		FlushPendingUIWindowRefreshes();
 	}
 }

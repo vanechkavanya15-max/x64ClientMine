@@ -43,21 +43,27 @@ void CNetworkStream::SetSendBufferSize(int sendBufSize)
 
 bool CNetworkStream::__RecvInternalBuffer()
 {
-	m_recvBuf.EnsureWritable(4096);
-
-	int restSize = static_cast<int>(m_recvBuf.WritableBytes());
-	if (restSize > 0)
+	constexpr int MAX_DRAIN_PER_PUMP = 65536;
+	int totalReceived = 0;
+	while (totalReceived < MAX_DRAIN_PER_PUMP)
 	{
-		int recvSize = recv(m_sock, reinterpret_cast<char*>(m_recvBuf.WritePtr()), restSize, 0);
+		m_recvBuf.EnsureWritable(8192);
+		const int restSize = static_cast<int>(m_recvBuf.WritableBytes());
+		if (restSize <= 0)
+			break;
+
+		uint8_t* writePtr = m_recvBuf.WritePtr();
+		const int recvSize = recv(m_sock, reinterpret_cast<char*>(writePtr), restSize, 0);
 
 		if (recvSize < 0)
 		{
-			int error = WSAGetLastError();
+			const int error = WSAGetLastError();
 			if (error != WSAEWOULDBLOCK)
 			{
 				TraceError("[NET_RECV_ERR] sock=%llu recv() failed err=%d", (unsigned long long)m_sock, error);
 				return false;
 			}
+			return true;
 		}
 		else if (recvSize == 0)
 		{
@@ -67,18 +73,15 @@ bool CNetworkStream::__RecvInternalBuffer()
 		else
 		{
 			if (m_pCryptoProvider && m_pCryptoProvider->IsActivated())
-				m_pCryptoProvider->DecryptInPlace(m_recvBuf.WritePtr(), recvSize);
+				m_pCryptoProvider->DecryptInPlace(writePtr, recvSize);
 			else if (m_secureCipher.IsActivated())
-				m_secureCipher.DecryptInPlace(m_recvBuf.WritePtr(), recvSize);
+				m_secureCipher.DecryptInPlace(writePtr, recvSize);
 
-			TraceError("[NET_RECV] sock=%llu received %d bytes, cipher=%d, b0..3=%02X %02X %02X %02X",
-				(unsigned long long)m_sock, recvSize, (int)IsSecurityMode(),
-				recvSize > 0 ? (uint8_t)m_recvBuf.WritePtr()[0] : 0,
-				recvSize > 1 ? (uint8_t)m_recvBuf.WritePtr()[1] : 0,
-				recvSize > 2 ? (uint8_t)m_recvBuf.WritePtr()[2] : 0,
-				recvSize > 3 ? (uint8_t)m_recvBuf.WritePtr()[3] : 0);
+			m_recvBuf.CommitWrite(static_cast<size_t>(recvSize));
+			totalReceived += recvSize;
 
-			m_recvBuf.CommitWrite(recvSize);
+			if (recvSize < restSize)
+				break;
 		}
 	}
 
@@ -87,27 +90,29 @@ bool CNetworkStream::__RecvInternalBuffer()
 
 bool CNetworkStream::__SendInternalBuffer()
 {
-	int dataSize = __GetSendBufferSize();
-	if (dataSize <= 0)
-		return true;
-
-	int bytesSent = send(m_sock, reinterpret_cast<const char*>(m_sendBuf.ReadPtr()), dataSize, 0);
-	TraceError("[NET_SEND] sock=%llu send() attempted %d bytes, sent=%d, err=%d",
-		(unsigned long long)m_sock, dataSize, bytesSent, bytesSent < 0 ? WSAGetLastError() : 0);
-	if (bytesSent < 0)
+	while (true)
 	{
-		int err = WSAGetLastError();
-		if (err == WSAEWOULDBLOCK)
+		const int dataSize = __GetSendBufferSize();
+		if (dataSize <= 0)
 			return true;
 
-		TraceError("__SendInternalBuffer: send() failed, sock=%llu, dataSize=%d, error=%d",
-			(unsigned long long)m_sock, dataSize, err);
-		return false;
+		const int bytesSent = send(m_sock, reinterpret_cast<const char*>(m_sendBuf.ReadPtr()), dataSize, 0);
+		if (bytesSent < 0)
+		{
+			const int err = WSAGetLastError(); // Must be preserved before TraceError!
+			if (err == WSAEWOULDBLOCK)
+				return true;
+
+			TraceError("__SendInternalBuffer: send() failed, sock=%llu, dataSize=%d, error=%d",
+				(unsigned long long)m_sock, dataSize, err);
+			return false;
+		}
+
+		if (bytesSent == 0)
+			return true;
+
+		m_sendBuf.Discard(static_cast<size_t>(bytesSent));
 	}
-
-	m_sendBuf.Discard(bytesSent);
-
-	return true;
 }
 
 #pragma warning(push)
@@ -293,11 +298,23 @@ int CNetworkStream::GetRecvBufferSize()
 
 bool CNetworkStream::Peek(int length)
 {
+	if (length < 0) return false;
+	if (m_hasActiveFrame)
+		return (m_activeFrameView.size() - m_activeFrameReadOffset) >= static_cast<size_t>(length);
 	return m_recvBuf.HasBytes(static_cast<size_t>(length));
 }
 
 bool CNetworkStream::Peek(int length, char* bufferData)
 {
+	if (length < 0 || !bufferData) return false;
+	const size_t reqLen = static_cast<size_t>(length);
+	if (m_hasActiveFrame)
+	{
+		if ((m_activeFrameView.size() - m_activeFrameReadOffset) < reqLen)
+			return false;
+		std::memcpy(bufferData, m_activeFrameView.data() + m_activeFrameReadOffset, reqLen);
+		return true;
+	}
 	return m_recvBuf.Peek(bufferData, static_cast<size_t>(length));
 }
 
@@ -515,7 +532,13 @@ bool CNetworkStream::Recv(int length)
 	if (!Peek(length))
 		return false;
 
-	m_recvBuf.Discard(static_cast<size_t>(length));
+	const size_t reqLen = static_cast<size_t>(length);
+	if (m_hasActiveFrame)
+	{
+		m_activeFrameReadOffset += reqLen;
+		return true;
+	}
+	m_recvBuf.Discard(reqLen);
 	return true;
 }
 
@@ -551,7 +574,13 @@ bool CNetworkStream::Recv(int length, char * bufferData)
 	}
 #endif
 
-	m_recvBuf.Discard(static_cast<size_t>(length));
+	const size_t reqLen = static_cast<size_t>(length);
+	if (m_hasActiveFrame)
+	{
+		m_activeFrameReadOffset += reqLen;
+		return true;
+	}
+	m_recvBuf.Discard(reqLen);
 	return true;
 }
 

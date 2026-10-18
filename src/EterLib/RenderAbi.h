@@ -621,8 +621,8 @@ typedef struct TSpeedTreeBillboardVertex
     TSpeedTreeBillboardVertex(float x, float y, float z, float u, float v)
     {
 #if defined(RENDER_VEC3_TYPE) && !defined(RENDER_ABI_C_ONLY)
-        position = RENDER_VEC3_TYPE(x, y, z);
-        texCoord = RENDER_VEC2_TYPE(u, v);
+        position.x = x; position.y = y; position.z = z;
+        texCoord.x = u; texCoord.y = v;
 #else
         std::memset(&position, 0, sizeof(position));
         std::memset(&texCoord, 0, sizeof(texCoord));

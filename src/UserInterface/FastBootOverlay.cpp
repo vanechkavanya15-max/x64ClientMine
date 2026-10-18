@@ -131,7 +131,7 @@ namespace UserInterface::FastBoot
 
         if (m_selectedProfileIdx >= 0 && m_selectedProfileIdx < static_cast<int>(m_profiles.size()))
         {
-            Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(m_profiles[m_selectedProfileIdx].driverName);
+            ::Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(m_profiles[m_selectedProfileIdx].driverName);
         }
 
         extern bool g_bFastBootAutoConnect;
@@ -557,7 +557,7 @@ namespace UserInterface::FastBoot
             if (m_profiles[i].driverName == driverName)
             {
                 m_selectedProfileIdx = static_cast<int>(i);
-                Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(m_profiles[i].driverName);
+                ::Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(m_profiles[i].driverName);
                 TraceError("[FAST_BOOT] Wybrano profil wedlug sterownika: '%s' (idx=%d, driver='%s')",
                     m_profiles[i].name.c_str(), m_selectedProfileIdx, driverName.c_str());
                 return true;
@@ -573,7 +573,7 @@ namespace UserInterface::FastBoot
             if (m_profiles[i].name == name)
             {
                 m_selectedProfileIdx = static_cast<int>(i);
-                Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(m_profiles[i].driverName);
+                ::Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(m_profiles[i].driverName);
                 TraceError("[FAST_BOOT] Wybrano profil wedlug nazwy: '%s' (idx=%d)", name.c_str(), m_selectedProfileIdx);
                 return true;
             }
@@ -596,14 +596,14 @@ namespace UserInterface::FastBoot
             {
                 m_profiles[i] = prof;
                 m_selectedProfileIdx = static_cast<int>(i);
-                Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(driver);
+                ::Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(driver);
                 return;
             }
         }
 
         m_profiles.insert(m_profiles.begin(), prof);
         m_selectedProfileIdx = 0;
-        Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(driver);
+        ::Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(driver);
         TraceError("[FAST_BOOT] Dodano wlasny profil serwera: '%s' (%s:%d/%d, driver='%s')",
             name.c_str(), ip.c_str(), authPort, gamePort, driver.c_str());
     }
@@ -622,7 +622,7 @@ namespace UserInterface::FastBoot
         const auto& prof = m_profiles[m_selectedProfileIdx];
 
         // 1. Ustawienie sterownika protokolu
-        Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(prof.driverName);
+        ::Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver(prof.driverName);
 
         // 2. Skonfigurowanie automatu sieciowego w C++
         CAccountConnector& rkAccountConnector = CAccountConnector::Instance();
@@ -660,7 +660,7 @@ namespace UserInterface::FastBoot
         if (m_bConnecting)
             return;
 
-        Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver("standard_x64");
+        ::Network::Protocol::ProtocolDriverRegistry::Instance().SetActiveDriver("standard_x64");
         CAccountConnector& rkAccountConnector = CAccountConnector::Instance();
         CPythonNetworkStream& rkNetStream = CPythonNetworkStream::Instance();
 

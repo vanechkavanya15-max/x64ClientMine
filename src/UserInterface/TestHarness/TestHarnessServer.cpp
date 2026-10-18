@@ -40,6 +40,10 @@ namespace UserInterface::TestHarness
 {
     static std::atomic<bool> s_harnessWindowVisible{true};
     static std::atomic<bool> s_harnessGpuThrottled{false};
+    static constexpr size_t kMaxPendingHarnessTasks = 1024;
+    static constexpr size_t kMaxTasksPerFrame = 64;
+    static constexpr uint64_t kFrameIpcBudgetUs = 4000;
+    static std::atomic<bool> s_hasPendingTasks{false};
 
     static std::vector<uint8_t> HexStringToBytes(std::string_view hex)
     {
@@ -185,24 +189,38 @@ namespace UserInterface::TestHarness
 
     void TestHarnessServer::ProcessMainThreadQueue()
     {
-        std::vector<std::shared_ptr<HarnessTask>> currentTasks;
+        if (!m_isRunning.load(std::memory_order_relaxed) ||
+            !s_hasPendingTasks.load(std::memory_order_acquire))
+        {
+            return;
+        }
+
+        std::vector<std::shared_ptr<HarnessTask>> batchTasks;
         {
             std::lock_guard<std::mutex> lock(m_queueMutex);
             if (m_pendingTasks.empty())
+            {
+                s_hasPendingTasks.store(false, std::memory_order_release);
                 return;
-            currentTasks.swap(m_pendingTasks);
+            }
+
+            const size_t countToTake = (std::min)(m_pendingTasks.size(), kMaxTasksPerFrame);
+            batchTasks.assign(
+                std::make_move_iterator(m_pendingTasks.begin()),
+                std::make_move_iterator(m_pendingTasks.begin() + countToTake)
+            );
+            m_pendingTasks.erase(m_pendingTasks.begin(), m_pendingTasks.begin() + countToTake);
+            s_hasPendingTasks.store(!m_pendingTasks.empty(), std::memory_order_release);
         }
 
-        TraceError("[QUEUE_DEBUG] ProcessMainThreadQueue executing %zu tasks", currentTasks.size());
+        const auto startTime = std::chrono::steady_clock::now();
 
-        for (auto& task : currentTasks)
+        for (size_t i = 0; i < batchTasks.size(); ++i)
         {
+            auto& task = batchTasks[i];
             if (!task)
                 continue;
 
-            // Atomowa wymiana stanu: PENDING -> EXECUTING.
-            // Jesli zadanie zostalo anulowane przez timeout w watku I/O (TIMED_OUT),
-            // compare_exchange zwroci false i zadanie jest ignorowane (Eliminacja Ghost Execution).
             HarnessTaskState expected = HarnessTaskState::PENDING;
             if (!task->state.compare_exchange_strong(expected, HarnessTaskState::EXECUTING, std::memory_order_acq_rel))
             {
@@ -211,13 +229,29 @@ namespace UserInterface::TestHarness
 
             std::string response = ExecuteCommand(task->rawJson);
 
-            // Po wykonaniu przestawiamy stan EXECUTING -> COMPLETED
             expected = HarnessTaskState::EXECUTING;
             if (task->state.compare_exchange_strong(expected, HarnessTaskState::COMPLETED, std::memory_order_acq_rel))
             {
                 try {
                     task->promiseResult.set_value(std::move(response));
                 } catch (...) {}
+            }
+
+            if (!DeterministicTickController::Instance().IsFrozen() && (i + 1 < batchTasks.size()))
+            {
+                const auto elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - startTime).count();
+                if (static_cast<uint64_t>(elapsedUs) >= kFrameIpcBudgetUs)
+                {
+                    std::lock_guard<std::mutex> lock(m_queueMutex);
+                    m_pendingTasks.insert(
+                        m_pendingTasks.begin(),
+                        std::make_move_iterator(batchTasks.begin() + i + 1),
+                        std::make_move_iterator(batchTasks.end())
+                    );
+                    s_hasPendingTasks.store(true, std::memory_order_release);
+                    break;
+                }
             }
         }
     }
@@ -283,46 +317,48 @@ namespace UserInterface::TestHarness
 
             recvBuf.insert(recvBuf.end(), readChunk.data(), readChunk.data() + bytesRead);
 
-            // Petla akumulacji bufora: obsluga pakietow wiekszych niz 64 KB oraz pipeliningu
-            while (!recvBuf.empty())
+            // Petla akumulacji bufora: obsluga pakietow wiekszych niz 64 KB oraz pipeliningu O(1)
+            size_t readOffset = 0;
+            while (readOffset < recvBuf.size())
             {
                 // Pomijanie wiodacych znakow bialych
-                while (!recvBuf.empty() && (recvBuf[0] == ' ' || recvBuf[0] == '\t' || recvBuf[0] == '\r' || recvBuf[0] == '\n'))
+                while (readOffset < recvBuf.size() && (recvBuf[readOffset] == ' ' || recvBuf[readOffset] == '\t' || recvBuf[readOffset] == '\r' || recvBuf[readOffset] == '\n'))
                 {
-                    recvBuf.erase(recvBuf.begin());
+                    ++readOffset;
                 }
 
-                if (recvBuf.empty())
+                const size_t remBytes = recvBuf.size() - readOffset;
+                if (remBytes == 0)
                     break;
 
                 bool isFramed = false;
                 std::string requestStr;
 
                 // Sprawdzamy czy pakiet posiada 4-bajtowy naglowek dlugosci (Framed) czy jest surowym JSON
-                if (recvBuf[0] == '{')
+                if (recvBuf[readOffset] == '{')
                 {
                     // Bajt 0 to '{' (0x7B).
                     // Moze to byc czysty JSON (np. {"jsonrpc"...}) LUB naglowek framed, gdzie bajt mlodszy uint32_t to 0x7B (np. dlugosc 123).
                     // W czystym JSON kolejne bajty b1, b2, b3 to znaki tekstu ASCII (> 0x20) i zaden z nich nie jest 0x00.
                     // W naglowku framed uint32_t little-endian dla pakietow <= 16MB co najmniej jeden z bajtow b1..b3 to 0x00.
-                    if (recvBuf.size() >= 4 && (recvBuf[1] == 0x00 || recvBuf[2] == 0x00 || recvBuf[3] == 0x00))
+                    if (remBytes >= 4 && (recvBuf[readOffset + 1] == 0x00 || recvBuf[readOffset + 2] == 0x00 || recvBuf[readOffset + 3] == 0x00))
                     {
                         uint32_t declaredLen = 0;
-                        std::memcpy(&declaredLen, recvBuf.data(), sizeof(uint32_t));
+                        std::memcpy(&declaredLen, recvBuf.data() + readOffset, sizeof(uint32_t));
                         if (declaredLen > 0 && declaredLen <= 16777216)
                         {
-                            if (recvBuf.size() < sizeof(uint32_t) + declaredLen)
+                            if (remBytes < sizeof(uint32_t) + declaredLen)
                             {
                                 // Czekamy na reszte strumienia z potoku
                                 break;
                             }
                             isFramed = true;
-                            requestStr.assign(reinterpret_cast<const char*>(recvBuf.data() + sizeof(uint32_t)), declaredLen);
-                            recvBuf.erase(recvBuf.begin(), recvBuf.begin() + sizeof(uint32_t) + declaredLen);
+                            requestStr.assign(reinterpret_cast<const char*>(recvBuf.data() + readOffset + sizeof(uint32_t)), declaredLen);
+                            readOffset += sizeof(uint32_t) + declaredLen;
                         }
                         else
                         {
-                            recvBuf.erase(recvBuf.begin());
+                            ++readOffset;
                             continue;
                         }
                     }
@@ -333,9 +369,9 @@ namespace UserInterface::TestHarness
                         int depth = 0;
                         bool inStr = false;
                         bool esc = false;
-                        for (size_t i = 0; i < recvBuf.size(); ++i)
+                        for (size_t i = 0; i < remBytes; ++i)
                         {
-                            char c = static_cast<char>(recvBuf[i]);
+                            char c = static_cast<char>(recvBuf[readOffset + i]);
                             if (inStr)
                             {
                                 if (esc) { esc = false; }
@@ -365,29 +401,29 @@ namespace UserInterface::TestHarness
                         }
 
                         isFramed = false;
-                        requestStr.assign(reinterpret_cast<const char*>(recvBuf.data()), jsonEnd + 1);
-                        recvBuf.erase(recvBuf.begin(), recvBuf.begin() + jsonEnd + 1);
+                        requestStr.assign(reinterpret_cast<const char*>(recvBuf.data() + readOffset), jsonEnd + 1);
+                        readOffset += jsonEnd + 1;
                     }
                 }
-                else if (recvBuf.size() >= 4)
+                else if (remBytes >= 4)
                 {
                     // Pierwszy bajt nie jest '{' - framed pakiet z prefiksem dlugosci
                     uint32_t declaredLen = 0;
-                    std::memcpy(&declaredLen, recvBuf.data(), sizeof(uint32_t));
+                    std::memcpy(&declaredLen, recvBuf.data() + readOffset, sizeof(uint32_t));
                     if (declaredLen > 0 && declaredLen <= 16777216)
                     {
-                        if (recvBuf.size() < sizeof(uint32_t) + declaredLen)
+                        if (remBytes < sizeof(uint32_t) + declaredLen)
                         {
                             // Czekamy na reszte danych
                             break;
                         }
                         isFramed = true;
-                        requestStr.assign(reinterpret_cast<const char*>(recvBuf.data() + sizeof(uint32_t)), declaredLen);
-                        recvBuf.erase(recvBuf.begin(), recvBuf.begin() + sizeof(uint32_t) + declaredLen);
+                        requestStr.assign(reinterpret_cast<const char*>(recvBuf.data() + readOffset + sizeof(uint32_t)), declaredLen);
+                        readOffset += sizeof(uint32_t) + declaredLen;
                     }
                     else
                     {
-                        recvBuf.erase(recvBuf.begin());
+                        ++readOffset;
                         continue;
                     }
                 }
@@ -415,7 +451,6 @@ namespace UserInterface::TestHarness
                     {
                         WriteFile(hPipe, response.data(), static_cast<DWORD>(response.size()), &bytesWritten, nullptr);
                     }
-                    FlushFileBuffers(hPipe);
                 };
 
                 // Parsowanie id oraz method dla zgodnosci z JSON-RPC 2.0 (obsluga Notifications)
@@ -491,8 +526,18 @@ namespace UserInterface::TestHarness
 
                 {
                     std::lock_guard<std::mutex> lock(m_queueMutex);
+                    if (m_pendingTasks.size() >= kMaxPendingHarnessTasks)
+                    {
+                        if (!isNotification)
+                        {
+                            sendResponse(FormatJsonRpcError(parsedId, -32005, "Server task queue full (backpressure)"));
+                        }
+                        continue;
+                    }
                     m_pendingTasks.push_back(pTask);
+                    s_hasPendingTasks.store(true, std::memory_order_release);
                 }
+                DeterministicTickController::Instance().WakeMainThread();
 
                 // Oczekiwanie na przetworzenie przez glowny watek gry (z limitem 5 sekund)
                 std::string responseStr;
@@ -522,6 +567,14 @@ namespace UserInterface::TestHarness
                 {
                     sendResponse(responseStr);
                 }
+            }
+
+            if (readOffset > 0)
+            {
+                if (readOffset >= recvBuf.size())
+                    recvBuf.clear();
+                else
+                    recvBuf.erase(recvBuf.begin(), recvBuf.begin() + readOffset);
             }
         }
 
@@ -818,6 +871,11 @@ namespace UserInterface::TestHarness
 
     std::string TestHarnessServer::HandleTickFrame(const std::string& id, uint32_t count, float deltaTime)
     {
+        auto& tickCtrl = DeterministicTickController::Instance();
+        const uint64_t targetTick = tickCtrl.Step(count, deltaTime);
+        const bool completedInTime = tickCtrl.WaitForTickReached(targetTick, 5000);
+        const uint64_t currentTick = tickCtrl.GetCurrentTick();
+
         if (m_engineControlRouter)
         {
             m_engineControlRouter->TickFrame(deltaTime * static_cast<float>(count));
@@ -828,8 +886,10 @@ namespace UserInterface::TestHarness
             m_authRouter->TickAutoReconnect(std::chrono::milliseconds(static_cast<uint64_t>(deltaTime * count * 1000.0f)));
         }
 
-        DeterministicTickController::Instance().Step(count, deltaTime);
-        uint64_t currentTick = DeterministicTickController::Instance().GetCurrentTick();
+        if (!completedInTime)
+        {
+            return FormatJsonRpcError(id, -32000, "Deterministic tick barrier timed out waiting for main thread");
+        }
 
         rapidjson::StringBuffer sb;
         rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
@@ -2722,22 +2782,22 @@ namespace UserInterface::TestHarness
             return Client::MCP::AgentMCPBridge::Instance().HandleJsonRpcRequest(req);
         };
 
-        m_routes["game_get_state"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+        m_routes["game_get_state"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
             return HandleWorldQueryState(req, id);
         }};
-        m_routes["game_get_inventory"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+        m_routes["game_get_inventory"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
             return HandleWorldQueryInventory(req, id);
         }};
-        m_routes["get_inventory"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+        m_routes["get_inventory"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
             return HandleWorldQueryInventory(req, id);
         }};
-        m_routes["game_get_nearby_entities"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+        m_routes["game_get_nearby_entities"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
             return HandleWorldQueryEntities(req, id);
         }};
-        m_routes["get_nearby_entities"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+        m_routes["get_nearby_entities"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
             return HandleWorldQueryEntities(req, id);
         }};
-        m_routes["get_entities"] = { true, [this](const std::string& req, const std::string& id) -> std::string {
+        m_routes["get_entities"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
             return HandleWorldQueryEntities(req, id);
         }};
         m_routes["game_action_attack"] = { false, [this](const std::string& req, const std::string& id) -> std::string {
@@ -2747,12 +2807,12 @@ namespace UserInterface::TestHarness
             return HandlePlayerRpcItem(req, id);
         }};
 
-        // 2. Metody stanu silnika (isImmediate = true, Natychmiastowy odczyt migawki bez blokady glownego watku)
+        // 2. Metody stanu silnika (isImmediate = false, synchroniczne wykonanie w watku glownym)
         auto stateHandler = [this](const std::string& req, const std::string& id) -> std::string {
             return HandleGetState(id);
         };
-        m_routes["get_state"] = { true, stateHandler };
-        m_routes["get_engine_state"] = { true, stateHandler };
+        m_routes["get_state"] = { false, stateHandler };
+        m_routes["get_engine_state"] = { false, stateHandler };
 
         // 3. Metody audytu (kolejkowane do glownego watku ze wzgledu na GIL Pythona)
         auto auditHandler = [this](const std::string& req, const std::string& id) -> std::string {
@@ -2798,10 +2858,10 @@ namespace UserInterface::TestHarness
         auto reloadHandler = [this](const std::string& req, const std::string& id) -> std::string {
             return HandleReload(req, id);
         };
-        m_routes["reload"] = { true, reloadHandler };
-        m_routes["game_reload"] = { true, reloadHandler };
-        m_routes["engine_reload"] = { true, reloadHandler };
-        m_routes["reset"] = { true, reloadHandler };
+        m_routes["reload"] = { false, reloadHandler };
+        m_routes["game_reload"] = { false, reloadHandler };
+        m_routes["engine_reload"] = { false, reloadHandler };
+        m_routes["reset"] = { false, reloadHandler };
 
         // 5. inject_packet
         m_routes["inject_packet"] = {

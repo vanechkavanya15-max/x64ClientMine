@@ -8,6 +8,7 @@
 
 #include "packet.h"
 #include "Client/Network/Protocol/LuriaDH2.h"
+#include "Network/NetworkEventQueue.h"
 
 class CInstanceBase;
 class CNetworkActorManager;
@@ -27,6 +28,14 @@ class CPythonNetworkStream : public CNetworkStream, public CSingleton<CPythonNet
 			bool exitPhase;		// true = stop dispatch loop after handling (phase-changing packets)
 		};
 		using PacketHandlerMap = std::unordered_map<uint16_t, PacketHandlerEntry>;
+
+		bool PumpNetworkFrames();
+		void FlushGamePacketsFixedUpdate(uint32_t maxTimeBudgetMs = 8);
+
+	protected:
+		bool ExtractAndEnqueueNextFrame(const PacketHandlerMap& handlers);
+		bool ExecuteQueuedFrame(const UserInterface::Network::PacketFrameView& frameView, const PacketHandlerMap& handlers);
+		void FlushPendingUIWindowRefreshes();
 
 	public:
 		enum
@@ -865,4 +874,5 @@ class CPythonNetworkStream : public CNetworkStream, public CSingleton<CPythonNet
 	private:
 		PacketLogEntry	m_aRecentRecvPackets[PACKET_LOG_SIZE] = {};
 		uint32_t		m_dwRecvPacketSeq = 0;
+		UserInterface::Network::SpscPacketRingBuffer<512 * 1024> m_gamePacketQueue;
 };

@@ -22,24 +22,53 @@ void CPythonCharacterManager::AdjustCollisionWithOtherObjects(CActorInstance* ta
 	if (!targetActor || !targetActor->IsPC())
 		return;
 
-	for (const auto& [vid, actor] : m_aliveActorsMap)
+	TPixelPosition curPos;
+	targetActor->GetPixelPosition(&curPos);
+
+	constexpr float COLLISION_QUERY_RADIUS = 500.0f;
+	auto candidateIds = m_spatialGrid.QueryRadius(curPos.x, curPos.y, COLLISION_QUERY_RADIUS);
+
+	if (!candidateIds.empty())
 	{
-		if (!actor)
-			continue;
-
-		CActorInstance* graphicActor = actor->GetGraphicThingInstancePtr();
-		if (!graphicActor || graphicActor == targetActor)
-			continue;
-
-		if (graphicActor->IsPC() || graphicActor->IsNPC() || graphicActor->IsEnemy())
-			continue;
-
-		if (targetActor->TestPhysicsBlendingCollision(*graphicActor))
+		for (const auto& entityId : candidateIds)
 		{
-			TPixelPosition curPos;
-			targetActor->GetPixelPosition(&curPos);
-			targetActor->SetBlendingPosition(curPos);
-			break;
+			CInstanceBase* actor = GetInstancePtr(entityId.value());
+			if (!actor)
+				continue;
+
+			CActorInstance* graphicActor = actor->GetGraphicThingInstancePtr();
+			if (!graphicActor || graphicActor == targetActor)
+				continue;
+
+			if (graphicActor->IsPC() || graphicActor->IsNPC() || graphicActor->IsEnemy())
+				continue;
+
+			if (targetActor->TestPhysicsBlendingCollision(*graphicActor))
+			{
+				targetActor->SetBlendingPosition(curPos);
+				return;
+			}
+		}
+	}
+	else
+	{
+		for (const auto& [vid, actor] : m_aliveActorsMap)
+		{
+			if (!actor)
+				continue;
+
+			CActorInstance* graphicActor = actor->GetGraphicThingInstancePtr();
+			if (!graphicActor || graphicActor == targetActor)
+				continue;
+
+			if (graphicActor->IsPC() || graphicActor->IsNPC() || graphicActor->IsEnemy())
+				continue;
+
+			if (targetActor->TestPhysicsBlendingCollision(*graphicActor))
+			{
+				targetActor->SetBlendingPosition(curPos);
+				break;
+			}
 		}
 	}
 }
@@ -244,17 +273,17 @@ void CPythonCharacterManager::Update()
 {
 	CInstanceBase::ResetPerformanceCounter();
 
-	// LUKA 3: Zabezpieczenie przed Use-After-Free poprzez snapshot identyfikatorow VID
-	std::vector<DWORD> activeVids;
-	activeVids.reserve(m_aliveActorsMap.size());
+	// Zero-allocation snapshot of active actors to prevent UAF on dynamic unregister
+	static thread_local std::vector<std::pair<DWORD, CInstanceBase*>> s_activeActorsSnapshot;
+	s_activeActorsSnapshot.clear();
+	s_activeActorsSnapshot.reserve(m_aliveActorsMap.size());
 	for (const auto& pair : m_aliveActorsMap)
 	{
-		activeVids.push_back(pair.first);
+		s_activeActorsSnapshot.emplace_back(pair.first, pair.second);
 	}
 
-	for (DWORD vid : activeVids)
+	for (const auto& [vid, pkInstEach] : s_activeActorsSnapshot)
 	{
-		CInstanceBase* pkInstEach = m_subsystemActorRegistry.FindActor(vid);
 		if (!pkInstEach)
 			continue;
 
@@ -285,10 +314,9 @@ void CPythonCharacterManager::Update()
 
 	UpdateTransform();
 
-	// LUKA 2: Synchronizacja siatki przestrzennej i rejestru swiata PO UpdateTransform() (kolizje terenu i fizyka)
-	for (const auto& pair : m_aliveActorsMap)
+	// Synchronizacja siatki przestrzennej i rejestru swiata PO UpdateTransform() z uzyciem istniejacego snapshotu
+	for (const auto& [vid, pkInstEach] : s_activeActorsSnapshot)
 	{
-		CInstanceBase* pkInstEach = pair.second;
 		if (!pkInstEach)
 			continue;
 
@@ -297,7 +325,7 @@ void CPythonCharacterManager::Update()
 			TPixelPosition curPos;
 			pkInstEach->NEW_GetPixelPosition(&curPos);
 			CentralUpdateActorPosition(
-				pkInstEach->GetVirtualID(),
+				vid,
 				curPos.x,
 				curPos.y,
 				curPos.z,

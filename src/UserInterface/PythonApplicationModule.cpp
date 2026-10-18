@@ -324,13 +324,13 @@ PyObject* appGetFileList(PyObject* poSelf, PyObject* poArgs)
 
 PyObject* appUpdateGame(PyObject* poSelf, PyObject* poArgs)
 {
-	CPythonApplication::Instance().UpdateGame();
+	// DEPRECATED: Handled natively in CPythonApplication LogicTick/Update loop
 	return Py_BuildNone();
 }
 
 PyObject* appRenderGame(PyObject* poSelf, PyObject* poArgs)
 {
-	CPythonApplication::Instance().RenderGame();
+	// DEPRECATED: Handled natively in CPythonApplication RenderWorld3D loop
 	return Py_BuildNone();
 }
 

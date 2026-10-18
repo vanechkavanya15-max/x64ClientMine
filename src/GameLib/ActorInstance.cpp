@@ -12,17 +12,11 @@ enum
 	MAIN_RACE_MAX_NUM = 8,
 };
 
-void CActorInstance::INSTANCEBASE_Deform()
-{
-	Deform();
-	TraceProcess();
-}
-
-void CActorInstance::INSTANCEBASE_Transform()
+void CActorInstance::UpdatePhysics()
 {
 	if (m_pkHorse)
 	{
-		m_pkHorse->INSTANCEBASE_Transform();
+		m_pkHorse->UpdatePhysics();
 
 		m_x = m_pkHorse->NEW_GetCurPixelPositionRef().x;
 		m_y = -m_pkHorse->NEW_GetCurPixelPositionRef().y;
@@ -30,20 +24,34 @@ void CActorInstance::INSTANCEBASE_Transform()
 		m_bNeedUpdateCollision = TRUE;			
 	}
 	
-	//DWORD t2=ELTimer_GetMSec();
 	Update();
-	//DWORD t3=ELTimer_GetMSec();
 	TransformProcess();
-	//DWORD t4=ELTimer_GetMSec();
 	Transform();
-	//DWORD t5=ELTimer_GetMSec();
 	UpdatePointInstance();
-	//DWORD t6=ELTimer_GetMSec();
 	ShakeProcess();
-	//DWORD t7=ELTimer_GetMSec();
 	UpdateBoundingSphere();
-	//DWORD t8=ELTimer_GetMSec();
 	UpdateAttribute();
+}
+
+void CActorInstance::INSTANCEBASE_Transform()
+{
+	UpdatePhysics();
+}
+
+void CActorInstance::UpdateDeform()
+{
+	Deform();
+	TraceProcess();
+}
+
+void CActorInstance::INSTANCEBASE_Deform()
+{
+	UpdateDeform();
+}
+
+bool CActorInstance::ExtractRenderPacket(TActorRenderPacket& outPacket)
+{
+	return ActorRenderExtractor::Extract(*this, outPacket);
 }
 
 

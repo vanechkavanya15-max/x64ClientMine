@@ -7822,3 +7822,48 @@ target_link_libraries(test_c37_textandui_fixes PRIVATE
 )
 add_test(NAME test_c37_textandui_fixes COMMAND test_c37_textandui_fixes)
 
+# --- Wave M5: Unified Timer and Gameloop Tests (T177 - T179) ---
+add_executable(test_c26_unified_timer_and_gameloop test_c26_unified_timer_and_gameloop.cpp)
+target_include_directories(test_c26_unified_timer_and_gameloop PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_unified_timer_and_gameloop PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c26_unified_timer_and_gameloop COMMAND test_c26_unified_timer_and_gameloop)
+
+# --- Wave M5: Network Event Queue Tests (T180 - T184) ---
+add_executable(test_c26_network_event_queue test_c26_network_event_queue.cpp)
+target_include_directories(test_c26_network_event_queue PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_network_event_queue PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c26_network_event_queue COMMAND test_c26_network_event_queue)
+
+

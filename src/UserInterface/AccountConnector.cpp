@@ -92,15 +92,7 @@ bool CAccountConnector::__HandshakeState_Process()
 	if (!Peek(peekLen, peekBuffer.data()))
 		return true;
 
-	// Odrzucenie ewentualnego zerowego wyrownania
-	size_t zeroCount = 0;
-	while (zeroCount < peekBuffer.size() && peekBuffer[zeroCount] == 0)
-		zeroCount++;
-	if (zeroCount > 0)
-	{
-		Recv(static_cast<int>(zeroCount));
-		return true;
-	}
+	// T181/T182 FIX: Usunieto zjadanie bajtow 0x00 desynchronizujace strumien TCP (zeroCount)
 
 	std::span<const uint8_t> peekSpan(peekBuffer.data(), peekBuffer.size());
 	auto frameOpt = pDriver ? pDriver->InspectFrame(peekSpan) : std::nullopt;

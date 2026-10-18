@@ -254,6 +254,18 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 		void INSTANCEBASE_Transform();
 		void INSTANCEBASE_Deform();
 
+		// -----------------------------------------------------------------------------
+		// 3-Fazowy Potok Symulacji i Renderowania Aktora (Task T183 / Master Blueprint)
+		// -----------------------------------------------------------------------------
+		// Faza 1: Pure Position Simulation & Physics (brak operacji Direct3D/GPU)
+		void UpdatePhysics();
+
+		// Faza 2: Skeletal Deformation in RAM (przeliczanie hierarchii kosci do bufora RAM)
+		void UpdateDeform();
+
+		// Faza 3: Stateless Render Packet Extraction (ekstrakcja pakietu TActorRenderPacket pod Rust DOD/WGPU)
+		bool ExtractRenderPacket(struct TActorRenderPacket& outPacket);
+
 		void Destroy();
 
 		void Move();

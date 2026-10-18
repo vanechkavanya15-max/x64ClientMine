@@ -227,20 +227,20 @@ CGraphicDevice::EDeviceState CGraphicDevice::GetDeviceState()
 	if (!ms_lpd3dDevice)
 		return DEVICESTATE_NULL;
 
-	HRESULT hr;
+	HRESULT hr = ms_lpd3dDevice->CheckDeviceState(ms_hWnd);
+	if (hr == S_OK)
+		return DEVICESTATE_OK;
 
-	if (FAILED(hr = ms_lpd3dDevice->TestCooperativeLevel()))
-	{
-		if (D3DERR_DEVICELOST == hr)
-			return DEVICESTATE_BROKEN;
-
-		if (D3DERR_DEVICENOTRESET == hr)
-			return DEVICESTATE_NEEDS_RESET;
-
+	if (hr == S_PRESENT_OCCLUDED)
 		return DEVICESTATE_BROKEN;
-	}
-	
-	return DEVICESTATE_OK;
+
+	if (hr == S_PRESENT_MODE_CHANGED || hr == D3DERR_DEVICENOTRESET)
+		return DEVICESTATE_NEEDS_RESET;
+
+	if (hr == D3DERR_DEVICELOST)
+		return DEVICESTATE_BROKEN;
+
+	return DEVICESTATE_BROKEN;
 }
 
 bool CGraphicDevice::Reset()

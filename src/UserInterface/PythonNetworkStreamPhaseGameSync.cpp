@@ -5,6 +5,7 @@
 #include "PythonPlayer.h"
 #include "PythonCharacterManager.h"
 #include "PythonItem.h"
+#include "PhaseTransitionGuard.h"
 #include "AbstractApplication.h"
 #include "AbstractCharacterManager.h"
 #include "AbstractPlayer.h"
@@ -74,15 +75,10 @@ void PhaseGameSyncBridge::Warp(CPythonNetworkStream* pStream, LONG lGlobalX, LON
 
 	ShowMapName(pStream, lLocalX, lLocalY);
 
-	CPythonCharacterManager::Instance().DeleteAllInstances();
-	CPythonItem::Instance().DeleteAllItems();
-	CPythonTextTail::Instance().Clear();
-	CFlyingManager::Instance().DeleteAllInstances();
-	CEffectManager::Instance().DeleteAllInstances();
+	UserInterface::Phase::PurgeWorldResourcesAtomically(pStream->m_rokNetActorMgr.get());
 
 	if (!pStream->m_rokNetActorMgr.IsNull())
 	{
-		pStream->m_rokNetActorMgr->Destroy();
 		pStream->m_rokNetActorMgr->SetMainActorVID(pStream->GetMainActorVID());
 	}
 
@@ -214,15 +210,9 @@ void PhaseGameSyncBridge::LeaveGamePhase(CPythonNetworkStream* pStream)
 
 	CInstanceBase::ClearPVPKeySystem();
 
-	pStream->__ClearNetworkActorManager();
-
 	pStream->m_bComboSkillFlag = FALSE;
 
-	IAbstractCharacterManager& rkChrMgr = IAbstractCharacterManager::GetSingleton();
-	rkChrMgr.Destroy();
-
-	CPythonItem& rkItemMgr = CPythonItem::Instance();
-	rkItemMgr.Destroy();
+	UserInterface::Phase::PurgeWorldResourcesAtomically(pStream->m_rokNetActorMgr.get());
 }
 
 void PhaseGameSyncBridge::SetGamePhase(CPythonNetworkStream* pStream)

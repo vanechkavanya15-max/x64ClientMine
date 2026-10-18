@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "PythonNetworkStream.h"
 #include "Packet.h"
+#include "PhaseTransitionGuard.h"
 #include "PythonApplication.h"
 #include "NetworkActorManager.h"
 #include "AbstractPlayer.h"
@@ -62,14 +63,22 @@ bool CPythonNetworkStream::LoadConvertTable(DWORD dwEmpireID, const char* c_szFi
 // Loading ---------------------------------------------------------------------------
 void CPythonNetworkStream::LoadingPhase()
 {
-	while (m_strPhase == "Loading" && !m_isStartGame && DispatchPacket(m_loadingHandlers))
-		;
+	const DWORD dwStartTick = ELTimer_GetMSec();
+	constexpr DWORD MAX_LOADING_DISPATCH_MS = 6;
+	while (m_strPhase == "Loading" && !m_isStartGame)
+	{
+		if (!DispatchPacket(m_loadingHandlers))
+			break;
+		if (ELTimer_GetMSec() - dwStartTick >= MAX_LOADING_DISPATCH_MS)
+			break; // Yield to PeekMessage pump
+	}
 }
 
 void CPythonNetworkStream::SetLoadingPhase()
 {
-	if ("Loading"!=m_strPhase)
-		m_phaseLeaveFunc.Run();
+	if ("Loading" == m_strPhase)
+		return;
+	m_phaseLeaveFunc.Run();
 
 	Tracef("[PHASE] Entering phase: Loading\n");
 	Tracen("");
@@ -78,17 +87,15 @@ void CPythonNetworkStream::SetLoadingPhase()
 
 	m_strPhase = "Loading";
 	m_bEnterGameSent = false;
+	m_bSelectCharacterSent = false; // Reset lock for reconnect
+	m_isStartGame = FALSE;
 	RefreshProtocolHandlers();
 
 	m_dwChangingPhaseTime = ELTimer_GetMSec();
 	m_phaseProcessFunc.Set(this, &CPythonNetworkStream::LoadingPhase);
 	m_phaseLeaveFunc.Set(this, &CPythonNetworkStream::__LeaveLoadingPhase);
 
-	CPythonPlayer& rkPlayer=CPythonPlayer::Instance();
-	rkPlayer.Clear();
-
-	CFlyingManager::Instance().DeleteAllInstances();
-	CEffectManager::Instance().DeleteAllInstances();
+	UserInterface::Phase::PurgeWorldResourcesAtomically(m_rokNetActorMgr.get());
 
 	__DirectEnterMode_Initialize();
 
@@ -246,6 +253,7 @@ bool CPythonNetworkStream::RecvMainCharacterLuria0F()
 	m_dwMainActorVID = vid;
 	m_dwMainActorRace = race;
 	m_dwMainActorEmpire = empire;
+	m_dwMainActorSkillGroup = 0;
 
 	m_rokNetActorMgr->SetMainActorVID(m_dwMainActorVID);
 

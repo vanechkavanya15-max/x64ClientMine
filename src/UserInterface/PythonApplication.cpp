@@ -31,7 +31,136 @@
 #include <utf8.h>
 #include <thread>
 #include <chrono>
+#include <mmsystem.h>
+#include <wtsapi32.h>
+#include <immintrin.h>
+#pragma comment(lib, "wtsapi32.lib")
 
+std::atomic<bool> CPythonApplication::ms_bSessionLocked{false};
+std::atomic<bool> CPythonApplication::ms_bInModalSizeMove{false};
+
+namespace
+{
+	constexpr DWORD MAX_MESSAGES_PER_FRAME  = 64;
+	constexpr auto  MAX_MESSAGE_PUMP_BUDGET = std::chrono::microseconds(1500);
+
+	class HighPrecisionFramePacer
+	{
+	public:
+		HighPrecisionFramePacer()
+		{
+			m_hTimer = ::CreateWaitableTimerExW(
+				nullptr,
+				nullptr,
+				CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+				TIMER_ALL_ACCESS
+			);
+			if (!m_hTimer)
+			{
+				m_hTimer = ::CreateWaitableTimerW(nullptr, TRUE, nullptr);
+			}
+			m_nextFrameTarget = std::chrono::steady_clock::now();
+		}
+
+		~HighPrecisionFramePacer()
+		{
+			if (m_hTimer)
+			{
+				::CloseHandle(m_hTimer);
+				m_hTimer = nullptr;
+			}
+		}
+
+		void Reset() noexcept
+		{
+			m_nextFrameTarget = std::chrono::steady_clock::now();
+		}
+
+		bool WaitForNextFrame(std::chrono::nanoseconds targetFrameDuration, bool allowEarlyWakeOnInput) noexcept
+		{
+			using clock = std::chrono::steady_clock;
+			const auto now = clock::now();
+
+			m_nextFrameTarget += targetFrameDuration;
+			if (m_nextFrameTarget < now)
+			{
+				m_nextFrameTarget = now;
+				return false;
+			}
+
+			bool wokeOnInput = false;
+
+			while (true)
+			{
+				const auto current = clock::now();
+				const auto remaining = m_nextFrameTarget - current;
+				if (remaining <= std::chrono::nanoseconds::zero())
+					break;
+
+				const auto sleepThreshold = m_schedulerOvershoot + std::chrono::microseconds(350);
+				if (m_hTimer && remaining > sleepThreshold)
+				{
+					const auto sleepDuration = remaining - m_schedulerOvershoot;
+					LARGE_INTEGER liDueTime{};
+					liDueTime.QuadPart = -static_cast<LONGLONG>(
+						std::chrono::duration_cast<std::chrono::nanoseconds>(sleepDuration).count() / 100
+					);
+
+					if (liDueTime.QuadPart < 0 && ::SetWaitableTimer(m_hTimer, &liDueTime, 0, nullptr, nullptr, FALSE))
+					{
+						const auto sleepStart = clock::now();
+						DWORD dwWakeMask = allowEarlyWakeOnInput ? QS_ALLINPUT : 0;
+						DWORD dwFlags    = allowEarlyWakeOnInput ? MWMO_INPUTAVAILABLE : 0;
+
+						DWORD waitRes = ::MsgWaitForMultipleObjectsEx(
+							1, &m_hTimer, INFINITE, dwWakeMask, dwFlags
+						);
+
+						const auto actualSlept = clock::now() - sleepStart;
+						if (waitRes == WAIT_OBJECT_0 + 1)
+						{
+							wokeOnInput = true;
+							break;
+						}
+
+						if (actualSlept > sleepDuration)
+						{
+							const auto overshoot = actualSlept - sleepDuration;
+							const auto maxOvershoot = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::milliseconds(4));
+							const auto clampedOvershoot = (overshoot < maxOvershoot) ? overshoot : maxOvershoot;
+							m_schedulerOvershoot = std::chrono::nanoseconds(
+								(m_schedulerOvershoot.count() * 7 + clampedOvershoot.count()) / 8
+							);
+						}
+						else
+						{
+							m_schedulerOvershoot = std::chrono::nanoseconds(
+								(m_schedulerOvershoot.count() * 31) / 32
+							);
+						}
+						continue;
+					}
+				}
+
+				_mm_pause();
+			}
+
+			return wokeOnInput;
+		}
+
+	private:
+		HANDLE m_hTimer = nullptr;
+		std::chrono::steady_clock::time_point m_nextFrameTarget{};
+		std::chrono::nanoseconds m_schedulerOvershoot = std::chrono::microseconds(500);
+	};
+
+	static HighPrecisionFramePacer s_framePacer;
+}
+
+void CPythonApplication::ResetFramePacer()
+{
+	s_framePacer.Reset();
+}
 
 static bool s_bWindowVisibleState = true;
 
@@ -50,10 +179,7 @@ void CPythonApplication::SetWindowVisible(bool visible)
 	if (m_hWnd)
 	{
 		ShowWindow(m_hWnd, visible ? SW_RESTORE : SW_HIDE);
-		if (visible)
-		{
-			m_isMinimizedWnd = false;
-		}
+		m_isMinimizedWnd = !visible;
 	}
 	SetRenderThrottling(!visible);
 }
@@ -126,7 +252,7 @@ m_dwTurboTicks(0)
 	m_iFPS = 60;
 
 	m_isActivateWnd = false;
-	m_isMinimizedWnd = true;
+	m_isMinimizedWnd = !s_bWindowVisibleState;
 	if (!s_bWindowVisibleState)
 	{
 		m_bRenderThrottling.store(true);
@@ -233,8 +359,41 @@ void CPythonApplication::Exit()
 	PostQuitMessage(0);
 }
 
-void CPythonApplication::RenderGame()
+namespace
 {
+	class ScopedPythonGilRelease
+	{
+	public:
+		ScopedPythonGilRelease() : m_threadState(nullptr)
+		{
+			if (Py_IsInitialized())
+			{
+				m_threadState = PyEval_SaveThread();
+			}
+		}
+
+		~ScopedPythonGilRelease()
+		{
+			if (m_threadState)
+			{
+				PyEval_RestoreThread(m_threadState);
+			}
+		}
+
+		ScopedPythonGilRelease(const ScopedPythonGilRelease&) = delete;
+		ScopedPythonGilRelease& operator=(const ScopedPythonGilRelease&) = delete;
+
+	private:
+		PyThreadState* m_threadState;
+	};
+}
+
+void CPythonApplication::ExtractSnapshot()
+{
+	CCullingManager::Instance().Update();
+	if (!m_pyBackground.IsMapReady())
+		return;
+
 	float fAspect = m_kWndMgr.GetAspect();
 	float fFarClip = m_pyBackground.GetFarClip();
 
@@ -247,23 +406,34 @@ void CPythonApplication::RenderGame()
 
 	CCullingManager::Instance().Process();
 
-	m_kChrMgr.Deform();
+	const TFrameSnapshot& snapshot = CFrameSnapshot::Current();
+	TRenderFrameUniforms uniforms = CRenderQueueManager::Instance().GetFrameUniforms();
+	uniforms.matView = snapshot.matView;
+	uniforms.matProj = snapshot.matProj;
+	uniforms.matViewProj = snapshot.matViewProj;
+	uniforms.vCameraPos = snapshot.v3CameraPos;
+	uniforms.fTime = snapshot.fTime;
+	uniforms.dwFrameIndex = snapshot.dwFrameIndex;
+	CRenderQueueManager::Instance().SetFrameUniforms(uniforms);
+}
 
+void CPythonApplication::RenderWorld3D()
+{
+	if (!m_pyBackground.IsMapReady())
+		return;
+
+	long lx, ly;
+	m_kWndMgr.GetMousePosition(lx, ly);
+	m_pyGraphic.SetCursorPosition(lx, ly);
+
+	// Release Python GIL during heavy 3D deformation, culling, and draw queue emission
+	ScopedPythonGilRelease gilRelease;
+
+	m_kChrMgr.Deform();
 	m_pyBackground.RenderCharacterShadowToTexture();
 
 	m_pyGraphic.SetGameRenderState();
 	m_pyGraphic.PushState();
-
-	{
-		long lx, ly;
-		m_kWndMgr.GetMousePosition(lx, ly);
-		m_pyGraphic.SetCursorPosition(lx, ly);
-	}
-
-	// Calkowite wylaczenie renderowania nieba i flar (0 CPU/GPU, czarne tlo)
-	// m_pyBackground.RenderSky();
-	// m_pyBackground.RenderBeforeLensFlare();
-	// m_pyBackground.RenderCloud();
 
 	m_pyBackground.BeginEnvironment();
 	m_pyBackground.Render();
@@ -286,40 +456,75 @@ void CPythonApplication::RenderGame()
 	m_pyBackground.RenderPCBlocker();
 	m_pyBackground.EndEnvironment();
 
-	// m_pyBackground.RenderAfterLensFlare();
-
-	// Aktualizacja macierzy kamery i czasu klatki w TRenderFrameUniforms przed Flush
-	{
-		const TFrameSnapshot& snapshot = CFrameSnapshot::Current();
-		TRenderFrameUniforms uniforms = CRenderQueueManager::Instance().GetFrameUniforms();
-		uniforms.matView = snapshot.matView;
-		uniforms.matProj = snapshot.matProj;
-		uniforms.matViewProj = snapshot.matViewProj;
-		uniforms.vCameraPos = snapshot.v3CameraPos;
-		uniforms.fTime = snapshot.fTime;
-		uniforms.dwFrameIndex = snapshot.dwFrameIndex;
-		CRenderQueueManager::Instance().SetFrameUniforms(uniforms);
-	}
-
-	// Przekaz linie geometrii diagnostycznej i debugowania do kolejki renderowania
+	// Transmit diagnostic debug lines to render queue
 	Client::Graphics::Debug::DebugRenderer::Instance().FlushToRenderQueue();
 
-	// Strangler Fig: Zrenderuj pakiety zebrane w kolejce renderowania przez aktywny backend (D3D9 / WGPU)
+	// Strangler Fig: Render queued packets through active backend (D3D9 / WGPU)
 	CRenderQueueManager::Instance().Flush(CRenderQueueManager::Instance().GetActiveBackend());
 
-	// Po wyrenderowaniu klatki wyczysc bufor linii diagnostycznych
+	// Clear debug line buffer after render
 	Client::Graphics::Debug::DebugRenderer::Instance().Clear();
 
-	// Izolacja stanu i przywrocenie macierzy 2D UI po renderowaniu swiata gry 3D
+	// Isolate state
 	m_pyGraphic.PopState();
-	m_pyGraphic.SetInterfaceRenderState();
 }
+
+void CPythonApplication::RenderGame()
+{
+	ExtractSnapshot();
+	RenderWorld3D();
+}
+
+void CPythonApplication::RenderUI2D()
+{
+	m_pyGraphic.SetInterfaceRenderState();
+	OnUIRender();
+	OnMouseRender();
+	FlushFrameUI();
+	UserInterface::FastBoot::FastBootOverlay::Instance().Render();
+}
+
+void CPythonApplication::LogicTick(float fixedDelta)
+{
+	CTimer& rkTimer = CTimer::Instance();
+	rkTimer.Advance();
+
+	m_fGlobalTime = rkTimer.GetCurrentSecond();
+	m_fGlobalElapsedTime = rkTimer.GetElapsedSecond();
+
+	// Phase 3: NETWORK_PUMP - TCP stream packet parsing
+	{
+		Client::Core::ScopedPhaseTimer netTimer(Client::Core::FramePhase::NetworkPump);
+		m_pyNetworkStream.Process();
+		m_kGuildMarkUploader.Process();
+		m_kGuildMarkDownloader.Process();
+		m_kAccountConnector.Process();
+		UserInterface::FastBoot::FastBootOverlay::Instance().Update();
+	}
+
+	// Phase 3b: FIXED_UPDATE - Apply network event queue in fixed timestep
+	m_pyNetworkStream.FlushGamePacketsFixedUpdate(8);
+
+	// Phase 4: WORLD_SIMULATION - Native C++ world simulation
+	if (m_pyBackground.IsMapReady())
+	{
+		UpdateGame();
+	}
+
+	// Phase 5: UI_SYNCHRONIZATION - Update UI, camera and mouse
+	{
+		Client::Core::ScopedPhaseTimer uiTimer(Client::Core::FramePhase::UiSynchronization);
+		CResourceManager::Instance().Update();
+		OnCameraUpdate();
+		OnMouseUpdate();
+		OnUIUpdate();
+	}
+}
+
 
 void CPythonApplication::UpdateGame()
 {
 	Client::Core::ScopedPhaseTimer simTimer(Client::Core::FramePhase::WorldSimulation);
-
-	UserInterface::TestHarness::TestHarnessServer::Instance().ProcessMainThreadQueue();
 
 	POINT ptMouse;
 	GetMousePosition(&ptMouse);
@@ -402,6 +607,7 @@ bool CPythonApplication::Process()
 	static BOOL s_bFrameSkip = false;
 
 	// Faza 2: INPUT_UPDATE - Peryferia OS i wirtualne kontrolery (odswiezane przy kazdej klatce)
+	if (!m_isMinimizedWnd && !ms_bSessionLocked.load(std::memory_order_acquire))
 	{
 		Client::Core::ScopedPhaseTimer inputTimer(Client::Core::FramePhase::InputUpdate);
 		UpdateKeyboard();
@@ -418,31 +624,7 @@ bool CPythonApplication::Process()
 	// Taktowanie logiki gry sztywnym krokiem czasowym (60Hz) lub kontrolerem deterministycznym
 	DWORD updatestart = ELTimer_GetMSec();
 	auto updateLogicLambda = [&](float fixedDelta) {
-		CTimer& rkTimer = CTimer::Instance();
-		rkTimer.Advance();
-
-		m_fGlobalTime = rkTimer.GetCurrentSecond();
-		m_fGlobalElapsedTime = rkTimer.GetElapsedSecond();
-
-		// Faza 3: NETWORK_PUMP - Przetwarzanie strumieni TCP pakietow
-		{
-			Client::Core::ScopedPhaseTimer netTimer(Client::Core::FramePhase::NetworkPump);
-			m_pyNetworkStream.Process();
-			m_kGuildMarkUploader.Process();
-			m_kGuildMarkDownloader.Process();
-			m_kAccountConnector.Process();
-			UserInterface::FastBoot::FastBootOverlay::Instance().Update();
-		}
-
-		// Faza 5: UI_SYNCHRONIZATION - Odswiezenie interfejsu i kamery
-		{
-			Client::Core::ScopedPhaseTimer uiTimer(Client::Core::FramePhase::UiSynchronization);
-			CResourceManager::Instance().Update();
-			OnCameraUpdate();
-			OnMouseUpdate();
-			OnUIUpdate();
-		}
-
+		LogicTick(fixedDelta);
 		++s_dwUpdateFrameCount;
 	};
 
@@ -455,6 +637,7 @@ bool CPythonApplication::Process()
 		{
 			updateLogicLambda(stepDelta);
 			UserInterface::TestHarness::DeterministicTickController::Instance().IncrementTickCount();
+			UserInterface::TestHarness::DeterministicTickController::Instance().NotifyTickCompleted(stepDelta);
 		}
 	}
 	else
@@ -484,6 +667,7 @@ bool CPythonApplication::Process()
 
 	// Stary mechanizm dlawiacy s_bFrameSkip wylaczony - taktowanie klatek logiki prowadzi FrameTimer (144Hz+)
 	s_bFrameSkip = false;
+	bool canRender = false;
 
 	if (!s_bFrameSkip)
 	{
@@ -495,29 +679,39 @@ bool CPythonApplication::Process()
 
 		DWORD dwRenderStartTime = ELTimer_GetMSec();		
 
-		bool canRender = !g_bHeadlessMode && !m_isMinimizedWnd && !m_bRenderThrottling.load();
+		canRender = !g_bHeadlessMode && !m_isMinimizedWnd && !m_bRenderThrottling.load(std::memory_order_acquire) && !ms_bSessionLocked.load(std::memory_order_acquire);
 
 		if (canRender) [[likely]] {
-			if (m_pyGraphic.IsLostDevice()) [[unlikely]] {
-				UserInterface::FastBoot::FastBootOverlay::Instance().OnLostDevice();
-				CD3D9RenderBackend::Instance().OnLostDevice();
-				CPythonBackground& rkBG = CPythonBackground::Instance();
-				rkBG.ReleaseCharacterShadowTexture();
+			if (!RenderOwnership::IsWgpuConfigured() && m_pyGraphic.IsLostDevice()) [[unlikely]] {
+				const int devState = CheckDeviceState();
+				if (devState == DEVICE_STATE_OK)
+				{
+					UserInterface::FastBoot::FastBootOverlay::Instance().OnLostDevice();
+					CD3D9RenderBackend::Instance().OnLostDevice();
+					CPythonBackground& rkBG = CPythonBackground::Instance();
+					rkBG.ReleaseCharacterShadowTexture();
 
-				if (m_pyGraphic.RestoreDevice()) {
-					rkBG.CreateCharacterShadowTexture();
-					CD3D9RenderBackend::Instance().OnResetDevice();
-					UserInterface::FastBoot::FastBootOverlay::Instance().OnResetDevice();
+					if (m_pyGraphic.RestoreDevice()) {
+						rkBG.CreateCharacterShadowTexture();
+						CD3D9RenderBackend::Instance().OnResetDevice();
+						UserInterface::FastBoot::FastBootOverlay::Instance().OnResetDevice();
+					}
+					else
+					{
+						canRender = false;
+					}
 				}
 				else
-					canRender = false;				
+				{
+					canRender = false;
+				}
 			}
 		}
 
 		if (canRender) [[likely]]
 		{
-			// RestoreLostDevice
-			CCullingManager::Instance().Update();
+			ExtractSnapshot();
+
 			if (m_pyGraphic.Begin()) [[likely]] {
 				EterLib::Render::DynamicQuadBatcher::Instance().BeginFrame();
 				CRenderQueueManager::Instance().BeginFrame();
@@ -526,15 +720,14 @@ bool CPythonApplication::Process()
 				m_pyGraphic.SetClearColor(0.0f, 0.0f, 0.0f);
 				m_pyGraphic.Clear();
 
-				/////////////////////
-				// Interface
-				m_pyGraphic.SetInterfaceRenderState();
+				// Faza 7A: Natywne renderowanie swiata 3D (ze zwolnionym GIL)
+				if (m_pyBackground.IsMapReady())
+				{
+					RenderWorld3D();
+				}
 
-				OnUIRender();
-				OnMouseRender();
-				FlushFrameUI();
-				UserInterface::FastBoot::FastBootOverlay::Instance().Render();
-				/////////////////////
+				// Faza 7B: Nakladka interfejsu 2D
+				RenderUI2D();
 
 				CRenderQueueManager::Instance().EndFrame();
 				m_pyGraphic.End();
@@ -542,6 +735,7 @@ bool CPythonApplication::Process()
 				// W trybie WGPU Direct-to-Screen prezentacja odbywa sie bezposrednio w m2_wgpu_render_frame (surface.present())
 				if (!RenderOwnership::IsWgpuConfigured())
 				{
+					ScopedPythonGilRelease gilReleasePresent;
 					m_pyGraphic.Show();
 				}
 				//DWORD t2 = ELTimer_GetMSec();
@@ -605,26 +799,46 @@ bool CPythonApplication::Process()
 				++s_dwRenderFrameCount;
 			}
 		}
+	}
+
+	// Pomiar czystego czasu pracy CPU przed wejsciem w faze oczekiwania Frame Pacera
+	s_uiLoad += ELTimer_GetMSec() - dwStart;
+
+	// Faza 8: UJEDNOLICONY FRAME PACING (zastepuje rozproszone sleep_for(15), sleep_for(1) i Sleep(10))
+	if (UserInterface::TestHarness::DeterministicTickController::Instance().IsTestMode())
+	{
+		UserInterface::TestHarness::DeterministicTickController::Instance().ThrottleFrameLoop(g_bHeadlessMode, 60);
+	}
+	else if (!ms_bInModalSizeMove.load(std::memory_order_acquire))
+	{
+		std::chrono::nanoseconds targetFrameTime;
+		if (!canRender && m_pyGraphic.IsLostDevice())
+		{
+			// T178: Lost Device throttle (50ms) during Win+L lock or screensaver
+			targetFrameTime = std::chrono::nanoseconds(50'000'000);
+		}
+		else if (g_bHeadlessMode || m_isMinimizedWnd || !canRender)
+		{
+			// W trybie headless / zminimalizowanym utrzymujemy stabilny puls 60 Hz (16.666 ms)
+			targetFrameTime = std::chrono::nanoseconds(16'666'667);
+		}
 		else
 		{
-			if (g_bHeadlessMode)
-				std::this_thread::sleep_for(std::chrono::milliseconds(15));
-			else
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			const uint32_t targetFps = (m_iFPS > 60) ? m_iFPS : 144;
+			targetFrameTime = std::chrono::nanoseconds(1'000'000'000ULL / targetFps);
 		}
+
+		s_framePacer.WaitForNextFrame(targetFrameTime, !g_bHeadlessMode);
 	}
 
-	// Stary dlawik Sleep(rest) usuniety dla pelnego wsparcia wysokiego odswiezania 144Hz+.
-	// W przypadku zminimalizowanego okna oddajemy czas procesora systemowi.
-	if (m_isMinimizedWnd)
-	{
-		Sleep(10);
-	}
-
-	s_uiLoad += ELTimer_GetMSec() - dwStart;
-	//m_Profiler.ProfileByScreen();	
 	return true;
 }
+
+bool CPythonApplication::ProcessFrame()
+{
+	return Process();
+}
+
 
 void CPythonApplication::UpdateClientRect()
 {
@@ -762,13 +976,19 @@ void CPythonApplication::Loop()
 
 		for (uint32_t currentTick = 0; currentTick < m_dwTurboTicks; ++currentTick)
 		{
-			while (IsMessage())
+			MSG msg{};
+			uint32_t pumpedCount = 0;
+			constexpr uint32_t MAX_TURBO_MESSAGES = 64;
+			while (pumpedCount < MAX_TURBO_MESSAGES && ::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 			{
-				if (!MessageProcess())
+				if (msg.message == WM_QUIT)
 				{
-					TraceError("CPythonApplication::Loop: MessageProcess() returned false (WM_QUIT) at tick %u/%u", currentTick, m_dwTurboTicks);
+					TraceError("CPythonApplication::Loop: WM_QUIT received at tick %u/%u", currentTick, m_dwTurboTicks);
 					return;
 				}
+				::TranslateMessage(&msg);
+				::DispatchMessage(&msg);
+				++pumpedCount;
 			}
 
 			// Filar 4: TestHarnessEngine - Przetworzenie kolejki watku glownego z serwera Named Pipe
@@ -785,7 +1005,7 @@ void CPythonApplication::Loop()
 
 			// Deterministyczny krok czasowy logiki gry (16.666ms na tick)
 			CTimer& rkTimer = CTimer::Instance();
-			rkTimer.Advance();
+			rkTimer.AdvanceFixed(1.0 / 60.0);
 
 			m_fGlobalTime = rkTimer.GetCurrentSecond();
 			m_fGlobalElapsedTime = rkTimer.GetElapsedSecond();
@@ -810,22 +1030,47 @@ void CPythonApplication::Loop()
 		return;
 	}
 
+	s_framePacer.Reset();
+
 	while (1)
 	{	
-		if (IsUserMovingMainWindow())
-			UpdateMainWindowPosition();
-		
-		MSG msg;
-		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		const auto pumpStart = std::chrono::steady_clock::now();
+		uint32_t pumpedMessages = 0;
+		bool hasMouseMove = false;
+		MSG lastMouseMoveMsg{};
+		MSG msg{};
+
+		while (pumpedMessages < MAX_MESSAGES_PER_FRAME &&
+		       (std::chrono::steady_clock::now() - pumpStart) < MAX_MESSAGE_PUMP_BUDGET &&
+		       ::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			if (msg.message == WM_QUIT)
 			{
 				TraceError("CPythonApplication::Loop: WM_QUIT received");
 				return;
 			}
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+
+			if (msg.message == WM_MOUSEMOVE)
+			{
+				lastMouseMoveMsg = msg;
+				hasMouseMove = true;
+				++pumpedMessages;
+				continue;
+			}
+
+			::TranslateMessage(&msg);
+			::DispatchMessage(&msg);
+			++pumpedMessages;
 		}
+
+		if (hasMouseMove)
+		{
+			::TranslateMessage(&lastMouseMoveMsg);
+			::DispatchMessage(&lastMouseMoveMsg);
+		}
+
+		if (IsUserMovingMainWindow())
+			UpdateMainWindowPosition();
 
 		if (!Process())
 		{

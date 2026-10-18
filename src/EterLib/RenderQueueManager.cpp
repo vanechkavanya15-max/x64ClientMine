@@ -277,8 +277,9 @@ void CRenderQueueManager::BeginFrame()
 
 void CRenderQueueManager::SwapFrameBuffers()
 {
-	m_activeFrameIndex ^= 1;
-	m_bHasSwappedFrame = true;
+	size_t current = m_activeFrameIndex.load(std::memory_order_relaxed);
+	m_activeFrameIndex.store(current ^ 1, std::memory_order_release);
+	m_bHasSwappedFrame.store(true, std::memory_order_release);
 	m_frameBuffers[GetWorkFrameIndex()].Clear();
 }
 

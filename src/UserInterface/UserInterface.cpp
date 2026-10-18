@@ -51,6 +51,7 @@ extern "C" {
 };
 
 #pragma comment(linker, "/NODEFAULTLIB:libci.lib")
+#pragma comment(lib, "winmm.lib")
 
 bool g_bFastBootAutoConnect = false;
 bool g_bAutoReconnect = false;
@@ -58,6 +59,7 @@ DWORD g_dwReconnectDelayMs = 3000;
 int g_iDirectEnterSlot = -1;
 
 int Setup(LPSTR lpCmdLine);
+static UINT s_uTimerRes = 1;
 static const char * sc_apszPythonLibraryFilenames[] =
 {
 	"UserDict.pyc",
@@ -364,7 +366,7 @@ static bool Main(HINSTANCE hInstance, LPSTR lpCmdLine)
 		s_worldPackThread.join();
 	}
 
-	timeEndPeriod(1);
+	timeEndPeriod(s_uTimerRes);
 
 	if (!g_bHeadlessMode)
 	{
@@ -615,8 +617,6 @@ Clean:
 	SAFE_FREE_GLOBAL (szArgv);
 	return 0;
 }
-
-static UINT s_uTimerRes = 1;
 
 int Setup(LPSTR lpCmdLine)
 {

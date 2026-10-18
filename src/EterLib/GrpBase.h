@@ -209,6 +209,7 @@ class CGraphicBase
 		DWORD		GetFaceCount();
 		void		ResetFaceCount();
 		HRESULT		GetLastResult();
+		static HRESULT	CheckDeviceState();
 
 		void		UpdateProjMatrix();
 		void		UpdateViewMatrix();

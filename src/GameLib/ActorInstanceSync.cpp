@@ -9,45 +9,40 @@ void CActorInstance::__Push(int x, int y)
 	if (IsResistFallen())
 		return;
 
-	//DWORD dwVID=GetVirtualID();
-	//Tracenf("VID %d SyncPixelPosition %d %d", dwVID, x, y);		
+	const D3DXVECTOR3& c_rv3Src = GetPosition();
+	const D3DXVECTOR3 c_v3Dst(static_cast<float>(x), static_cast<float>(-y), c_rv3Src.z);
+	const D3DXVECTOR3 c_v3Delta = c_v3Dst - c_rv3Src;
 
-	const D3DXVECTOR3& c_rv3Src=GetPosition();
-	const D3DXVECTOR3 c_v3Dst=D3DXVECTOR3(x, -y, c_rv3Src.z);
-	const D3DXVECTOR3 c_v3Delta=c_v3Dst-c_rv3Src;
-	
-	const int LoopValue = 100;
-	const D3DXVECTOR3 inc=c_v3Delta / LoopValue;
-	
-	D3DXVECTOR3 v3Movement(0.0f, 0.0f, 0.0f);
+	const float lenSq = c_v3Delta.x * c_v3Delta.x + c_v3Delta.y * c_v3Delta.y;
+	if (lenSq < 1.0f)
+		return;
 
 	IPhysicsWorld* pWorld = IPhysicsWorld::GetPhysicsWorld();
-			
 	if (!pWorld)
-	{
 		return;
-	}
 
-	for(int i = 0; i < LoopValue; ++i)
+	// Adaptacyjna liczba krokow (1 krok na 25 jednostek swiata, maksymalnie 32 iteracje zamiast 100)
+	const float len = std::sqrt(lenSq);
+	const int steps = (std::clamp)(static_cast<int>(len * (1.0f / 25.0f)), 1, 32);
+	const D3DXVECTOR3 inc = c_v3Delta * (1.0f / static_cast<float>(steps));
+
+	D3DXVECTOR3 v3Probe = c_rv3Src;
+	for (int i = 0; i < steps; ++i)
 	{
-		if (pWorld->isPhysicalCollision(c_rv3Src + v3Movement))
+		if (pWorld->isPhysicalCollision(v3Probe))
 		{
 			ResetBlendingPosition();
 			return;
 		}
-		v3Movement += inc;
+		v3Probe += inc;
 	}
 
 	SetBlendingPosition(c_v3Dst);
 
-	if (!IsUsingSkill())
+	if (!IsUsingSkill() && lenSq > (150.0f * 150.0f))
 	{
-		int len=sqrt(c_v3Delta.x*c_v3Delta.x+c_v3Delta.y*c_v3Delta.y);
-		if (len>150.0f)
-		{
-			InterceptOnceMotion(CRaceMotionData::NAME_DAMAGE_FLYING);
-			PushOnceMotion(CRaceMotionData::NAME_STAND_UP);
-		}
+		InterceptOnceMotion(CRaceMotionData::NAME_DAMAGE_FLYING);
+		PushOnceMotion(CRaceMotionData::NAME_STAND_UP);
 	}
 }
 

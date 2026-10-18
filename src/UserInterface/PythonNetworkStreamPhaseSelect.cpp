@@ -52,8 +52,15 @@ void CPythonNetworkStream::SetSelectPhase()
 
 void CPythonNetworkStream::SelectPhase()
 {
-	while (m_strPhase == "Select" && !m_isStartGame && DispatchPacket(m_selectHandlers))
-		;
+	const DWORD dwStartTick = ELTimer_GetMSec();
+	constexpr DWORD MAX_SELECT_DISPATCH_MS = 6;
+	while (m_strPhase == "Select" && !m_isStartGame)
+	{
+		if (!DispatchPacket(m_selectHandlers))
+			break;
+		if (ELTimer_GetMSec() - dwStartTick >= MAX_SELECT_DISPATCH_MS)
+			break;
+	}
 }
 
 bool CPythonNetworkStream::SendSelectEmpirePacket(DWORD dwEmpireID)
@@ -359,7 +366,21 @@ bool CPythonNetworkStream::RecvPlayerCreateSuccessPacketLuria()
 	std::memcpy(&m_akSimplePlayerInfo[slot].lAddr, &charBuf[72], sizeof(uint32_t));
 	std::memcpy(&m_akSimplePlayerInfo[slot].wPort, &charBuf[76], sizeof(uint16_t));
 
-	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_CREATE], "OnCreateSuccess", Py_BuildValue("()"));
+	if (m_apoPhaseWnd[PHASE_WINDOW_CREATE])
+	{
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_CREATE], "OnCreateSuccess", Py_BuildValue("()"));
+	}
+	extern bool g_bFastBootAutoConnect;
+	if (g_bFastBootAutoConnect || __DirectEnterMode_IsSet())
+	{
+		__DirectEnterMode_Set(slot);
+		m_bSelectCharacterSent = false;
+		SendSelectCharacterPacket(slot);
+		if (m_poHandler)
+		{
+			PyCallClassMemberFunc(m_poHandler, "SetLoadingPhase", Py_BuildValue("()"));
+		}
+	}
 	return true;
 }
 

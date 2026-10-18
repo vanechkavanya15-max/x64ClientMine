@@ -199,15 +199,21 @@ bool CPythonNetworkStream::RecvScriptPacket()
 {
 	TPacketGCScript ScriptPacket;
 
-	if (!Recv(sizeof(TPacketGCScript), &ScriptPacket))
-	{
-		TraceError("RecvScriptPacket_RecvError");
+	if (!Peek(sizeof(TPacketGCScript), &ScriptPacket))
 		return false;
-	}
 
 	if (ScriptPacket.length < sizeof(TPacketGCScript))
 	{
 		TraceError("RecvScriptPacket_SizeError");
+		return false;
+	}
+
+	if (!Peek(static_cast<int>(ScriptPacket.length)))
+		return false;
+
+	if (!Recv(sizeof(TPacketGCScript), &ScriptPacket))
+	{
+		TraceError("RecvScriptPacket_RecvError");
 		return false;
 	}
 

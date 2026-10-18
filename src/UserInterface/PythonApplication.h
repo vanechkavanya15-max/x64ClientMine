@@ -151,6 +151,12 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 			return ms_pInstance;
 		}
 
+		static std::atomic<bool> ms_bSessionLocked;
+		static std::atomic<bool> ms_bInModalSizeMove;
+		static void ResetFramePacer();
+		static bool IsSessionLocked() noexcept { return ms_bSessionLocked.load(std::memory_order_acquire); }
+		static bool IsInModalSizeMove() noexcept { return ms_bInModalSizeMove.load(std::memory_order_acquire); }
+
 		void SetRenderThrottling(bool throttle) { m_bRenderThrottling.store(throttle); }
 		[[nodiscard]] bool IsRenderThrottling() const { return m_bRenderThrottling.load(); }
 		void SetWindowVisible(bool visible);
@@ -175,6 +181,11 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 		bool Create(PyObject* poSelf, const char* c_szName, int width, int height, int Windowed);
 		bool CreateDevice(int width, int height, int Windowed, int bit = 32, int frequency = 0);
 
+		void LogicTick(float fixedDelta);
+		void ExtractSnapshot();
+		void RenderWorld3D();
+		void RenderUI2D();
+		bool ProcessFrame();
 		void UpdateGame();
 		void RenderGame();
 

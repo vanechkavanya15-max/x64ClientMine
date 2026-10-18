@@ -231,6 +231,15 @@ bool CPythonNetworkStream::RecvLoginSuccessPacketLuria()
 	if (!Recv(sizeof(buffer), buffer))
 		return false;
 
+	for (int i = 0; i < PLAYER_PER_ACCOUNT4; ++i)
+	{
+		m_adwGuildID[i] = 0;
+		m_astrGuildName[i].clear();
+	}
+	m_kMarkAuth.m_dwHandle = 0;
+	m_kMarkAuth.m_dwRandomKey = 0;
+	m_bSelectCharacterSent = false;
+
 	for (int s = 0; s < 5 && s < PLAYER_PER_ACCOUNT4; ++s)
 	{
 		int offset = 1 + s * 79;

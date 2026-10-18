@@ -24,18 +24,17 @@ void CMSApplication::MessageLoop()
 bool CMSApplication::IsMessage()
 {
 	MSG msg;
-
-	if (!PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
-		return false;
-
-	return true;
+	return PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE) != 0;
 }
 
 bool CMSApplication::MessageProcess()
 {
 	MSG msg;
 
-	if (!GetMessage(&msg, NULL, 0, 0))
+	if (!PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		return false;
+
+	if (msg.message == WM_QUIT)
 		return false;
 
 	TranslateMessage(&msg);

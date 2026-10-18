@@ -64,6 +64,29 @@ class CNetworkStream
 		int __GetSendBufferSize();
 
 	public:
+		class ActiveFrameScope
+		{
+		public:
+			ActiveFrameScope(CNetworkStream& stream, std::span<const uint8_t> frameData) noexcept
+				: m_stream(stream)
+			{
+				m_stream.m_activeFrameView = frameData;
+				m_stream.m_activeFrameReadOffset = 0;
+				m_stream.m_hasActiveFrame = true;
+			}
+			~ActiveFrameScope() noexcept
+			{
+				m_stream.m_hasActiveFrame = false;
+				m_stream.m_activeFrameView = {};
+				m_stream.m_activeFrameReadOffset = 0;
+			}
+			ActiveFrameScope(const ActiveFrameScope&) = delete;
+			ActiveFrameScope& operator=(const ActiveFrameScope&) = delete;
+		private:
+			CNetworkStream& m_stream;
+		};
+
+	public:
 		// Secure cipher methods (libsodium)
 		SecureCipher& GetSecureCipher() { return m_secureCipher; }
 		bool IsSecureCipherActivated() const { return m_secureCipher.IsActivated(); }
@@ -104,6 +127,10 @@ class CNetworkStream
 		RingBuffer m_sendBuf;
 
 		bool	m_isOnline;
+
+		std::span<const uint8_t> m_activeFrameView{};
+		size_t m_activeFrameReadOffset = 0;
+		bool m_hasActiveFrame = false;
 
 		// Secure cipher (libsodium/XChaCha20-Poly1305)
 		SecureCipher m_secureCipher;

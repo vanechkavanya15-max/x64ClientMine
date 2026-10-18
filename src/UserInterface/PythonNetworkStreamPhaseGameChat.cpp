@@ -53,6 +53,15 @@ bool PhaseGameChatBridge::HandleChat(CPythonNetworkStream* pStream)
 		static_assert(sizeof(TPacketGCChatLuriaHeader) == 9, "Luria chat header must be 9 bytes");
 
 		TPacketGCChatLuriaHeader luriaHeader{};
+		if (!pStream->Peek(sizeof(luriaHeader), &luriaHeader))
+			return false;
+
+		if (luriaHeader.length < sizeof(luriaHeader))
+			return false;
+
+		if (!pStream->Peek(luriaHeader.length))
+			return false;
+
 		if (!pStream->Recv(sizeof(luriaHeader), &luriaHeader))
 			return false;
 
@@ -62,17 +71,20 @@ bool PhaseGameChatBridge::HandleChat(CPythonNetworkStream* pStream)
 		kChat.dwVID = luriaHeader.dwVID;
 		kChat.bEmpire = luriaHeader.bEmpire;
 
-		if (luriaHeader.length < sizeof(luriaHeader))
-			return false;
-
 		uChatSize = luriaHeader.length - sizeof(luriaHeader);
 	}
 	else
 	{
-		if (!pStream->Recv(sizeof(kChat), &kChat))
+		if (!pStream->Peek(sizeof(kChat), &kChat))
 			return false;
 
 		if (kChat.length < sizeof(kChat))
+			return false;
+
+		if (!pStream->Peek(kChat.length))
+			return false;
+
+		if (!pStream->Recv(sizeof(kChat), &kChat))
 			return false;
 
 		uChatSize = kChat.length - sizeof(kChat);
@@ -222,7 +234,10 @@ bool PhaseGameChatBridge::HandleWhisper(CPythonNetworkStream* pStream)
 	TPacketGCWhisper whisperPacket;
 	char buf[512 + 1];
 
-	if (!pStream->Recv(sizeof(whisperPacket), &whisperPacket))
+	if (!pStream->Peek(sizeof(whisperPacket), &whisperPacket))
+		return false;
+
+	if (whisperPacket.length < sizeof(whisperPacket))
 		return false;
 
 	UINT uWhisperSize = whisperPacket.length - sizeof(whisperPacket);
@@ -230,8 +245,17 @@ bool PhaseGameChatBridge::HandleWhisper(CPythonNetworkStream* pStream)
 	if (uWhisperSize >= 512)
 		return false;
 
-	if (!pStream->Recv(uWhisperSize, buf))
+	if (!pStream->Peek(whisperPacket.length))
 		return false;
+
+	if (!pStream->Recv(sizeof(whisperPacket), &whisperPacket))
+		return false;
+
+	if (uWhisperSize > 0)
+	{
+		if (!pStream->Recv(uWhisperSize, buf))
+			return false;
+	}
 
 	buf[uWhisperSize] = '\0';
 

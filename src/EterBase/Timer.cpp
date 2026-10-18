@@ -2,6 +2,7 @@
 #include "Timer.h"
 #include <chrono>
 #include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -40,13 +41,13 @@ VOID ELTimer_SetServerMSec(DWORD dwServerTime)
 	if (0 != dwServerTime)
 	{
 		gs_dwServerTime = dwServerTime;
-		gs_dwClientTime = CTimer::instance().GetCurrentMillisecond();
+		gs_dwClientTime = ELTimer_GetMSec();
 	}
 }
 
 DWORD ELTimer_GetServerMSec()
 {
-	return CTimer::instance().GetCurrentMillisecond() - gs_dwClientTime + gs_dwServerTime;
+	return ELTimer_GetMSec() - gs_dwClientTime + gs_dwServerTime;
 }
 
 DWORD ELTimer_GetFrameMSec()
@@ -75,6 +76,9 @@ CTimer::CTimer()
 	, m_index(0)
 {
 	ELTimer_Init();
+	m_dHighResCurrentTimeSec = ELTimer_GetHighResSec();
+	m_dwCurrentTime = static_cast<DWORD>(m_dHighResCurrentTimeSec * 1000.0);
+	m_fCurrentTime = static_cast<float>(m_dHighResCurrentTimeSec);
 }
 
 CTimer::~CTimer()
@@ -84,53 +88,55 @@ CTimer::~CTimer()
 void CTimer::SetBaseTime()
 {
 	m_dwCurrentTime = 0;
+	m_fCurrentTime = 0.0f;
 	m_dHighResCurrentTimeSec = 0.0;
+	m_dwElapsedTime = 0;
+	m_fElapsedTime = 0.0f;
 }
 
 void CTimer::Advance()
 {
 	if (!m_bUseRealTime)
 	{
-		constexpr double FIXED_STEP = 1.0 / 60.0;
-		m_dHighResCurrentTimeSec += FIXED_STEP;
-		m_dwElapsedTime = 16;
-		m_fElapsedTime = static_cast<float>(FIXED_STEP);
-		m_dwCurrentTime = static_cast<DWORD>(m_dHighResCurrentTimeSec * 1000.0);
-		m_fCurrentTime = static_cast<float>(m_dHighResCurrentTimeSec);
+		AdvanceFixed(1.0 / 60.0);
+		return;
 	}
 	else
 	{
 		const double curHighResSec = ELTimer_GetHighResSec();
-		const DWORD currentTime = ELTimer_GetMSec();
 
 		if (m_dHighResCurrentTimeSec <= 0.0)
 		{
 			m_dHighResCurrentTimeSec = curHighResSec;
-			m_dwCurrentTime = currentTime;
+			m_dwCurrentTime = static_cast<DWORD>(curHighResSec * 1000.0);
 		}
 
 		double deltaSec = curHighResSec - m_dHighResCurrentTimeSec;
-		// Clamping protection against spiral of death / huge jumps on freeze or breakpoint
-		if (deltaSec < 0.0)
-			deltaSec = 0.0;
-		else if (deltaSec > 0.25)
-			deltaSec = 0.25;
+		deltaSec = std::clamp(deltaSec, 0.0, 0.1);
 
 		m_dHighResCurrentTimeSec = curHighResSec;
-		m_fElapsedTime = static_cast<float>(deltaSec);
-		m_dwElapsedTime = static_cast<DWORD>(deltaSec * 1000.0);
-		m_dwCurrentTime = currentTime;
+		const DWORD prevMS = m_dwCurrentTime;
+		m_dwCurrentTime = static_cast<DWORD>(m_dHighResCurrentTimeSec * 1000.0);
 		m_fCurrentTime = static_cast<float>(m_dHighResCurrentTimeSec);
+
+		m_dwElapsedTime = (m_dwCurrentTime >= prevMS) ? (m_dwCurrentTime - prevMS) : 0;
+		if (m_dwElapsedTime > 100)
+			m_dwElapsedTime = 100;
+
+		m_fElapsedTime = static_cast<float>(deltaSec);
+		gs_dwFrameTime = m_dwCurrentTime;
 	}
 }
 
 void CTimer::AdvanceFixed(double fixedStepSeconds)
 {
+	const DWORD prevMS = m_dwCurrentTime;
 	m_dHighResCurrentTimeSec += fixedStepSeconds;
-	m_fElapsedTime = static_cast<float>(fixedStepSeconds);
-	m_dwElapsedTime = static_cast<DWORD>(fixedStepSeconds * 1000.0);
 	m_dwCurrentTime = static_cast<DWORD>(m_dHighResCurrentTimeSec * 1000.0);
 	m_fCurrentTime = static_cast<float>(m_dHighResCurrentTimeSec);
+	m_dwElapsedTime = (m_dwCurrentTime >= prevMS) ? (m_dwCurrentTime - prevMS) : 0;
+	m_fElapsedTime = static_cast<float>(fixedStepSeconds);
+	gs_dwFrameTime = m_dwCurrentTime;
 }
 
 void CTimer::Adjust(int iTimeGap)

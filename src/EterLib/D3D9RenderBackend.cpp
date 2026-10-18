@@ -213,7 +213,8 @@ void CD3D9RenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 	// Swiatlo postaci (Light 1) ze snapshotu
 	if (snapshot.lights[1].Type != 0)
 	{
-		STATEMANAGER.SetLight(1, &snapshot.lights[1]);
+		D3DLIGHT9 chrLight = snapshot.lights[1];
+		STATEMANAGER.SetLight(1, &chrLight);
 		STATEMANAGER.LightEnable(1, TRUE);
 	}
 
@@ -1050,8 +1051,8 @@ void CD3D9RenderBackend::RenderParticles(const TEffectInstancePacket* pPackets, 
 		InitVertexDeclarations();
 
 	const D3DXMATRIX& matView = (m_currentUniforms.matView._11 != 0.0f || m_currentUniforms.matView._44 != 0.0f)
-		? m_currentUniforms.matView
-		: CFrameSnapshot::Current().matView;
+		? reinterpret_cast<const D3DXMATRIX&>(m_currentUniforms.matView)
+		: CFrameSnapshot::Current().GetViewMatrix();
 	D3DXVECTOR3 vCross(matView._11, matView._21, matView._31);
 	D3DXVECTOR3 vUp(matView._12, matView._22, matView._32);
 	D3DXVECTOR3 vView(matView._13, matView._23, matView._33);
@@ -1207,8 +1208,8 @@ void CD3D9RenderBackend::RenderParticles(const TParticlePacket* pPackets, unsign
 		InitVertexDeclarations();
 
 	const D3DXMATRIX& matView = (m_currentUniforms.matView._11 != 0.0f || m_currentUniforms.matView._44 != 0.0f)
-		? m_currentUniforms.matView
-		: CFrameSnapshot::Current().matView;
+		? reinterpret_cast<const D3DXMATRIX&>(m_currentUniforms.matView)
+		: CFrameSnapshot::Current().GetViewMatrix();
 	D3DXVECTOR3 vCross(matView._11, matView._21, matView._31);
 	D3DXVECTOR3 vUp(matView._12, matView._22, matView._32);
 	D3DXVECTOR3 vView(matView._13, matView._23, matView._33);

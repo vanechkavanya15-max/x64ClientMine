@@ -80,6 +80,11 @@ template<typename T> class CRef
 			return static_cast<T*>(m_pObject);
 		}
 
+		T* get() const noexcept
+		{
+			return static_cast<T*>(m_pObject);
+		}
+
 		T* operator->() const
 		{
 			assert(m_pObject != NULL);

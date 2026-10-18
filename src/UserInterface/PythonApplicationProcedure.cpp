@@ -7,6 +7,10 @@
 #include "EterLib/D3D9RenderBackend.h"
 
 #include <winuser.h>
+#include <wtsapi32.h>
+#pragma comment(lib, "wtsapi32.lib")
+
+constexpr UINT_PTR MODAL_HEARTBEAT_TIMER_ID = 0x4D320001;
 
 static int gs_nMouseCaptureRef = 0;
 
@@ -61,6 +65,25 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 
 	switch (uiMsg)
 	{
+		case WM_CREATE:
+			::WTSRegisterSessionNotification(hWnd, NOTIFY_FOR_THIS_SESSION);
+			break;
+
+		case WM_WTSSESSION_CHANGE:
+			if (wParam == WTS_SESSION_LOCK)
+			{
+				ms_bSessionLocked.store(true, std::memory_order_release);
+				SetRenderThrottling(true);
+			}
+			else if (wParam == WTS_SESSION_UNLOCK)
+			{
+				ms_bSessionLocked.store(false, std::memory_order_release);
+				if (!m_isMinimizedWnd)
+					SetRenderThrottling(false);
+				ResetFramePacer();
+			}
+			break;
+
 		case WM_ACTIVATEAPP:
 			{
 				m_isActivateWnd = (wParam == WA_ACTIVE) || (wParam == WA_CLICKACTIVE);
@@ -227,22 +250,35 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 					break;
 			}
 
-			if (wParam==SIZE_MINIMIZED)
-				m_isMinimizedWnd=true;
+			if (wParam == SIZE_MINIMIZED)
+			{
+				m_isMinimizedWnd = true;
+			}
 			else
-				m_isMinimizedWnd=false;
+			{
+				m_isMinimizedWnd = false;
+				ResetFramePacer();
+			}
 
 			OnSizeChange(short(LOWORD(lParam)), short(HIWORD(lParam)));
 
 			break;
 
+		case WM_ENTERSIZEMOVE:
+			ms_bInModalSizeMove.store(true, std::memory_order_release);
+			::SetTimer(hWnd, MODAL_HEARTBEAT_TIMER_ID, 16, nullptr);
+			break;
+
 		case WM_EXITSIZEMOVE:    
 			{
+				ms_bInModalSizeMove.store(false, std::memory_order_release);
+				::KillTimer(hWnd, MODAL_HEARTBEAT_TIMER_ID);
+
 				RECT rcWnd; 
 				GetClientRect(&rcWnd); 
 				
-				UINT uWidth=rcWnd.right-rcWnd.left; 
-				UINT uHeight=rcWnd.bottom-rcWnd.top; 
+				UINT uWidth = rcWnd.right - rcWnd.left; 
+				UINT uHeight = rcWnd.bottom - rcWnd.top; 
 				if (uWidth > 0 && uHeight > 0)
 				{
 					m_grpDevice.ResizeBackBuffer(uWidth, uHeight);
@@ -250,8 +286,18 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 					CD3D9RenderBackend::Instance().Resize(uWidth, uHeight);
 				}
 				OnSizeChange(short(LOWORD(lParam)), short(HIWORD(lParam)));
+				ResetFramePacer();
 			}
-			break; 
+			break;
+
+		case WM_TIMER:
+			if (wParam == MODAL_HEARTBEAT_TIMER_ID && ms_bInModalSizeMove.load(std::memory_order_acquire))
+			{
+				Process();
+				return 0;
+			}
+			break;
+
 		case WM_NCLBUTTONDOWN:
 			{
 				switch (wParam)
@@ -288,7 +334,7 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 		case WM_CONTEXTMENU:
 			return 0;
 		case WM_SYSCOMMAND:
-			if (wParam == SC_KEYMENU)
+			if ((wParam & 0xFFF0) == SC_KEYMENU && lParam == 0)
 				return 0;
 			break;
 		case WM_SYSKEYDOWN:
@@ -335,6 +381,7 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 			return 0;
 
 		case WM_DESTROY:
+			::WTSUnRegisterSessionNotification(hWnd);
 			return 0;
 		default:
 			//Tracenf("%x msg %x", timeGetTime(), uiMsg);

@@ -605,10 +605,10 @@ BOOL CScreen::IsLostDevice()
 	if (!ms_lpd3dDevice)
 		return TRUE;
 
-	IDirect3DDevice9Ex & rkD3DDev = *ms_lpd3dDevice;
-	HRESULT hrTestCooperativeLevel = rkD3DDev.TestCooperativeLevel();
-	if (FAILED(hrTestCooperativeLevel))
-		return TRUE;		
+	IDirect3DDevice9Ex& rkD3DDev = *ms_lpd3dDevice;
+	HRESULT hr = rkD3DDev.CheckDeviceState(ms_hWnd);
+	if (hr == S_OK)
+		return FALSE;
 	
 	return FALSE;
 }
@@ -622,36 +622,34 @@ BOOL CScreen::RestoreDevice()
 	IDirect3DDevice9Ex& rkD3DDev = *ms_lpd3dDevice;
 	D3DPRESENT_PARAMETERS& rkD3DPP = ms_d3dPresentParameter;
 	
-	HRESULT hrTestCooperativeLevel = rkD3DDev.TestCooperativeLevel();
+	HRESULT hrState = rkD3DDev.CheckDeviceState(ms_hWnd);
 	
-	if (FAILED(hrTestCooperativeLevel))
-	{		
-		if (D3DERR_DEVICELOST == hrTestCooperativeLevel)
-		{
-			return FALSE;		
-		}
+	if (hrState == S_OK)
+		return TRUE;
 
-		if (D3DERR_DEVICENOTRESET == hrTestCooperativeLevel)
-		{
-			D3DDISPLAYMODE d3dDisplayMode;
-			if (FAILED(rkD3D.GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &d3dDisplayMode)))
-			{
-				TraceError("CScreen::RestoreDevice: GetAdapterDisplayMode failed");
-				return FALSE;
-			}
-					
-			rkD3DPP.BackBufferFormat = d3dDisplayMode.Format;
-			if (!CGraphicDevice::ResetWithParams(rkD3DPP))
-				return FALSE;
-		}
-		else
-		{
-			TraceError("CScreen::RestoreDevice: Unexpected TestCooperativeLevel failure (hr=0x%08X)", hrTestCooperativeLevel);
-			return FALSE;
-		}
+	if (hrState == S_PRESENT_OCCLUDED || hrState == D3DERR_DEVICELOST)
+	{
+		return FALSE;
 	}
 
-	return TRUE;
+	if (hrState == S_PRESENT_MODE_CHANGED || hrState == D3DERR_DEVICENOTRESET)
+	{
+		D3DDISPLAYMODE d3dDisplayMode;
+		if (FAILED(rkD3D.GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &d3dDisplayMode)))
+		{
+			TraceError("CScreen::RestoreDevice: GetAdapterDisplayMode failed");
+			return FALSE;
+		}
+				
+		rkD3DPP.BackBufferFormat = d3dDisplayMode.Format;
+		if (!CGraphicDevice::ResetWithParams(rkD3DPP))
+			return FALSE;
+
+		return TRUE;
+	}
+
+	TraceError("CScreen::RestoreDevice: Unexpected CheckDeviceState failure (hr=0x%08X)", hrState);
+	return FALSE;
 }
 
 bool CScreen::Begin()

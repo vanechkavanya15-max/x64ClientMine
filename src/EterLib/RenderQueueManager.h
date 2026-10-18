@@ -276,10 +276,10 @@ public:
 	void EndFrame();
 	void SwapFrameBuffers();
 
-	size_t GetActiveFrameIndex() const noexcept { return m_activeFrameIndex; }
-	size_t GetWorkFrameIndex() const noexcept { return m_activeFrameIndex ^ 1; }
-	size_t GetRenderFrameIndex() const noexcept { return m_activeFrameIndex; }
-	size_t GetProducerFrameIndex() const noexcept { return m_activeFrameIndex ^ 1; }
+	size_t GetActiveFrameIndex() const noexcept { return m_activeFrameIndex.load(std::memory_order_acquire); }
+	size_t GetWorkFrameIndex() const noexcept { return m_activeFrameIndex.load(std::memory_order_acquire) ^ 1; }
+	size_t GetRenderFrameIndex() const noexcept { return m_activeFrameIndex.load(std::memory_order_acquire); }
+	size_t GetProducerFrameIndex() const noexcept { return m_activeFrameIndex.load(std::memory_order_acquire) ^ 1; }
 
 	const SFrameBuffer& GetActiveFrame() const noexcept { return m_frameBuffers[m_activeFrameIndex]; }
 	SFrameBuffer& GetActiveFrame() noexcept { return m_frameBuffers[m_activeFrameIndex]; }
@@ -420,8 +420,8 @@ private:
 	SRenderFrameStats m_frameStats{};
 
 	SFrameBuffer m_frameBuffers[FRAME_BUFFER_COUNT];
-	size_t m_activeFrameIndex{ 0 };
-	bool m_bHasSwappedFrame{ false };
+	std::atomic<size_t> m_activeFrameIndex{ 0 };
+	std::atomic<bool> m_bHasSwappedFrame{ false };
 
 
 	IRenderBackend* m_pActiveBackend{ nullptr };
