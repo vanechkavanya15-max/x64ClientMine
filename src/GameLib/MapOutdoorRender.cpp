@@ -8,6 +8,7 @@
 
 #include "EterLib/Camera.h"
 #include "EterLib/StateManager.h"
+#include "EterLib/RenderOwnership.h"
 
 #include <algorithm>
 #include <ranges>
@@ -670,7 +671,7 @@ void CMapOutdoor::SelectIndexBuffer(BYTE byLODLevel, WORD * pwPrimitiveCount, D3
 		*pwPrimitiveCount =  m_wNumIndices[byLODLevel]/3;
 		*pePrimitiveType = D3DPT_TRIANGLELIST;
 	}
-	if (RenderOwnership::LegacyDraws(ERenderCategory::Terrain))
+	if (RenderOwnership::LegacyDraws(ERenderCategory::Terrain) && RenderOwnership::Owner(ERenderCategory::Terrain) != ERenderOwner::Wgpu)
 		STATEMANAGER.SetIndices(m_IndexBuffer[byLODLevel].GetD3DIndexBuffer(), 0);
 }
 
@@ -756,6 +757,9 @@ struct FPatchNumMatch
 
 void CMapOutdoor::NEW_DrawWireFrame(CTerrainPatchProxy * pTerrainPatchProxy, WORD wPrimitiveCount, D3DPRIMITIVETYPE ePrimitiveType)
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Terrain) || RenderOwnership::Owner(ERenderCategory::Terrain) == ERenderOwner::Wgpu)
+		return;
+
 	DWORD dwFillMode = STATEMANAGER.GetRenderState(D3DRS_FILLMODE);
 	STATEMANAGER.SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
 	
@@ -778,6 +782,9 @@ void CMapOutdoor::NEW_DrawWireFrame(CTerrainPatchProxy * pTerrainPatchProxy, WOR
 
 void CMapOutdoor::DrawWireFrame(long patchnum, WORD wPrimitiveCount, D3DPRIMITIVETYPE ePrimitiveType)
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Terrain) || RenderOwnership::Owner(ERenderCategory::Terrain) == ERenderOwner::Wgpu)
+		return;
+
 	assert(NULL!=m_pTerrainPatchProxyList && "CMapOutdoor::DrawWireFrame");
 	if (!m_pTerrainPatchProxyList)
 		return;
@@ -821,6 +828,9 @@ void CMapOutdoor::DrawWireFrame(long patchnum, WORD wPrimitiveCount, D3DPRIMITIV
 // Attr
 void CMapOutdoor::RenderMarkedArea()
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Terrain) || RenderOwnership::Owner(ERenderCategory::Terrain) == ERenderOwner::Wgpu)
+		return;
+
 	if (!m_pTerrainPatchProxyList)
 		return;
 
@@ -922,6 +932,9 @@ void CMapOutdoor::RecurseRenderAttr(CTerrainQuadtreeNode *Node, bool bCullEnable
 
 void CMapOutdoor::DrawPatchAttr(long patchnum)
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Terrain) || RenderOwnership::Owner(ERenderCategory::Terrain) == ERenderOwner::Wgpu)
+		return;
+
 	if (!m_pTerrainPatchProxyList)
 		return;
 

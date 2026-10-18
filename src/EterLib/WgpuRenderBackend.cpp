@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "WgpuRenderBackend.h"
 #include "WgpuModule.h"
-#include "D3D9RenderBackend.h"
 #include "RenderQueueManager.h"
 #include "RenderOwnership.h"
 
@@ -62,61 +61,54 @@ void CWgpuRenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 {
 	m_framePacket = TRenderFramePacket{};
 	m_framePacket.uniforms = uniforms;
-	CD3D9RenderBackend::Instance().BeginFrame(uniforms);
 }
 
 void CWgpuRenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned int count)
 {
 	m_framePacket.pSkyBoxPackets = pPackets;
 	m_framePacket.dwSkyBoxCount = count;
-	CD3D9RenderBackend::Instance().RenderSkyBox(pPackets, count);
 }
 
 void CWgpuRenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, unsigned int count)
 {
 	m_framePacket.pTerrainPackets = pPackets;
 	m_framePacket.dwTerrainCount = count;
-	CD3D9RenderBackend::Instance().RenderTerrain(pPackets, count);
 }
 
 void CWgpuRenderBackend::RenderActors(const TActorRenderPacket* pPackets, unsigned int count)
 {
 	m_framePacket.pActorPackets = pPackets;
 	m_framePacket.dwActorCount = count;
-	CD3D9RenderBackend::Instance().RenderActors(pPackets, count);
 }
 
 void CWgpuRenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int count)
 {
 	m_framePacket.pWaterPackets = pPackets;
 	m_framePacket.dwWaterCount = count;
-	CD3D9RenderBackend::Instance().RenderWater(pPackets, count);
 }
 
 void CWgpuRenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsigned int count)
 {
 	m_framePacket.pSpeedTreePackets = pPackets;
 	m_framePacket.dwSpeedTreeCount = count;
-	CD3D9RenderBackend::Instance().RenderSpeedTree(pPackets, count);
 }
 
 void CWgpuRenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, unsigned int count)
 {
 	m_framePacket.pEffectPackets = pPackets;
 	m_framePacket.dwEffectCount = count;
-	CD3D9RenderBackend::Instance().RenderEffects(pPackets, count);
 }
 
 void CWgpuRenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int count)
 {
 	m_framePacket.pUIPackets = pPackets;
 	m_framePacket.dwUICount = count;
-	CD3D9RenderBackend::Instance().RenderUI(pPackets, count);
 }
 
 void CWgpuRenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets, unsigned int count)
 {
-	CD3D9RenderBackend::Instance().RenderDungeonBlocks(pPackets, count);
+	m_framePacket.pDungeonPackets = pPackets;
+	m_framePacket.dwDungeonCount = count;
 }
 
 void CWgpuRenderBackend::EndFrame()
@@ -125,12 +117,11 @@ void CWgpuRenderBackend::EndFrame()
 	{
 		CWgpuModule::Instance().RenderFrame(&m_framePacket);
 	}
-	CD3D9RenderBackend::Instance().EndFrame();
 }
 
 const char* CWgpuRenderBackend::GetBackendName() const
 {
-	return IsDllLoaded() ? "Rust WGPU Drop-In (m2_render_wgpu.dll)" : "Rust WGPU Bridge (D3D9 Fallback)";
+	return IsDllLoaded() ? "Rust WGPU Drop-In (m2_render_wgpu.dll)" : "Rust WGPU Drop-In (Unloaded)";
 }
 
 bool CWgpuRenderBackend::IsDllLoaded() const noexcept
@@ -145,14 +136,15 @@ HMODULE CWgpuRenderBackend::GetModuleHandle() const noexcept
 
 bool CWgpuRenderBackend::IsDeviceLost() const
 {
-	return CD3D9RenderBackend::Instance().IsDeviceLost();
+	return false;
 }
 
 bool CWgpuRenderBackend::IsConfiguredInConfigJson()
 {
 	return RenderOwnership::IsWgpuConfigured();
 }
+
 bool CWgpuRenderBackend::CaptureFrame(const char* szFilename)
 {
-	return CD3D9RenderBackend::Instance().CaptureFrame(szFilename);
+	return false;
 }

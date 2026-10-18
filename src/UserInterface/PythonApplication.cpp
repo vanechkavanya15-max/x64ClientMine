@@ -44,10 +44,16 @@ namespace
 	constexpr DWORD MAX_MESSAGES_PER_FRAME  = 64;
 	constexpr auto  MAX_MESSAGE_PUMP_BUDGET = std::chrono::microseconds(1500);
 
-	class HighPrecisionFramePacer
+	class FramePacingRegulator
 	{
 	public:
-		HighPrecisionFramePacer()
+		static FramePacingRegulator& Instance() noexcept
+		{
+			static FramePacingRegulator s_instance;
+			return s_instance;
+		}
+
+		FramePacingRegulator()
 		{
 			m_hTimer = ::CreateWaitableTimerExW(
 				nullptr,
@@ -62,7 +68,7 @@ namespace
 			m_nextFrameTarget = std::chrono::steady_clock::now();
 		}
 
-		~HighPrecisionFramePacer()
+		~FramePacingRegulator()
 		{
 			if (m_hTimer)
 			{
@@ -148,18 +154,27 @@ namespace
 			return wokeOnInput;
 		}
 
+		void RegulateFrame(uint32_t targetFps, bool allowEarlyWakeOnInput = true) noexcept
+		{
+			if (targetFps == 0)
+				targetFps = 60;
+			const auto targetDuration = std::chrono::nanoseconds(1'000'000'000ULL / targetFps);
+			WaitForNextFrame(targetDuration, allowEarlyWakeOnInput);
+		}
+
 	private:
 		HANDLE m_hTimer = nullptr;
 		std::chrono::steady_clock::time_point m_nextFrameTarget{};
 		std::chrono::nanoseconds m_schedulerOvershoot = std::chrono::microseconds(500);
 	};
 
-	static HighPrecisionFramePacer s_framePacer;
+	using HighPrecisionFramePacer = FramePacingRegulator;
+	static FramePacingRegulator& s_framePacer = FramePacingRegulator::Instance();
 }
 
 void CPythonApplication::ResetFramePacer()
 {
-	s_framePacer.Reset();
+	FramePacingRegulator::Instance().Reset();
 }
 
 static bool s_bWindowVisibleState = true;
@@ -1072,9 +1087,9 @@ void CPythonApplication::Loop()
 		if (IsUserMovingMainWindow())
 			UpdateMainWindowPosition();
 
-		if (!Process())
+		if (!ProcessFrame())
 		{
-			TraceError("CPythonApplication::Loop: Process() returned false");
+			TraceError("CPythonApplication::Loop: ProcessFrame() returned false");
 			break;
 		}
 

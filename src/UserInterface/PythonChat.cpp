@@ -267,8 +267,6 @@ void CPythonChat::Render(DWORD dwID)
 	if (!pLineList)
 		return;
 
-	EterLib::Render::DynamicQuadBatcher::Instance().FlushPendingUI();
-
 	for (TChatLineList::iterator itor = pLineList->begin(); itor != pLineList->end(); ++itor)
 	{
 		CGraphicTextInstance & rInstance = (*itor)->Instance;
@@ -895,8 +893,6 @@ void CWhisper::Render(float fx, float fy)
 	}
 
 	RECT Rect = { static_cast<long>(fx), static_cast<long>(fy), static_cast<long>(fx+m_fWidth), static_cast<long>(fy+m_fHeight) };
-
-	EterLib::Render::DynamicQuadBatcher::Instance().FlushPendingUI();
 
 	for (int i = iStartLine; i >= 0; --i)
 	{

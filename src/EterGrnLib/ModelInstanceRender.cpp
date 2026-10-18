@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "Eterlib/StateManager.h"
+#include "EterLib/RenderOwnership.h"
 #include "ModelInstance.h"
 #include "Model.h"
 
@@ -51,6 +52,9 @@ void CGrannyModelInstance::RenderWithOneTexture()
 	if (IsEmpty())
 		return;
 
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model) || RenderOwnership::Owner(ERenderCategory::Model) == ERenderOwner::Wgpu)
+		return;
+
 #ifdef _TEST
 	Granny_RenderBoxBones(GrannyGetSourceSkeleton(m_pgrnModelInstance), m_pgrnWorldPose, TEST_matWorld);
 	if (GetAsyncKeyState('P'))
@@ -83,6 +87,9 @@ void CGrannyModelInstance::BlendRenderWithOneTexture()
 	if (IsEmpty())
 		return;
 
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model) || RenderOwnership::Owner(ERenderCategory::Model) == ERenderOwner::Wgpu)
+		return;
+
 	// WORK
 	LPDIRECT3DVERTEXBUFFER9 lpd3dDeformPNTVtxBuf = __GetDeformableD3DVertexBufferPtr();
 	// END_OF_WORK
@@ -110,6 +117,9 @@ void CGrannyModelInstance::RenderWithTwoTexture()
 	if (IsEmpty())
 		return;
 
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model) || RenderOwnership::Owner(ERenderCategory::Model) == ERenderOwner::Wgpu)
+		return;
+
 	STATEMANAGER.SetVertexDeclaration(ms_pntVS);
 
 	// WORK
@@ -132,6 +142,9 @@ void CGrannyModelInstance::RenderWithTwoTexture()
 void CGrannyModelInstance::BlendRenderWithTwoTexture()
 {
 	if (IsEmpty())
+		return;
+
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model) || RenderOwnership::Owner(ERenderCategory::Model) == ERenderOwner::Wgpu)
 		return;
 
 	// WORK
@@ -157,6 +170,9 @@ void CGrannyModelInstance::BlendRenderWithTwoTexture()
 void CGrannyModelInstance::RenderWithoutTexture()
 {
 	if (IsEmpty())
+		return;
+
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model) || RenderOwnership::Owner(ERenderCategory::Model) == ERenderOwner::Wgpu)
 		return;
 
 	STATEMANAGER.SetVertexDeclaration(ms_pntVS);
@@ -193,6 +209,9 @@ void CGrannyModelInstance::RenderWithoutTexture()
 // With One Texture
 void CGrannyModelInstance::RenderMeshNodeListWithOneTexture(CGrannyMesh::EType eMeshType, CGrannyMaterial::EType eMtrlType)
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model) || RenderOwnership::Owner(ERenderCategory::Model) == ERenderOwner::Wgpu)
+		return;
+
 	assert(m_pModel != NULL);
 
 	LPDIRECT3DINDEXBUFFER9 lpd3dIdxBuf = m_pModel->GetD3DIndexBuffer();
@@ -244,6 +263,9 @@ void CGrannyModelInstance::RenderMeshNodeListWithOneTexture(CGrannyMesh::EType e
 // With Two Texture
 void CGrannyModelInstance::RenderMeshNodeListWithTwoTexture(CGrannyMesh::EType eMeshType, CGrannyMaterial::EType eMtrlType)
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model) || RenderOwnership::Owner(ERenderCategory::Model) == ERenderOwner::Wgpu)
+		return;
+
 	assert(m_pModel != NULL);
 
 	LPDIRECT3DINDEXBUFFER9 lpd3dIdxBuf = m_pModel->GetD3DIndexBuffer();
@@ -283,6 +305,9 @@ void CGrannyModelInstance::RenderMeshNodeListWithTwoTexture(CGrannyMesh::EType e
 // Without Texture
 void CGrannyModelInstance::RenderMeshNodeListWithoutTexture(CGrannyMesh::EType eMeshType, CGrannyMaterial::EType eMtrlType)
 {
+	if (!RenderOwnership::LegacyDraws(ERenderCategory::Model) || RenderOwnership::Owner(ERenderCategory::Model) == ERenderOwner::Wgpu)
+		return;
+
 	assert(m_pModel != NULL);
 
 	LPDIRECT3DINDEXBUFFER9 lpd3dIdxBuf = m_pModel->GetD3DIndexBuffer();

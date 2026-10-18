@@ -349,8 +349,6 @@ void CPythonTextTail::ArrangeTextTail()
 
 void CPythonTextTail::Render()
 {
-	EterLib::Render::DynamicQuadBatcher::Instance().FlushPendingUI();
-
 	TTextTailList::iterator itor;
 
 	for (itor = m_CharacterTextTailList.begin(); itor != m_CharacterTextTailList.end(); ++itor)
