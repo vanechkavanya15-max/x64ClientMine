@@ -38,10 +38,46 @@ bool PhaseGameChatBridge::HandleChat(CPythonNetworkStream* pStream)
 	char buf[1024 + 1];
 	UINT uChatSize = 0;
 
-	if (driverName == "luria")
+	if (driverName == "beavium")
 	{
 #pragma pack(push, 1)
-		struct TPacketGCChatLuriaHeader
+		struct TPacketGCChatBeaviumHeader
+		{
+			uint8_t header;
+			uint16_t length;
+			uint8_t type;
+			uint32_t dwVID;
+			uint8_t bEmpire;
+			uint8_t reserved[5];
+		};
+#pragma pack(pop)
+		static_assert(sizeof(TPacketGCChatBeaviumHeader) == 14, "Beavium chat header must be 14 bytes");
+
+		TPacketGCChatBeaviumHeader beaviumHeader{};
+		if (!pStream->Peek(sizeof(beaviumHeader), &beaviumHeader))
+			return false;
+
+		if (beaviumHeader.length < sizeof(beaviumHeader))
+			return false;
+
+		if (!pStream->Peek(beaviumHeader.length))
+			return false;
+
+		if (!pStream->Recv(sizeof(beaviumHeader), &beaviumHeader))
+			return false;
+
+		kChat.header = beaviumHeader.header;
+		kChat.length = beaviumHeader.length;
+		kChat.type = beaviumHeader.type;
+		kChat.dwVID = beaviumHeader.dwVID;
+		kChat.bEmpire = beaviumHeader.bEmpire;
+
+		uChatSize = beaviumHeader.length - sizeof(beaviumHeader);
+	}
+	else if (driverName == "luria" || driverName == "martysama")
+	{
+#pragma pack(push, 1)
+		struct TPacketGCChat8BitHeader
 		{
 			uint8_t header;
 			uint16_t length;
@@ -50,28 +86,28 @@ bool PhaseGameChatBridge::HandleChat(CPythonNetworkStream* pStream)
 			uint8_t bEmpire;
 		};
 #pragma pack(pop)
-		static_assert(sizeof(TPacketGCChatLuriaHeader) == 9, "Luria chat header must be 9 bytes");
+		static_assert(sizeof(TPacketGCChat8BitHeader) == 9, "8-bit chat header must be 9 bytes");
 
-		TPacketGCChatLuriaHeader luriaHeader{};
-		if (!pStream->Peek(sizeof(luriaHeader), &luriaHeader))
+		TPacketGCChat8BitHeader h8{};
+		if (!pStream->Peek(sizeof(h8), &h8))
 			return false;
 
-		if (luriaHeader.length < sizeof(luriaHeader))
+		if (h8.length < sizeof(h8))
 			return false;
 
-		if (!pStream->Peek(luriaHeader.length))
+		if (!pStream->Peek(h8.length))
 			return false;
 
-		if (!pStream->Recv(sizeof(luriaHeader), &luriaHeader))
+		if (!pStream->Recv(sizeof(h8), &h8))
 			return false;
 
-		kChat.header = luriaHeader.header;
-		kChat.length = luriaHeader.length;
-		kChat.type = luriaHeader.type;
-		kChat.dwVID = luriaHeader.dwVID;
-		kChat.bEmpire = luriaHeader.bEmpire;
+		kChat.header = h8.header;
+		kChat.length = h8.length;
+		kChat.type = h8.type;
+		kChat.dwVID = h8.dwVID;
+		kChat.bEmpire = h8.bEmpire;
 
-		uChatSize = luriaHeader.length - sizeof(luriaHeader);
+		uChatSize = h8.length - sizeof(h8);
 	}
 	else
 	{
@@ -231,25 +267,67 @@ bool PhaseGameChatBridge::HandleWhisper(CPythonNetworkStream* pStream)
 	if (!pStream)
 		return false;
 
-	TPacketGCWhisper whisperPacket;
+	auto* pDriver = Network::Protocol::ProtocolDriverRegistry::Instance().GetActiveDriver();
+	std::string_view driverName = pDriver ? pDriver->GetDriverName() : "standard_x64";
+
+	TPacketGCWhisper whisperPacket{};
 	char buf[512 + 1];
+	UINT uWhisperSize = 0;
 
-	if (!pStream->Peek(sizeof(whisperPacket), &whisperPacket))
-		return false;
+	if (driverName == "luria" || driverName == "martysama" || driverName == "beavium")
+	{
+#pragma pack(push, 1)
+		struct TPacketGCWhisper8BitHeader
+		{
+			uint8_t header;
+			uint16_t length;
+			uint8_t bType;
+			char szNameFrom[CHARACTER_NAME_MAX_LEN + 1];
+		};
+#pragma pack(pop)
 
-	if (whisperPacket.length < sizeof(whisperPacket))
-		return false;
+		TPacketGCWhisper8BitHeader h8{};
+		if (!pStream->Peek(sizeof(h8), &h8))
+			return false;
 
-	UINT uWhisperSize = whisperPacket.length - sizeof(whisperPacket);
-	assert(uWhisperSize < 512);
-	if (uWhisperSize >= 512)
-		return false;
+		if (h8.length < sizeof(h8))
+			return false;
 
-	if (!pStream->Peek(whisperPacket.length))
-		return false;
+		uWhisperSize = h8.length - sizeof(h8);
+		assert(uWhisperSize < 512);
+		if (uWhisperSize >= 512)
+			return false;
 
-	if (!pStream->Recv(sizeof(whisperPacket), &whisperPacket))
-		return false;
+		if (!pStream->Peek(h8.length))
+			return false;
+
+		if (!pStream->Recv(sizeof(h8), &h8))
+			return false;
+
+		whisperPacket.header = h8.header;
+		whisperPacket.length = h8.length;
+		whisperPacket.bType = h8.bType;
+		memcpy(whisperPacket.szNameFrom, h8.szNameFrom, sizeof(whisperPacket.szNameFrom));
+	}
+	else
+	{
+		if (!pStream->Peek(sizeof(whisperPacket), &whisperPacket))
+			return false;
+
+		if (whisperPacket.length < sizeof(whisperPacket))
+			return false;
+
+		uWhisperSize = whisperPacket.length - sizeof(whisperPacket);
+		assert(uWhisperSize < 512);
+		if (uWhisperSize >= 512)
+			return false;
+
+		if (!pStream->Peek(whisperPacket.length))
+			return false;
+
+		if (!pStream->Recv(sizeof(whisperPacket), &whisperPacket))
+			return false;
+	}
 
 	if (uWhisperSize > 0)
 	{
@@ -318,18 +396,50 @@ bool PhaseGameChatBridge::SendChat(CPythonNetworkStream* pStream, const char* c_
 		return true;
 
 	int iTextLen = (int)strlen(c_szChat) + 1;
-	TPacketCGChat ChatPacket;
-	ChatPacket.header = CG::CHAT;
-	ChatPacket.length = sizeof(ChatPacket) + iTextLen;
-	ChatPacket.type = byType;
 
-	if (!pStream->Send(sizeof(ChatPacket), &ChatPacket))
-		return false;
+	auto* pDriver = Network::Protocol::ProtocolDriverRegistry::Instance().GetActiveDriver();
+	std::string_view driverName = pDriver ? pDriver->GetDriverName() : "standard_x64";
 
-	if (!pStream->Send(iTextLen, c_szChat))
-		return false;
+	if (driverName == "luria" || driverName == "martysama" || driverName == "beavium")
+	{
+#pragma pack(push, 1)
+		struct TPacketCGChat8Bit
+		{
+			uint8_t header;
+			uint16_t length;
+			uint8_t type;
+		};
+#pragma pack(pop)
+		static_assert(sizeof(TPacketCGChat8Bit) == 4, "TPacketCGChat8Bit must be 4 bytes");
 
-	return true;
+		TPacketCGChat8Bit chatPacket;
+		chatPacket.header = (driverName == "luria") ? 0x04 : 0x03;
+		chatPacket.length = static_cast<uint16_t>(sizeof(chatPacket) + iTextLen);
+		chatPacket.type = byType;
+
+		if (!pStream->Send(sizeof(chatPacket), &chatPacket))
+			return false;
+
+		if (!pStream->Send(iTextLen, c_szChat))
+			return false;
+
+		return true;
+	}
+	else
+	{
+		TPacketCGChat ChatPacket;
+		ChatPacket.header = CG::CHAT;
+		ChatPacket.length = sizeof(ChatPacket) + iTextLen;
+		ChatPacket.type = byType;
+
+		if (!pStream->Send(sizeof(ChatPacket), &ChatPacket))
+			return false;
+
+		if (!pStream->Send(iTextLen, c_szChat))
+			return false;
+
+		return true;
+	}
 }
 
 bool PhaseGameChatBridge::SendWhisper(CPythonNetworkStream* pStream, const char* name, const char* c_szChat)
@@ -341,18 +451,51 @@ bool PhaseGameChatBridge::SendWhisper(CPythonNetworkStream* pStream, const char*
 		return true;
 
 	int iTextLen = (int)strlen(c_szChat) + 1;
-	TPacketCGWhisper WhisperPacket;
-	WhisperPacket.header = CG::WHISPER;
-	WhisperPacket.length = sizeof(WhisperPacket) + iTextLen;
 
-	strncpy(WhisperPacket.szNameTo, name, sizeof(WhisperPacket.szNameTo) - 1);
-	WhisperPacket.szNameTo[sizeof(WhisperPacket.szNameTo) - 1] = '\0';
+	auto* pDriver = Network::Protocol::ProtocolDriverRegistry::Instance().GetActiveDriver();
+	std::string_view driverName = pDriver ? pDriver->GetDriverName() : "standard_x64";
 
-	if (!pStream->Send(sizeof(WhisperPacket), &WhisperPacket))
-		return false;
+	if (driverName == "luria" || driverName == "martysama" || driverName == "beavium")
+	{
+#pragma pack(push, 1)
+		struct TPacketCGWhisper8Bit
+		{
+			uint8_t header;
+			uint16_t length;
+			char szNameTo[CHARACTER_NAME_MAX_LEN + 1];
+		};
+#pragma pack(pop)
 
-	if (!pStream->Send(iTextLen, c_szChat))
-		return false;
+		TPacketCGWhisper8Bit whisperPacket;
+		whisperPacket.header = (driverName == "martysama") ? 0x13 : 0x19;
+		whisperPacket.length = static_cast<uint16_t>(sizeof(whisperPacket) + iTextLen);
 
-	return true;
+		strncpy(whisperPacket.szNameTo, name, sizeof(whisperPacket.szNameTo) - 1);
+		whisperPacket.szNameTo[sizeof(whisperPacket.szNameTo) - 1] = '\0';
+
+		if (!pStream->Send(sizeof(whisperPacket), &whisperPacket))
+			return false;
+
+		if (!pStream->Send(iTextLen, c_szChat))
+			return false;
+
+		return true;
+	}
+	else
+	{
+		TPacketCGWhisper WhisperPacket;
+		WhisperPacket.header = CG::WHISPER;
+		WhisperPacket.length = sizeof(WhisperPacket) + iTextLen;
+
+		strncpy(WhisperPacket.szNameTo, name, sizeof(WhisperPacket.szNameTo) - 1);
+		WhisperPacket.szNameTo[sizeof(WhisperPacket.szNameTo) - 1] = '\0';
+
+		if (!pStream->Send(sizeof(WhisperPacket), &WhisperPacket))
+			return false;
+
+		if (!pStream->Send(iTextLen, c_szChat))
+			return false;
+
+		return true;
+	}
 }

@@ -910,18 +910,23 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 
 	const std::vector<STextQuad>& quads = LayoutGlyphs(pClipRect);
 
-	// 1. Wysylanie wygenerowanych quadow bezposrednio do CDynamicQuadBatcher
-	auto& batcher = CDynamicQuadBatcher::Instance();
-	for (const auto& quad : quads)
-	{
-		batcher.AddQuad(quad.x, quad.y, quad.w, quad.h, quad.color, quad.hTexture,
-		                quad.u0, quad.v0, quad.u1, quad.v1);
-	}
+	// 1. Sprawdzamy czy interfejs UI lub tekst podlega zmodernizowanemu potokowi (D3D9Backend lub Wgpu)
+	const bool bUseModernUI = !RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI) ||
+	                          !RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::Text);
 
-	// 2. Bezposrednie draw calle zabezpieczone bramka LegacyDraws(RenderOwnership::Text/UI)
-	if (RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::UI) &&
-	    RenderOwnership::LegacyDraws(RenderOwnership::ERenderCategory::Text))
+	if (bUseModernUI)
 	{
+		// Wysylanie wygenerowanych quadow bezposrednio do CDynamicQuadBatcher (renderowanych w FlushUI)
+		auto& batcher = CDynamicQuadBatcher::Instance();
+		for (const auto& quad : quads)
+		{
+			batcher.AddQuad(quad.x, quad.y, quad.w, quad.h, quad.color, quad.hTexture,
+			                quad.u0, quad.v0, quad.u1, quad.v1);
+		}
+	}
+	else
+	{
+		// 2. Bezposrednie draw calle Legacy wylacznie w czystym trybie Legacy (gdy obie kategorie sa Legacy)
 		for (auto& pair : m_outlineBatches)
 			pair.second.clear();
 		for (auto& pair : m_mainBatches)

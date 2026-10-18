@@ -422,9 +422,11 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 	if (!pBackend)
 		return;
 
-	SFrameBuffer& renderFrame = (m_bHasSwappedFrame || m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() > 0)
-		? m_frameBuffers[m_activeFrameIndex]
-		: m_frameBuffers[GetWorkFrameIndex()];
+	size_t activeIdx = m_activeFrameIndex.load(std::memory_order_relaxed);
+	size_t workIdx = GetWorkFrameIndex();
+	SFrameBuffer& renderFrame = (m_frameBuffers[activeIdx].GetTotalPacketCount() > 0)
+		? m_frameBuffers[activeIdx]
+		: m_frameBuffers[workIdx];
 
 	pBackend->BeginFrame(renderFrame.frameUniforms);
 
@@ -478,29 +480,41 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 
 void CRenderQueueManager::FlushUI()
 {
-	SFrameBuffer& targetFrame = (m_bHasSwappedFrame || m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() > 0)
-		? m_frameBuffers[m_activeFrameIndex]
-		: m_frameBuffers[GetWorkFrameIndex()];
-
-	if (targetFrame.flushedUIOffset >= targetFrame.uiPackets.size())
+	IRenderBackend* pBackend = GetActiveBackend();
+	if (!pBackend)
 		return;
 
-	IRenderBackend* pBackend = GetActiveBackend();
-	if (pBackend)
+	// 1. Sprawdz bufor roboczy (GetWorkFrameIndex()), do ktorego bezposrednio trafiaja quady UI
+	SFrameBuffer& workFrame = m_frameBuffers[GetWorkFrameIndex()];
+	if (workFrame.flushedUIOffset < workFrame.uiPackets.size())
 	{
 		pBackend->RenderUI(
-			targetFrame.uiPackets.data() + targetFrame.flushedUIOffset,
-			static_cast<unsigned int>(targetFrame.uiPackets.size() - targetFrame.flushedUIOffset)
+			workFrame.uiPackets.data() + workFrame.flushedUIOffset,
+			static_cast<unsigned int>(workFrame.uiPackets.size() - workFrame.flushedUIOffset)
 		);
+		workFrame.flushedUIOffset = workFrame.uiPackets.size();
 	}
-	targetFrame.flushedUIOffset = targetFrame.uiPackets.size();
+
+	// 2. Sprawdz bufor aktywny (jezeli po rotacji klatek pozostaly niewyrenderowane pakiety UI)
+	size_t activeIdx = m_activeFrameIndex.load(std::memory_order_relaxed);
+	SFrameBuffer& activeFrame = m_frameBuffers[activeIdx];
+	if (activeFrame.flushedUIOffset < activeFrame.uiPackets.size())
+	{
+		pBackend->RenderUI(
+			activeFrame.uiPackets.data() + activeFrame.flushedUIOffset,
+			static_cast<unsigned int>(activeFrame.uiPackets.size() - activeFrame.flushedUIOffset)
+		);
+		activeFrame.flushedUIOffset = activeFrame.uiPackets.size();
+	}
 }
 
 const SFrameBuffer& CRenderQueueManager::GetReadableFrameBuffer() const
 {
-	if (m_bHasSwappedFrame || (m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() > 0 && m_frameBuffers[GetWorkFrameIndex()].GetTotalPacketCount() == 0))
-		return m_frameBuffers[m_activeFrameIndex];
-	return m_frameBuffers[GetWorkFrameIndex()];
+	size_t activeIdx = m_activeFrameIndex.load(std::memory_order_relaxed);
+	size_t workIdx = GetWorkFrameIndex();
+	if (m_frameBuffers[activeIdx].GetTotalPacketCount() > 0)
+		return m_frameBuffers[activeIdx];
+	return m_frameBuffers[workIdx];
 }
 
 const std::vector<TSpeedTreePacket>& CRenderQueueManager::GetSpeedTreePackets() const
