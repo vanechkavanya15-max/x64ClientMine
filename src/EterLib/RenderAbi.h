@@ -233,7 +233,7 @@ typedef struct TUIVertex
 /* 2. SPNT2Vertex / TPNT2Vertex: 40-bajtowy wierzcholek dwuteksturowy */
 #ifndef _SPNT2VERTEX_DEFINED_
 #define _SPNT2VERTEX_DEFINED_
-typedef struct SPNT2Vertex
+typedef struct TPNT2Vertex
 {
     RENDER_VEC3_TYPE position;
     RENDER_VEC3_TYPE normal;
@@ -405,14 +405,17 @@ typedef struct RENDER_ABI_ALIGN(16) TActorRenderPacket
     uint32_t dwBoneCount;
     RENDER_MATRIX_TYPE matWorld;
     const RENDER_MATRIX_TYPE* pBoneMatrices;
+    uint32_t dwPadBoneAlign[2];
     RENDER_MATRIX_TYPE boneMatrices[64];
     uint32_t dwWeaponMeshID;
     uint32_t dwWeaponTextureID;
+    uint32_t dwPadWeaponAlign[2];
     RENDER_MATRIX_TYPE matWeaponSocket;
     RENDER_MATRIX_TYPE matWeaponLeftSocket;
     RENDER_MATRIX_TYPE matHelmetSocket;
     RENDER_MATRIX_TYPE matHairSocket;
     uint32_t dwAuraEffectCount;
+    uint32_t dwPadAuraAlign[3];
     RENDER_MATRIX_TYPE matAuraEffectSockets[8];
     uint32_t dwAuraEffectIDs[8];
     uint8_t bRenderShadow;
@@ -421,6 +424,7 @@ typedef struct RENDER_ABI_ALIGN(16) TActorRenderPacket
     uint8_t bAlphaBlend;
     float fAlpha;
     float fShadowSize;
+    uint32_t dwPadEnd;
 
 #ifdef __cplusplus
     TActorRenderPacket()
@@ -467,6 +471,7 @@ typedef struct RENDER_ABI_ALIGN(16) TWaterPacket
     uint8_t bPadWater[2];
     float fFogDistance;
     float fPad;
+    uint32_t dwPad2;
     uint32_t dwPadAlign16;
     union
     {
@@ -483,7 +488,7 @@ typedef struct RENDER_ABI_ALIGN(16) TWaterPacket
 #if defined(RENDER_COLOR4_TYPE) && !defined(RENDER_ABI_C_ONLY)
         vWaterColor = RENDER_COLOR4_TYPE(0.2f, 0.5f, 0.7f, 0.6f);
 #else
-        vWaterColor.r = 0.2f; vWaterColor.g = 0.5f; vWaterColor.b = 0.7f; vWaterColor.a = 0.6f;
+        std::memset(&vWaterColor, 0, sizeof(vWaterColor));
 #endif
         fAlpha = 0.6f;
         bAlphaBlend = 1;
@@ -503,6 +508,7 @@ typedef struct RENDER_ABI_ALIGN(16) TSkyBoxPacket
     float fCloudHeight;
     float fCloudScrollSpeed;
     float fPad;
+    uint32_t dwPad2;
     RENDER_COLOR4_TYPE vSkyColor;
 
 #ifdef __cplusplus
@@ -510,7 +516,7 @@ typedef struct RENDER_ABI_ALIGN(16) TSkyBoxPacket
     {
         std::memset(this, 0, sizeof(*this));
         fCloudScale = 1.0f;
-        vSkyColor.r = 0.0f; vSkyColor.g = 0.0f; vSkyColor.b = 0.0f; vSkyColor.a = 1.0f;
+        std::memset(&vSkyColor, 0, sizeof(vSkyColor));
     }
 #endif
 } TSkyBoxPacket;
@@ -519,6 +525,7 @@ typedef struct RENDER_ABI_ALIGN(16) TSkyBoxPacket
 typedef struct RENDER_ABI_ALIGN(16) TSpeedTreeInstanceData
 {
     const RENDER_TREE_WRAPPER_TYPE* pTreeInstance;
+    uint32_t dwPadAlign0[2];
     RENDER_MATRIX_TYPE matWorld;
     RENDER_VEC3_TYPE v3Position;
     uint32_t dwTreeCRC;
@@ -614,8 +621,8 @@ typedef struct TSpeedTreeBillboardVertex
         position = RENDER_VEC3_TYPE(x, y, z);
         texCoord = RENDER_VEC2_TYPE(u, v);
 #else
-        position.x = x; position.y = y; position.z = z;
-        texCoord.x = u; texCoord.y = v;
+        std::memset(&position, 0, sizeof(position));
+        std::memset(&texCoord, 0, sizeof(texCoord));
 #endif
     }
 #endif
@@ -644,6 +651,7 @@ typedef struct RENDER_ABI_ALIGN(16) TParticleInstanceData
 typedef struct RENDER_ABI_ALIGN(16) TEffectInstancePacket
 {
     uint32_t dwEffectID;
+    uint32_t dwPad0;
     uintptr_t dwTextureID;
     union
     {
@@ -680,6 +688,8 @@ typedef struct RENDER_ABI_ALIGN(16) TUIBatchPacket
     uint32_t dwBlendMode;
     uint32_t dwVertexCount;
     uint32_t bUseScissor;
+    uint32_t dwPadScissor;
+
     RENDER_RECT_TYPE scissorRect;
     const TUIVertex* pVertices;
     union
@@ -722,6 +732,7 @@ typedef struct RENDER_ABI_ALIGN(16) TDungeonBlockPacket
             uint8_t bAlphaBlend;
             uint8_t bPadDungeon[3];
             float fPad;
+    uint32_t dwPad2;
         };
         TPipelineStateKey stateKey;
         uint64_t qwStateKey;
@@ -731,10 +742,10 @@ typedef struct RENDER_ABI_ALIGN(16) TDungeonBlockPacket
     TDungeonBlockPacket()
     {
         std::memset(this, 0, sizeof(*this));
-        matWorld._11 = 1.0f;
-        matWorld._22 = 1.0f;
-        matWorld._33 = 1.0f;
-        matWorld._44 = 1.0f;
+        std::memset(&matWorld, 0, sizeof(matWorld));
+        
+        
+        
         fAlpha = 1.0f;
     }
 #endif
@@ -886,10 +897,10 @@ typedef struct TModelDrawItem
     TModelDrawItem()
     {
         std::memset(this, 0, sizeof(*this));
-        matWorld._11 = 1.0f;
-        matWorld._22 = 1.0f;
-        matWorld._33 = 1.0f;
-        matWorld._44 = 1.0f;
+        std::memset(&matWorld, 0, sizeof(matWorld));
+        
+        
+        
         fAlpha = 1.0f;
         materialColor = 0xffffffff;
         pass = EModelPass::Opaque;
@@ -960,6 +971,7 @@ typedef struct RENDER_ABI_ALIGN(16) TParticlePacket
     uint8_t billboardMode;
     uint8_t bStretch;
     uint32_t dwEffectID;
+    uint32_t dwPad0;
     float fPad0;
     uintptr_t dwTextureID;
     float fPad1[2];
@@ -968,10 +980,10 @@ typedef struct RENDER_ABI_ALIGN(16) TParticlePacket
     TParticlePacket()
     {
         std::memset(this, 0, sizeof(*this));
-        vTexCoordRect.x = 0.0f;
-        vTexCoordRect.y = 0.0f;
-        vTexCoordRect.z = 1.0f;
-        vTexCoordRect.w = 1.0f;
+        std::memset(&vTexCoordRect, 0, sizeof(vTexCoordRect));
+        
+        
+        
     }
 #endif
 } TParticlePacket;
@@ -1010,7 +1022,7 @@ RENDER_ABI_STATIC_ASSERT(sizeof(TUIVertex) == 24, "ABI: TUIVertex == 24B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TPNT2Vertex) == 40, "ABI: TPNT2Vertex == 40B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TRenderFrameUniforms) == 288, "ABI: TRenderFrameUniforms == 288B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TTerrainSectorPacket) == 176, "ABI: TTerrainSectorPacket == 176B");
-RENDER_ABI_STATIC_ASSERT(sizeof(TActorRenderPacket) == 5008, "ABI: TActorRenderPacket == 5008B");
+RENDER_ABI_STATIC_ASSERT(sizeof(TActorRenderPacket) == 5040, "ABI: TActorRenderPacket == 5040B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TWaterPacket) == 176, "ABI: TWaterPacket == 176B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TSpeedTreeInstanceData) == 112, "ABI: TSpeedTreeInstanceData == 112B");
 RENDER_ABI_STATIC_ASSERT(sizeof(TSpeedTreePacket) == 48, "ABI: TSpeedTreePacket == 48B");
