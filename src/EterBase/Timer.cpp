@@ -1,39 +1,41 @@
 #include "StdAfx.h"
 #include "Timer.h"
+#include <chrono>
+#include <algorithm>
 
-static LARGE_INTEGER gs_liTickCountPerSec;
-static DWORD gs_dwBaseTime=0;
-static DWORD gs_dwServerTime=0;
-static DWORD gs_dwClientTime=0;
-static DWORD gs_dwFrameTime=0;
+namespace
+{
+	using EngineClock = std::chrono::steady_clock;
+	static const EngineClock::time_point gs_baseTimePoint = EngineClock::now();
+	static bool gs_bTimerInitialized = true;
 
-#pragma comment(lib, "winmm.lib")
+	static DWORD gs_dwServerTime = 0;
+	static DWORD gs_dwClientTime = 0;
+	static DWORD gs_dwFrameTime = 0;
+}
 
 BOOL ELTimer_Init()
-{	
-	/*
-	gs_liTickCountPerSec.QuadPart=0;
-
-	if (!QueryPerformanceFrequency(&gs_liTickCountPerSec))
-		return 0;
-
-	LARGE_INTEGER liTickCount;
-	QueryPerformanceCounter(&liTickCount);
-	gs_dwBaseTime= (liTickCount.QuadPart*1000  / gs_liTickCountPerSec.QuadPart);	
-	*/
-	gs_dwBaseTime = timeGetTime();
-	return 1;
+{
+	// steady_clock is statically initialized at process start
+	gs_bTimerInitialized = true;
+	return TRUE;
 }
 
 DWORD ELTimer_GetMSec()
 {
-	//assert(gs_dwBaseTime!=0 && "ELTimer_Init 를 먼저 실행하세요");
-	//LARGE_INTEGER liTickCount;
-	//QueryPerformanceCounter(&liTickCount);
-	return timeGetTime() - gs_dwBaseTime; //(liTickCount.QuadPart*1000  / gs_liTickCountPerSec.QuadPart)-gs_dwBaseTime;		
+	const auto now = EngineClock::now();
+	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - gs_baseTimePoint).count();
+	return static_cast<DWORD>(ms);
 }
 
-VOID	ELTimer_SetServerMSec(DWORD dwServerTime)
+double ELTimer_GetHighResSec()
+{
+	const auto now = EngineClock::now();
+	const std::chrono::duration<double> sec = now - gs_baseTimePoint;
+	return sec.count();
+}
+
+VOID ELTimer_SetServerMSec(DWORD dwServerTime)
 {
 	if (0 != dwServerTime)
 	{
@@ -42,38 +44,37 @@ VOID	ELTimer_SetServerMSec(DWORD dwServerTime)
 	}
 }
 
-DWORD	ELTimer_GetServerMSec()
+DWORD ELTimer_GetServerMSec()
 {
 	return CTimer::instance().GetCurrentMillisecond() - gs_dwClientTime + gs_dwServerTime;
-	//return ELTimer_GetMSec() - gs_dwClientTime + gs_dwServerTime;
 }
 
-DWORD	ELTimer_GetFrameMSec()
+DWORD ELTimer_GetFrameMSec()
 {
 	return gs_dwFrameTime;
 }
 
-DWORD	ELTimer_GetServerFrameMSec()
+DWORD ELTimer_GetServerFrameMSec()
 {
 	return ELTimer_GetFrameMSec() - gs_dwClientTime + gs_dwServerTime;
 }
 
-VOID	ELTimer_SetFrameMSec()
+VOID ELTimer_SetFrameMSec()
 {
 	gs_dwFrameTime = ELTimer_GetMSec();
 }
 
 CTimer::CTimer()
+	: m_bUseRealTime(true)
+	, m_dwBaseTime(0)
+	, m_dwCurrentTime(0)
+	, m_fCurrentTime(0.0f)
+	, m_dwElapsedTime(0)
+	, m_fElapsedTime(0.0166667f)
+	, m_dHighResCurrentTimeSec(0.0)
+	, m_index(0)
 {
 	ELTimer_Init();
-
-	m_dwCurrentTime = 0;
-	m_bUseRealTime = true;
-	m_index = 0;
-
-	m_dwElapsedTime = 0;
-
-	m_fCurrentTime = 0.0f;
 }
 
 CTimer::~CTimer()
@@ -83,63 +84,79 @@ CTimer::~CTimer()
 void CTimer::SetBaseTime()
 {
 	m_dwCurrentTime = 0;
+	m_dHighResCurrentTimeSec = 0.0;
 }
 
 void CTimer::Advance()
 {
 	if (!m_bUseRealTime)
 	{
-		++m_index;
-
-		if (m_index == 1)
-			m_index = -1;
-
-		m_dwCurrentTime += 16 + (m_index & 1);
-		m_fCurrentTime = m_dwCurrentTime / 1000.0f;
+		constexpr double FIXED_STEP = 1.0 / 60.0;
+		m_dHighResCurrentTimeSec += FIXED_STEP;
+		m_dwElapsedTime = 16;
+		m_fElapsedTime = static_cast<float>(FIXED_STEP);
+		m_dwCurrentTime = static_cast<DWORD>(m_dHighResCurrentTimeSec * 1000.0);
+		m_fCurrentTime = static_cast<float>(m_dHighResCurrentTimeSec);
 	}
 	else
 	{
-		DWORD currentTime = ELTimer_GetMSec();
+		const double curHighResSec = ELTimer_GetHighResSec();
+		const DWORD currentTime = ELTimer_GetMSec();
 
-		if (m_dwCurrentTime == 0)
+		if (m_dHighResCurrentTimeSec <= 0.0)
+		{
+			m_dHighResCurrentTimeSec = curHighResSec;
 			m_dwCurrentTime = currentTime;
+		}
 
-		m_dwElapsedTime = currentTime - m_dwCurrentTime;
+		double deltaSec = curHighResSec - m_dHighResCurrentTimeSec;
+		// Clamping protection against spiral of death / huge jumps on freeze or breakpoint
+		if (deltaSec < 0.0)
+			deltaSec = 0.0;
+		else if (deltaSec > 0.25)
+			deltaSec = 0.25;
+
+		m_dHighResCurrentTimeSec = curHighResSec;
+		m_fElapsedTime = static_cast<float>(deltaSec);
+		m_dwElapsedTime = static_cast<DWORD>(deltaSec * 1000.0);
 		m_dwCurrentTime = currentTime;
+		m_fCurrentTime = static_cast<float>(m_dHighResCurrentTimeSec);
 	}
+}
+
+void CTimer::AdvanceFixed(double fixedStepSeconds)
+{
+	m_dHighResCurrentTimeSec += fixedStepSeconds;
+	m_fElapsedTime = static_cast<float>(fixedStepSeconds);
+	m_dwElapsedTime = static_cast<DWORD>(fixedStepSeconds * 1000.0);
+	m_dwCurrentTime = static_cast<DWORD>(m_dHighResCurrentTimeSec * 1000.0);
+	m_fCurrentTime = static_cast<float>(m_dHighResCurrentTimeSec);
 }
 
 void CTimer::Adjust(int iTimeGap)
 {
 	m_dwCurrentTime += iTimeGap;
+	m_dHighResCurrentTimeSec += static_cast<double>(iTimeGap) / 1000.0;
+	m_fCurrentTime = static_cast<float>(m_dHighResCurrentTimeSec);
 }
 
-float CTimer::GetCurrentSecond()
+float CTimer::GetCurrentSecond() const noexcept
 {
-	if (m_bUseRealTime)
-		return ELTimer_GetMSec() / 1000.0f;
-
 	return m_fCurrentTime;
 }
 
-DWORD CTimer::GetCurrentMillisecond()
+DWORD CTimer::GetCurrentMillisecond() const noexcept
 {
-	if (m_bUseRealTime)
-		return ELTimer_GetMSec();
-
 	return m_dwCurrentTime;
 }
 
-float CTimer::GetElapsedSecond()
+float CTimer::GetElapsedSecond() const noexcept
 {
-	return GetElapsedMilliecond() / 1000.0f;
+	return m_fElapsedTime;
 }
 
-DWORD CTimer::GetElapsedMilliecond()
+DWORD CTimer::GetElapsedMilliecond() const noexcept
 {
-	if (!m_bUseRealTime)
-		return 16 + (m_index & 1);
-
 	return m_dwElapsedTime;
 }
 

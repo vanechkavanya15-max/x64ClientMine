@@ -49,11 +49,13 @@ class CSnowParticle
 		float GetHalfHeight() const noexcept { return m_fHalfHeight; }
 		float GetCurRadian() const noexcept { return m_fcurRadian; }
 		float GetPeriod() const noexcept { return m_fPeriod; }
+		float GetAmplitude() const noexcept { return m_fAmplitude; }
 		float GetRotation() const noexcept { return D3DXToDegree(m_fcurRadian); }
 
 		void SetPosition(const D3DXVECTOR3 & v3Pos) noexcept { m_v3Position = v3Pos; }
 		void SetVelocity(const D3DXVECTOR3 & v3Velocity) noexcept { m_v3Velocity = v3Velocity; }
 		void SetPeriod(float fPeriod) noexcept { m_fPeriod = fPeriod; }
+		void SetAmplitude(float fAmplitude) noexcept { m_fAmplitude = fAmplitude; }
 		void SetCurRadian(float fCurRadian) noexcept { m_fcurRadian = fCurRadian; }
 		void SetHalfWidth(float fHalfWidth) noexcept { m_fHalfWidth = fHalfWidth; }
 		void SetHalfHeight(float fHalfHeight) noexcept { m_fHalfHeight = fHalfHeight; }

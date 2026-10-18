@@ -288,7 +288,7 @@ static bool Main(HINSTANCE hInstance, LPSTR lpCmdLine)
 	{
 		LogBox("Pack Initialization failed. Check log.txt file..");
 		CFontManager::Instance().Destroy();
-		timeEndPeriod(1);
+		timeEndPeriod(s_uTimerRes);
 		return false;
 	}
 
@@ -616,16 +616,17 @@ Clean:
 	return 0;
 }
 
+static UINT s_uTimerRes = 1;
+
 int Setup(LPSTR lpCmdLine)
 {
 	TIMECAPS tc;
-	UINT wTimerRes;
 
 	if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR) 
 		return 0;
 
-	wTimerRes = MINMAX(tc.wPeriodMin, 1, tc.wPeriodMax); 
-	timeBeginPeriod(wTimerRes); 
+	s_uTimerRes = MINMAX(tc.wPeriodMin, 1, tc.wPeriodMax); 
+	timeBeginPeriod(s_uTimerRes); 
 
 	return 1;
 }

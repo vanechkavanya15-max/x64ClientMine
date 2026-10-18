@@ -41,6 +41,7 @@ TEST_CASE("CSnowParticle - Frame-rate Independent Sway (30 FPS vs 60 FPS vs 144 
 		p.SetHalfHeight(5.0f);
 		p.SetCameraVertex(D3DXVECTOR3(0.0f, 1.0f, 0.0f), D3DXVECTOR3(1.0f, 0.0f, 0.0f)); // up=(0,5,0), cross=(5,0,0)
 		p.SetPeriod(2.0f);
+		p.SetAmplitude(2.0f);
 		p.SetCurRadian(0.0f);
 		p.SetActivate(true);
 
