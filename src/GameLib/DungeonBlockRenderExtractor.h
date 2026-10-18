@@ -2,6 +2,7 @@
 
 #include "EterLib/RenderPacketTypes.h"
 #include <cstdint>
+#include <atomic>
 
 class CDungeonModelInstance;
 class CGrannyLODController;
@@ -46,7 +47,7 @@ public:
 	static bool ExtractAndSubmit(CGrannyLODController* pController, const D3DXMATRIX* pmatWorld = nullptr);
 
 private:
-	static bool s_bActive;
+	static std::atomic<bool> s_bActive;
 };
 
 using DungeonBlockRenderExtractor = CDungeonBlockRenderExtractor;

@@ -10,12 +10,13 @@
 #include "EterLib/RenderQueueManager.h"
 #include "EterLib/RenderOwnership.h"
 #include <algorithm>
+#include <xmmintrin.h>
 
-bool CDungeonBlockRenderExtractor::s_bActive = false;
+std::atomic<bool> CDungeonBlockRenderExtractor::s_bActive{false};
 
 bool CDungeonBlockRenderExtractor::IsActive()
 {
-	if (s_bActive)
+	if (s_bActive.load(std::memory_order_acquire))
 		return true;
 
 	const ERenderOwner owner = RenderOwnership::Owner(ERenderCategory::Dungeon);
@@ -24,7 +25,7 @@ bool CDungeonBlockRenderExtractor::IsActive()
 
 void CDungeonBlockRenderExtractor::SetActive(bool bActive)
 {
-	s_bActive = bActive;
+	s_bActive.store(bActive, std::memory_order_release);
 }
 
 bool CDungeonBlockRenderExtractor::ExtractAndSubmit(CDungeonModelInstance* pInstance)
@@ -61,50 +62,74 @@ bool CDungeonBlockRenderExtractor::ExtractAndSubmit(CDungeonModelInstance* pInst
 
 		while (pMeshNode)
 		{
+#if defined(_MSC_VER) || defined(__GNUC__) || defined(__clang__)
+			if (pMeshNode->pNextMeshNode)
+#if defined(_MSC_VER)
+				_mm_prefetch(reinterpret_cast<const char*>(pMeshNode->pNextMeshNode), _MM_HINT_T0);
+#else
+				__builtin_prefetch(pMeshNode->pNextMeshNode, 0, 3);
+#endif
+#endif
 			const CGrannyMesh* pMesh = pMeshNode->pMesh;
 			if (pMesh)
 			{
 				const D3DXMATRIX& matWorld = pActiveMatrices[pMeshNode->iMesh];
 				int vtxMeshBasePos = pMesh->GetVertexBasePosition();
 				int vtxCount = pMesh->GetVertexCount();
-				const CGrannyMesh::TTriGroupNode* pTriGroupNode = pMesh->GetTriGroupNodeList(eMtrlType);
+                
+                if (vtxCount > 0)
+                {
+				    const CGrannyMesh::TTriGroupNode* pTriGroupNode = pMesh->GetTriGroupNodeList(eMtrlType);
 
-				while (pTriGroupNode)
-				{
-					const CGrannyMaterial& rkMtrl = pInstance->GetMaterialPalette().GetMaterialRef(pTriGroupNode->mtrlIndex);
+				    while (pTriGroupNode)
+				    {
+#if defined(_MSC_VER) || defined(__GNUC__) || defined(__clang__)
+					    if (pTriGroupNode->pNextTriGroupNode)
+#if defined(_MSC_VER)
+						    _mm_prefetch(reinterpret_cast<const char*>(pTriGroupNode->pNextTriGroupNode), _MM_HINT_T0);
+#else
+						    __builtin_prefetch(pTriGroupNode->pNextTriGroupNode, 0, 3);
+#endif
+#endif
+                        if (pTriGroupNode->triCount > 0 && pTriGroupNode->mtrlIndex < pInstance->GetMaterialPalette().GetMaterialCount())
+                        {
+					        const CGrannyMaterial& rkMtrl = pInstance->GetMaterialPalette().GetMaterialRef(pTriGroupNode->mtrlIndex);
 
-					TDungeonBlockPacket packet{};
-					packet.matWorld = matWorld;
+					        TDungeonBlockPacket packet{};
+					        packet.matWorld = matWorld;
 
-					// Tekstura 0: baza (diffuse)
-					LPDIRECT3DTEXTURE9 pTex0 = rkMtrl.GetD3DTexture(0);
-					packet.pDiffuseTexture = pTex0;
-					packet.dwDiffuseTextureID = reinterpret_cast<uintptr_t>(pTex0);
+					        // Tekstura 0: baza (diffuse)
+					        LPDIRECT3DTEXTURE9 pTex0 = rkMtrl.GetD3DTexture(0);
+					        packet.pDiffuseTexture = pTex0;
+					        packet.dwDiffuseTextureID = reinterpret_cast<uintptr_t>(pTex0);
 
-					// Tekstura 1: mapa swiatla (lightmap)
-					LPDIRECT3DTEXTURE9 pTex1 = rkMtrl.GetD3DTexture(1);
-					packet.pLightmapTexture = pTex1;
-					packet.dwLightmapTextureID = reinterpret_cast<uintptr_t>(pTex1);
+					        // Tekstura 1: mapa swiatla (lightmap)
+					        LPDIRECT3DTEXTURE9 pTex1 = rkMtrl.GetD3DTexture(1);
+					        packet.pLightmapTexture = pTex1;
+					        packet.dwLightmapTextureID = reinterpret_cast<uintptr_t>(pTex1);
 
-					// Bufory Direct3D 9
-					packet.pVertexBuffer = lpd3dRigidPNTVtxBuf;
-					packet.pIndexBuffer = lpd3dIdxBuf;
+					        // Bufory Direct3D 9
+					        packet.pVertexBuffer = lpd3dRigidPNTVtxBuf;
+					        packet.pIndexBuffer = lpd3dIdxBuf;
 
-					packet.dwVertexCount = static_cast<uint32_t>(vtxCount);
-					packet.dwIndexCount = static_cast<uint32_t>(pTriGroupNode->triCount * 3);
-					packet.dwPrimitiveCount = static_cast<uint32_t>(pTriGroupNode->triCount);
-					packet.dwStartIndex = static_cast<uint32_t>(pTriGroupNode->idxPos);
-					packet.nBaseVertexIndex = vtxMeshBasePos;
+					        packet.dwVertexCount = static_cast<uint32_t>(vtxCount);
+					        packet.dwIndexCount = static_cast<uint32_t>(pTriGroupNode->triCount * 3);
+					        packet.dwPrimitiveCount = static_cast<uint32_t>(pTriGroupNode->triCount);
+					        packet.dwStartIndex = static_cast<uint32_t>(pTriGroupNode->idxPos);
+					        packet.nBaseVertexIndex = vtxMeshBasePos;
 
-					packet.fAlpha = (eMtrlType == CGrannyMaterial::TYPE_BLEND_PNT) ? 0.99f : 1.0f;
-					packet.bAlphaBlend = (eMtrlType == CGrannyMaterial::TYPE_BLEND_PNT) ? 1 : 0;
-					packet.fPad = 0.0f;
+					        packet.fAlpha = (eMtrlType == CGrannyMaterial::TYPE_BLEND_PNT) ? 0.99f : 1.0f;
+					        packet.bAlphaBlend = (eMtrlType == CGrannyMaterial::TYPE_BLEND_PNT) ? 1 : 0;
+					        packet.bPadDungeon[0] = static_cast<uint8_t>(sizeof(TPNT2Vertex)); // Set accurate vertex stride!
+					        packet.fPad = 0.0f;
 
-					rqm.SubmitDungeonBlock(packet);
-					bSubmittedAny = true;
+					        rqm.SubmitDungeonBlock(packet);
+					        bSubmittedAny = true;
+                        }
 
-					pTriGroupNode = pTriGroupNode->pNextTriGroupNode;
-				}
+					    pTriGroupNode = pTriGroupNode->pNextTriGroupNode;
+				    }
+                }
 			}
 
 			pMeshNode = pMeshNode->pNextMeshNode;
