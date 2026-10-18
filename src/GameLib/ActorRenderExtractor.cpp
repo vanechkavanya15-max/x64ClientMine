@@ -8,6 +8,9 @@
 #include "EterModelLib/GltfModelInstance.h"
 #include "EterLib/RenderQueueManager.h"
 
+constexpr uint32_t MAX_BONES = 64;
+
+
 bool ActorRenderExtractor::Extract(CActorInstance& actor, TActorRenderPacket& outPacket)
 {
 	if (!actor.isShow())
@@ -15,7 +18,7 @@ bool ActorRenderExtractor::Extract(CActorInstance& actor, TActorRenderPacket& ou
 
 	// 1. Ekstrakcja podstawowych identyfikatorow i macierzy swiata aktora
 	outPacket.dwActorID = actor.GetVirtualID();
-	outPacket.matWorld = actor.GetWorldMatrix();
+	outPacket.matWorld = actor.GetTransform();
 
 	// 2. Identyfikator siatki glownej (PART_MAIN) lub rasy bazowej
 	outPacket.dwMeshID = actor.GetPartItemID(CRaceData::PART_MAIN);
@@ -42,7 +45,7 @@ bool ActorRenderExtractor::Extract(CActorInstance& actor, TActorRenderPacket& ou
 	// 6. Ekstrakcja palety macierzy kosci szkieletu
 	if (!ExtractBonePalette(actor, outPacket))
 	{
-		for (uint32_t i = 0; i < 64; ++i)
+		for (uint32_t i = 0; i < MAX_BONES; ++i)
 		{
 			D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
 		}
@@ -76,7 +79,7 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 				const auto& skinMatrices = pGltfInst->GetSkinningMatrices();
 				if (!skinMatrices.empty())
 				{
-					uint32_t copyCount = std::min<uint32_t>(static_cast<uint32_t>(skinMatrices.size()), 64);
+					uint32_t copyCount = std::min<uint32_t>(static_cast<uint32_t>(skinMatrices.size()), MAX_BONES);
 					D3DXMATRIX* pContinuousPoolBones = CRenderQueueManager::Instance().AllocateBoneMatrices(copyCount);
 					if (pContinuousPoolBones)
 					{
@@ -90,7 +93,7 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 
 					memcpy(outPacket.boneMatrices, skinMatrices.data(), sizeof(D3DXMATRIX) * copyCount);
 					outPacket.dwBoneCount = copyCount;
-					for (uint32_t i = copyCount; i < 64; ++i)
+					for (uint32_t i = copyCount; i < MAX_BONES; ++i)
 						D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
 					return true;
 				}
@@ -105,7 +108,7 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 			int totalBones = pModelInst->GetBoneCount();
 			if (pCompositeBones && totalBones > 0)
 			{
-				uint32_t copyCount = std::min<uint32_t>(static_cast<uint32_t>(totalBones), 64);
+				uint32_t copyCount = std::min<uint32_t>(static_cast<uint32_t>(totalBones), MAX_BONES);
 				D3DXMATRIX* pContinuousPoolBones = CRenderQueueManager::Instance().AllocateBoneMatrices(copyCount);
 				if (pContinuousPoolBones)
 				{
@@ -119,7 +122,7 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 
 				memcpy(outPacket.boneMatrices, pCompositeBones, sizeof(D3DXMATRIX) * copyCount);
 				outPacket.dwBoneCount = copyCount;
-				for (uint32_t i = copyCount; i < 64; ++i)
+				for (uint32_t i = copyCount; i < MAX_BONES; ++i)
 					D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
 				return true;
 			}
@@ -129,7 +132,7 @@ bool ActorRenderExtractor::ExtractBonePalette(CActorInstance& actor, TActorRende
 	// W przypadku braku kosci ustawiamy pojedyncza macierz jednostkowa w puli klatki i w buforze
 	if (outPacket.dwBoneCount == 0)
 	{
-		for (uint32_t i = 0; i < 64; ++i)
+		for (uint32_t i = 0; i < MAX_BONES; ++i)
 		{
 			D3DXMatrixIdentity(&outPacket.boneMatrices[i]);
 		}
@@ -217,11 +220,11 @@ bool ActorRenderExtractor::ExtractSockets(CActorInstance& actor, TActorRenderPac
 			if (effect.iBoneIndex >= 0 && actor.GetBoneMatrix(effect.dwModelIndex, effect.iBoneIndex, &pBoneMat) && pBoneMat)
 			{
 				D3DXMatrixMultiply(&matTransform, pBoneMat, &effect.matTranslation);
-				D3DXMatrixMultiply(&matTransform, &matTransform, &actor.GetWorldMatrix());
+				D3DXMatrixMultiply(&matTransform, &matTransform, &actor.GetTransform());
 			}
 			else
 			{
-				D3DXMatrixMultiply(&matTransform, &effect.matTranslation, &actor.GetWorldMatrix());
+				D3DXMatrixMultiply(&matTransform, &effect.matTranslation, &actor.GetTransform());
 			}
 			outPacket.matAuraEffectSockets[idx] = matTransform;
 		}
