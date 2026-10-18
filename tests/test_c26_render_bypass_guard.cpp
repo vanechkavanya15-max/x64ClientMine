@@ -85,17 +85,20 @@ TEST_CASE("RenderBypassGuard - ValidateDraw with RenderOwnership")
 	CRenderBypassGuard guard;
 	guard.Reset();
 
-	// SkyBox domyslnie jest Legacy -> dozwolony direct draw
+	// Test trybu Legacy
+	RenderOwnership::SetOwner(ERenderCategory::SkyBox, ERenderOwner::Legacy);
+	RenderOwnership::SetOwner(ERenderCategory::Terrain, ERenderOwner::Legacy);
+
 	CHECK(guard.IsDrawAllowed(ERenderCategory::SkyBox));
 	CHECK(guard.ValidateDraw(ERenderCategory::SkyBox, "LegacySkyBoxDraw"));
 	CHECK(guard.GetBypassCount(ERenderCategory::SkyBox) == 0);
 
-	// Effect domyslnie jest D3D9Backend -> bezposredni direct draw jest nielegalnym bypassem
+	// Effect pod zarzadem Wgpu -> bezposredni direct draw jest nielegalnym bypassem
 	CHECK_FALSE(guard.IsDrawAllowed(ERenderCategory::Effect));
 	CHECK_FALSE(guard.ValidateDraw(ERenderCategory::Effect, "IllegalDirectEffectDraw"));
 	CHECK(guard.GetBypassCount(ERenderCategory::Effect) == 1);
 
-	// UI domyslnie jest D3D9Backend -> bezposredni draw jest nielegalny
+	// UI pod zarzadem Wgpu -> bezposredni draw jest nielegalny
 	CHECK_FALSE(guard.IsDrawAllowed(ERenderCategory::UI));
 	CHECK_FALSE(guard.ValidateDrawCall(ERenderCategory::UI, "IllegalDirectUIDraw"));
 	CHECK(guard.GetBypassCount(ERenderCategory::UI) == 1);
@@ -158,7 +161,7 @@ TEST_CASE("RenderBypassGuard - Report Formatting and Content")
 	CHECK(report.find("=== RenderBypassGuard Report ===") != std::string::npos);
 	CHECK(report.find("Category Effect") != std::string::npos);
 	CHECK(report.find("Bypasses: 2") != std::string::npos);
-	CHECK(report.find("Owner: D3D9Backend") != std::string::npos);
+	CHECK(report.find("Owner: Wgpu") != std::string::npos);
 	CHECK(report.find("Category UI") != std::string::npos);
 	CHECK(report.find("Bypasses: 1") != std::string::npos);
 	CHECK(report.find("Total illegal bypasses detected: 3") != std::string::npos);

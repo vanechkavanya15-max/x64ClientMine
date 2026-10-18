@@ -6,36 +6,12 @@ TEST_CASE("RenderOwnership - Default Ownership")
 {
 	RenderOwnership::ResetDefaults();
 
-	// Effect i UI -> D3D9Backend
-	CHECK(RenderOwnership::Owner(ERenderCategory::Effect) == ERenderOwner::D3D9Backend);
-	CHECK(RenderOwnership::Owner(ERenderCategory::UI) == ERenderOwner::D3D9Backend);
-	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Effect));
-	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::UI));
-
-	// Wszystkie pozostale kategorie -> Legacy
-	const ERenderCategory legacyCategories[] = {
-		ERenderCategory::SkyBox,
-		ERenderCategory::Terrain,
-		ERenderCategory::Water,
-		ERenderCategory::Dungeon,
-		ERenderCategory::SpeedTree,
-		ERenderCategory::Model,
-		ERenderCategory::WeaponTrace,
-		ERenderCategory::EffectMesh,
-		ERenderCategory::Text,
-		ERenderCategory::TextTail,
-		ERenderCategory::MiniMap,
-		ERenderCategory::Shadow,
-		ERenderCategory::Debug,
-		ERenderCategory::ImGui,
-		ERenderCategory::Movie,
-		ERenderCategory::Cursor
-	};
-
-	for (auto cat : legacyCategories)
+	// T228 (Wave W5): Wszelkie 18 kategorii domyslnie pod zarzadem Wgpu
+	for (size_t i = 0; i < static_cast<size_t>(ERenderCategory::Count); ++i)
 	{
-		CHECK(RenderOwnership::Owner(cat) == ERenderOwner::Legacy);
-		CHECK(RenderOwnership::LegacyDraws(cat) == true);
+		auto cat = static_cast<ERenderCategory>(i);
+		CHECK(RenderOwnership::Owner(cat) == ERenderOwner::Wgpu);
+		CHECK_FALSE(RenderOwnership::LegacyDraws(cat));
 	}
 }
 

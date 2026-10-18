@@ -8,24 +8,24 @@
 namespace
 {
 	static std::atomic<ERenderOwner> s_owners[static_cast<size_t>(ERenderCategory::Count)] = {
-		ERenderOwner::Legacy,      // SkyBox
-		ERenderOwner::Legacy,      // Terrain
-		ERenderOwner::Legacy,      // Water
-		ERenderOwner::Legacy,      // Dungeon
-		ERenderOwner::Legacy,      // SpeedTree
-		ERenderOwner::Legacy,      // Model
-		ERenderOwner::Legacy,      // WeaponTrace
-		ERenderOwner::D3D9Backend, // Effect
-		ERenderOwner::Legacy,      // EffectMesh
-		ERenderOwner::D3D9Backend, // UI
-		ERenderOwner::Legacy,      // Text
-		ERenderOwner::Legacy,      // TextTail
-		ERenderOwner::Legacy,      // MiniMap
-		ERenderOwner::Legacy,      // Shadow
-		ERenderOwner::Legacy,      // Debug
-		ERenderOwner::Legacy,      // ImGui
-		ERenderOwner::Legacy,      // Movie
-		ERenderOwner::Legacy       // Cursor
+		ERenderOwner::Wgpu, // SkyBox
+		ERenderOwner::Wgpu, // Terrain
+		ERenderOwner::Wgpu, // Water
+		ERenderOwner::Wgpu, // Dungeon
+		ERenderOwner::Wgpu, // SpeedTree
+		ERenderOwner::Wgpu, // Model
+		ERenderOwner::Wgpu, // WeaponTrace
+		ERenderOwner::Wgpu, // Effect
+		ERenderOwner::Wgpu, // EffectMesh
+		ERenderOwner::Wgpu, // UI
+		ERenderOwner::Wgpu, // Text
+		ERenderOwner::Wgpu, // TextTail
+		ERenderOwner::Wgpu, // MiniMap
+		ERenderOwner::Wgpu, // Shadow
+		ERenderOwner::Wgpu, // Debug
+		ERenderOwner::Wgpu, // ImGui
+		ERenderOwner::Wgpu, // Movie
+		ERenderOwner::Wgpu  // Cursor
 	};
 
 	bool ReadWgpuConfigOnce()
@@ -90,16 +90,8 @@ void RenderOwnership::SetAllWgpu()
 
 void RenderOwnership::ResetDefaults()
 {
-	if (IsWgpuConfigured())
-	{
-		SetAllWgpu();
-		return;
-	}
-
 	for (size_t i = 0; i < static_cast<size_t>(ERenderCategory::Count); ++i)
 	{
-		s_owners[i].store(ERenderOwner::Legacy, std::memory_order_relaxed);
+		s_owners[i].store(ERenderOwner::Wgpu, std::memory_order_relaxed);
 	}
-	s_owners[static_cast<size_t>(ERenderCategory::Effect)].store(ERenderOwner::D3D9Backend, std::memory_order_relaxed);
-	s_owners[static_cast<size_t>(ERenderCategory::UI)].store(ERenderOwner::D3D9Backend, std::memory_order_relaxed);
 }
