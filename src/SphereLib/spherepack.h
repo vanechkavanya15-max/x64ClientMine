@@ -77,6 +77,15 @@ public:
 		SpherePack *sphere,
 		ViewState state) // sphere within range, VS_PARTIAL if sphere straddles range test
 	{};
+
+	virtual void SweptSphereCallback(const Vector3d &p1,
+		const Vector3d &p2,
+		float radius,
+		SpherePack *sphere,
+		ViewState state)
+	{
+		RangeTestCallback(p2, radius, sphere, state);
+	};
 	
 private:
 };
@@ -264,6 +273,12 @@ public:
 		SpherePackCallback *callback,
 		ViewState state);
 
+	void SweptSphereTest(const Vector3d &p1,
+		const Vector3d &p2,
+		float radius,
+		SpherePackCallback *callback,
+		ViewState state);
+
 	void Reset(void);
 	
 private:
@@ -411,6 +426,7 @@ public:
 	
 	void RangeTest(const Vector3d &center,float radius,SpherePackCallback *callback);
 	void PointTest2d(const Vector3d &center, SpherePackCallback *callback);
+	void SweptSphereTest(const Vector3d &p1, const Vector3d &p2, float radius, SpherePackCallback *callback);
 	
 	virtual void RayTraceCallback(const Vector3d &p1,          // source pos of ray
 		const Vector3d &dir,          // direction of ray
@@ -420,6 +436,7 @@ public:
 	
 	virtual void RangeTestCallback(const Vector3d &p,float distance,SpherePack *sphere,ViewState state);
 	virtual void PointTest2dCallback(const Vector3d &p, SpherePack *sphere,ViewState state);
+	virtual void SweptSphereCallback(const Vector3d &p1, const Vector3d &p2, float radius, SpherePack *sphere, ViewState state);
 	
 	virtual void VisibilityCallback(const Frustum &f,SpherePack *sphere,ViewState state);
 	

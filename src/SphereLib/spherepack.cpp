@@ -704,6 +704,12 @@ void SpherePackFactory::PointTest2d(const Vector3d &center, SpherePackCallback *
 	
 }
 
+void SpherePackFactory::SweptSphereTest(const Vector3d &p1, const Vector3d &p2, float radius, SpherePackCallback *callback)
+{
+	mCallback = callback;
+	mRoot->SweptSphereTest(p1, p2, radius, this, VS_PARTIAL);
+}
+
 void SpherePack::RangeTest(const Vector3d &p,
                            float distance,
                            SpherePackCallback *callback,
@@ -804,6 +810,61 @@ void SpherePackFactory::PointTest2dCallback(const Vector3d &p, SpherePack *spher
 	SpherePack *link = (SpherePack *) sphere->GetUserData();
 	if (link) link->PointTest2d(p, mCallback,state);
 };
+
+void SpherePackFactory::SweptSphereCallback(const Vector3d &p1, const Vector3d &p2, float radius, SpherePack *sphere, ViewState state)
+{
+	SpherePack *link = (SpherePack *) sphere->GetUserData();
+	if (link) link->SweptSphereTest(p1, p2, radius, mCallback, state);
+}
+
+void SpherePack::SweptSphereTest(const Vector3d &p1,
+                                const Vector3d &p2,
+                                float radius,
+                                SpherePackCallback *callback,
+                                ViewState state)
+{
+	float totalRadius = GetRadius() + radius;
+	float totalRadiusSq = totalRadius * totalRadius;
+
+	// Obliczenie najmniejszej odleglosci kwadratowej miedzy mCenter a odcinkiem [p1, p2]
+	Vector3d ab = p2 - p1;
+	Vector3d ac = mCenter - p1;
+	float abLenSq = (ab.x * ab.x) + (ab.y * ab.y) + (ab.z * ab.z);
+	float distSq = 0.0f;
+
+	if (abLenSq <= 0.000001f)
+	{
+		distSq = (ac.x * ac.x) + (ac.y * ac.y) + (ac.z * ac.z);
+	}
+	else
+	{
+		float t = ((ac.x * ab.x) + (ac.y * ab.y) + (ac.z * ab.z)) / abLenSq;
+		if (t < 0.0f) t = 0.0f;
+		else if (t > 1.0f) t = 1.0f;
+		Vector3d closest = p1 + ab * t;
+		Vector3d diff = mCenter - closest;
+		distSq = (diff.x * diff.x) + (diff.y * diff.y) + (diff.z * diff.z);
+	}
+
+	if (distSq > totalRadiusSq)
+	{
+		return; // Hierarchical BVH Pruning: cala podgalaz lezy poza kapsula ruchu
+	}
+
+	if (HasSpherePackFlag(SPF_SUPERSPHERE))
+	{
+		SpherePack *pack = mChildren;
+		while (pack)
+		{
+			pack->SweptSphereTest(p1, p2, radius, callback, state);
+			pack = pack->_GetNextSibling();
+		}
+	}
+	else
+	{
+		callback->SweptSphereCallback(p1, p2, radius, this, state);
+	}
+}
 
 void SpherePack::RayTrace(const Vector3d &p1,
                           const Vector3d &dir,

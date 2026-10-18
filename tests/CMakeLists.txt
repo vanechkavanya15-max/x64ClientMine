@@ -8008,5 +8008,72 @@ target_link_libraries(test_c26_texture_bridge PRIVATE
 )
 add_test(NAME test_c26_texture_bridge COMMAND test_c26_texture_bridge)
 
+add_executable(test_c26_sphere_tree_bvh test_c26_sphere_tree_bvh.cpp)
+target_include_directories(test_c26_sphere_tree_bvh PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_sphere_tree_bvh PRIVATE
+    Client2026
+    SphereLib
+    EterBase
+    DirectX
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c26_sphere_tree_bvh COMMAND test_c26_sphere_tree_bvh)
+
+add_executable(test_c26_wall_sliding test_c26_wall_sliding.cpp)
+target_include_directories(test_c26_wall_sliding PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_wall_sliding PRIVATE
+    EterBase
+)
+add_test(NAME test_c26_wall_sliding COMMAND test_c26_wall_sliding)
+
+add_executable(test_c26_flying_projectiles test_c26_flying_projectiles.cpp)
+target_include_directories(test_c26_flying_projectiles PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_flying_projectiles PRIVATE
+    DirectX
+)
+add_test(NAME test_c26_flying_projectiles COMMAND test_c26_flying_projectiles)
+
+add_executable(test_c26_attack_hit_sync test_c26_attack_hit_sync.cpp)
+target_include_directories(test_c26_attack_hit_sync PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+add_test(NAME test_c26_attack_hit_sync COMMAND test_c26_attack_hit_sync)
+
+add_executable(test_c26_openal_sound_stream test_c26_openal_sound_stream.cpp)
+target_include_directories(test_c26_openal_sound_stream PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+add_test(NAME test_c26_openal_sound_stream COMMAND test_c26_openal_sound_stream)
+
+add_executable(test_c26_mount_rider_sync test_c26_mount_rider_sync.cpp)
+target_include_directories(test_c26_mount_rider_sync PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+add_test(NAME test_c26_mount_rider_sync COMMAND test_c26_mount_rider_sync)
+
+
 
 

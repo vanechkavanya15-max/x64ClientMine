@@ -63,6 +63,14 @@ struct RangeTester : public SpherePackCallback
 			(*f)(static_cast<CGraphicObjectInstance *>(sphere->GetUserData()));
 		}
 	}
+
+	void SweptSphereCallback(const Vector3d &p1, const Vector3d &p2, float radius, SpherePack *sphere, ViewState state) override
+	{
+		if (state != VS_OUTSIDE)
+		{
+			(*f)(static_cast<CGraphicObjectInstance *>(sphere->GetUserData()));
+		}
+	}
 };
 
 class CCullingManager : public CSingleton<CCullingManager>, public SpherePackCallback, private CScreen
@@ -124,6 +132,13 @@ public:
 	{
 		RangeTester<T> r(pFunc);
 		m_Factory->RangeTest(p, radius, &r/*this*/);	
+	}
+
+	template <class T>
+	void ForInSweptSphere(const Vector3d &p1, const Vector3d &p2, float radius, T* pFunc)
+	{
+		RangeTester<T> r(pFunc);
+		m_Factory->SweptSphereTest(p1, p2, radius, &r);
 	}
 
 	template <class T>
