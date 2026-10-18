@@ -530,6 +530,8 @@ void CStateManager::GetMaterial(D3DMATERIAL9* pMaterial)
 // Renderstates
 DWORD CStateManager::GetRenderState(D3DRENDERSTATETYPE Type)
 {
+	if (Type >= STATEMANAGER_MAX_RENDERSTATES)
+		return 0;
 	return m_CurrentState.m_RenderStates[Type];
 }
 
@@ -540,12 +542,17 @@ LPDIRECT3DDEVICE9EX CStateManager::GetDevice()
 
 void CStateManager::SaveRenderState(D3DRENDERSTATETYPE Type, DWORD dwValue)
 {
+	if (Type >= STATEMANAGER_MAX_RENDERSTATES)
+		return;
 	m_RenderStateStack[Type].push_back(m_CurrentState.m_RenderStates[Type]);
 	SetRenderState(Type, dwValue);
 }
 
 void CStateManager::RestoreRenderState(D3DRENDERSTATETYPE Type)
 {
+	if (Type >= STATEMANAGER_MAX_RENDERSTATES)
+		return;
+
 #ifdef _DEBUG
 	if (m_RenderStateStack[Type].empty())
 	{
@@ -563,6 +570,9 @@ void CStateManager::RestoreRenderState(D3DRENDERSTATETYPE Type)
 
 void CStateManager::SetRenderState(D3DRENDERSTATETYPE Type, DWORD Value)
 {
+	if (Type >= STATEMANAGER_MAX_RENDERSTATES)
+		return;
+
 	if (!m_bForce && m_CurrentState.m_RenderStates[Type] == Value)
 		return;
 
@@ -573,6 +583,8 @@ void CStateManager::SetRenderState(D3DRENDERSTATETYPE Type, DWORD Value)
 
 void CStateManager::GetRenderState(D3DRENDERSTATETYPE Type, DWORD* pdwValue)
 {
+	if (Type >= STATEMANAGER_MAX_RENDERSTATES)
+		return;
 	*pdwValue = m_CurrentState.m_RenderStates[Type];
 }
 
