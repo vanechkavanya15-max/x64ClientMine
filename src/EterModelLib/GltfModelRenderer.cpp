@@ -12,6 +12,47 @@ extern const std::string& GetModelLocalPath();
 
 namespace EterModelLib {
 
+static LPDIRECT3DTEXTURE9 GetFallbackWhiteTexture(LPDIRECT3DDEVICE9 pDevice)
+{
+    static LPDIRECT3DTEXTURE9 s_pWhiteTexture = nullptr;
+    static LPDIRECT3DDEVICE9 s_pLastDevice = nullptr;
+
+    if (s_pWhiteTexture && s_pLastDevice == pDevice)
+        return s_pWhiteTexture;
+
+    if (s_pWhiteTexture)
+    {
+        s_pWhiteTexture->Release();
+        s_pWhiteTexture = nullptr;
+    }
+    s_pLastDevice = pDevice;
+
+    if (!pDevice)
+        return nullptr;
+
+    LPDIRECT3DTEXTURE9 pTex = nullptr;
+    HRESULT hr = pDevice->CreateTexture(
+        1, 1, 1,
+        D3DUSAGE_DYNAMIC,
+        D3DFMT_A8R8G8B8,
+        D3DPOOL_DEFAULT,
+        &pTex,
+        nullptr);
+
+    if (SUCCEEDED(hr) && pTex)
+    {
+        D3DLOCKED_RECT lr;
+        if (SUCCEEDED(pTex->LockRect(0, &lr, nullptr, D3DLOCK_DISCARD)))
+        {
+            if (lr.pBits)
+                *reinterpret_cast<uint32_t*>(lr.pBits) = 0xFFFFFFFF;
+            pTex->UnlockRect(0);
+        }
+        s_pWhiteTexture = pTex;
+    }
+    return s_pWhiteTexture;
+}
+
 void GltfModelRenderer::Clear() noexcept {
     m_materials.clear();
 }
@@ -332,8 +373,13 @@ void GltfModelRenderer::ExecuteDrawItemD3D9(
         }
     }
 
-    // 1. Poprawne respektowanie flagi dwustronnosci materialu (bTwoSided)
-    const DWORD targetCullMode = (item.bTwoSided != 0) ? D3DCULL_NONE : D3DCULL_CW;
+    // Zabezpieczenie shadera ActorSkinningPipeline (ps_main): biala tekstura zastepcza 1x1 przy braku diffuseTexture
+    if (!pD3DTexture) {
+        pD3DTexture = GetFallbackWhiteTexture(pDevice);
+    }
+
+    // 1. Wymuszenie D3DCULL_NONE w celu eliminacji odrzucania odwrotnie nawinietych trojkatow modeli postaci, potworow i budynkow
+    const DWORD targetCullMode = D3DCULL_NONE;
     STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, targetCullMode);
 
     // 2. Izolacja stanow specyficznych dla przebiegu (Pass)

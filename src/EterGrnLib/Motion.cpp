@@ -14,7 +14,7 @@ CGrannyMotion::~CGrannyMotion()
 
 bool CGrannyMotion::IsEmpty()
 {
-	return (m_pGltfMotion == NULL);
+	return (m_pGltfMotion == NULL && m_pgrnAni == NULL);
 }
 
 void CGrannyMotion::Destroy()
@@ -30,6 +30,8 @@ void CGrannyMotion::Initialize()
 
 bool CGrannyMotion::BindGrannyAnimation(granny_animation * pgrnAni)
 {
+	assert(IsEmpty());
+	m_pgrnAni = pgrnAni;
 	return true;
 }
 
@@ -43,7 +45,7 @@ bool CGrannyMotion::BindGltfAnimation(const GltfMotionData * pGltfMotion)
 
 granny_animation* CGrannyMotion::GetGrannyAnimationPointer() const
 {
-	return nullptr;
+	return m_pgrnAni;
 }
 
 const GltfMotionData* CGrannyMotion::GetGltfAnimationPointer() const
@@ -56,6 +58,9 @@ const char * CGrannyMotion::GetName() const
 	if (m_pGltfMotion)
 		return m_pGltfMotion->name.c_str();
 
+	if (m_pgrnAni)
+		return m_pgrnAni->Name;
+
 	return "";
 }
 
@@ -63,6 +68,9 @@ float CGrannyMotion::GetDuration() const
 {
 	if (m_pGltfMotion)
 		return m_pGltfMotion->duration;
+
+	if (m_pgrnAni)
+		return m_pgrnAni->Duration;
 
 	return 0.0f;
 }
@@ -77,6 +85,27 @@ void CGrannyMotion::GetTextTrack(const char * c_szTextTrackName, int * pCount, f
 			if (!_stricmp(c_szTextTrackName, ev.type.c_str()))
 			{
 				pArray[(*pCount)++] = ev.time;
+			}
+		}
+	}
+	else if (m_pgrnAni && m_pgrnAni->TrackGroups)
+	{
+		for (int tg = 0; tg < m_pgrnAni->TrackGroupCount; ++tg)
+		{
+			granny_track_group* pGroup = m_pgrnAni->TrackGroups[tg];
+			if (!pGroup)
+				continue;
+
+			for (int i = 0; i < pGroup->TextTrackCount; ++i)
+			{
+				granny_text_track & rTextTrack = pGroup->TextTracks[i];
+				if (!_stricmp(c_szTextTrackName, rTextTrack.Name))
+				{
+					for (int j = 0; j < rTextTrack.EntryCount; ++j)
+					{
+						pArray[(*pCount)++] = rTextTrack.Entries[j].TimeStamp;
+					}
+				}
 			}
 		}
 	}

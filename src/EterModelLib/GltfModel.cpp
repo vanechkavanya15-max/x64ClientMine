@@ -240,7 +240,7 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     const UINT ibSize = static_cast<UINT>(m_modelData.indices.size() * sizeof(unsigned int));
 
     HRESULT hrVB = pDevice->CreateVertexBuffer(
-        vbSize, D3DUSAGE_WRITEONLY, 0, D3DPOOL_MANAGED, &m_pVertexBuffer, nullptr);
+        vbSize, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &m_pVertexBuffer, nullptr);
     if (FAILED(hrVB))
     {
         TraceError("CGltfModel::EnsureGpuBuffers: CreateVertexBuffer failed hr=0x%08X size=%u", hrVB, vbSize);
@@ -249,7 +249,7 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     }
 
     GpuPackedGltfVertex* pLockedVB = nullptr;
-    if (FAILED(m_pVertexBuffer->Lock(0, vbSize, reinterpret_cast<void**>(&pLockedVB), 0)))
+    if (FAILED(m_pVertexBuffer->Lock(0, vbSize, reinterpret_cast<void**>(&pLockedVB), D3DLOCK_DISCARD)))
     {
         TraceError("CGltfModel::EnsureGpuBuffers: Lock VB failed");
         ReleaseGpuBuffers();
@@ -282,7 +282,7 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     m_pVertexBuffer->Unlock();
 
     HRESULT hrIB = pDevice->CreateIndexBuffer(
-        ibSize, D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_MANAGED, &m_pIndexBuffer, nullptr);
+        ibSize, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &m_pIndexBuffer, nullptr);
     if (FAILED(hrIB))
     {
         TraceError("CGltfModel::EnsureGpuBuffers: CreateIndexBuffer failed hr=0x%08X size=%u", hrIB, ibSize);
@@ -291,7 +291,7 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     }
 
     void* pLockedIB = nullptr;
-    if (FAILED(m_pIndexBuffer->Lock(0, ibSize, &pLockedIB, 0)))
+    if (FAILED(m_pIndexBuffer->Lock(0, ibSize, &pLockedIB, D3DLOCK_DISCARD)))
     {
         TraceError("CGltfModel::EnsureGpuBuffers: Lock IB failed");
         ReleaseGpuBuffers();

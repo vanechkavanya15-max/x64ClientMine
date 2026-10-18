@@ -413,16 +413,72 @@ bool CGraphicThing::OnLoad(int iSize, const void * c_pvBuf)
 		}
 	}
 
-	TraceError("CGraphicThing::OnLoad: Legacy GR2 format is deprecated (all assets migrated to glTF 2.0 Binary): %s", GetFileName());
-	return false;
+	// Fallback do wczytania oryginalnego modelu Granny (.gr2) jezeli nie znaleziono .glb
+	m_pgrnFile = GrannyReadEntireFileFromMemory(iSize, (void*)c_pvBuf);
+	if (!m_pgrnFile)
+	{
+		TraceError("CGraphicThing::OnLoad: Failed to parse Granny file from memory: %s", GetFileName());
+		return false;
+	}
+
+	m_pgrnFileInfo = GrannyGetFileInfo(m_pgrnFile);
+	if (!m_pgrnFileInfo)
+	{
+		TraceError("CGraphicThing::OnLoad: Failed to get Granny file info: %s", GetFileName());
+		GrannyFreeFile(m_pgrnFile);
+		m_pgrnFile = NULL;
+		return false;
+	}
+
+	LoadModels();
+	LoadMotions();
+	return true;
 }
 
 bool CGraphicThing::LoadModels()
 {
-	return false;
+	assert(m_models == NULL);
+
+	if (!m_pgrnFileInfo)
+		return false;
+
+	int modelCount = m_pgrnFileInfo->ModelCount;
+	if (modelCount <= 0)
+		return false;
+
+	m_models = new CGrannyModel[modelCount];
+
+	for (int m = 0; m < modelCount; ++m)
+	{
+		CGrannyModel & rModel = m_models[m];
+		granny_model * pgrnModel = m_pgrnFileInfo->Models[m];
+		if (!rModel.CreateFromGrannyModelPointer(pgrnModel))
+			return false;
+	}
+
+	return true;
 }
 
 bool CGraphicThing::LoadMotions()
 {
-	return false;
+	assert(m_motions == NULL);
+
+	if (!m_pgrnFileInfo)
+		return false;
+
+	int animationCount = m_pgrnFileInfo->AnimationCount;
+	if (animationCount <= 0)
+		return false;
+
+	m_motions = new CGrannyMotion[animationCount];
+
+	for (int a = 0; a < animationCount; ++a)
+	{
+		CGrannyMotion & rMotion = m_motions[a];
+		granny_animation * pgrnAni = m_pgrnFileInfo->Animations[a];
+		if (!rMotion.BindGrannyAnimation(pgrnAni))
+			return false;
+	}
+
+	return true;
 }
