@@ -355,11 +355,7 @@ void CRenderQueueManager::SubmitSkyDescription(const SSkyDescription& desc)
 
 const SSkyDescription* CRenderQueueManager::GetSkyDescription() const
 {
-	if (m_frameBuffers[m_activeFrameIndex].pSkyDescription)
-		return m_frameBuffers[m_activeFrameIndex].pSkyDescription.get();
-	if (m_frameBuffers[GetWorkFrameIndex()].pSkyDescription)
-		return m_frameBuffers[GetWorkFrameIndex()].pSkyDescription.get();
-	return nullptr;
+	return GetReadableFrameBuffer().pSkyDescription.get();
 }
 
 bool CRenderQueueManager::HasSkyDescription() const
@@ -381,9 +377,7 @@ void CRenderQueueManager::SubmitWeaponTrace(const TWeaponTracePacket& packet)
 
 const std::vector<TWeaponTracePacket>& CRenderQueueManager::GetWeaponTracePackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].weaponTracePackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].weaponTracePackets;
-	return m_frameBuffers[m_activeFrameIndex].weaponTracePackets;
+	return GetReadableFrameBuffer().weaponTracePackets;
 }
 
 void CRenderQueueManager::SubmitEffectMesh(const TEffectMeshPacket& packet)
@@ -394,9 +388,7 @@ void CRenderQueueManager::SubmitEffectMesh(const TEffectMeshPacket& packet)
 
 const std::vector<TEffectMeshPacket>& CRenderQueueManager::GetEffectMeshPackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].effectMeshPackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].effectMeshPackets;
-	return m_frameBuffers[m_activeFrameIndex].effectMeshPackets;
+	return GetReadableFrameBuffer().effectMeshPackets;
 }
 
 void CRenderQueueManager::SubmitDebugLine(const TDebugLinePacket& packet)
@@ -418,9 +410,7 @@ void CRenderQueueManager::SubmitDebugLines(const TDebugLinePacket* pPackets, siz
 
 const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() const
 {
-	if (!m_frameBuffers[GetWorkFrameIndex()].debugLinePackets.empty())
-		return m_frameBuffers[GetWorkFrameIndex()].debugLinePackets;
-	return m_frameBuffers[m_activeFrameIndex].debugLinePackets;
+	return GetReadableFrameBuffer().debugLinePackets;
 }
 
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
@@ -506,9 +496,7 @@ void CRenderQueueManager::FlushUI()
 
 const SFrameBuffer& CRenderQueueManager::GetReadableFrameBuffer() const
 {
-	if (m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() > 0 && m_frameBuffers[GetWorkFrameIndex()].GetTotalPacketCount() == 0)
-		return m_frameBuffers[m_activeFrameIndex];
-	if (m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() > 0 && m_bHasSwappedFrame)
+	if (m_bHasSwappedFrame || (m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() > 0 && m_frameBuffers[GetWorkFrameIndex()].GetTotalPacketCount() == 0))
 		return m_frameBuffers[m_activeFrameIndex];
 	return m_frameBuffers[GetWorkFrameIndex()];
 }
@@ -555,9 +543,7 @@ const std::vector<TDungeonBlockPacket>& CRenderQueueManager::GetDungeonPackets()
 
 size_t CRenderQueueManager::GetTotalPacketCount() const
 {
-	if (!m_bHasSwappedFrame && m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount() == 0)
-		return m_frameBuffers[GetWorkFrameIndex()].GetTotalPacketCount();
-	return m_frameBuffers[m_activeFrameIndex].GetTotalPacketCount();
+	return GetReadableFrameBuffer().GetTotalPacketCount();
 }
 
 TParticleInstanceData* CRenderQueueManager::AllocateParticleData(size_t count)
@@ -632,32 +618,32 @@ const void* CRenderQueueManager::GetWorkFrameData() const
 
 size_t CRenderQueueManager::GetDroppedParticles() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].droppedParticles;
+	return GetReadableFrameBuffer().droppedParticles;
 }
 
 size_t CRenderQueueManager::GetDroppedSpeedTree() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].droppedSpeedTree;
+	return GetReadableFrameBuffer().droppedSpeedTree;
 }
 
 size_t CRenderQueueManager::GetDroppedWeaponTrace() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].droppedWeaponTrace;
+	return GetReadableFrameBuffer().droppedWeaponTrace;
 }
 
 size_t CRenderQueueManager::GetDroppedEffectMesh() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].droppedEffectMesh;
+	return GetReadableFrameBuffer().droppedEffectMesh;
 }
 
 size_t CRenderQueueManager::GetDroppedBones() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].droppedBones;
+	return GetReadableFrameBuffer().droppedBones;
 }
 
 size_t CRenderQueueManager::GetDroppedFrameData() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].droppedFrameData;
+	return GetReadableFrameBuffer().droppedFrameData;
 }
 
 void CRenderQueueManager::ResetDroppedCounters()
@@ -675,62 +661,62 @@ void CRenderQueueManager::ResetDroppedCounters()
 
 size_t CRenderQueueManager::GetParticlePoolCapacity() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].particleDataPool.size();
+	return GetReadableFrameBuffer().particleDataPool.size();
 }
 
 size_t CRenderQueueManager::GetSpeedTreePoolCapacity() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].speedTreeInstancePool.size();
+	return GetReadableFrameBuffer().speedTreeInstancePool.size();
 }
 
 size_t CRenderQueueManager::GetWeaponTracePoolCapacity() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].weaponTraceVertexPool.size();
+	return GetReadableFrameBuffer().weaponTraceVertexPool.size();
 }
 
 size_t CRenderQueueManager::GetEffectMeshPoolCapacity() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].effectMeshVertexPool.size();
+	return GetReadableFrameBuffer().effectMeshVertexPool.size();
 }
 
 size_t CRenderQueueManager::GetBoneMatrixPoolCapacity() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].boneMatrixPool.size();
+	return GetReadableFrameBuffer().boneMatrixPool.size();
 }
 
 size_t CRenderQueueManager::GetFrameDataPoolCapacity() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].frameDataPool.size();
+	return GetReadableFrameBuffer().frameDataPool.size();
 }
 
 size_t CRenderQueueManager::GetParticleDataOffset() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].particleDataOffset;
+	return GetReadableFrameBuffer().particleDataOffset;
 }
 
 size_t CRenderQueueManager::GetSpeedTreeInstanceOffset() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].speedTreeInstanceOffset;
+	return GetReadableFrameBuffer().speedTreeInstanceOffset;
 }
 
 size_t CRenderQueueManager::GetWeaponTraceVertexOffset() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].weaponTraceVertexOffset;
+	return GetReadableFrameBuffer().weaponTraceVertexOffset;
 }
 
 size_t CRenderQueueManager::GetEffectMeshVertexOffset() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].effectMeshVertexOffset;
+	return GetReadableFrameBuffer().effectMeshVertexOffset;
 }
 
 size_t CRenderQueueManager::GetBoneMatrixOffset() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].boneMatrixOffset;
+	return GetReadableFrameBuffer().boneMatrixOffset;
 }
 
 size_t CRenderQueueManager::GetFrameDataOffset() const
 {
-	return m_frameBuffers[GetWorkFrameIndex()].frameDataOffset;
+	return GetReadableFrameBuffer().frameDataOffset;
 }
 
 bool CRenderQueueManager::ExportFrameToBinary(const char* c_pszFileName) const
