@@ -1,6 +1,8 @@
 #pragma once
 
 #include "IRenderBackend.h"
+#include <vector>
+#include <cstdint>
 
 class CWgpuRenderBackend final : public IRenderBackend
 {
@@ -32,6 +34,9 @@ public:
 	const char* GetBackendName() const override;
 	bool IsDeviceLost() const override;
 	bool CaptureFrame(const char* szFilename) override;
+
+	bool ReadbackFramebuffer(std::vector<uint8_t>& outPixels, uint32_t& outWidth, uint32_t& outHeight);
+	std::vector<uint8_t> ReadbackFramebuffer(uint32_t* pOutWidth = nullptr, uint32_t* pOutHeight = nullptr);
 
 	bool IsDllLoaded() const noexcept;
 	static bool IsConfiguredInConfigJson();

@@ -16,6 +16,8 @@ using PFN_m2_wgpu_unregister_texture = void(__cdecl*)(uintptr_t);
 using PFN_m2_wgpu_resize = void(__cdecl*)(uint32_t, uint32_t);
 using PFN_m2_wgpu_destroy = void(__cdecl*)();
 using PFN_m2_wgpu_shutdown = PFN_m2_wgpu_destroy;
+using PFN_m2_wgpu_read_rgba_pixels = size_t(__cdecl*)(uint8_t*, size_t);
+using PFN_m2_render_wgpu_read_rgba_pixels = PFN_m2_wgpu_read_rgba_pixels;
 
 struct SWgpuFunctions
 {
@@ -25,6 +27,7 @@ struct SWgpuFunctions
 	PFN_m2_wgpu_unregister_texture unregister_texture{ nullptr };
 	PFN_m2_wgpu_resize resize{ nullptr };
 	PFN_m2_wgpu_destroy destroy{ nullptr };
+	PFN_m2_wgpu_read_rgba_pixels read_rgba_pixels{ nullptr };
 };
 
 class CWgpuModule
@@ -49,6 +52,8 @@ public:
 	void UnregisterTexture(uintptr_t dwTextureID);
 	void Resize(uint32_t width, uint32_t height);
 	void Destroy();
+	size_t ReadRgbaPixels(uint8_t* pDstBuffer, size_t maxLen);
+	bool ReadbackFramebuffer(uint8_t* pDstBuffer, size_t bufferSize, uint32_t* pOutWidth = nullptr, uint32_t* pOutHeight = nullptr);
 
 	// Licznik transakcji FFI / operacji
 	uint64_t GetTransactionCount() const noexcept { return m_transactionCount.load(); }

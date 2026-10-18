@@ -691,9 +691,8 @@ typedef struct RENDER_ABI_ALIGN(16) TUIBatchPacket
     uint32_t dwBlendMode;
     uint32_t dwVertexCount;
     uint32_t bUseScissor;
-    uint32_t dwPadScissor;
-
     RENDER_RECT_TYPE scissorRect;
+    uint32_t dwPadScissor;
     const TUIVertex* pVertices;
     union
     {

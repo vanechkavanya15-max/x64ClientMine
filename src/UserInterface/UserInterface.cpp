@@ -38,6 +38,7 @@ static std::atomic<bool> s_bWorldPacksReady{false};
 #include "Client/Network/Protocol/ProtocolDriverRegistry.h"
 #include "Client/Network/ServerProfileManager.h"
 #include "FastBootOverlay.h"
+#include "EterLib/RenderOwnership.h"
 #include <fstream>
 #include <sstream>
 #include "rapidjson/document.h"
@@ -312,6 +313,11 @@ static bool Main(HINSTANCE hInstance, LPSTR lpCmdLine)
 			app->SetTurboTicks(CPythonApplication::GetTurboTicks());
 		}
 
+		if (!app->GetWindowHandle())
+		{
+			app->Create(nullptr, "Metin2", 1024, 768, 1);
+		}
+
 		app->Loop();
 
 		app->Clear();
@@ -342,6 +348,10 @@ static bool Main(HINSTANCE hInstance, LPSTR lpCmdLine)
 				TraceError("Main: RunMainScript failed!");
 				if (app && (app->GetTurboTicks() > 0 || g_bHeadlessMode || (lpCmdLine && (strstr(lpCmdLine, "--test-mode") || strstr(lpCmdLine, "--mock-world") || strstr(lpCmdLine, "--freeze-on-start")))))
 				{
+					if (!app->GetWindowHandle())
+					{
+						app->Create(nullptr, "Metin2", 1024, 768, 1);
+					}
 					TraceError("Main: Headless / Test-mode active, running loop directly for TestHarnessServer IPC...");
 					app->Loop();
 				}
@@ -384,7 +394,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 {
 	UserInterface::TestHarness::CrashSentinel::Instance().Initialize();
 
-	if (lpCmdLine && (strstr(lpCmdLine, "--headless") || strstr(lpCmdLine, "--turbo-ticks") || strstr(lpCmdLine, "__COMMAND_TURBO_TICKS__")))
+	if (lpCmdLine && (strstr(lpCmdLine, "--headless") || strstr(lpCmdLine, "--turbo-ticks") || strstr(lpCmdLine, "__COMMAND_TURBO_TICKS__") || strstr(lpCmdLine, "--render-frames")))
 	{
 		SetHeadlessMode(true);
 	}
@@ -500,6 +510,23 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			{
 				CPythonApplication::SetTurboTicks(static_cast<uint32_t>(parsedTicks));
 			}
+		}
+
+		// --render-frames=<N>
+		std::string renderFramesStr = extractArgVal(lpCmdLine, "--render-frames");
+		if (!renderFramesStr.empty())
+		{
+			uint32_t rf = 30;
+			try { rf = static_cast<uint32_t>(std::stoul(renderFramesStr)); } catch (...) { rf = 30; }
+			CPythonApplication::SetRenderFramesLimit(rf);
+			RenderOwnership::SetWgpuConfigured(true);
+			RenderOwnership::SetAllWgpu();
+		}
+
+		if (strstr(lpCmdLine, "--wgpu") != nullptr)
+		{
+			RenderOwnership::SetWgpuConfigured(true);
+			RenderOwnership::SetAllWgpu();
 		}
 
 		// --server=<name>

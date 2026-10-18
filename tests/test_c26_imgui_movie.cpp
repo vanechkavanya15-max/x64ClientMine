@@ -247,96 +247,103 @@ TEST_CASE("RenderOwnership - Domyslne wartosci wlasnosci dla ImGui i Movie")
 {
 	RenderOwnership::ResetDefaults();
 
-	// Kategoria ImGui domyslnie w trybie Legacy
-	CHECK(RenderOwnership::Owner(ERenderCategory::ImGui) == ERenderOwner::Legacy);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::ImGui) == true);
+	// Kategoria ImGui domyslnie w trybie Wgpu (Wave W5)
+	CHECK(RenderOwnership::Owner(ERenderCategory::ImGui) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::ImGui));
 
-	// Kategoria Movie domyslnie w trybie Legacy
-	CHECK(RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Legacy);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::Movie) == true);
+	// Kategoria Movie domyslnie w trybie Wgpu (Wave W5)
+	CHECK(RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Movie));
 
-	// Kategoria UI domyslnie pod zarzadem D3D9Backend
-	CHECK(RenderOwnership::Owner(ERenderCategory::UI) == ERenderOwner::D3D9Backend);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::UI) == false);
+	// Kategoria UI domyslnie w trybie Wgpu (Wave W5)
+	CHECK(RenderOwnership::Owner(ERenderCategory::UI) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::UI));
 }
 
 TEST_CASE("RenderOwnership - Przelaczanie wlasnosci dla kategorii ImGui")
 {
 	RenderOwnership::ResetDefaults();
 
-	// 1. Zmiana wlasnosci ImGui na Wgpu
-	RenderOwnership::SetOwner(ERenderCategory::ImGui, ERenderOwner::Wgpu);
-	CHECK(RenderOwnership::Owner(ERenderCategory::ImGui) == ERenderOwner::Wgpu);
-	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::ImGui));
-
-	// 2. Zmiana wlasnosci ImGui na D3D9Backend
+	// 1. Zmiana wlasnosci ImGui na D3D9Backend
 	RenderOwnership::SetOwner(ERenderCategory::ImGui, ERenderOwner::D3D9Backend);
 	CHECK(RenderOwnership::Owner(ERenderCategory::ImGui) == ERenderOwner::D3D9Backend);
 	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::ImGui));
 
-	// 3. Przywrocenie wlasnosci Legacy
+	// 2. Zmiana wlasnosci ImGui na Legacy
 	RenderOwnership::SetOwner(ERenderCategory::ImGui, ERenderOwner::Legacy);
 	CHECK(RenderOwnership::Owner(ERenderCategory::ImGui) == ERenderOwner::Legacy);
 	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::ImGui) == true);
 
+	// 3. Przywrocenie wlasnosci Wgpu
+	RenderOwnership::SetOwner(ERenderCategory::ImGui, ERenderOwner::Wgpu);
+	CHECK(RenderOwnership::Owner(ERenderCategory::ImGui) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::ImGui));
+
 	// 4. Reset do domyslnych
 	RenderOwnership::ResetDefaults();
-	CHECK(RenderOwnership::Owner(ERenderCategory::ImGui) == ERenderOwner::Legacy);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::ImGui) == true);
+	CHECK(RenderOwnership::Owner(ERenderCategory::ImGui) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::ImGui));
 }
 
 TEST_CASE("RenderOwnership - Przelaczanie wlasnosci dla kategorii Movie")
 {
 	RenderOwnership::ResetDefaults();
 
-	// 1. Zmiana wlasnosci Movie na Wgpu
-	RenderOwnership::SetOwner(ERenderCategory::Movie, ERenderOwner::Wgpu);
-	CHECK(RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Wgpu);
-	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Movie));
-
-	// 2. Zmiana wlasnosci Movie na D3D9Backend
+	// 1. Zmiana wlasnosci Movie na D3D9Backend
 	RenderOwnership::SetOwner(ERenderCategory::Movie, ERenderOwner::D3D9Backend);
 	CHECK(RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::D3D9Backend);
 	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Movie));
 
-	// 3. Przywrocenie wlasnosci Legacy
+	// 2. Zmiana wlasnosci Movie na Legacy
 	RenderOwnership::SetOwner(ERenderCategory::Movie, ERenderOwner::Legacy);
 	CHECK(RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Legacy);
 	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::Movie) == true);
 
+	// 3. Przywrocenie wlasnosci Wgpu
+	RenderOwnership::SetOwner(ERenderCategory::Movie, ERenderOwner::Wgpu);
+	CHECK(RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Movie));
+
 	// 4. Reset do domyslnych
 	RenderOwnership::ResetDefaults();
-	CHECK(RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Legacy);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::Movie) == true);
+	CHECK(RenderOwnership::Owner(ERenderCategory::Movie) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Movie));
 }
 
 TEST_CASE("Bramkowanie ImGui - Kontrola renderowania bezposredniego (E24)")
 {
 	RenderOwnership::ResetDefaults();
 
-	// Domyslnie: ImGui = Legacy, UI = D3D9Backend -> dozwolone renderowanie bezposrednie w D3D9
-	CHECK(CheckCanDrawImGuiDirectly() == true);
+	// Domyslnie w Wave W5: ImGui = Wgpu, UI = Wgpu -> bezposredni render zablokowany
+	CHECK(CheckCanDrawImGuiDirectly() == false);
 
-	// Przelaczenie UI na Legacy przy ImGui = Legacy
+	// Przelaczenie UI na Legacy przy ImGui = Wgpu -> dozwolone bezposrednie (LegacyDraws(UI) == true)
 	RenderOwnership::SetOwner(ERenderCategory::UI, ERenderOwner::Legacy);
 	CHECK(CheckCanDrawImGuiDirectly() == true);
 
-	// Przelaczenie ImGui i UI na Wgpu (tryb pelnego WGPU backendu)
-	RenderOwnership::SetOwner(ERenderCategory::ImGui, ERenderOwner::Wgpu);
-	RenderOwnership::SetOwner(ERenderCategory::UI, ERenderOwner::Wgpu);
-	// Bezposredni render ImGui w D3D9 musi byc zablokowany, rozwiazujac problem E24
+	// Przelaczenie obu na Legacy
+	RenderOwnership::SetOwner(ERenderCategory::ImGui, ERenderOwner::Legacy);
+	CHECK(CheckCanDrawImGuiDirectly() == true);
+
+	// Przelaczenie obu na D3D9Backend (brak LegacyDraws)
+	RenderOwnership::SetOwner(ERenderCategory::ImGui, ERenderOwner::D3D9Backend);
+	RenderOwnership::SetOwner(ERenderCategory::UI, ERenderOwner::D3D9Backend);
 	CHECK(CheckCanDrawImGuiDirectly() == false);
 
-	// Przywrocenie domyslnych
+	// Przywrocenie domyslnych (Wgpu)
 	RenderOwnership::ResetDefaults();
-	CHECK(CheckCanDrawImGuiDirectly() == true);
+	CHECK(CheckCanDrawImGuiDirectly() == false);
 }
 
 TEST_CASE("Bramkowanie Movie - Zasada DEC-10 i blokada w trybie WGPU")
 {
 	RenderOwnership::ResetDefaults();
 
-	// Domyslnie pod D3D9 odtwarzanie filmu jest dopuszczalne
+	// Domyslnie w Wave W5 Movie = Wgpu -> blokowane (DEC-10)
+	CHECK(CheckCanPlayMovieDirectly() == false);
+
+	// Po ustawieniu Movie na Legacy odtwarzanie filmu jest dopuszczalne
+	RenderOwnership::SetOwner(ERenderCategory::Movie, ERenderOwner::Legacy);
 	CHECK(CheckCanPlayMovieDirectly() == true);
 
 	// W trybie Wgpu kategoria Movie jest blokowana natychmiast (DEC-10)
@@ -347,9 +354,9 @@ TEST_CASE("Bramkowanie Movie - Zasada DEC-10 i blokada w trybie WGPU")
 	RenderOwnership::SetOwner(ERenderCategory::Movie, ERenderOwner::D3D9Backend);
 	CHECK(CheckCanPlayMovieDirectly() == false);
 
-	// Przywrocenie domyslnych
+	// Przywrocenie domyslnych (Wgpu)
 	RenderOwnership::ResetDefaults();
-	CHECK(CheckCanPlayMovieDirectly() == true);
+	CHECK(CheckCanPlayMovieDirectly() == false);
 }
 
 TEST_CASE("Direct3D State Management - D3D9StateBlockScope Save i Restore")

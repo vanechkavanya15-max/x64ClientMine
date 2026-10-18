@@ -2,6 +2,8 @@
 #include "GrpDevice.h"
 #include "EterBase/Stl.h"
 #include "EterBase/Debug.h"
+#include "RenderOwnership.h"
+#include "WgpuRenderBackend.h"
 
 #include <intrin.h>
 #include <utf8.h>
@@ -70,6 +72,9 @@ void CGraphicDevice::__ReleaseDefaultResources()
 
 bool CGraphicDevice::__RecreateDefaultResources()
 {
+	if (!ms_lpd3dDevice)
+		return true;
+
 	if (!__CreateDefaultIndexBufferList())
 	{
 		TraceError("CGraphicDevice::__RecreateDefaultResources: Failed to recreate DefaultIndexBufferList");
@@ -92,8 +97,19 @@ bool CGraphicDevice::__RecreateDefaultResources()
 
 bool CGraphicDevice::ResizeBackBuffer(UINT uWidth, UINT uHeight)
 {
-	if (!ms_lpd3dDevice || uWidth == 0 || uHeight == 0)
+	if (uWidth == 0 || uHeight == 0)
 		return false;
+
+	if (!ms_lpd3dDevice)
+	{
+		ms_d3dPresentParameter.BackBufferWidth = uWidth;
+		ms_d3dPresentParameter.BackBufferHeight = uHeight;
+		if (CWgpuRenderBackend::Instance().IsDllLoaded())
+		{
+			CWgpuRenderBackend::Instance().Resize(uWidth, uHeight);
+		}
+		return true;
+	}
 
 	D3DPRESENT_PARAMETERS& rkD3DPP = ms_d3dPresentParameter;
 	if (rkD3DPP.Windowed)
@@ -155,7 +171,8 @@ bool CGraphicDevice::ResizeBackBuffer(UINT uWidth, UINT uHeight)
 
 LPDIRECT3DVERTEXDECLARATION9 CGraphicDevice::CreatePNTStreamVertexShader()
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice)
+		return NULL;
 
 	LPDIRECT3DVERTEXDECLARATION9 dwShader = NULL;
 
@@ -178,7 +195,8 @@ LPDIRECT3DVERTEXDECLARATION9 CGraphicDevice::CreatePNTStreamVertexShader()
 
 LPDIRECT3DVERTEXDECLARATION9 CGraphicDevice::CreatePNT2StreamVertexShader()
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice)
+		return NULL;
 
 	LPDIRECT3DVERTEXDECLARATION9 dwShader = NULL;
 
@@ -202,7 +220,8 @@ LPDIRECT3DVERTEXDECLARATION9 CGraphicDevice::CreatePNT2StreamVertexShader()
 
 LPDIRECT3DVERTEXDECLARATION9 CGraphicDevice::CreatePTStreamVertexShader()
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice)
+		return NULL;
 
 	LPDIRECT3DVERTEXDECLARATION9 dwShader = NULL;
 
@@ -225,7 +244,11 @@ LPDIRECT3DVERTEXDECLARATION9 CGraphicDevice::CreatePTStreamVertexShader()
 CGraphicDevice::EDeviceState CGraphicDevice::GetDeviceState()
 {
 	if (!ms_lpd3dDevice)
+	{
+		if (RenderOwnership::IsWgpuConfigured() || CWgpuRenderBackend::Instance().IsDllLoaded())
+			return DEVICESTATE_OK;
 		return DEVICESTATE_NULL;
+	}
 
 	HRESULT hr = ms_lpd3dDevice->CheckDeviceState(ms_hWnd);
 	if (hr == S_OK)
@@ -251,7 +274,10 @@ bool CGraphicDevice::Reset()
 bool CGraphicDevice::ResetWithParams(D3DPRESENT_PARAMETERS& d3dpp)
 {
 	if (!ms_lpd3dDevice)
-		return false;
+	{
+		ms_d3dPresentParameter = d3dpp;
+		return true;
+	}
 
 	// Release all D3DPOOL_DEFAULT resources and unbind textures/shaders in STATEMANAGER
 	__ReleaseDefaultResources();
@@ -337,6 +363,9 @@ DWORD GetMaxTextureHeight()
 
 int CGraphicDevice::InitD3DInterface(D3DADAPTER_IDENTIFIER9& d3dAdapterId, D3DDISPLAYMODE& d3dDisplayMode, bool windowed)
 {
+	if (RenderOwnership::IsWgpuConfigured())
+		return CREATE_OK;
+
 	Direct3DCreate9Ex(D3D_SDK_VERSION, &ms_lpd3d);
 	if (!ms_lpd3d)
 		return CREATE_NO_DIRECTX;
@@ -546,27 +575,31 @@ bool CGraphicDevice::InitDeviceResources()
 	m_pStateManager = new CStateManager(ms_lpd3dDevice);
 
 	D3DXCreateMatrixStack(0, &ms_lpd3dMatStack);
-	ms_lpd3dMatStack->LoadIdentity();
-
-	ms_ptVS	= CreatePTStreamVertexShader();
-	ms_pntVS = CreatePNTStreamVertexShader();
-	ms_pnt2VS = CreatePNT2StreamVertexShader();
+	if (ms_lpd3dMatStack)
+		ms_lpd3dMatStack->LoadIdentity();
 
 	D3DXMatrixIdentity(&ms_matIdentity);
 	D3DXMatrixIdentity(&ms_matView);
 	D3DXMatrixIdentity(&ms_matProj);
 	D3DXMatrixIdentity(&ms_matInverseView);
 
-	D3DXCreateSphere(ms_lpd3dDevice, 1.0f, 32, 32, &ms_lpSphereMesh, NULL);
-	D3DXCreateCylinder(ms_lpd3dDevice, 1.0f, 1.0f, 1.0f, 8, 8, &ms_lpCylinderMesh, NULL);
+	if (ms_lpd3dDevice)
+	{
+		ms_ptVS	= CreatePTStreamVertexShader();
+		ms_pntVS = CreatePNTStreamVertexShader();
+		ms_pnt2VS = CreatePNT2StreamVertexShader();
 
-	ms_lpd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff000000, 1.0f, 0);
+		D3DXCreateSphere(ms_lpd3dDevice, 1.0f, 32, 32, &ms_lpSphereMesh, NULL);
+		D3DXCreateCylinder(ms_lpd3dDevice, 1.0f, 1.0f, 1.0f, 8, 8, &ms_lpCylinderMesh, NULL);
 
-	if (!__CreateDefaultIndexBufferList())
-		return false;
+		ms_lpd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff000000, 1.0f, 0);
 
-	if (!__CreatePDTVertexBufferList())
-		return false;
+		if (!__CreateDefaultIndexBufferList())
+			return false;
+
+		if (!__CreatePDTVertexBufferList())
+			return false;
+	}
 
 	return true;
 }
@@ -623,6 +656,18 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 	ms_hWnd		= hWnd;
 	ms_hDC		= GetDC(hWnd);
 
+	if (RenderOwnership::IsWgpuConfigured())
+	{
+		ms_Viewport.X = 0;
+		ms_Viewport.Y = 0;
+		ms_Viewport.Width = iHres;
+		ms_Viewport.Height = iVres;
+		ms_Viewport.MinZ = 0.0f;
+		ms_Viewport.MaxZ = 1.0f;
+		InitDeviceResources();
+		return CREATE_OK;
+	}
+
 	D3DADAPTER_IDENTIFIER9 d3dAdapterId{};
 	D3DDISPLAYMODE d3dDisplayMode{};
 	int initRet = InitD3DInterface(d3dAdapterId, d3dDisplayMode, Windowed);
@@ -634,7 +679,21 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 	ms_dwD3DBehavior = DetermineD3DBehavior(d3dCaps, iRet);
 
 	if (!CreateD3DDeviceWithFallback(hWnd, iHres, iVres, Windowed, iReflashRate, d3dDisplayMode, iRet))
+	{
+		if (RenderOwnership::IsWgpuConfigured())
+		{
+			ms_Viewport.X = 0;
+			ms_Viewport.Y = 0;
+			ms_Viewport.Width = iHres;
+			ms_Viewport.Height = iVres;
+			ms_Viewport.MinZ = 0.0f;
+			ms_Viewport.MaxZ = 1.0f;
+			InitDeviceResources();
+			DetectHardwareCapsAndQuirks(d3dAdapterId);
+			return CREATE_OK;
+		}
 		return CREATE_DEVICE;
+	}
 
 	CheckTextureFormats(Windowed, d3dDisplayMode);
 
@@ -677,6 +736,9 @@ void CGraphicDevice::__DestroyPDTVertexBufferList()
 
 bool CGraphicDevice::__CreatePDTVertexBufferList()
 {
+	if (!ms_lpd3dDevice)
+		return true;
+
 	for (UINT i = 0; i < PDT_VERTEXBUFFER_NUM; ++i)
 	{
 		HRESULT hr = ms_lpd3dDevice->CreateVertexBuffer(
@@ -720,6 +782,9 @@ bool CGraphicDevice::__CreateDefaultIndexBuffer(UINT eDefIB, UINT uIdxCount, con
 	assert(eDefIB < DEFAULT_IB_NUM);
 	if (eDefIB >= DEFAULT_IB_NUM)
 		return false;
+
+	if (!ms_lpd3dDevice)
+		return true;
 
 	if (ms_alpd3dDefIB[eDefIB])
 	{

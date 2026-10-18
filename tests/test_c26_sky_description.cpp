@@ -154,10 +154,10 @@ TEST_CASE("SkyBox Description - RenderQueueManager and TSkyBoxPacket v2 Integrat
 
 TEST_CASE("SkyBox Description - Ownership Guard and D3D9 Backend Execution")
 {
-	// 1. Sprawdzenie stanu domyslnego (Legacy)
+	// 1. Sprawdzenie stanu domyslnego (Wave W5 T228: Wgpu)
 	RenderOwnership::ResetDefaults();
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::SkyBox));
-	CHECK(RenderOwnership::Owner(ERenderCategory::SkyBox) == ERenderOwner::Legacy);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::SkyBox));
+	CHECK(RenderOwnership::Owner(ERenderCategory::SkyBox) == ERenderOwner::Wgpu);
 
 	TSkyBoxPacket dummyPkt{};
 	dummyPkt.dwFaceCount = 6;
@@ -167,6 +167,9 @@ TEST_CASE("SkyBox Description - Ownership Guard and D3D9 Backend Execution")
 	dummyPkt.matWorld._44 = 1.0f;
 
 	// W trybie Legacy backend D3D9 natychmiast wychodzi (bramka LegacyDraws)
+	RenderOwnership::SetOwner(ERenderCategory::SkyBox, ERenderOwner::Legacy);
+	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::SkyBox));
+	CHECK(RenderOwnership::Owner(ERenderCategory::SkyBox) == ERenderOwner::Legacy);
 	CD3D9RenderBackend::Instance().RenderSkyBox(&dummyPkt, 1);
 
 	// 2. Przelaczenie wlasnosci na D3D9Backend
@@ -177,7 +180,8 @@ TEST_CASE("SkyBox Description - Ownership Guard and D3D9 Backend Execution")
 	// Gdy brak zainicjalizowanego urzadzenia D3D9, GetDevice() zwraca nullptr i bezpiecznie wychodzi
 	CD3D9RenderBackend::Instance().RenderSkyBox(&dummyPkt, 1);
 
-	// Przywrocenie stanu domyslnego
+	// Przywrocenie stanu domyslnego (Wgpu)
 	RenderOwnership::ResetDefaults();
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::SkyBox));
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::SkyBox));
+	CHECK(RenderOwnership::Owner(ERenderCategory::SkyBox) == ERenderOwner::Wgpu);
 }

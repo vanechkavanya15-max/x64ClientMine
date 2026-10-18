@@ -300,7 +300,12 @@ TEST_CASE("WeaponTrace - Bramka wlasnosci RenderOwnership (ERenderCategory::Weap
 {
 	RenderOwnership::ResetDefaults();
 
-	// Domyslnie WeaponTrace jest w trybie Legacy
+	// W Wave W5 (T228) domyslnie WeaponTrace jest w trybie Wgpu
+	CHECK(RenderOwnership::Owner(ERenderCategory::WeaponTrace) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::WeaponTrace));
+
+	// Przelaczenie wlasnosci na Legacy
+	RenderOwnership::SetOwner(ERenderCategory::WeaponTrace, ERenderOwner::Legacy);
 	CHECK(RenderOwnership::Owner(ERenderCategory::WeaponTrace) == ERenderOwner::Legacy);
 	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::WeaponTrace));
 
@@ -316,6 +321,6 @@ TEST_CASE("WeaponTrace - Bramka wlasnosci RenderOwnership (ERenderCategory::Weap
 
 	// Przywrocenie domyslnych
 	RenderOwnership::ResetDefaults();
-	CHECK(RenderOwnership::Owner(ERenderCategory::WeaponTrace) == ERenderOwner::Legacy);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::WeaponTrace));
+	CHECK(RenderOwnership::Owner(ERenderCategory::WeaponTrace) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::WeaponTrace));
 }

@@ -7,6 +7,7 @@
 #include "Render/DynamicQuadBatcher.h"
 #include "RenderOwnership.h"
 #include "RenderQueueManager.h"
+#include "WgpuRenderBackend.h"
 
 #include <comdef.h>
 #include <utf8.h>
@@ -26,10 +27,8 @@ extern bool GRAPHICS_CAPS_CAN_NOT_DRAW_LINE;
 
 void CScreen::RenderLine3d(float sx, float sy, float sz, float ex, float ey, float ez)
 {
-	if (GRAPHICS_CAPS_CAN_NOT_DRAW_LINE)
+	if (GRAPHICS_CAPS_CAN_NOT_DRAW_LINE || !ms_lpd3dDevice || RenderOwnership::IsWgpuConfigured())
 		return;
-
-	assert(ms_lpd3dDevice != NULL);
 
 	SPDTVertexRaw vertices[2] =
 	{
@@ -49,10 +48,8 @@ void CScreen::RenderLine3d(float sx, float sy, float sz, float ex, float ey, flo
 
 void CScreen::RenderBox3d(float sx, float sy, float sz, float ex, float ey, float ez)
 {
-	if (GRAPHICS_CAPS_CAN_NOT_DRAW_LINE)
+	if (GRAPHICS_CAPS_CAN_NOT_DRAW_LINE || !ms_lpd3dDevice || RenderOwnership::IsWgpuConfigured())
 		return;
-
-	assert(ms_lpd3dDevice != NULL);
 
 	SPDTVertexRaw vertices[8] =
 	{
@@ -81,7 +78,8 @@ void CScreen::RenderBox3d(float sx, float sy, float sz, float ex, float ey, floa
 
 void CScreen::RenderBar3d(float sx, float sy, float sz, float ex, float ey, float ez)
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice || RenderOwnership::IsWgpuConfigured())
+		return;
 
 	SPDTVertexRaw vertices[4] =
 	{
@@ -104,7 +102,8 @@ void CScreen::RenderBar3d(float sx, float sy, float sz, float ex, float ey, floa
 
 void CScreen::RenderBar3d(const D3DXVECTOR3 * c_pv3Positions)
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice || RenderOwnership::IsWgpuConfigured())
+		return;
 	
 	SPDTVertexRaw vertices[4] =
 	{
@@ -126,7 +125,8 @@ void CScreen::RenderBar3d(const D3DXVECTOR3 * c_pv3Positions)
 
 void CScreen::RenderGradationBar3d(float sx, float sy, float sz, float ex, float ey, float ez, DWORD dwStartColor, DWORD dwEndColor)
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice || RenderOwnership::IsWgpuConfigured())
+		return;
 	if (sx==ex) return;
 	if (sy==ey) return;
 
@@ -590,20 +590,26 @@ void CScreen::SetClearStencil(DWORD stencil)
 
 void CScreen::ClearDepthBuffer()
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice || RenderOwnership::IsWgpuConfigured())
+		return;
 	ms_lpd3dDevice->Clear(0L, NULL, D3DCLEAR_ZBUFFER, ms_clearColor, ms_clearDepth, ms_clearStencil);
 }
 
 void CScreen::Clear()
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice || RenderOwnership::IsWgpuConfigured())
+		return;
 	ms_lpd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, ms_clearColor, ms_clearDepth, ms_clearStencil);
 }
 
 BOOL CScreen::IsLostDevice()
 {
 	if (!ms_lpd3dDevice)
+	{
+		if (RenderOwnership::IsWgpuConfigured())
+			return FALSE;
 		return TRUE;
+	}
 
 	IDirect3DDevice9Ex& rkD3DDev = *ms_lpd3dDevice;
 	HRESULT hr = rkD3DDev.CheckDeviceState(ms_hWnd);
@@ -616,7 +622,7 @@ BOOL CScreen::IsLostDevice()
 BOOL CScreen::RestoreDevice()
 {
 	if (!ms_lpd3dDevice)
-		return FALSE;
+		return TRUE;
 
 	IDirect3D9Ex& rkD3D = *ms_lpd3d;
 	IDirect3DDevice9Ex& rkD3DDev = *ms_lpd3dDevice;
@@ -654,7 +660,6 @@ BOOL CScreen::RestoreDevice()
 
 bool CScreen::Begin()
 {
-	assert(ms_lpd3dDevice != NULL);
 	ResetFaceCount();
 	STATEMANAGER.ResetDrawCallCounter();
 	STATEMANAGER.ResetPrimitiveCounter();
@@ -663,6 +668,10 @@ bool CScreen::Begin()
 		QueryPerformanceFrequency(&s_llPerformanceFreq);
 	QueryPerformanceCounter(&s_llFrameStartTime);
 
+	if (RenderOwnership::IsWgpuConfigured())
+		return true;
+
+	assert(ms_lpd3dDevice != NULL);
 	if (!STATEMANAGER.BeginScene())
 	{
 		Tracenf("BeginScene FAILED\n");
@@ -674,7 +683,10 @@ bool CScreen::Begin()
 
 void CScreen::End()
 {
-	STATEMANAGER.EndScene();
+	if (!RenderOwnership::IsWgpuConfigured())
+	{
+		STATEMANAGER.EndScene();
+	}
 
 	LARGE_INTEGER llFrameEndTime;
 	QueryPerformanceCounter(&llFrameEndTime);
@@ -702,7 +714,8 @@ const CScreen::TRenderStatistics& CScreen::GetRenderStatistics()
 
 void CScreen::Show(HWND hWnd)
 {
-	assert(ms_lpd3dDevice != NULL);
+	if (!ms_lpd3dDevice || RenderOwnership::IsWgpuConfigured())
+		return;
 
 	HRESULT hr = ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
 	if (D3DERR_DEVICELOST == hr || D3DERR_DEVICENOTRESET == hr)

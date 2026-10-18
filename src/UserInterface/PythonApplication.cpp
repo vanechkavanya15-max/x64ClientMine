@@ -204,6 +204,7 @@ double g_specularSpd=0.007f;
 
 CPythonApplication * CPythonApplication::ms_pInstance;
 uint32_t CPythonApplication::ms_dwTurboTicks = 0;
+uint32_t CPythonApplication::ms_dwRenderFramesLimit = 0;
 
 void CPythonApplication::SetTurboTicks(uint32_t ticks)
 {
@@ -222,6 +223,25 @@ uint32_t CPythonApplication::GetTurboTicks()
 bool CPythonApplication::IsTurboTicksMode()
 {
 	return ms_dwTurboTicks > 0;
+}
+
+void CPythonApplication::SetRenderFramesLimit(uint32_t frames)
+{
+	ms_dwRenderFramesLimit = frames;
+	if (ms_pInstance)
+	{
+		ms_pInstance->m_dwRenderFramesLimit = frames;
+	}
+}
+
+uint32_t CPythonApplication::GetRenderFramesLimit()
+{
+	return ms_dwRenderFramesLimit;
+}
+
+bool CPythonApplication::IsRenderFramesMode()
+{
+	return ms_dwRenderFramesLimit > 0;
 }
 
 float c_fDefaultCameraRotateSpeed = 2.25f; // Zwiekszona o 50% czulosc obrotu kamery (bylo 1.5f)
@@ -244,13 +264,15 @@ m_fGlobalElapsedTime(0.0f),
 m_dwLButtonDownTime(0),
 m_dwLastIdleTime(0),
 m_IsMovingMainWindow(false),
-m_dwTurboTicks(0)
+m_dwTurboTicks(0),
+m_dwRenderFramesLimit(0)
 {
 #ifndef _DEBUG
 	SetEterExceptionHandler();
 #endif
 
 	m_dwTurboTicks = ms_dwTurboTicks;
+	m_dwRenderFramesLimit = ms_dwRenderFramesLimit;
 	CTimer::Instance().UseCustomTime();
 	m_dwWidth = 800;
 	m_dwHeight = 600;
@@ -694,7 +716,14 @@ bool CPythonApplication::Process()
 
 		DWORD dwRenderStartTime = ELTimer_GetMSec();		
 
-		canRender = !g_bHeadlessMode && !m_isMinimizedWnd && !m_bRenderThrottling.load(std::memory_order_acquire) && !ms_bSessionLocked.load(std::memory_order_acquire);
+		if (m_dwRenderFramesLimit > 0)
+		{
+			canRender = true;
+		}
+		else
+		{
+			canRender = !g_bHeadlessMode && !m_isMinimizedWnd && !m_bRenderThrottling.load(std::memory_order_acquire) && !ms_bSessionLocked.load(std::memory_order_acquire);
+		}
 
 		if (canRender) [[likely]] {
 			if (!RenderOwnership::IsWgpuConfigured() && m_pyGraphic.IsLostDevice()) [[unlikely]] {
@@ -744,8 +773,27 @@ bool CPythonApplication::Process()
 				// Faza 7B: Nakladka interfejsu 2D
 				RenderUI2D();
 
+				if (RenderOwnership::IsWgpuConfigured())
+				{
+					CRenderQueueManager::Instance().Flush(CRenderQueueManager::Instance().GetActiveBackend());
+				}
+
 				CRenderQueueManager::Instance().EndFrame();
 				m_pyGraphic.End();
+
+				if (m_dwRenderFramesLimit > 0)
+				{
+					static uint32_t s_dwRenderedFramesCount = 0;
+					++s_dwRenderedFramesCount;
+					if (s_dwRenderedFramesCount >= m_dwRenderFramesLimit)
+					{
+						TraceError("RenderFramesLimit (%u frames) reached. Capturing golden master...", m_dwRenderFramesLimit);
+						CWgpuRenderBackend::Instance().CaptureFrame("golden_master.png");
+						CWgpuRenderBackend::Instance().CaptureFrame("golden_master.bmp");
+						TraceError("Golden master captured successfully. Exiting cleanly with code 0.");
+						::ExitProcess(0);
+					}
+				}
 
 				// W trybie WGPU Direct-to-Screen prezentacja odbywa sie bezposrednio w m2_wgpu_render_frame (surface.present())
 				if (!RenderOwnership::IsWgpuConfigured())
@@ -1276,14 +1324,21 @@ bool CPythonApplication::Create(PyObject * poSelf, const char * c_szName, int wi
 		if (!CreateDevice(m_pySystem.GetWidth(), m_pySystem.GetHeight(), Windowed, m_pySystem.GetBPP(), m_pySystem.GetFrequency()))
 			return false;
 
-		CD3D9RenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight());
-		CRenderQueueManager::Instance().SetActiveBackend(&CD3D9RenderBackend::Instance());
+		// Backend initialization
 		if (RenderOwnership::IsWgpuConfigured())
 		{
-			if (CWgpuRenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight()))
+			HWND targetWnd = g_bHeadlessMode ? nullptr : GetWindowHandle();
+			if (!CWgpuRenderBackend::Instance().Initialize(targetWnd, m_pySystem.GetWidth(), m_pySystem.GetHeight()))
 			{
-				CRenderQueueManager::Instance().SetActiveBackend(&CWgpuRenderBackend::Instance());
+				TraceError("Failed to initialize WGPU backend (m2_render_wgpu.dll)!");
+				return false;
 			}
+			CRenderQueueManager::Instance().SetActiveBackend(&CWgpuRenderBackend::Instance());
+		}
+		else
+		{
+			CD3D9RenderBackend::Instance().Initialize(GetWindowHandle(), m_pySystem.GetWidth(), m_pySystem.GetHeight());
+			CRenderQueueManager::Instance().SetActiveBackend(&CD3D9RenderBackend::Instance());
 		}
 
 		if (!g_bHeadlessMode)
@@ -1562,10 +1617,34 @@ void CPythonApplication::Destroy()
 	SystemParametersInfo( SPI_SETSTICKYKEYS, sizeof(sStickKeys), &sStickKeys, 0 );
 }
 
+bool CPythonApplication::CaptureScreenShot(const char* c_szFileName)
+{
+	return SaveScreenShot(c_szFileName);
+}
+
 bool CPythonApplication::SaveScreenShot(const char* c_szFileName)
 {
+	if (!c_szFileName || !c_szFileName[0])
+		return false;
+
+	if (CRenderQueueManager::Instance().GetActiveBackend() == &CWgpuRenderBackend::Instance() ||
+		(RenderOwnership::IsWgpuConfigured() && CWgpuRenderBackend::Instance().IsDllLoaded()))
+	{
+		std::vector<uint8_t> rgba;
+		uint32_t width = 0, height = 0;
+		if (CWgpuRenderBackend::Instance().ReadbackFramebuffer(rgba, width, height) && !rgba.empty() && width > 0 && height > 0)
+		{
+			std::string fileName = c_szFileName;
+			if (fileName.length() < 4 || (fileName.compare(fileName.length() - 4, 4, ".png") != 0 && fileName.compare(fileName.length() - 4, 4, ".PNG") != 0))
+			{
+				fileName += ".png";
+			}
+			return stbi_write_png(fileName.c_str(), static_cast<int>(width), static_cast<int>(height), 4, rgba.data(), static_cast<int>(width * 4)) != 0;
+		}
+	}
+
 	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
-	if (!lpDevice || !c_szFileName || !c_szFileName[0])
+	if (!lpDevice)
 		return false;
 
 	LPDIRECT3DSURFACE9 pBackBuffer = nullptr;

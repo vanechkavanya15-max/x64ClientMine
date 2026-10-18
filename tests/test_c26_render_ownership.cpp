@@ -15,6 +15,18 @@ TEST_CASE("RenderOwnership - Default Ownership")
 	}
 }
 
+TEST_CASE("RenderOwnership - SetAllWgpu (Wave W5 T228)")
+{
+	RenderOwnership::SetAllWgpu();
+	for (size_t i = 0; i < static_cast<size_t>(ERenderCategory::Count); ++i)
+	{
+		auto cat = static_cast<ERenderCategory>(i);
+		CHECK(RenderOwnership::Owner(cat) == ERenderOwner::Wgpu);
+		CHECK_FALSE(RenderOwnership::LegacyDraws(cat));
+	}
+	RenderOwnership::ResetDefaults();
+}
+
 TEST_CASE("RenderOwnership - Change Ownership via SetOwner")
 {
 	RenderOwnership::ResetDefaults();

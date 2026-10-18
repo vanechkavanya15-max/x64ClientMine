@@ -2,6 +2,9 @@
 #include "EterLib/StateManager.h"
 #include "EterLib/JpegFile.h"
 #include "EterLib/Render/DynamicQuadBatcher.h"
+#include "EterLib/RenderQueueManager.h"
+#include "EterLib/RenderOwnership.h"
+#include "EterLib/WgpuRenderBackend.h"
 #include "PythonGraphic.h"
 #include <utf8.h>
 
@@ -207,6 +210,12 @@ bool CPythonGraphic::ExecuteScreenShot(const char * c_pszFileName)
 {
 	if (!c_pszFileName || !c_pszFileName[0])
 		return false;
+
+	if (CRenderQueueManager::Instance().GetActiveBackend() == &CWgpuRenderBackend::Instance() ||
+		(RenderOwnership::IsWgpuConfigured() && CWgpuRenderBackend::Instance().IsDllLoaded()))
+	{
+		return CWgpuRenderBackend::Instance().CaptureFrame(c_pszFileName);
+	}
 
 	LPDIRECT3DDEVICE9 lpDevice = STATEMANAGER.GetDevice();
 	if (!lpDevice)

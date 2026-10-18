@@ -218,7 +218,8 @@ C_STATIC_ASSERT(offsetof(TUIBatchPacket, dwTextureID) == 0, "TUIBatchPacket::dwT
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, dwBlendMode) == 8, "TUIBatchPacket::dwBlendMode");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, dwVertexCount) == 12, "TUIBatchPacket::dwVertexCount");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, bUseScissor) == 16, "TUIBatchPacket::bUseScissor");
-C_STATIC_ASSERT(offsetof(TUIBatchPacket, scissorRect) == 24, "TUIBatchPacket::scissorRect");
+C_STATIC_ASSERT(offsetof(TUIBatchPacket, scissorRect) == 20, "TUIBatchPacket::scissorRect");
+C_STATIC_ASSERT(offsetof(TUIBatchPacket, dwPadScissor) == 36, "TUIBatchPacket::dwPadScissor");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, pVertices) == 40, "TUIBatchPacket::pVertices");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, fPad) == 48, "TUIBatchPacket::fPad");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, stateKey) == 48, "TUIBatchPacket::stateKey");
@@ -457,7 +458,8 @@ int main(void)
     assert(offsetof(TUIBatchPacket, dwBlendMode) == 8);
     assert(offsetof(TUIBatchPacket, dwVertexCount) == 12);
     assert(offsetof(TUIBatchPacket, bUseScissor) == 16);
-    assert(offsetof(TUIBatchPacket, scissorRect) == 24);
+    assert(offsetof(TUIBatchPacket, scissorRect) == 20);
+    assert(offsetof(TUIBatchPacket, dwPadScissor) == 36);
     assert(offsetof(TUIBatchPacket, pVertices) == 40);
     assert(offsetof(TUIBatchPacket, fPad) == 48);
 

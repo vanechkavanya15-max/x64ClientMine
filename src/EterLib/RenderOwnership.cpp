@@ -74,10 +74,22 @@ void RenderOwnership::SetOwner(ERenderCategory cat, ERenderOwner owner)
 	}
 }
 
+namespace
+{
+	static std::atomic<bool> s_bWgpuConfiguredExplicit{ false };
+}
+
 bool RenderOwnership::IsWgpuConfigured()
 {
+	if (s_bWgpuConfiguredExplicit.load(std::memory_order_relaxed))
+		return true;
 	static const bool s_bWgpuConfigured = ReadWgpuConfigOnce();
 	return s_bWgpuConfigured;
+}
+
+void RenderOwnership::SetWgpuConfigured(bool configured)
+{
+	s_bWgpuConfiguredExplicit.store(configured, std::memory_order_relaxed);
 }
 
 void RenderOwnership::SetAllWgpu()

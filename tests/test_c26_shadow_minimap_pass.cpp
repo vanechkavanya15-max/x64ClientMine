@@ -267,25 +267,27 @@ TEST_CASE("RenderOwnership - Bramkowanie Shadow i MiniMap")
 {
 	RenderOwnership::ResetDefaults();
 
-	// Domyslnie wlasnosc nalezy do Legacy
-	CHECK(RenderOwnership::Owner(ERenderCategory::Shadow) == ERenderOwner::Legacy);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::Shadow) == true);
+	// Domyslnie wlasnosc nalezy do Wgpu w Wave W5
+	CHECK(RenderOwnership::Owner(ERenderCategory::Shadow) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Shadow));
 
-	CHECK(RenderOwnership::Owner(ERenderCategory::MiniMap) == ERenderOwner::Legacy);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::MiniMap) == true);
+	CHECK(RenderOwnership::Owner(ERenderCategory::MiniMap) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::MiniMap));
 
 	// Przelaczenie Shadow na D3D9Backend
 	RenderOwnership::SetOwner(ERenderCategory::Shadow, ERenderOwner::D3D9Backend);
 	CHECK(RenderOwnership::Owner(ERenderCategory::Shadow) == ERenderOwner::D3D9Backend);
 	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Shadow));
 
-	// Przelaczenie MiniMap na Wgpu
-	RenderOwnership::SetOwner(ERenderCategory::MiniMap, ERenderOwner::Wgpu);
-	CHECK(RenderOwnership::Owner(ERenderCategory::MiniMap) == ERenderOwner::Wgpu);
-	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::MiniMap));
+	// Przelaczenie MiniMap na Legacy
+	RenderOwnership::SetOwner(ERenderCategory::MiniMap, ERenderOwner::Legacy);
+	CHECK(RenderOwnership::Owner(ERenderCategory::MiniMap) == ERenderOwner::Legacy);
+	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::MiniMap) == true);
 
 	// Reset do domyslnych
 	RenderOwnership::ResetDefaults();
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::Shadow) == true);
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::MiniMap) == true);
+	CHECK(RenderOwnership::Owner(ERenderCategory::Shadow) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::Shadow));
+	CHECK(RenderOwnership::Owner(ERenderCategory::MiniMap) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::MiniMap));
 }

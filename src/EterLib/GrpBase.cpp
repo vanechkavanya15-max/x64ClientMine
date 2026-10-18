@@ -5,6 +5,8 @@
 #include "Camera.h"
 #include "StateManager.h"
 #include "RenderQueueManager.h"
+#include "RenderOwnership.h"
+#include "WgpuRenderBackend.h"
 #include <algorithm>
 
 void PixelPositionToD3DXVECTOR3(const D3DXVECTOR3& c_rkPPosSrc, D3DXVECTOR3* pv3Dst)
@@ -129,7 +131,8 @@ void CGraphicBase::SetDefaultIndexBuffer(UINT eDefIB)
 	if (eDefIB>=DEFAULT_IB_NUM)
 		return;
 
-	STATEMANAGER.SetIndices(ms_alpd3dDefIB[eDefIB], 0);
+	if (ms_lpd3dDevice && ms_alpd3dDefIB[eDefIB])
+		STATEMANAGER.SetIndices(ms_alpd3dDefIB[eDefIB], 0);
 }
 
 bool CGraphicBase::SetPDTStream(SPDTVertex* pVertices, UINT uVtxCount)
@@ -142,12 +145,17 @@ bool CGraphicBase::SetPDTStream(SPDTVertexRaw* pSrcVertices, UINT uVtxCount)
 	if (!uVtxCount)
 		return false;
 
+	if (!ms_lpd3dDevice)
+		return true;
+
 	static DWORD s_dwVBPos=0;
 
 	if (s_dwVBPos>=PDT_VERTEXBUFFER_NUM)
 		s_dwVBPos=0;
 
 	IDirect3DVertexBuffer9* plpd3dFillRectVB=ms_alpd3dPDTVB[s_dwVBPos];
+	if (!plpd3dFillRectVB)
+		return false;
 	++s_dwVBPos;
 
 	assert(PDT_VERTEX_NUM>=uVtxCount);
@@ -164,7 +172,6 @@ bool CGraphicBase::SetPDTStream(SPDTVertexRaw* pSrcVertices, UINT uVtxCount)
 		return false;
 	}
 	
-	
 	memcpy(pDstVertices, pSrcVertices, sizeof(TPDTVertex)*uVtxCount);
 
 	plpd3dFillRectVB->Unlock();
@@ -176,10 +183,13 @@ bool CGraphicBase::SetPDTStream(SPDTVertexRaw* pSrcVertices, UINT uVtxCount)
 
 DWORD CGraphicBase::GetAvailableTextureMemory()
 {
-	assert(ms_lpd3dDevice!=NULL && "CGraphicBase::GetAvailableTextureMemory - D3DDevice is EMPTY");
+	if (!ms_lpd3dDevice)
+	{
+		return 512 * 1024 * 1024;
+	}
 
 	static DWORD s_dwNextUpdateTime=0;
-	static DWORD s_dwTexMemSize=0;//ms_lpd3dDevice->GetAvailableTextureMem();
+	static DWORD s_dwTexMemSize=0;
 
 	DWORD dwCurTime=ELTimer_GetMSec();
 	if (s_dwNextUpdateTime<dwCurTime)
@@ -231,7 +241,10 @@ void CGraphicBase::SetSimpleCamera(float x, float y, float z, float pitch, float
 	UpdateViewMatrix();
 
 	// Synchronize world-view composite matrix with current pipeline world matrix
-	ms_lpd3dDevice->GetTransform(D3DTS_WORLD, &ms_matWorld);
+	if (ms_lpd3dDevice)
+		ms_lpd3dDevice->GetTransform(D3DTS_WORLD, &ms_matWorld);
+	else if (CStateManager::InstancePtr())
+		STATEMANAGER.GetTransform(D3DTS_WORLD, &ms_matWorld);
 	D3DXMatrixMultiply(&ms_matWorldView, &ms_matWorld, &ms_matView);
 }
 
@@ -248,7 +261,10 @@ void CGraphicBase::SetAroundCamera(float distance, float pitch, float roll, floa
 	UpdateViewMatrix();
 
 	// Synchronize world-view composite matrix with current pipeline world matrix
-	ms_lpd3dDevice->GetTransform(D3DTS_WORLD, &ms_matWorld);
+	if (ms_lpd3dDevice)
+		ms_lpd3dDevice->GetTransform(D3DTS_WORLD, &ms_matWorld);
+	else if (CStateManager::InstancePtr())
+		STATEMANAGER.GetTransform(D3DTS_WORLD, &ms_matWorld);
 	D3DXMatrixMultiply(&ms_matWorldView, &ms_matWorld, &ms_matView);
 }
 
@@ -479,7 +495,11 @@ HRESULT CGraphicBase::GetLastResult()
 HRESULT CGraphicBase::CheckDeviceState()
 {
 	if (!ms_lpd3dDevice)
+	{
+		if (RenderOwnership::IsWgpuConfigured() || CWgpuRenderBackend::Instance().IsDllLoaded())
+			return S_OK;
 		return D3DERR_DEVICELOST;
+	}
 
 	return ms_lpd3dDevice->CheckDeviceState(ms_hWnd);
 }

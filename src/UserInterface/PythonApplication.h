@@ -165,6 +165,10 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 		static uint32_t GetTurboTicks();
 		static bool IsTurboTicksMode();
 
+		static void SetRenderFramesLimit(uint32_t frames);
+		static uint32_t GetRenderFramesLimit();
+		static bool IsRenderFramesMode();
+
 		void Loop();
 		void Destroy();
 		void Clear();
@@ -213,6 +217,7 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 		int GetHeight();
 
 		bool SaveScreenShot(const char* c_szFileName);
+		bool CaptureScreenShot(const char* c_szFileName);
 
 		void SetGlobalCenterPosition(int32_t x, int32_t y);
 		void SetCenterPosition(float fx, float fy, float fz);
@@ -450,6 +455,9 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 
 		static uint32_t				ms_dwTurboTicks;
 		uint32_t					m_dwTurboTicks;
+
+		static uint32_t				ms_dwRenderFramesLimit;
+		uint32_t					m_dwRenderFramesLimit;
 
 	protected:
 		bool m_IsMovingMainWindow;

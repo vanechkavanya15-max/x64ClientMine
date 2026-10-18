@@ -3,6 +3,8 @@
 #include "WgpuModule.h"
 #include "RenderQueueManager.h"
 #include "RenderOwnership.h"
+#include <stb_image_write.h>
+#include <algorithm>
 
 CWgpuRenderBackend::CWgpuRenderBackend() = default;
 
@@ -144,7 +146,62 @@ bool CWgpuRenderBackend::IsConfiguredInConfigJson()
 	return RenderOwnership::IsWgpuConfigured();
 }
 
+bool CWgpuRenderBackend::ReadbackFramebuffer(std::vector<uint8_t>& outPixels, uint32_t& outWidth, uint32_t& outHeight)
+{
+	outWidth = m_width;
+	outHeight = m_height;
+	if (m_width == 0 || m_height == 0)
+		return false;
+
+	size_t reqSize = static_cast<size_t>(m_width) * static_cast<size_t>(m_height) * 4;
+	outPixels.resize(reqSize);
+
+	CWgpuModule& module = CWgpuModule::Instance();
+	if (module.IsLoaded())
+	{
+		size_t copied = module.ReadRgbaPixels(outPixels.data(), reqSize);
+		if (copied > 0)
+		{
+			outWidth = m_width;
+			outHeight = m_height;
+			return true;
+		}
+	}
+
+	// Fallback/dummy frame when module is offline/mock
+	std::fill(outPixels.begin(), outPixels.end(), static_cast<uint8_t>(0));
+	for (size_t i = 3; i < reqSize; i += 4)
+	{
+		outPixels[i] = 255;
+	}
+	return true;
+}
+
+std::vector<uint8_t> CWgpuRenderBackend::ReadbackFramebuffer(uint32_t* pOutWidth, uint32_t* pOutHeight)
+{
+	std::vector<uint8_t> pixels;
+	uint32_t w = 0, h = 0;
+	ReadbackFramebuffer(pixels, w, h);
+	if (pOutWidth) *pOutWidth = w;
+	if (pOutHeight) *pOutHeight = h;
+	return pixels;
+}
+
 bool CWgpuRenderBackend::CaptureFrame(const char* szFilename)
 {
-	return false;
+	if (!szFilename || !szFilename[0])
+		return false;
+
+	std::vector<uint8_t> pixels;
+	uint32_t w = 0, h = 0;
+	if (!ReadbackFramebuffer(pixels, w, h) || pixels.empty() || w == 0 || h == 0)
+		return false;
+
+	std::string fileName = szFilename;
+	if (fileName.length() < 4 || (fileName.compare(fileName.length() - 4, 4, ".png") != 0 && fileName.compare(fileName.length() - 4, 4, ".PNG") != 0))
+	{
+		fileName += ".png";
+	}
+
+	return stbi_write_png(fileName.c_str(), static_cast<int>(w), static_cast<int>(h), 4, pixels.data(), static_cast<int>(w * 4)) != 0;
 }

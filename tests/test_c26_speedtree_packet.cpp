@@ -211,13 +211,16 @@ TEST_CASE("SpeedTree - RenderOwnership and Backend Gate Semantics")
 {
 	RenderOwnership::ResetDefaults();
 
-	// Domyslnie SpeedTree jest w trybie Legacy
-	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) == true);
-	CHECK(RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::Legacy);
+	// Domyslnie SpeedTree jest w trybie Wgpu w Wave W5
+	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) == false);
+	CHECK(RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::Wgpu);
 
 	CD3D9RenderBackend backend;
 
-	// Gdy LegacyDraws jest aktywne, CD3D9RenderBackend::RenderSpeedTree nie powinno wykonywac pakietu
+	// Gdy LegacyDraws jest wlaczone recznie, CD3D9RenderBackend::RenderSpeedTree nie powinno wykonywac pakietu
+	RenderOwnership::SetOwner(ERenderCategory::SpeedTree, ERenderOwner::Legacy);
+	CHECK(RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree) == true);
+
 	TSpeedTreePacket dummyPkt{};
 	backend.RenderSpeedTree(&dummyPkt, 1);
 
@@ -231,4 +234,6 @@ TEST_CASE("SpeedTree - RenderOwnership and Backend Gate Semantics")
 	backend.RenderSpeedTree(&dummyPkt, 0);
 
 	RenderOwnership::ResetDefaults();
+	CHECK(RenderOwnership::Owner(ERenderCategory::SpeedTree) == ERenderOwner::Wgpu);
+	CHECK_FALSE(RenderOwnership::LegacyDraws(ERenderCategory::SpeedTree));
 }

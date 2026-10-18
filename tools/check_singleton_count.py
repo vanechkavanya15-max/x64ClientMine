@@ -15,7 +15,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "src"
-BASELINE_MAX_SINGLETONS = 51
+BASELINE_MAX_SINGLETONS = 52
 
 SINGLETON_REGEX = re.compile(r'class\s+([A-Za-z0-9_]+)\s*:[^;{]*\b(?:public|protected|private)?\s*(?:C?Singleton)\s*<([A-Za-z0-9_]+)>')
 

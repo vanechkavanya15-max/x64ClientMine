@@ -42,6 +42,7 @@ public:
 	static ERenderOwner Owner(ERenderCategory cat);
 	static void SetOwner(ERenderCategory cat, ERenderOwner owner);
 	static bool IsWgpuConfigured();
+	static void SetWgpuConfigured(bool configured);
 
 	static void ResetDefaults();
 	static void SetAllWgpu();

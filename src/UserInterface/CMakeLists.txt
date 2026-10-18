@@ -38,11 +38,17 @@ list(APPEND FILE_SOURCES ${PYTHON_CHARACTER_DOMAIN_SOURCES})
 list(REMOVE_DUPLICATES FILE_SOURCES)
 
 add_executable(UserInterface WIN32 ${FILE_SOURCES} ${CMAKE_SOURCE_DIR}/src/UserInterface/UserInterface.rc)
-set_target_properties(UserInterface PROPERTIES LINK_FLAGS "/level='requireAdministrator' /uiAccess='false' /LTCG"
+set_target_properties(UserInterface PROPERTIES LINK_FLAGS "/level='requireAdministrator' /uiAccess='false' /LTCG /DELAYLOAD:d3d9.dll /DELAYLOAD:d3dx9_43.dll delayimp.lib"
 	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 	OUTPUT_NAME_DEBUG "Metin2_Debug"
 	OUTPUT_NAME_RELEASE "Metin2_Release"
 	OUTPUT_NAME_RELWITHDEBINFO "Metin2_RelWithDebInfo"
+)
+
+add_custom_command(TARGET UserInterface POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different
+		$<TARGET_FILE:UserInterface>
+		$<TARGET_FILE_DIR:UserInterface>/client.exe
 )
 
 target_link_libraries(UserInterface 
