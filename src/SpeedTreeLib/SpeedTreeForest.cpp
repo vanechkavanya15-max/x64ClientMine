@@ -258,10 +258,10 @@ void CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)
 		return;
 	}
 
-	if (fTimeSinceLastCall > 0.0f && fTimeSinceLastCall < 1.0f)
+	if (fTimeSinceLastCall > 0.0f)
 	{
 		for (int i = 0; i < c_nNumWindMatrices; ++i)
-			m_afMatrixTimes[i] += fTimeSinceLastCall;
+			m_afMatrixTimes[i] += fminf(fTimeSinceLastCall, 1.0f);
 	}
 
 	const float fBaseAngle = m_fWindStrength * 35.0f;

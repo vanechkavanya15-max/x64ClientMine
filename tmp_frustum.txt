@@ -1,0 +1,17 @@
+	bool CSpeedTreeWrapper::TestFrustumCulling() const
+	{
+		// Ekstrakcja 6 plaszczyzn frustuma kamery z iloczynu View * Projection
+		D3DXMATRIX matViewProj;
+		D3DXMatrixMultiply(&matViewProj, &ms_matView, &ms_matProj);
+
+		D3DXPLANE planes[6];
+		CFrustum::ExtractPlanes(matViewProj, planes);
+
+		DirectX::XMVECTOR cachedPlanes[6];
+		for (int i = 0; i < 6; ++i)
+		{
+			cachedPlanes[i] = DirectX::XMVectorSet(planes[i].a, planes[i].b, planes[i].c, planes[i].d);
+		}
+
+		return TestFrustumCulling(cachedPlanes, 6);
+	}

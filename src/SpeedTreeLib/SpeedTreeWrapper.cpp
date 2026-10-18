@@ -343,10 +343,7 @@ CSpeedTreeWrapper::~CSpeedTreeWrapper()
 		
 		for (short i = 0; i < m_usNumLeafLods; ++i)
 		{			
-			m_pSpeedTree->GetGeometry(*m_pGeometryCache, SpeedTree_LeafGeometry, -1, -1, i);
-			
-			if (m_pGeometryCache->m_sLeaves0.m_usLeafCount > 0)
-				SAFE_RELEASE(m_pLeafVertexBuffer[i]);
+			SAFE_RELEASE(m_pLeafVertexBuffer[i]);
 		}
 		
 		SAFE_DELETE_ARRAY(m_pLeavesUpdatedByCpu);
@@ -1237,7 +1234,7 @@ void CSpeedTreeWrapper::RenderLeaves(void) const
 			SFVFLeafVertex * pVertex = NULL;
 
 			const UINT VERTEX_NUM = 8192;
-			if (pLeaf->m_usLeafCount*3>=VERTEX_NUM)
+			if (pLeaf->m_usLeafCount*6>VERTEX_NUM)
 				return;
 
 			D3DXVECTOR3 akPosition[VERTEX_NUM];
@@ -1547,31 +1544,24 @@ bool CSpeedTreeWrapper::TestFrustumCulling(const DirectX::XMVECTOR* planes, size
 	return MathSIMD::FrustumContainsSphere(planes, planeCount, vCenter, fRadius);
 }
 
-bool CSpeedTreeWrapper::TestFrustumCulling() const
-{
+
+	bool CSpeedTreeWrapper::TestFrustumCulling() const
+	{
 	// Ekstrakcja 6 plaszczyzn frustuma kamery z iloczynu View * Projection
 	D3DXMATRIX matViewProj;
 	D3DXMatrixMultiply(&matViewProj, &ms_matView, &ms_matProj);
 
-	static D3DXMATRIX s_lastViewProj = {};
-	static DirectX::XMVECTOR s_cachedPlanes[6];
+	D3DXPLANE planes[6];
+	CFrustum::ExtractPlanes(matViewProj, planes);
 
-	if (memcmp(&matViewProj, &s_lastViewProj, sizeof(D3DXMATRIX)) != 0)
+	DirectX::XMVECTOR cachedPlanes[6];
+	for (int i = 0; i < 6; ++i)
 	{
-		s_lastViewProj = matViewProj;
-
-		D3DXPLANE planes[6];
-		CFrustum::ExtractPlanes(matViewProj, planes);
-
-		for (int i = 0; i < 6; ++i)
-		{
-			s_cachedPlanes[i] = DirectX::XMVectorSet(planes[i].a, planes[i].b, planes[i].c, planes[i].d);
-		}
+		cachedPlanes[i] = DirectX::XMVectorSet(planes[i].a, planes[i].b, planes[i].c, planes[i].d);
 	}
 
-	return TestFrustumCulling(s_cachedPlanes, 6);
-}
-
+	return TestFrustumCulling(cachedPlanes, 6);
+	}
 // collision detection routines
 UINT CSpeedTreeWrapper::GetCollisionObjectCount()
 {

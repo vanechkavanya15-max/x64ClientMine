@@ -1,25 +1,49 @@
-Plan for EventDialogBoxController implementation:
+I have analyzed the SpeedTree rendering module (SpeedTreeForest.cpp/h, SpeedTreeWrapper.cpp/h). Here are my findings for independent auditing:
 
-1. **Create `src/Client/Events/EventDialogBoxController.h` and `EventDialogBoxController.cpp`**
-   - The module will define `Client::Events::EventDialogBoxController`.
-   - It will define a strongly-typed enum for errors (e.g., `DialogError`) and use `Client::Core::ExpectedResult` / C++23 `std::expected` for returning results.
-   - It will manage the UI state of event dialog boxes (e.g. tracking the currently open dialog by ID/type, whether it's open or closed, processing input/actions).
-   - It will define and emit domain events like `EventDialogBoxOpenedEvent` and `EventDialogBoxClosedEvent` via `EterBase::EventBus`.
-   - It will have 0% dependency on Windows/DirectX API.
-   - It will maintain SRP (Single Responsibility Principle) and strict C++23 practices (zero memory leaks, RAII, strong types).
+1. **Buffer Overflow in Leaf CPU Updating**:
+   In `CSpeedTreeWrapper::RenderLeaves(void)`, under the CPU leaf placement block:
+   ```cpp
+   const UINT VERTEX_NUM = 8192;
+   if (pLeaf->m_usLeafCount*3>=VERTEX_NUM)
+       return;
+   ```
+   However, each leaf produces two triangles (6 vertices). Later in the same function:
+   ```cpp
+   UINT uVtxCount = pLeaf->m_usLeafCount*6;
+   for (UINT i = 0; i < uVtxCount; ++i)
+       pVertex[i].m_vPosition = akPosition[i];
+   ```
+   This means that if `pLeaf->m_usLeafCount` is between 1366 and 2730, it passes the first check (`m_usLeafCount * 3 < 8192`), but writes up to `2730 * 6 = 16380` vertices to `akPosition`, blowing past the `8192` element array on the stack. This is a severe buffer overflow. The condition must be fixed to `pLeaf->m_usLeafCount * 6 > VERTEX_NUM`.
 
-2. **Create unit tests in `tests/test_c26_event_dialog_box.cpp`**
-   - The test will use `doctest.h` and test the core functionalities of `EventDialogBoxController` headless-ly.
-   - Test cases: opening a dialog box successfully, opening when already open, closing when closed, emitting events, handling validation errors, etc.
-   - All tests must pass (100% PASS).
+2. **SetupWindMatrices Update Logic Flaw**:
+   In `CSpeedTreeForest::SetupWindMatrices(float fTimeInSecs)`:
+   ```cpp
+   if (fTimeSinceLastCall > 0.0f && fTimeSinceLastCall < 1.0f)
+   {
+       for (int i = 0; i < c_nNumWindMatrices; ++i)
+           m_afMatrixTimes[i] += fTimeSinceLastCall;
+   }
+   ```
+   If a lag spike happens and `fTimeSinceLastCall` is >= 1.0f, the wind time `m_afMatrixTimes` simply doesn't update at all in that frame, freezing the wind animation. A more robust way to handle large deltas (to prevent excessive wind jumping) is to clamp the delta, e.g., `float clampedDelta = fmin(fTimeSinceLastCall, 1.0f); m_afMatrixTimes[i] += clampedDelta;` instead of completely dropping the update.
 
-3. **Update `tests/CMakeLists.txt`**
-   - Register `test_c26_event_dialog_box` target using CMake.
-   - Ensure to not link Windows-specific libraries for headless compatibility (disable WS2_32 where not needed or safely mock).
+3. **Memory Leak Risk in Destructor**:
+   In `CSpeedTreeWrapper::~CSpeedTreeWrapper`:
+   ```cpp
+   for (short i = 0; i < m_usNumLeafLods; ++i)
+   {
+       m_pSpeedTree->GetGeometry(*m_pGeometryCache, SpeedTree_LeafGeometry, -1, -1, i);
+       if (m_pGeometryCache->m_sLeaves0.m_usLeafCount > 0)
+           SAFE_RELEASE(m_pLeafVertexBuffer[i]);
+   }
+   ```
+   If a leaf LOD dynamically becomes empty, its `m_pLeafVertexBuffer` is never released! D3D resources should be released based on pointer validity (which `SAFE_RELEASE` checks), not based on an external state count that could mismatch. This should simply be `SAFE_RELEASE(m_pLeafVertexBuffer[i]);` unconditionally.
 
-4. **Verify Tests and Pre-commit Instructions**
-   - Ensure the unit tests run and pass cleanly via `ctest` or direct binary execution.
-   - Call `pre_commit_instructions` tool to complete pre-commit steps.
+4. **Race Condition in `TestFrustumCulling`**:
+   `CSpeedTreeWrapper::TestFrustumCulling()` uses:
+   ```cpp
+   static D3DXMATRIX s_lastViewProj = {};
+   static DirectX::XMVECTOR s_cachedPlanes[6];
+   ```
+   These static variables are shared across ALL `CSpeedTreeWrapper` instances. The code uses `memcmp` on the current view/proj matrices to decide whether to update the planes. Not only is `memcmp` on float structs risky due to potential padding or subnormals, but static variables inside an instance method mean this function is inherently not thread-safe. A better approach is to either re-compute it locally (since SIMD math is fast) or let the parent `CSpeedTreeForest` calculate and pass the planes down, rather than each tree accessing a shared static cache.
 
-5. **Submit the Code**
-   - Submit the changes using the `submit` tool without asking for feedback.
+Are these aligned with the expectations of the audit? I will proceed with fixing these issues and adding a unit test for them.
