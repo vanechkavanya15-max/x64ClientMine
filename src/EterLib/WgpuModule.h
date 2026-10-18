@@ -12,6 +12,8 @@ struct TRenderFramePacket;
 using PFN_m2_wgpu_initialize = bool(__cdecl*)(HWND, uint32_t, uint32_t);
 using PFN_m2_wgpu_render_frame = void(__cdecl*)(const TRenderFramePacket*);
 using PFN_m2_wgpu_register_texture = void(__cdecl*)(uintptr_t, uint32_t, uint32_t, uint32_t, const uint8_t*, size_t);
+using PFN_m2_wgpu_register_texture_array = bool(__cdecl*)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t, const uint8_t*, size_t);
+using PFN_m2_wgpu_update_texture_array_layer = bool(__cdecl*)(uintptr_t, uint32_t, const uint8_t*, size_t);
 using PFN_m2_wgpu_unregister_texture = void(__cdecl*)(uintptr_t);
 using PFN_m2_wgpu_resize = void(__cdecl*)(uint32_t, uint32_t);
 using PFN_m2_wgpu_destroy = void(__cdecl*)();
@@ -24,6 +26,8 @@ struct SWgpuFunctions
 	PFN_m2_wgpu_initialize initialize{ nullptr };
 	PFN_m2_wgpu_render_frame render_frame{ nullptr };
 	PFN_m2_wgpu_register_texture register_texture{ nullptr };
+	PFN_m2_wgpu_register_texture_array register_texture_array{ nullptr };
+	PFN_m2_wgpu_update_texture_array_layer update_texture_array_layer{ nullptr };
 	PFN_m2_wgpu_unregister_texture unregister_texture{ nullptr };
 	PFN_m2_wgpu_resize resize{ nullptr };
 	PFN_m2_wgpu_destroy destroy{ nullptr };
@@ -49,6 +53,8 @@ public:
 	bool Initialize(HWND hWnd, uint32_t width, uint32_t height);
 	void RenderFrame(const TRenderFramePacket* pPacket);
 	bool RegisterTexture(uintptr_t dwTextureID, uint32_t width, uint32_t height, uint32_t format, const uint8_t* pData, size_t dataSize);
+	bool RegisterTextureArray(uintptr_t dwTextureID, uint32_t width, uint32_t height, uint32_t layers, uint32_t format, const uint8_t* pData, size_t dataSize);
+	bool UpdateTextureArrayLayer(uintptr_t dwTextureID, uint32_t layerIndex, const uint8_t* pData, size_t dataSize);
 	void UnregisterTexture(uintptr_t dwTextureID);
 	void Resize(uint32_t width, uint32_t height);
 	void Destroy();

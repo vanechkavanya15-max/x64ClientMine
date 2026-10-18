@@ -100,11 +100,99 @@ bool CTextureUploadBridge::RegisterTexture(
 	);
 }
 
+bool CTextureUploadBridge::RegisterTextureArray(
+	uintptr_t dwTextureID,
+	uint32_t width,
+	uint32_t height,
+	uint32_t layers,
+	uint32_t format,
+	const uint8_t* pData,
+	size_t dataSize)
+{
+	if (!dwTextureID || layers == 0)
+		return false;
+
+	if (!IsWgpuActive())
+		return false;
+
+	CWgpuModule& module = CWgpuModule::Instance();
+	if (!module.IsLoaded())
+	{
+		std::lock_guard<std::mutex> lock(s_bridgeMutex);
+		if (!module.IsLoaded() && !EnsureWgpuLoaded())
+			return false;
+	}
+
+	if (module.RegisterTextureArray(dwTextureID, width, height, layers, format, pData, dataSize))
+	{
+		++m_registeredCount;
+		return true;
+	}
+
+	return false;
+}
+
+bool CTextureUploadBridge::RegisterTextureArray(
+	uintptr_t dwTextureID,
+	uint32_t width,
+	uint32_t height,
+	uint32_t layers,
+	uint32_t format,
+	const void* pData,
+	size_t dataSize)
+{
+	return RegisterTextureArray(
+		dwTextureID,
+		width,
+		height,
+		layers,
+		format,
+		reinterpret_cast<const uint8_t*>(pData),
+		dataSize
+	);
+}
+
+bool CTextureUploadBridge::UpdateTextureArrayLayer(
+	uintptr_t dwTextureID,
+	uint32_t layerIndex,
+	const uint8_t* pData,
+	size_t dataSize)
+{
+	if (!dwTextureID || !pData || dataSize == 0)
+		return false;
+
+	if (!IsWgpuActive())
+		return false;
+
+	CWgpuModule& module = CWgpuModule::Instance();
+	if (!module.IsLoaded())
+	{
+		std::lock_guard<std::mutex> lock(s_bridgeMutex);
+		if (!module.IsLoaded() && !EnsureWgpuLoaded())
+			return false;
+	}
+
+	return module.UpdateTextureArrayLayer(dwTextureID, layerIndex, pData, dataSize);
+}
+
+bool CTextureUploadBridge::UpdateTextureArrayLayer(
+	uintptr_t dwTextureID,
+	uint32_t layerIndex,
+	const void* pData,
+	size_t dataSize)
+{
+	return UpdateTextureArrayLayer(
+		dwTextureID,
+		layerIndex,
+		reinterpret_cast<const uint8_t*>(pData),
+		dataSize
+	);
+}
+
 void CTextureUploadBridge::UnregisterTexture(uintptr_t dwTextureID)
 {
 	if (!dwTextureID)
 		return;
 
-	// Bezpieczny no-op, gdy modul WGPU jest zamkniety lub niezaladowany
 	CWgpuModule::Instance().UnregisterTexture(dwTextureID);
 }

@@ -7929,4 +7929,63 @@ target_link_libraries(test_c26_headless_render_loop PRIVATE
 )
 add_test(NAME test_c26_headless_render_loop COMMAND test_c26_headless_render_loop)
 
+# --- Wave W6: Deep Caching of 3D Packets in CWgpuRenderBackend (T282) ---
+add_executable(test_c26_wgpu_backend_caching test_c26_wgpu_backend_caching.cpp)
+target_include_directories(test_c26_wgpu_backend_caching PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_wgpu_backend_caching PRIVATE
+    Client2026
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+)
+add_test(NAME test_c26_wgpu_backend_caching COMMAND test_c26_wgpu_backend_caching)
+
+# --- Wave W6: TextureUploadBridge Texture2DArray Registration (T286) ---
+add_executable(test_c26_texture_bridge test_c26_texture_bridge.cpp)
+target_include_directories(test_c26_texture_bridge PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_texture_bridge PRIVATE
+    Client2026
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+)
+add_test(NAME test_c26_texture_bridge COMMAND test_c26_texture_bridge)
+
+
 

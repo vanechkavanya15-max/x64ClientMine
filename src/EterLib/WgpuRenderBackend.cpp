@@ -47,6 +47,16 @@ void CWgpuRenderBackend::Shutdown()
 		CWgpuModule::Instance().Destroy();
 	}
 	m_bInitialized = false;
+
+	m_cachedSkyBoxPackets.clear();
+	m_cachedTerrainPackets.clear();
+	m_cachedActorPackets.clear();
+	m_cachedWaterPackets.clear();
+	m_cachedSpeedTreePackets.clear();
+	m_cachedEffectPackets.clear();
+	m_cachedUIPackets.clear();
+	m_cachedDungeonPackets.clear();
+	m_framePacket = TRenderFramePacket{};
 }
 
 void CWgpuRenderBackend::Resize(unsigned int width, unsigned int height)
@@ -61,7 +71,15 @@ void CWgpuRenderBackend::Resize(unsigned int width, unsigned int height)
 
 void CWgpuRenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 {
+	m_cachedSkyBoxPackets.clear();
+	m_cachedTerrainPackets.clear();
+	m_cachedActorPackets.clear();
+	m_cachedWaterPackets.clear();
+	m_cachedSpeedTreePackets.clear();
+	m_cachedEffectPackets.clear();
 	m_cachedUIPackets.clear();
+	m_cachedDungeonPackets.clear();
+
 	m_framePacket = TRenderFramePacket{};
 	m_framePacket.uniforms = uniforms;
 	m_bFrameRendered = false;
@@ -69,38 +87,77 @@ void CWgpuRenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 
 void CWgpuRenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned int count)
 {
-	m_framePacket.pSkyBoxPackets = pPackets;
-	m_framePacket.dwSkyBoxCount = count;
+	if (pPackets && count > 0)
+	{
+		m_cachedSkyBoxPackets.insert(m_cachedSkyBoxPackets.end(), pPackets, pPackets + count);
+		m_framePacket.pSkyBoxPackets = m_cachedSkyBoxPackets.data();
+		m_framePacket.dwSkyBoxCount = static_cast<uint32_t>(m_cachedSkyBoxPackets.size());
+	}
 }
 
 void CWgpuRenderBackend::RenderTerrain(const TTerrainSectorPacket* pPackets, unsigned int count)
 {
-	m_framePacket.pTerrainPackets = pPackets;
-	m_framePacket.dwTerrainCount = count;
+	if (pPackets && count > 0)
+	{
+		m_cachedTerrainPackets.insert(m_cachedTerrainPackets.end(), pPackets, pPackets + count);
+		m_framePacket.pTerrainPackets = m_cachedTerrainPackets.data();
+		m_framePacket.dwTerrainCount = static_cast<uint32_t>(m_cachedTerrainPackets.size());
+	}
 }
 
 void CWgpuRenderBackend::RenderActors(const TActorRenderPacket* pPackets, unsigned int count)
 {
-	m_framePacket.pActorPackets = pPackets;
-	m_framePacket.dwActorCount = count;
+	if (pPackets && count > 0)
+	{
+		const size_t prevCount = m_cachedActorPackets.size();
+		m_cachedActorPackets.insert(m_cachedActorPackets.end(), pPackets, pPackets + count);
+
+		// Jezeli pBoneMatrices wskazywal bezposrednio na wbudowana tablice zrodla,
+		// przestawiamy go na skopiowana tablice dst.boneMatrices wewnatrz bufora
+		for (size_t i = 0; i < count; ++i)
+		{
+			const TActorRenderPacket& src = pPackets[i];
+			TActorRenderPacket& dst = m_cachedActorPackets[prevCount + i];
+			if (src.pBoneMatrices >= src.boneMatrices && src.pBoneMatrices < src.boneMatrices + 64)
+			{
+				size_t offset = static_cast<size_t>(src.pBoneMatrices - src.boneMatrices);
+				dst.pBoneMatrices = dst.boneMatrices + offset;
+			}
+		}
+
+		m_framePacket.pActorPackets = m_cachedActorPackets.data();
+		m_framePacket.dwActorCount = static_cast<uint32_t>(m_cachedActorPackets.size());
+	}
 }
 
 void CWgpuRenderBackend::RenderWater(const TWaterPacket* pPackets, unsigned int count)
 {
-	m_framePacket.pWaterPackets = pPackets;
-	m_framePacket.dwWaterCount = count;
+	if (pPackets && count > 0)
+	{
+		m_cachedWaterPackets.insert(m_cachedWaterPackets.end(), pPackets, pPackets + count);
+		m_framePacket.pWaterPackets = m_cachedWaterPackets.data();
+		m_framePacket.dwWaterCount = static_cast<uint32_t>(m_cachedWaterPackets.size());
+	}
 }
 
 void CWgpuRenderBackend::RenderSpeedTree(const TSpeedTreePacket* pPackets, unsigned int count)
 {
-	m_framePacket.pSpeedTreePackets = pPackets;
-	m_framePacket.dwSpeedTreeCount = count;
+	if (pPackets && count > 0)
+	{
+		m_cachedSpeedTreePackets.insert(m_cachedSpeedTreePackets.end(), pPackets, pPackets + count);
+		m_framePacket.pSpeedTreePackets = m_cachedSpeedTreePackets.data();
+		m_framePacket.dwSpeedTreeCount = static_cast<uint32_t>(m_cachedSpeedTreePackets.size());
+	}
 }
 
 void CWgpuRenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, unsigned int count)
 {
-	m_framePacket.pEffectPackets = pPackets;
-	m_framePacket.dwEffectCount = count;
+	if (pPackets && count > 0)
+	{
+		m_cachedEffectPackets.insert(m_cachedEffectPackets.end(), pPackets, pPackets + count);
+		m_framePacket.pEffectPackets = m_cachedEffectPackets.data();
+		m_framePacket.dwEffectCount = static_cast<uint32_t>(m_cachedEffectPackets.size());
+	}
 }
 
 void CWgpuRenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int count)
@@ -115,8 +172,12 @@ void CWgpuRenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int c
 
 void CWgpuRenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets, unsigned int count)
 {
-	m_framePacket.pDungeonPackets = pPackets;
-	m_framePacket.dwDungeonCount = count;
+	if (pPackets && count > 0)
+	{
+		m_cachedDungeonPackets.insert(m_cachedDungeonPackets.end(), pPackets, pPackets + count);
+		m_framePacket.pDungeonPackets = m_cachedDungeonPackets.data();
+		m_framePacket.dwDungeonCount = static_cast<uint32_t>(m_cachedDungeonPackets.size());
+	}
 }
 
 void CWgpuRenderBackend::EndFrame()

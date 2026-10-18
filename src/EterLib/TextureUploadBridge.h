@@ -17,7 +17,7 @@ public:
 	bool Initialize();
 	void Shutdown();
 
-	// Zdarzenie ladowania tekstury - rejestracja w backendzie WGPU
+	// Zdarzenie ladowania tekstury 2D - rejestracja w backendzie WGPU
 	bool RegisterTexture(
 		uintptr_t dwTextureID,
 		uint32_t width,
@@ -33,6 +33,42 @@ public:
 		uint32_t width,
 		uint32_t height,
 		uint32_t format,
+		const void* pData,
+		size_t dataSize
+	);
+
+	// Rejestracja tablicy tekstur Texture2DArray (layers > 1) dla CTextureSet podloza terenu
+	bool RegisterTextureArray(
+		uintptr_t dwTextureID,
+		uint32_t width,
+		uint32_t height,
+		uint32_t layers,
+		uint32_t format,
+		const uint8_t* pData,
+		size_t dataSize
+	);
+
+	bool RegisterTextureArray(
+		uintptr_t dwTextureID,
+		uint32_t width,
+		uint32_t height,
+		uint32_t layers,
+		uint32_t format,
+		const void* pData,
+		size_t dataSize
+	);
+
+	// Aktualizacja pojedynczej warstwy w istniejacej tablicy tekstur
+	bool UpdateTextureArrayLayer(
+		uintptr_t dwTextureID,
+		uint32_t layerIndex,
+		const uint8_t* pData,
+		size_t dataSize
+	);
+
+	bool UpdateTextureArrayLayer(
+		uintptr_t dwTextureID,
+		uint32_t layerIndex,
 		const void* pData,
 		size_t dataSize
 	);

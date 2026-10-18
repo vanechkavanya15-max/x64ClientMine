@@ -88,6 +88,18 @@ bool CWgpuModule::Load(const char* pszDllPath)
 		m_functions.register_texture = reinterpret_cast<PFN_m2_wgpu_register_texture>(::GetProcAddress(m_hModule, "m2_wgpu_register_texture"));
 	}
 
+	m_functions.register_texture_array = reinterpret_cast<PFN_m2_wgpu_register_texture_array>(::GetProcAddress(m_hModule, "m2_render_wgpu_register_texture_array"));
+	if (!m_functions.register_texture_array)
+	{
+		m_functions.register_texture_array = reinterpret_cast<PFN_m2_wgpu_register_texture_array>(::GetProcAddress(m_hModule, "m2_wgpu_register_texture_array"));
+	}
+
+	m_functions.update_texture_array_layer = reinterpret_cast<PFN_m2_wgpu_update_texture_array_layer>(::GetProcAddress(m_hModule, "m2_render_wgpu_update_texture_array_layer"));
+	if (!m_functions.update_texture_array_layer)
+	{
+		m_functions.update_texture_array_layer = reinterpret_cast<PFN_m2_wgpu_update_texture_array_layer>(::GetProcAddress(m_hModule, "m2_wgpu_update_texture_array_layer"));
+	}
+
 	m_functions.unregister_texture = reinterpret_cast<PFN_m2_wgpu_unregister_texture>(::GetProcAddress(m_hModule, "m2_render_wgpu_unregister_texture"));
 	if (!m_functions.unregister_texture)
 	{
@@ -116,7 +128,6 @@ bool CWgpuModule::Load(const char* pszDllPath)
 		m_functions.read_rgba_pixels = reinterpret_cast<PFN_m2_wgpu_read_rgba_pixels>(::GetProcAddress(m_hModule, "m2_wgpu_read_rgba_pixels"));
 	}
 
-	// Jezeli biblioteka nie eksportuje kluczowych funkcji inicjalizacji i renderowania
 	if (!m_functions.initialize || !m_functions.render_frame)
 	{
 		::FreeLibrary(m_hModule);
@@ -199,6 +210,32 @@ bool CWgpuModule::RegisterTexture(uintptr_t dwTextureID, uint32_t width, uint32_
 	return true;
 }
 
+bool CWgpuModule::RegisterTextureArray(uintptr_t dwTextureID, uint32_t width, uint32_t height, uint32_t layers, uint32_t format, const uint8_t* pData, size_t dataSize)
+{
+	if (!dwTextureID || layers == 0)
+		return false;
+
+	std::lock_guard<std::mutex> lock(m_mutex);
+	if (!m_hModule || !m_functions.register_texture_array)
+		return false;
+
+	++m_transactionCount;
+	return m_functions.register_texture_array(dwTextureID, width, height, layers, format, pData, dataSize);
+}
+
+bool CWgpuModule::UpdateTextureArrayLayer(uintptr_t dwTextureID, uint32_t layerIndex, const uint8_t* pData, size_t dataSize)
+{
+	if (!dwTextureID || !pData || dataSize == 0)
+		return false;
+
+	std::lock_guard<std::mutex> lock(m_mutex);
+	if (!m_hModule || !m_functions.update_texture_array_layer)
+		return false;
+
+	++m_transactionCount;
+	return m_functions.update_texture_array_layer(dwTextureID, layerIndex, pData, dataSize);
+}
+
 void CWgpuModule::UnregisterTexture(uintptr_t dwTextureID)
 {
 	if (!dwTextureID)
@@ -250,4 +287,3 @@ bool CWgpuModule::ReadbackFramebuffer(uint8_t* pDstBuffer, size_t bufferSize, ui
 	size_t copied = ReadRgbaPixels(pDstBuffer, bufferSize);
 	return (copied > 0);
 }
-
