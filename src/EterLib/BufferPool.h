@@ -29,19 +29,41 @@ public:
 private:
 	struct TPooledBuffer
 	{
-		std::vector<uint8_t> buffer;
 		size_t capacity;
+		std::vector<uint8_t> buffer;
 
-		TPooledBuffer(std::vector<uint8_t>&& buf)
-			: buffer(std::move(buf))
-			, capacity(buffer.capacity())
+		explicit TPooledBuffer(std::vector<uint8_t>&& buf) noexcept
+			: capacity(buf.capacity())
+			, buffer(std::move(buf))
 		{
 		}
+
+		TPooledBuffer(TPooledBuffer&& other) noexcept
+			: capacity(other.capacity)
+			, buffer(std::move(other.buffer))
+		{
+			other.capacity = 0;
+		}
+
+		TPooledBuffer& operator=(TPooledBuffer&& other) noexcept
+		{
+			if (this != &other)
+			{
+				capacity = other.capacity;
+				buffer = std::move(other.buffer);
+				other.capacity = 0;
+			}
+			return *this;
+		}
+
+		TPooledBuffer(const TPooledBuffer&) = delete;
+		TPooledBuffer& operator=(const TPooledBuffer&) = delete;
 	};
 
 	std::vector<TPooledBuffer> m_pool;
 	mutable std::mutex m_mutex;
 	size_t m_totalAllocated;
+	size_t m_totalPooledMemory;
 
 	static const size_t MAX_POOL_SIZE = 64;
 	static const size_t MAX_BUFFER_SIZE = 64 * 1024 * 1024;

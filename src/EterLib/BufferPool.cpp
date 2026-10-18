@@ -1,9 +1,9 @@
-#include "StdAfx.h"
 #include "BufferPool.h"
 #include <algorithm>
 
 CBufferPool::CBufferPool()
 	: m_totalAllocated(0)
+	, m_totalPooledMemory(0)
 {
 }
 
@@ -14,34 +14,38 @@ CBufferPool::~CBufferPool()
 
 std::vector<uint8_t> CBufferPool::Acquire(size_t minSize)
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
-
-	size_t bestIndex = SIZE_MAX;
-	size_t bestCapacity = SIZE_MAX;
-
-	for (size_t i = 0; i < m_pool.size(); ++i)
+	std::vector<uint8_t> result;
+	
 	{
-		if (m_pool[i].capacity >= minSize && m_pool[i].capacity < bestCapacity)
-		{
-			bestIndex = i;
-			bestCapacity = m_pool[i].capacity;
+		std::lock_guard<std::mutex> lock(m_mutex);
 
-			if (bestCapacity == minSize)
-				break;
+		// m_pool is maintained in sorted order by capacity.
+		// Use lower_bound to find the first buffer that is large enough.
+		auto it = std::lower_bound(m_pool.begin(), m_pool.end(), minSize,
+			[](const TPooledBuffer& a, size_t val) {
+				return a.capacity < val;
+			});
+
+		if (it != m_pool.end())
+		{
+			result = std::move(it->buffer);
+			m_totalPooledMemory -= it->capacity;
+			m_pool.erase(it);
+		}
+		else
+		{
+			m_totalAllocated++;
 		}
 	}
 
-	if (bestIndex != SIZE_MAX)
+	if (result.capacity() >= minSize)
 	{
-		std::vector<uint8_t> result = std::move(m_pool[bestIndex].buffer);
-		m_pool.erase(m_pool.begin() + bestIndex);
 		result.clear();
 		return result;
 	}
 
 	std::vector<uint8_t> newBuffer;
 	newBuffer.reserve(minSize);
-	m_totalAllocated++;
 	return newBuffer;
 }
 
@@ -51,26 +55,48 @@ void CBufferPool::Release(std::vector<uint8_t>&& buffer)
 
 	if (capacity == 0 || capacity > MAX_BUFFER_SIZE)
 	{
+		// Destructor of 'buffer' runs here, outside the lock, freeing memory.
 		return;
 	}
 
-	std::lock_guard<std::mutex> lock(m_mutex);
+	TPooledBuffer newPooledBuf(std::move(buffer));
+	std::vector<uint8_t> toDiscard;
 
-	if (m_pool.size() >= MAX_POOL_SIZE)
 	{
-		auto smallest = std::min_element(m_pool.begin(), m_pool.end(),
-			[](const TPooledBuffer& a, const TPooledBuffer& b) {
-				return a.capacity < b.capacity;
+		std::lock_guard<std::mutex> lock(m_mutex);
+
+		auto it = std::lower_bound(m_pool.begin(), m_pool.end(), capacity,
+			[](const TPooledBuffer& a, size_t val) {
+				return a.capacity < val;
 			});
 
-		if (smallest != m_pool.end() && smallest->capacity < capacity)
+		if (m_pool.size() >= MAX_POOL_SIZE)
 		{
-			*smallest = TPooledBuffer(std::move(buffer));
+			// Since pool is sorted, the smallest is at m_pool.front().
+			if (capacity <= m_pool.front().capacity)
+			{
+				// New buffer is smaller or equal to the smallest, discard it.
+				// By swapping, we delay destruction until after unlocking.
+				toDiscard = std::move(newPooledBuf.buffer);
+				return;
+			}
+			
+			// Discard the smallest and insert the new one.
+			toDiscard = std::move(m_pool.front().buffer);
+			m_totalPooledMemory -= m_pool.front().capacity;
+			m_pool.erase(m_pool.begin());
+			
+			// Need to re-calculate iterator because erase invalidated it.
+			it = std::lower_bound(m_pool.begin(), m_pool.end(), capacity,
+				[](const TPooledBuffer& a, size_t val) {
+					return a.capacity < val;
+				});
 		}
-		return;
-	}
 
-	m_pool.emplace_back(std::move(buffer));
+		m_totalPooledMemory += capacity;
+		m_pool.insert(it, std::move(newPooledBuf));
+	}
+	// 'toDiscard' and 'newPooledBuf' memory freed here, outside lock.
 }
 
 size_t CBufferPool::GetPoolSize() const
@@ -88,16 +114,16 @@ size_t CBufferPool::GetTotalAllocated() const
 size_t CBufferPool::GetTotalMemoryPooled() const
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-	size_t total = 0;
-	for (const auto& buf : m_pool)
-	{
-		total += buf.capacity;
-	}
-	return total;
+	return m_totalPooledMemory;
 }
 
 void CBufferPool::Clear()
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
-	m_pool.clear();
+	std::vector<TPooledBuffer> oldPool;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		oldPool = std::move(m_pool);
+		m_totalPooledMemory = 0;
+	}
+	// Memory for oldPool elements freed here, outside lock.
 }
