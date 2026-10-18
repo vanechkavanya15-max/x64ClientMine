@@ -330,10 +330,16 @@ void CGrannyModel::Destroy()
 	m_kMtrlPal.Clear();
 	
 	if (m_meshNodes)
+	{
 		delete [] m_meshNodes;
+		m_meshNodes = NULL;
+	}
 
 	if (m_meshs)
+	{
 		delete [] m_meshs;
+		m_meshs = NULL;
+	}
 
 	m_pntVtxBuf.Destroy();
 	m_deformVtxBuf.Destroy();

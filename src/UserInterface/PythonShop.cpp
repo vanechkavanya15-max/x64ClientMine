@@ -109,7 +109,21 @@ void CPythonShop::ClearPrivateShopStock()
 }
 void CPythonShop::AddPrivateShopItemStock(TItemPos ItemPos, uint8_t dwDisplayPos, DWORD dwPrice)
 {
+	if (dwDisplayPos >= SHOP_HOST_ITEM_MAX_NUM)
+	{
+		TraceError("AddPrivateShopItemStock: Out of bounds display_pos (%u)", dwDisplayPos);
+		return;
+	}
+
 	DelPrivateShopItemStock(ItemPos);
+
+	for (auto it = m_PrivateShopItemStock.begin(); it != m_PrivateShopItemStock.end(); )
+	{
+		if (it->second.display_pos == dwDisplayPos)
+			it = m_PrivateShopItemStock.erase(it);
+		else
+			++it;
+	}
 
 	TShopItemTable SellingItem;
 	SellingItem.vnum = 0;
@@ -126,7 +140,7 @@ void CPythonShop::DelPrivateShopItemStock(TItemPos ItemPos)
 
 	m_PrivateShopItemStock.erase(ItemPos);
 }
-int CPythonShop::GetPrivateShopItemPrice(TItemPos ItemPos)
+int64_t CPythonShop::GetPrivateShopItemPrice(TItemPos ItemPos)
 {
 	TPrivateShopItemStock::iterator itor = m_PrivateShopItemStock.find(ItemPos);
 
@@ -134,7 +148,7 @@ int CPythonShop::GetPrivateShopItemPrice(TItemPos ItemPos)
 		return 0;
 
 	TShopItemTable & rShopItemTable = itor->second;
-	return rShopItemTable.price;
+	return static_cast<int64_t>(rShopItemTable.price);
 }
 struct ItemStockSortFunc
 {
@@ -293,9 +307,9 @@ PyObject * shopGetItemPrice(PyObject * poSelf, PyObject * poArgs)
 
 	const TShopItemData * c_pItemData = nullptr;
 	if (CPythonShop::Instance().GetItemData(iIndex, &c_pItemData))
-		return Py_BuildValue("i", c_pItemData->price);
+		return Py_BuildValue("K", static_cast<unsigned long long>(c_pItemData->price));
 
-	return Py_BuildValue("i", 0);
+	return Py_BuildValue("K", 0ULL);
 }
 
 PyObject * shopGetItemMetinSocket(PyObject * poSelf, PyObject * poArgs)
@@ -343,14 +357,20 @@ PyObject * shopAddPrivateShopItemStock(PyObject * poSelf, PyObject * poArgs)
 	uint32_t bItemWindowType = 0;
 	uint32_t wItemSlotIndex = 0;
 	int32_t iDisplaySlotIndex = 0;
-	int32_t iPrice = 0;
+	int64_t iPrice = 0;
 	if (!PyBridge::ExtractArgs(poArgs, bItemWindowType, wItemSlotIndex, iDisplaySlotIndex, iPrice))
+		return Py_BuildException();
+
+	if (iDisplaySlotIndex < 0 || iDisplaySlotIndex >= SHOP_HOST_ITEM_MAX_NUM)
+		return Py_BuildException();
+
+	if (iPrice < 0)
 		return Py_BuildException();
 
 	CPythonShop::Instance().AddPrivateShopItemStock(
 		TItemPos(static_cast<uint8_t>(bItemWindowType), static_cast<WORD>(wItemSlotIndex)),
 		static_cast<uint8_t>(iDisplaySlotIndex),
-		static_cast<DWORD>(iPrice));
+		static_cast<DWORD>(iPrice & 0xFFFFFFFF));
 	return Py_BuildNone();
 }
 
@@ -373,9 +393,9 @@ PyObject * shopGetPrivateShopItemPrice(PyObject * poSelf, PyObject * poArgs)
 	if (!PyBridge::ExtractArgs(poArgs, bItemWindowType, wItemSlotIndex))
 		return Py_BuildException();
 
-	int iValue = CPythonShop::Instance().GetPrivateShopItemPrice(
+	int64_t iValue = CPythonShop::Instance().GetPrivateShopItemPrice(
 		TItemPos(static_cast<uint8_t>(bItemWindowType), static_cast<WORD>(wItemSlotIndex)));
-	return Py_BuildValue("i", iValue);
+	return Py_BuildValue("K", static_cast<unsigned long long>(iValue));
 }
 
 PyObject * shopBuildPrivateShop(PyObject * poSelf, PyObject * poArgs)

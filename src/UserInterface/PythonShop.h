@@ -31,7 +31,7 @@ class CPythonShop : public CSingleton<CPythonShop>
 		void SetItemData(uint8_t tabIdx, DWORD dwSlotPos, const TShopItemData & c_rShopItemData);
 		BOOL GetItemData(uint8_t tabIdx, DWORD dwSlotPos, const TShopItemData ** c_ppItemData);
 		
-		void SetTabCount(uint8_t bTabCount) { m_bTabCount = bTabCount; }
+		void SetTabCount(uint8_t bTabCount) { m_bTabCount = (bTabCount <= SHOP_TAB_COUNT_MAX) ? bTabCount : SHOP_TAB_COUNT_MAX; }
 		uint8_t GetTabCount() { return m_bTabCount; }
 
 		void SetTabCoinType(uint8_t tabIdx, uint8_t coinType);
@@ -52,7 +52,7 @@ class CPythonShop : public CSingleton<CPythonShop>
 		void ClearPrivateShopStock();
 		void AddPrivateShopItemStock(TItemPos ItemPos, uint8_t byDisplayPos, DWORD dwPrice);
 		void DelPrivateShopItemStock(TItemPos ItemPos);
-		int GetPrivateShopItemPrice(TItemPos ItemPos);
+		int64_t GetPrivateShopItemPrice(TItemPos ItemPos);
 		void BuildPrivateShop(const char * c_szName);
 
 	protected:

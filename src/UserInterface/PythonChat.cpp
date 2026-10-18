@@ -544,9 +544,16 @@ void CPythonChat::AppendChat(int iType, const char * c_szChat)
 	m_ChatLineDeque.push_back(pChatLine);
 	if (m_ChatLineDeque.size() > CHAT_LINE_MAX_NUM)
 	{
-		SChatLine * pChatLine = m_ChatLineDeque.front();
-		SChatLine::Delete(pChatLine);
+		SChatLine * pOldestChatLine = m_ChatLineDeque.front();
 		m_ChatLineDeque.pop_front();
+
+		m_ShowingChatLineList.remove(pOldestChatLine);
+		for (auto& pair : m_ChatSetMap)
+		{
+			pair.second.m_ShowingChatLineList.remove(pOldestChatLine);
+		}
+
+		SChatLine::Delete(pOldestChatLine);
 	}
 
 	for (TChatSetMap::iterator itor = m_ChatSetMap.begin(); itor != m_ChatSetMap.end(); ++itor)
@@ -561,10 +568,13 @@ void CPythonChat::AppendChat(int iType, const char * c_szChat)
 		}
 		else// if (BOARD_STATE_VIEW == pChatSet->m_iBoardState)
 		{
-			pChatSet->m_ShowingChatLineList.push_back(pChatLine);
-			if (pChatSet->m_ShowingChatLineList.size() > CHAT_LINE_MAX_NUM)
+			if (pChatSet->CheckMode(iType))
 			{
-				pChatSet->m_ShowingChatLineList.pop_front();
+				pChatSet->m_ShowingChatLineList.push_back(pChatLine);
+				if (pChatSet->m_ShowingChatLineList.size() > CHAT_LINE_MAX_NUM)
+				{
+					pChatSet->m_ShowingChatLineList.pop_front();
+				}
 			}
 		}
 	}
@@ -616,6 +626,10 @@ BOOL CPythonChat::IsIgnoreCharacter(const char * c_szName)
 
 CWhisper * CPythonChat::CreateWhisper(const char * c_szName)
 {
+	TWhisperMap::iterator itor = m_WhisperMap.find(c_szName);
+	if (itor != m_WhisperMap.end())
+		return itor->second;
+
 	CWhisper * pWhisper = CWhisper::New();
 	m_WhisperMap.insert(TWhisperMap::value_type(c_szName, pWhisper));
 	return pWhisper;
@@ -703,7 +717,13 @@ void CPythonChat::Destroy()
 	__DestroyWhisperMap();	
 
 	m_ShowingChatLineList.clear();
+	for (auto& pair : m_ChatSetMap)
+	{
+		pair.second.m_ShowingChatLineList.clear();
+	}
 	m_ChatSetMap.clear();
+
+	std::for_each(m_ChatLineDeque.begin(), m_ChatLineDeque.end(), SChatLine::Delete);
 	m_ChatLineDeque.clear();
 
 	SChatLine::DestroySystem();
@@ -839,6 +859,12 @@ void CWhisper::AppendChat(int iType, const char * c_szChat)
 	}
 
 	m_ChatLineDeque.push_back(pChatLine);
+	if (m_ChatLineDeque.size() > WHISPER_LINE_MAX_NUM)
+	{
+		SChatLine * pOldest = m_ChatLineDeque.front();
+		m_ChatLineDeque.pop_front();
+		SChatLine::Delete(pOldest);
+	}
 
 	__ArrangeChat();
 }

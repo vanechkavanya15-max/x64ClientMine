@@ -1,6 +1,6 @@
 #pragma once
 #include <unordered_map>
-#include <mutex>
+#include <shared_mutex>
 
 #include "EterBase/Singleton.h"
 #include "Pack.h"
@@ -35,7 +35,7 @@ private:
 	std::vector<std::string> m_packNames;
 	mutable std::string m_assetBasePath;
 	CBufferPool* m_pBufferPool;
-	mutable std::mutex m_mutex;  // Thread safety for parallel pack loading
+	mutable std::shared_mutex m_mutex;  // Thread safety for parallel pack loading
 
 	mutable bool m_assetIndexBuilt = false;
 	mutable std::unordered_map<std::string, std::string> m_assetFileIndex;

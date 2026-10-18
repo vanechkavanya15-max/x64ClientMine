@@ -265,16 +265,20 @@ BOOL CRaceMotionData::GetMotionEventDataPointer(BYTE byIndex, const CRaceMotionD
 
 BOOL CRaceMotionData::GetMotionAttackingEventDataPointer(BYTE byIndex, const CRaceMotionData::TMotionAttackingEventData ** c_ppData) const
 {
+	if (!c_ppData)
+		return FALSE;
+
 	if (byIndex >= m_MotionEventDataVector.size())
 		return FALSE;
 
 	const CRaceMotionData::TMotionEventData * pData = m_MotionEventDataVector[byIndex];
-	const CRaceMotionData::TMotionAttackingEventData * pAttackingEvent = (const CRaceMotionData::TMotionAttackingEventData *)pData;
-
-	if (MOTION_EVENT_TYPE_SPECIAL_ATTACKING == pAttackingEvent->iType)
+	if (!pData)
 		return FALSE;
 
-	*c_ppData = pAttackingEvent;
+	if (MOTION_EVENT_TYPE_SPECIAL_ATTACKING != pData->iType)
+		return FALSE;
+
+	*c_ppData = static_cast<const CRaceMotionData::TMotionAttackingEventData *>(pData);
 
 	return TRUE;
 }

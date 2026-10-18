@@ -125,7 +125,10 @@ bool CPythonPlayer::RegisterEffect(DWORD dwEID, const char* c_szFileName, bool i
 
 void CPythonPlayer::NEW_ShowEffect(int dwEID, TPixelPosition kPPosDst)
 {
-	if (dwEID>=EFFECT_NUM)
+	if (dwEID < 0 || dwEID >= EFFECT_NUM)
+		return;
+
+	if (m_adwEffect[dwEID] == 0)
 		return;
 
 	D3DXVECTOR3 kD3DVt3Pos(kPPosDst.x, -kPPosDst.y, kPPosDst.z);
@@ -697,6 +700,8 @@ void CPythonPlayer::Clear()
 	GetInventoryDomain().Clear();
 	m_quickslotManager.Clear();
 	memset(m_itemDataCompat, 0, sizeof(m_itemDataCompat));
+	memset(m_equipItemDataCompat, 0, sizeof(m_equipItemDataCompat));
+	memset(m_beltItemDataCompat, 0, sizeof(m_beltItemDataCompat));
 	memset(m_dsItemDataCompat, 0, sizeof(m_dsItemDataCompat));
 	Client::Bridge::StranglerFacade::Instance().GetWorldContext().Reset();
 	UserInterface::Services::PlayerStatsService::Instance().Clear();

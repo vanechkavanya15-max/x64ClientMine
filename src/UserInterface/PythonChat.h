@@ -6,6 +6,11 @@
 class CWhisper
 {
 	public:
+		enum
+		{
+			WHISPER_LINE_MAX_NUM = 300,
+		};
+
 		typedef struct SChatLine
 		{
 			CGraphicTextInstance Instance;

@@ -7680,6 +7680,12 @@ target_include_directories(test_map_outdoor PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
 )
 target_link_libraries(test_map_outdoor PRIVATE
+    GameLib
+    PRTerrainLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EffectLib
     Client2026
     EterLib
     EterBase
@@ -7688,6 +7694,9 @@ target_link_libraries(test_map_outdoor PRIVATE
     lzo2
     mio
     ws2_32
+    DirectX
+    Dbghelp
+    freetype
 )
 add_test(NAME test_map_outdoor COMMAND test_map_outdoor)
 

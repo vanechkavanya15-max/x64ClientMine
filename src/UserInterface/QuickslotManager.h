@@ -50,7 +50,7 @@ public:
     [[nodiscard]] TQuickSlot & RefGlobalQuickSlot(int SlotIndex);
 
     // Operacje modyfikacji slotow (np. pakiety z serwera)
-    void AddQuickSlot(int QuickslotIndex, char IconType, char IconPosition);
+    void AddQuickSlot(int QuickslotIndex, BYTE IconType, BYTE IconPosition);
     void DeleteQuickSlot(int QuickslotIndex);
     void MoveQuickSlot(int Source, int Target);
     void RemoveQuickSlotByValue(int iType, int iPosition);

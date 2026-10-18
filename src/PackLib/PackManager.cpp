@@ -74,7 +74,7 @@ bool CPackManager::AddPack(const std::string& path)
 		return false;
 	}
 
-	std::lock_guard<std::mutex> lock(m_mutex);
+	std::unique_lock<std::shared_mutex> lock(m_mutex);
 
 	// Rejestracja nazwy paczki
 	std::string packName = pack->GetPackName();
@@ -148,7 +148,13 @@ static bool DiskFileExists(const std::string& fullPath)
 
 void CPackManager::EnsureAssetIndexBuilt() const
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
+	{
+		std::shared_lock<std::shared_mutex> lock(m_mutex);
+		if (m_assetIndexBuilt)
+			return;
+	}
+
+	std::unique_lock<std::shared_mutex> lock(m_mutex);
 	if (m_assetIndexBuilt)
 		return;
 
@@ -188,7 +194,7 @@ std::string CPackManager::ResolveDiskPath(const std::string& clean, const std::s
 	std::string cacheKey = preferredPack.empty() ? clean : (preferredPack + "#" + clean);
 
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::shared_lock<std::shared_mutex> lock(m_mutex);
 		auto it = m_diskPathCache.find(cacheKey);
 		if (it != m_diskPathCache.end())
 		{
@@ -218,7 +224,12 @@ std::string CPackManager::ResolveDiskPath(const std::string& clean, const std::s
 	// 3. assets/<pack>/<clean>
 	if (resolvedPath.empty())
 	{
-		for (auto rit = m_packNames.rbegin(); rit != m_packNames.rend(); ++rit)
+		std::vector<std::string> packNames;
+		{
+			std::shared_lock<std::shared_mutex> lock(m_mutex);
+			packNames = m_packNames;
+		}
+		for (auto rit = packNames.rbegin(); rit != packNames.rend(); ++rit)
 		{
 			if (*rit == preferredPack)
 				continue;
@@ -232,7 +243,7 @@ std::string CPackManager::ResolveDiskPath(const std::string& clean, const std::s
 		}
 	}
 
-	std::lock_guard<std::mutex> lock(m_mutex);
+	std::unique_lock<std::shared_mutex> lock(m_mutex);
 	m_diskPathCache[cacheKey] = resolvedPath;
 	return resolvedPath;
 }
@@ -288,9 +299,20 @@ bool CPackManager::GetFileWithPool(std::string_view path, TPackFile& result, CBu
 	auto tryLoad = [&](const std::string& targetPath, const std::string& preferredPack = "") -> bool {
 		// 1. Sprawdz wpisy w paczkach VFS
 		if (m_load_from_pack) {
-			auto it = m_entries.find(targetPath);
-			if (it != m_entries.end()) {
-				return it->second.first->GetFileWithPool(it->second.second, result, pPool);
+			std::shared_ptr<CPack> targetPack;
+			TPackFileEntry targetEntry;
+			bool found = false;
+			{
+				std::shared_lock<std::shared_mutex> lock(m_mutex);
+				auto it = m_entries.find(targetPath);
+				if (it != m_entries.end()) {
+					targetPack = it->second.first;
+					targetEntry = it->second.second;
+					found = true;
+				}
+			}
+			if (found && targetPack) {
+				return targetPack->GetFileWithPool(targetEntry, result, pPool);
 			}
 		}
 
@@ -307,24 +329,25 @@ bool CPackManager::GetFileWithPool(std::string_view path, TPackFile& result, CBu
 		return false;
 	};
 
+	auto getPreferredPack = [&](const std::string& key) -> std::string {
+		std::shared_lock<std::shared_mutex> lock(m_mutex);
+		auto it = m_entries.find(key);
+		if (it != m_entries.end() && it->second.first) {
+			return it->second.first->GetPackName();
+		}
+		return {};
+	};
+
 	// 1. Transparent migration: gdy proszony jest stary format .gr2, laduj wylacznie nowoczesny model .glb
 	if (buf.size() > 4 && buf.ends_with(".gr2")) {
-		std::string preferredPack;
-		auto it = m_entries.find(buf);
-		if (it != m_entries.end() && it->second.first) {
-			preferredPack = it->second.first->GetPackName();
-		}
+		std::string preferredPack = getPreferredPack(buf);
 		std::string glbPath = buf.substr(0, buf.size() - 4) + ".glb";
 		return tryLoad(glbPath, preferredPack);
 	}
 
 	// 2. Gdy proszony jest .glb, laduj wylacznie .glb (brak fallbacku do legacy .gr2)
 	if (buf.size() > 4 && buf.ends_with(".glb")) {
-		std::string preferredPack;
-		auto it = m_entries.find(buf);
-		if (it != m_entries.end() && it->second.first) {
-			preferredPack = it->second.first->GetPackName();
-		}
+		std::string preferredPack = getPreferredPack(buf);
 		return tryLoad(buf, preferredPack);
 	}
 
@@ -338,11 +361,7 @@ bool CPackManager::GetFileWithPool(std::string_view path, TPackFile& result, CBu
 		}
 	}
 
-	std::string preferredPack;
-	auto it = m_entries.find(buf);
-	if (it != m_entries.end() && it->second.first) {
-		preferredPack = it->second.first->GetPackName();
-	}
+	std::string preferredPack = getPreferredPack(buf);
 
 	if (!curTexExt.empty()) {
 		if (tryLoad(buf, preferredPack))
@@ -369,8 +388,18 @@ bool CPackManager::IsExist(std::string_view path) const
 	if (buf.empty())
 		return false;
 
+	auto getPreferredPack = [&](const std::string& key) -> std::string {
+		std::shared_lock<std::shared_mutex> lock(m_mutex);
+		auto it = m_entries.find(key);
+		if (it != m_entries.end() && it->second.first) {
+			return it->second.first->GetPackName();
+		}
+		return {};
+	};
+
 	auto checkExist = [&](const std::string& targetPath, const std::string& preferredPack = "") -> bool {
 		if (m_load_from_pack) {
+			std::shared_lock<std::shared_mutex> lock(m_mutex);
 			if (m_entries.find(targetPath) != m_entries.end())
 				return true;
 		}
@@ -385,22 +414,14 @@ bool CPackManager::IsExist(std::string_view path) const
 
 	// 1. Transparent migration check dla .gr2: sprawdzaj wylacznie .glb
 	if (buf.size() > 4 && buf.ends_with(".gr2")) {
-		std::string preferredPack;
-		auto it = m_entries.find(buf);
-		if (it != m_entries.end() && it->second.first) {
-			preferredPack = it->second.first->GetPackName();
-		}
+		std::string preferredPack = getPreferredPack(buf);
 		std::string glbPath = buf.substr(0, buf.size() - 4) + ".glb";
 		return checkExist(glbPath, preferredPack);
 	}
 
 	// 2. Transparent migration check dla .glb: sprawdzaj wylacznie .glb (brak fallbacku do .gr2)
 	if (buf.size() > 4 && buf.ends_with(".glb")) {
-		std::string preferredPack;
-		auto it = m_entries.find(buf);
-		if (it != m_entries.end() && it->second.first) {
-			preferredPack = it->second.first->GetPackName();
-		}
+		std::string preferredPack = getPreferredPack(buf);
 		return checkExist(buf, preferredPack);
 	}
 
@@ -414,11 +435,7 @@ bool CPackManager::IsExist(std::string_view path) const
 		}
 	}
 
-	std::string preferredPack;
-	auto it = m_entries.find(buf);
-	if (it != m_entries.end() && it->second.first) {
-		preferredPack = it->second.first->GetPackName();
-	}
+	std::string preferredPack = getPreferredPack(buf);
 
 	if (!curTexExt.empty()) {
 		if (checkExist(buf, preferredPack))

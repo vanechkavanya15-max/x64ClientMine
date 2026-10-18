@@ -203,7 +203,7 @@ PyObject * questGetQuestData(PyObject * poSelf, PyObject * poArgs)
 	}
 
 	return Py_BuildValue("sKsi",	pQuestInstance->strTitle.c_str(),
-									pImage,
+									static_cast<unsigned PY_LONG_LONG>(reinterpret_cast<uintptr_t>(pImage)),
 									pQuestInstance->strCounterName.c_str(),
 									pQuestInstance->iCounterValue);
 }

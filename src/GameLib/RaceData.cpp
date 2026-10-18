@@ -40,6 +40,9 @@ CRaceData::SHair* CRaceData::FindHair(UINT eHair)
 
 void CRaceData::SetHairSkin(UINT eHair, UINT ePart, const char * c_szModelFileName, const char* c_szSrcFileName, const char* c_szDstFileName)
 {
+	if (ePart >= PART_MAX_NUM)
+		return;
+
 	SSkin kSkin;
 	kSkin.m_ePart=ePart;
 	kSkin.m_stSrcFileName=c_szSrcFileName;
@@ -66,6 +69,9 @@ void CRaceData::SetShapeModel(UINT eShape, const char* c_szModelFileName)
 
 void CRaceData::AppendShapeSkin(UINT eShape, UINT ePart, const char* c_szSrcFileName, const char* c_szDstFileName)
 {
+	if (ePart >= PART_MAX_NUM)
+		return;
+
 	SSkin kSkin;
 	kSkin.m_ePart=ePart;
 	kSkin.m_stSrcFileName=c_szSrcFileName;
@@ -281,7 +287,10 @@ void CRaceData::SetRace(DWORD dwRaceIndex)
 
 void CRaceData::RegisterAttachingBoneName(DWORD dwPartIndex, const char * c_szBoneName)
 {
-	m_AttachingBoneNameMap.insert(TAttachingBoneNameMap::value_type(dwPartIndex, c_szBoneName));
+	if (dwPartIndex >= PART_MAX_NUM || !c_szBoneName)
+		return;
+
+	m_AttachingBoneNameMap[dwPartIndex] = c_szBoneName;
 }
 
 void CRaceData::RegisterMotionMode(WORD wMotionModeIndex)
@@ -517,6 +526,9 @@ CAttributeData * CRaceData::GetAttributeDataPtr()
 
 BOOL CRaceData::GetAttachingBoneName(DWORD dwPartIndex, const char ** c_pszBoneName)
 {
+	if (!c_pszBoneName || dwPartIndex >= PART_MAX_NUM)
+		return FALSE;
+
 	TAttachingBoneNameMap::iterator itor = m_AttachingBoneNameMap.find(dwPartIndex);
 	if (itor == m_AttachingBoneNameMap.end())
 		return FALSE;

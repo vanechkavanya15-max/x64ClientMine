@@ -186,9 +186,37 @@ void CPythonPlayerEventHandler::OnHit(UINT uSkill, CActorInstance& rkActorVictim
 	victim.pixelX = long(kPPosLast.x);
 	victim.pixelY = long(kPPosLast.y);
 
+	// Zabezpieczenie przed nadmiernym odepchnieciem i desynchronizacja mobow (rubberbanding)
+	const TPixelPosition& kPPosCur = rkActorVictim.NEW_GetCurPixelPositionRef();
+	float fPushDx = kPPosLast.x - kPPosCur.x;
+	float fPushDy = kPPosLast.y - kPPosCur.y;
+	float fPushDistSq = fPushDx * fPushDx + fPushDy * fPushDy;
+	constexpr float MAX_PUSH_DISTANCE = 500.0f;
+	if (fPushDistSq > MAX_PUSH_DISTANCE * MAX_PUSH_DISTANCE)
+	{
+		float fScale = MAX_PUSH_DISTANCE / sqrtf(fPushDistSq);
+		victim.pixelX = long(kPPosCur.x + fPushDx * fScale);
+		victim.pixelY = long(kPPosCur.y + fPushDy * fScale);
+	}
+
 	rkActorVictim.TEMP_Push(victim.pixelX, victim.pixelY);
 
-	m_victimInstances.push_back(victim);
+	// Deduplikacja ofiar w buforze synchronizacji pozycji
+	bool bVictimFound = false;
+	for (auto& rExistingVictim : m_victimInstances)
+	{
+		if (rExistingVictim.vid == dwVIDVictim)
+		{
+			rExistingVictim.pixelX = victim.pixelX;
+			rExistingVictim.pixelY = victim.pixelY;
+			bVictimFound = true;
+			break;
+		}
+	}
+	if (!bVictimFound)
+	{
+		m_victimInstances.push_back(victim);
+	}
 }
 
 void CPythonPlayerEventHandler::FlushVictimList()
@@ -196,21 +224,27 @@ void CPythonPlayerEventHandler::FlushVictimList()
 	if (m_victimInstances.empty())
 		return;
 
-	constexpr unsigned int SYNC_POSITION_COUNT_LIMIT = 16;
-	unsigned int victimCount = std::min<unsigned int>(static_cast<unsigned int>(m_victimInstances.size()), SYNC_POSITION_COUNT_LIMIT);
+	constexpr size_t SYNC_POSITION_COUNT_LIMIT = 16;
+	CPythonNetworkStream& rkStream = CPythonNetworkStream::Instance();
 
-	CPythonNetworkStream& rkStream=CPythonNetworkStream::Instance();
-
-	TPacketCGSyncPosition kPacketSyncPos;
-	kPacketSyncPos.header=CG::SYNC_POSITION;
-	kPacketSyncPos.length=sizeof(kPacketSyncPos)+sizeof(TPacketCGSyncPositionElement) * victimCount;
-
-	rkStream.Send(sizeof(kPacketSyncPos), &kPacketSyncPos);
-
-	for (unsigned int i = 0; i < victimCount; ++i)
+	size_t offset = 0;
+	while (offset < m_victimInstances.size())
 	{
-		const SVictim& rkVictim = m_victimInstances[i];
-		rkStream.SendSyncPositionElementPacket(rkVictim.vid, rkVictim.pixelX, rkVictim.pixelY);		
+		const size_t batchCount = std::min(m_victimInstances.size() - offset, SYNC_POSITION_COUNT_LIMIT);
+
+		TPacketCGSyncPosition kPacketSyncPos{};
+		kPacketSyncPos.header = CG::SYNC_POSITION;
+		kPacketSyncPos.length = static_cast<WORD>(sizeof(kPacketSyncPos) + sizeof(TPacketCGSyncPositionElement) * batchCount);
+
+		rkStream.Send(sizeof(kPacketSyncPos), &kPacketSyncPos);
+
+		for (size_t i = 0; i < batchCount; ++i)
+		{
+			const SVictim& rkVictim = m_victimInstances[offset + i];
+			rkStream.SendSyncPositionElementPacket(rkVictim.vid, rkVictim.pixelX, rkVictim.pixelY);
+		}
+
+		offset += batchCount;
 	}
 
 	m_victimInstances.clear();

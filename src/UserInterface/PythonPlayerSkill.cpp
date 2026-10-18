@@ -794,6 +794,12 @@ bool CPythonPlayer::__UseSkill(DWORD dwSlotIndex)
 
 void CPythonPlayer::__SendUseSkill(DWORD dwSkillSlotIndex, DWORD dwTargetVID)
 {
+	if (dwSkillSlotIndex >= SKILL_MAX_NUM)
+	{
+		TraceError("CPythonPlayer::__SendUseSkill - Out of bounds slot index: %u", dwSkillSlotIndex);
+		return;
+	}
+
 	TSkillInstance & rkSkillInst = m_aSkill[dwSkillSlotIndex];
 
 	CPythonNetworkStream& rkNetStream=CPythonNetworkStream::Instance();
@@ -804,6 +810,9 @@ void CPythonPlayer::__SendUseSkill(DWORD dwSkillSlotIndex, DWORD dwTargetVID)
 
 BYTE CPythonPlayer::__GetSkillType(DWORD dwSkillSlotIndex)
 {
+	if (dwSkillSlotIndex >= SKILL_MAX_NUM)
+		return 0;
+
 	TSkillInstance & rkSkillInst = m_aSkill[dwSkillSlotIndex];
 
 	CPythonSkill::TSkillData * pkSkillData;
@@ -818,6 +827,9 @@ BYTE CPythonPlayer::__GetSkillType(DWORD dwSkillSlotIndex)
 
 void CPythonPlayer::__RunCoolTime(DWORD dwSkillSlotIndex)
 {
+	if (dwSkillSlotIndex >= SKILL_MAX_NUM)
+		return;
+
 	TSkillInstance & rkSkillInst = m_aSkill[dwSkillSlotIndex];
 
 	CPythonSkill::TSkillData * pkSkillData;
@@ -864,6 +876,11 @@ bool CPythonPlayer::__HasItem(DWORD dwItemID)
 	for (int i = 0; i < c_Inventory_Count; ++i)
 	{
 		if (dwItemID == GetItemIndex(TItemPos (INVENTORY, i)))
+			return true;
+	}
+	for (int i = 0; i < Client::Gameplay::InventoryDomain::BELT_INVENTORY_MAX_NUM; ++i)
+	{
+		if (dwItemID == GetItemIndex(TItemPos(BELT_INVENTORY, i)))
 			return true;
 	}
 	for (int i = 0; i < c_DragonSoul_Inventory_Count; ++i)

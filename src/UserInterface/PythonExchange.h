@@ -23,7 +23,7 @@ class CPythonExchange : public CSingleton<CPythonExchange>
 			TPlayerItemAttribute	item_attr[EXCHANGE_ITEM_MAX_NUM][ITEM_ATTRIBUTE_SLOT_MAX_NUM];
 
 			BYTE					accept;
-			DWORD					elk;
+			uint64_t				elk;
 		} TExchangeData;
 
 	public:
@@ -41,14 +41,14 @@ class CPythonExchange : public CSingleton<CPythonExchange>
 		void			SetSelfName(const char *name);
 		void			SetTargetName(const char *name);
 
-		char			*GetNameFromSelf();
-		char			*GetNameFromTarget();
+		const char *	GetNameFromSelf() const;
+		const char *	GetNameFromTarget() const;
 
-		void			SetElkToTarget(DWORD elk);
-		void			SetElkToSelf(DWORD elk);
+		void			SetElkToTarget(uint64_t elk);
+		void			SetElkToSelf(uint64_t elk);
 
-		DWORD			GetElkFromTarget();
-		DWORD			GetElkFromSelf();
+		uint64_t		GetElkFromTarget() const;
+		uint64_t		GetElkFromSelf() const;
 
 		void			SetItemToTarget(DWORD pos, DWORD vnum, BYTE count);
 		void			SetItemToSelf(DWORD pos, DWORD vnum, BYTE count);
@@ -62,26 +62,29 @@ class CPythonExchange : public CSingleton<CPythonExchange>
 		void			DelItemOfTarget(BYTE pos);
 		void			DelItemOfSelf(BYTE pos);
 
-		DWORD			GetItemVnumFromTarget(BYTE pos);
-		DWORD			GetItemVnumFromSelf(BYTE pos);
+		DWORD			GetItemVnumFromTarget(BYTE pos) const;
+		DWORD			GetItemVnumFromSelf(BYTE pos) const;
 
-		BYTE			GetItemCountFromTarget(BYTE pos);
-		BYTE			GetItemCountFromSelf(BYTE pos);
+		BYTE			GetItemCountFromTarget(BYTE pos) const;
+		BYTE			GetItemCountFromSelf(BYTE pos) const;
 
-		DWORD			GetItemMetinSocketFromTarget(BYTE pos, int iMetinSocketPos);
-		DWORD			GetItemMetinSocketFromSelf(BYTE pos, int iMetinSocketPos);
+		DWORD			GetItemMetinSocketFromTarget(BYTE pos, int iMetinSocketPos) const;
+		DWORD			GetItemMetinSocketFromSelf(BYTE pos, int iMetinSocketPos) const;
 
-		void			GetItemAttributeFromTarget(BYTE pos, int iAttrPos, BYTE * pbyType, short * psValue);
-		void			GetItemAttributeFromSelf(BYTE pos, int iAttrPos, BYTE * pbyType, short * psValue);
+		void			GetItemAttributeFromTarget(BYTE pos, int iAttrPos, BYTE * pbyType, short * psValue) const;
+		void			GetItemAttributeFromSelf(BYTE pos, int iAttrPos, BYTE * pbyType, short * psValue) const;
 
 		void			SetAcceptToTarget(BYTE Accept);
 		void			SetAcceptToSelf(BYTE Accept);
 
-		bool			GetAcceptFromTarget();
-		bool			GetAcceptFromSelf();
+		bool			GetAcceptFromTarget() const;
+		bool			GetAcceptFromSelf() const;
 
-		bool			GetElkMode();
+		bool			GetElkMode() const;
 		void			SetElkMode(bool value);
+
+	protected:
+		void			InvalidateAcceptState();
 
 	protected:
 		bool				m_isTrading;

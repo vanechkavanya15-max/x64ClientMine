@@ -348,10 +348,16 @@ PyObject * chatGetLinkFromHyperlink(PyObject * poSelf, PyObject * poArgs)
 	if (!PyBridge::ExtractArgs(poArgs, szHyperlink))
 		return Py_BuildException();
 
+	if (!szHyperlink)
+		return Py_BuildValue("s", "");
+
 	std::string stHyperlink(szHyperlink);
 	std::vector<std::string> results;
 
 	split_string(stHyperlink, ":", results, false);
+
+	if (results.empty())
+		return Py_BuildValue("s", "");
 
 	// item:vnum:flag:socket0:socket1:socket2
 	if (0 == results[0].compare("item"))
@@ -364,7 +370,7 @@ PyObject * chatGetLinkFromHyperlink(PyObject * poSelf, PyObject * poArgs)
 		if (CItemManager::Instance().GetItemDataPointer(htoi(results[1].c_str()), &pItemData))
 		{
 			char buf[1024] = { 0 };
-			char itemlink[256];
+			char itemlink[512] = { 0 };
 			int len;
 			bool isAttr = false;
 
@@ -375,13 +381,23 @@ PyObject * chatGetLinkFromHyperlink(PyObject * poSelf, PyObject * poArgs)
 					htoi(results[4].c_str()),
 					htoi(results[5].c_str()));
 
+			if (len < 0 || static_cast<size_t>(len) >= sizeof(itemlink))
+				return Py_BuildValue("s", "");
+
 			if (results.size() >= 8)
 			{
-				for (int i = 6; i < results.size(); i += 2)
+				for (size_t i = 6; i + 1 < results.size(); i += 2)
 				{
-					len += snprintf(itemlink + len, sizeof(itemlink) - len, ":%x:%I64d", 
+					if (len >= static_cast<int>(sizeof(itemlink)) - 1)
+						break;
+
+					int written = snprintf(itemlink + len, sizeof(itemlink) - len, ":%x:%lld", 
 							htoi(results[i].c_str()),
-							atoi(results[i+1].c_str()));
+							static_cast<long long>(atoll(results[i+1].c_str())));
+					if (written <= 0 || written >= static_cast<int>(sizeof(itemlink) - len))
+						break;
+
+					len += written;
 					isAttr = true;
 				}
 			}

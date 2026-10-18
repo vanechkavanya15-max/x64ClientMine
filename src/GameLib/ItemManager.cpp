@@ -2,6 +2,7 @@
 #include "PackLib/PackManager.h"
 #include "EterLib/ResourceManager.h"
 #include "EterBase/lzo.h"
+#include <algorithm>
 
 #include "ItemManager.h"
 
@@ -15,20 +16,30 @@ static DWORD s_adwItemProtoKey[4] =
 
 BOOL CItemManager::SelectItemData(DWORD dwIndex)
 {
+	if (0 == dwIndex)
+		return FALSE;
+
 	TItemMap::iterator f = m_ItemMap.find(dwIndex);
 
 	if (m_ItemMap.end() == f)
 	{
-		int n = m_vec_ItemRange.size();
-		for (int i = 0; i < n; i++)
+		if (!m_vec_ItemRange.empty())
 		{
-			CItemData * p = m_vec_ItemRange[i];
-			const CItemData::TItemTable * pTable = p->GetTable(); 
-			if ((pTable->dwVnum < dwIndex) &&
-				dwIndex < (pTable->dwVnum + pTable->dwVnumRange))
+			auto it = std::upper_bound(m_vec_ItemRange.begin(), m_vec_ItemRange.end(), dwIndex,
+				[](DWORD val, const CItemData* item) {
+					return val < item->GetTable()->dwVnum;
+				});
+
+			if (it != m_vec_ItemRange.begin())
 			{
-				m_pSelectedItemData = p;
-				return TRUE;
+				--it;
+				const CItemData::TItemTable * pTable = (*it)->GetTable();
+				if ((pTable->dwVnum <= dwIndex) &&
+					dwIndex < (pTable->dwVnum + pTable->dwVnumRange))
+				{
+					m_pSelectedItemData = *it;
+					return TRUE;
+				}
 			}
 		}
 		Tracef(" CItemManager::SelectItemData - FIND ERROR [%d]\n", dwIndex);
@@ -54,16 +65,23 @@ BOOL CItemManager::GetItemDataPointer(DWORD dwItemID, CItemData ** ppItemData)
 
 	if (m_ItemMap.end() == f)
 	{
-		int n = m_vec_ItemRange.size();
-		for (int i = 0; i < n; i++)
+		if (!m_vec_ItemRange.empty())
 		{
-			CItemData * p = m_vec_ItemRange[i];
-			const CItemData::TItemTable * pTable = p->GetTable(); 
-			if ((pTable->dwVnum < dwItemID) &&
-				dwItemID < (pTable->dwVnum + pTable->dwVnumRange))
+			auto it = std::upper_bound(m_vec_ItemRange.begin(), m_vec_ItemRange.end(), dwItemID,
+				[](DWORD val, const CItemData* item) {
+					return val < item->GetTable()->dwVnum;
+				});
+
+			if (it != m_vec_ItemRange.begin())
 			{
-				*ppItemData = p;
-				return TRUE;
+				--it;
+				const CItemData::TItemTable * pTable = (*it)->GetTable();
+				if ((pTable->dwVnum <= dwItemID) &&
+					dwItemID < (pTable->dwVnum + pTable->dwVnumRange))
+				{
+					*ppItemData = *it;
+					return TRUE;
+				}
 			}
 		}
 		Tracef(" CItemManager::GetItemDataPointer - FIND ERROR [%d]\n", dwItemID);
@@ -259,6 +277,11 @@ bool CItemManager::LoadItemTable(const char* c_szFileName)
 	if (!CPackManager::Instance().GetFile(c_szFileName, file))
 		return false;
 
+	if (file.size() < sizeof(DWORD))
+		return false;
+
+	m_vec_ItemRange.clear();
+
 	DWORD dwFourCC, dwElements, dwDataSize;
 	DWORD dwVersion=0;
 	DWORD dwStride=0;
@@ -269,6 +292,9 @@ bool CItemManager::LoadItemTable(const char* c_szFileName)
 
 	if (dwFourCC == MAKEFOURCC('M', 'I', 'P', 'X'))
 	{
+		if (file.size() < (sizeof(DWORD) * 5))
+			return false;
+
 		memcpy(&dwVersion, p, sizeof(DWORD));
 		p += sizeof(DWORD);
 
@@ -293,11 +319,21 @@ bool CItemManager::LoadItemTable(const char* c_szFileName)
 		return false;
 	}
 
+	size_t headerRemaining = file.size() - (p - file.data());
+	if (headerRemaining < sizeof(DWORD) * 2)
+		return false;
+
 	memcpy(&dwElements, p, sizeof(DWORD));
 	p += sizeof(DWORD);
 
 	memcpy(&dwDataSize, p, sizeof(DWORD));
 	p += sizeof(DWORD);
+
+	if (file.size() - (p - file.data()) < dwDataSize)
+	{
+		TraceError("CPythonItem::LoadItemTable: truncated item_proto[%s] file", c_szFileName);
+		return false;
+	}
 
 	BYTE * pbData = new BYTE[dwDataSize];
 	memcpy(pbData, p, dwDataSize);
@@ -366,6 +402,10 @@ bool CItemManager::LoadItemTable(const char* c_szFileName)
 		}
 	}
 
+	std::sort(m_vec_ItemRange.begin(), m_vec_ItemRange.end(), [](const CItemData* a, const CItemData* b) {
+		return a->GetTable()->dwVnum < b->GetTable()->dwVnum;
+	});
+
 	delete [] pbData;
 	return true;
 }
@@ -377,6 +417,8 @@ void CItemManager::Destroy()
 		CItemData::Delete(i->second);
 
 	m_ItemMap.clear();
+	m_vec_ItemRange.clear();
+	m_pSelectedItemData = NULL;
 }
 
 CItemManager::CItemManager() : m_pSelectedItemData(NULL)

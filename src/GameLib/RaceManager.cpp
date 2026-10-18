@@ -259,11 +259,8 @@ bool CRaceManager::__LoadRaceMotionList(CRaceData& rkRaceData, const char* pathN
 
 	bool isSpawn=false;
 
-	static std::string stSpawnMotionFileName;
-	static std::string stMotionFileName;
-
-	stSpawnMotionFileName = "";
-	stMotionFileName = "";
+	std::string stSpawnMotionFileName;
+	std::string stMotionFileName;
 
 	UINT uLineCount=kTextFileLoader.GetLineCount();
 	for (UINT uLineIndex=0; uLineIndex<uLineCount; ++uLineIndex)
@@ -271,7 +268,8 @@ bool CRaceManager::__LoadRaceMotionList(CRaceData& rkRaceData, const char* pathN
 		DWORD motionType = CRaceMotionData::NAME_NONE;
 
 		const std::string& c_rstLine=kTextFileLoader.GetLineString(uLineIndex);
-		sscanf(c_rstLine.c_str(), "%s %s %s %d", szMode, szType, szFile, &nPercent);
+		if (sscanf(c_rstLine.c_str(), "%255s %255s %255s %d", szMode, szType, szFile, &nPercent) != 4)
+			continue;
 
 		std::map<std::string, DWORD>::iterator fTypeIndex=s_kMap_stType_dwIndex.find(szType);
 
@@ -426,7 +424,7 @@ BOOL CRaceManager::GetRaceDataPointer(DWORD dwRaceIndex, CRaceData ** ppRaceData
 		if (m_RaceDataMap.end() != itor)
 		{
 			// Already loaded by another thread, use that one
-			delete pRaceData;
+			CRaceData::Delete(pRaceData);
 			*ppRaceData = itor->second;
 		}
 		else

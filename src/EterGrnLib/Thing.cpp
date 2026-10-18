@@ -4,6 +4,7 @@
 #include "ThingInstance.h"
 #include "EterModelLib/GltfModel.h"
 #include "PackLib/PackManager.h"
+#include <string_view>
 
 // SUPPORT_LOCAL_TEXTURE
 static std::string gs_modelLocalPath;
@@ -154,10 +155,22 @@ void CGraphicThing::OnClear()
 	}
 
 	if (m_motions)
+	{
 		delete [] m_motions;
+		m_motions = NULL;
+	}
 
 	if (m_models)
+	{
 		delete [] m_models;
+		m_models = NULL;
+	}
+
+	if (m_pgrnFile)
+	{
+		GrannyFreeFile(m_pgrnFile);
+		m_pgrnFile = NULL;
+	}
 
 	Initialize();
 }
@@ -327,8 +340,14 @@ bool CGraphicThing::OnLoad(int iSize, const void * c_pvBuf)
 	bool isGltf = false;
 	if (iSize >= 4 && pBytes[0] == 'g' && pBytes[1] == 'l' && pBytes[2] == 'T' && pBytes[3] == 'F')
 		isGltf = true;
-	else if (iSize > 12 && (pBytes[0] == '{' || strstr((const char*)c_pvBuf, "\"asset\"") != NULL))
-		isGltf = true;
+	else if (iSize > 12)
+	{
+		std::string_view sv(reinterpret_cast<const char*>(c_pvBuf), static_cast<size_t>(iSize));
+		if (pBytes[0] == '{' || sv.find("\"asset\"") != std::string_view::npos)
+		{
+			isGltf = true;
+		}
+	}
 
 	if (isGltf)
 	{

@@ -370,6 +370,16 @@ DWORD CPythonPlayer::GetItemCountByVnum(DWORD dwVnum)
 			dwCount += itemRes->count;
 		}
 	}
+#ifdef ENABLE_NEW_EQUIPMENT_SYSTEM
+	for (uint16_t i = 0; i < Client::Gameplay::InventoryDomain::BELT_INVENTORY_MAX_NUM; ++i)
+	{
+		auto itemRes = GetInventoryDomain().GetItem(Client::Gameplay::InventoryWindow::Belt, EterBase::ItemSlot(i));
+		if (itemRes.has_value() && itemRes->vnum.get() == dwVnum)
+		{
+			dwCount += itemRes->count;
+		}
+	}
+#endif
 	return dwCount;
 }
 
@@ -611,9 +621,9 @@ void CPythonPlayer::RequestUseLocalQuickSlot(DWORD dwLocalSlotIndex)
 	m_quickslotManager.RequestUseLocalQuickSlot(dwLocalSlotIndex);
 }
 
-void CPythonPlayer::AddQuickSlot(int QuickSlotIndex, char IconType, char IconPosition)
+void CPythonPlayer::AddQuickSlot(int QuickSlotIndex, BYTE IconType, int IconPosition)
 {
-	m_quickslotManager.AddQuickSlot(QuickSlotIndex, IconType, IconPosition);
+	m_quickslotManager.AddQuickSlot(QuickSlotIndex, IconType, static_cast<BYTE>(IconPosition & 0xFF));
 }
 
 void CPythonPlayer::DeleteQuickSlot(int QuickSlotIndex)

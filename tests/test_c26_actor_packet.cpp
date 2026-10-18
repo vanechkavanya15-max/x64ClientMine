@@ -99,12 +99,12 @@ static void BuildTestActorGltfModel(GltfModelData& data, size_t boneCount)
 // ============================================================================
 TEST_CASE("TActorRenderPacket_ABILayoutAndOffsets")
 {
-	static_assert(sizeof(TActorRenderPacket) == 5008, "TActorRenderPacket size must be 5008 bytes");
+	static_assert(sizeof(TActorRenderPacket) == 5040, "TActorRenderPacket size must be 5040 bytes");
 	static_assert(alignof(TActorRenderPacket) == 16, "TActorRenderPacket alignment must be 16 bytes");
 	static_assert(offsetof(TActorRenderPacket, matWorld) == 16, "TActorRenderPacket matWorld offset != 16");
 	static_assert(offsetof(TActorRenderPacket, pBoneMatrices) == 80, "TActorRenderPacket pBoneMatrices offset != 80");
-	static_assert(offsetof(TActorRenderPacket, boneMatrices) == 88, "TActorRenderPacket boneMatrices offset != 88");
-	static_assert(offsetof(TActorRenderPacket, fShadowSize) == 5004, "TActorRenderPacket fShadowSize offset != 5004");
+	static_assert(offsetof(TActorRenderPacket, boneMatrices) == 96, "TActorRenderPacket boneMatrices offset != 96");
+	static_assert(offsetof(TActorRenderPacket, fShadowSize) == 5036, "TActorRenderPacket fShadowSize offset != 5036");
 
 	TActorRenderPacket packet{};
 	CHECK(packet.dwActorID == 0u);

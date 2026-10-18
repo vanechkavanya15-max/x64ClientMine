@@ -225,8 +225,8 @@ bool CPythonSkill::RegisterSkillTable(const char * c_szFileName)
 					switch (iVnum)
 					{
 						case 1:
-							affect.strAffectMinFormula += "* 3";
-							affect.strAffectMaxFormula += "* 3";
+							affect.strAffectMinFormula = "(" + affect.strAffectMinFormula + ") * 3";
+							affect.strAffectMaxFormula = "(" + affect.strAffectMaxFormula + ") * 3";
 							break;
 					}
 				}
@@ -366,8 +366,8 @@ bool CPythonSkill::RegisterSkillTable(const char * c_szFileName)
 				switch (iVnum)
 				{
 					case 1:
-						affect.strAffectMinFormula += "* 3";
-						affect.strAffectMaxFormula += "* 3";
+						affect.strAffectMinFormula = "(" + affect.strAffectMinFormula + ") * 3";
+						affect.strAffectMaxFormula = "(" + affect.strAffectMaxFormula + ") * 3";
 						break;
 				}
 			}
@@ -385,7 +385,7 @@ bool CPythonSkill::RegisterSkillTable(const char * c_szFileName)
 
 void CPythonSkill::__RegisterGradeIconImage(TSkillData & rData, const char * c_szHeader, const char * c_szImageName)
 {
-	for (int j = 0; j < SKILL_GRADE_COUNT; ++j)
+	for (int j = 0; j < SKILL_EFFECT_COUNT; ++j)
 	{
 		TGradeData & rGradeData = rData.GradeData[j];
 
@@ -398,6 +398,10 @@ void CPythonSkill::__RegisterGradeIconImage(TSkillData & rData, const char * c_s
 		strFileName += szCount;
 		strFileName += ".sub";
 		rGradeData.pImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer(strFileName.c_str());
+		if (!rGradeData.pImage && j > 0)
+		{
+			rGradeData.pImage = rData.GradeData[j - 1].pImage;
+		}
 	}
 }
 
@@ -408,7 +412,7 @@ void CPythonSkill::__RegisterNormalIconImage(TSkillData & rData, const char * c_
 	strFileName += c_szImageName;
 	strFileName += ".sub";
 	rData.pImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer(strFileName.c_str());
-	for (int j = 0; j < SKILL_GRADE_COUNT; ++j)
+	for (int j = 0; j < SKILL_EFFECT_COUNT; ++j)
 	{
 		TGradeData & rGradeData = rData.GradeData[j];
 		rGradeData.pImage = rData.pImage;
@@ -476,11 +480,14 @@ bool CPythonSkill::RegisterSkillDesc(const char * c_szFileName)
 			rSkillData.GradeData[0].strName = TokenVector[DESC_TOKEN_TYPE_NAME1];
 			rSkillData.GradeData[1].strName = TokenVector[DESC_TOKEN_TYPE_NAME2];
 			rSkillData.GradeData[2].strName = TokenVector[DESC_TOKEN_TYPE_NAME3];
+			rSkillData.GradeData[3].strName = TokenVector.size() > DESC_TOKEN_TYPE_NAME3 ? TokenVector[DESC_TOKEN_TYPE_NAME3] : "";
 
 			if (rSkillData.GradeData[1].strName.empty())
 				rSkillData.GradeData[1].strName = TokenVector[DESC_TOKEN_TYPE_NAME1];
 			if (rSkillData.GradeData[2].strName.empty())
 				rSkillData.GradeData[2].strName = TokenVector[DESC_TOKEN_TYPE_NAME1];
+			if (rSkillData.GradeData[3].strName.empty())
+				rSkillData.GradeData[3].strName = rSkillData.GradeData[2].strName;
 		}
 
 		// Description
@@ -830,11 +837,19 @@ bool CPythonSkill::RegisterSkill(DWORD dwSkillIndex, const char * c_szFileName)
 			if (SKILL_GRADE_COUNT*2 != pGradeDataVector->size())
 				TraceError("CPythonSkill::RegisterSkill(dwSkillIndex=%d, c_szFileName=%s) - Strange Grade Data Count", dwSkillIndex, c_szFileName);
 
-			for (DWORD i = 0; i < std::min((size_t)SKILL_GRADE_COUNT, pGradeDataVector->size()/2); ++i)
+			for (DWORD i = 0; i < std::min((size_t)SKILL_EFFECT_COUNT, pGradeDataVector->size()/2); ++i)
 			{
 				SkillData.GradeData[i].strName = pGradeDataVector->at(i*2+0);
 				std::string strIconFileName = g_strImagePath + pGradeDataVector->at(i*2+1);
 				SkillData.GradeData[i].pImage = (CGraphicImage *)CResourceManager::Instance().GetResourcePointer(strIconFileName.c_str());
+			}
+			if (SkillData.GradeData[3].pImage == NULL && SkillData.GradeData[2].pImage != NULL)
+			{
+				SkillData.GradeData[3].pImage = SkillData.GradeData[2].pImage;
+			}
+			if (SkillData.GradeData[3].strName.empty() && !SkillData.GradeData[2].strName.empty())
+			{
+				SkillData.GradeData[3].strName = SkillData.GradeData[2].strName;
 			}
 		}
 	}
@@ -1162,7 +1177,7 @@ CPythonSkill::CPythonSkill()
 
 	SSkillData::ms_NewMaxStatusNameMap.insert(std::make_pair(std::string("atk"), POINT_MAX_ATK));
 	SSkillData::ms_NewMaxStatusNameMap.insert(std::make_pair(std::string("mtk"), POINT_MAX_WEP));
-	SSkillData::ms_NewMinStatusNameMap.insert(std::make_pair(std::string("wep"), POINT_MAX_WEP));
+	SSkillData::ms_NewMaxStatusNameMap.insert(std::make_pair(std::string("wep"), POINT_MAX_WEP));
 	SSkillData::ms_NewMaxStatusNameMap.insert(std::make_pair(std::string("lv"), POINT_LEVEL));
 	SSkillData::ms_NewMaxStatusNameMap.insert(std::make_pair(std::string("ar"), POINT_HIT_RATE));
 	SSkillData::ms_NewMaxStatusNameMap.insert(std::make_pair(std::string("iq"), POINT_IQ));
@@ -1506,12 +1521,34 @@ const char* CPythonSkill::SSkillData::GetAffectDescription(DWORD dwIndex, float 
 	return out.c_str();
 }
 
+namespace {
+	inline DWORD SafeFloatToDWORD(float val)
+	{
+		if (std::isnan(val) || std::isinf(val) || val <= 0.0f)
+			return 0;
+		if (val >= static_cast<float>(UINT32_MAX))
+			return UINT32_MAX;
+		return static_cast<DWORD>(val);
+	}
+
+	inline int SafeFloatToInt(float val)
+	{
+		if (std::isnan(val) || std::isinf(val))
+			return 0;
+		if (val >= static_cast<float>(INT_MAX))
+			return INT_MAX;
+		if (val <= static_cast<float>(INT_MIN))
+			return INT_MIN;
+		return static_cast<int>(val);
+	}
+}
+
 DWORD CPythonSkill::SSkillData::GetSkillCoolTime(float fSkillPoint)
 {
 	if (strCoolTimeFormula.empty())
 		return 0;
 
-	return DWORD(ProcessFormula(strCoolTimeFormula, fSkillPoint));
+	return SafeFloatToDWORD(ProcessFormula(strCoolTimeFormula, fSkillPoint));
 }
 
 
@@ -1520,7 +1557,7 @@ DWORD CPythonSkill::SSkillData::GetTargetCount(float fSkillPoint)
 	if (strTargetCountFormula.empty())
 		return 0;
 
-	return DWORD(ProcessFormula(strTargetCountFormula, fSkillPoint));
+	return SafeFloatToDWORD(ProcessFormula(strTargetCountFormula, fSkillPoint));
 }
 
 DWORD CPythonSkill::SSkillData::GetSkillMotionIndex(int iGrade)
@@ -1571,7 +1608,7 @@ DWORD CPythonSkill::SSkillData::GetMotionLoopCount(float fSkillPoint)
 	if (strMotionLoopCountFormula.empty())
 		return 0;
 
-	return DWORD(ProcessFormula(strMotionLoopCountFormula, fSkillPoint));
+	return SafeFloatToDWORD(ProcessFormula(strMotionLoopCountFormula, fSkillPoint));
 }
 
 int CPythonSkill::SSkillData::GetNeedSP(float fSkillPoint)
@@ -1579,7 +1616,7 @@ int CPythonSkill::SSkillData::GetNeedSP(float fSkillPoint)
 	if (strNeedSPFormula.empty())
 		return 0;
 
-	return int(ProcessFormula(strNeedSPFormula, fSkillPoint));
+	return SafeFloatToInt(ProcessFormula(strNeedSPFormula, fSkillPoint));
 }
 
 DWORD CPythonSkill::SSkillData::GetContinuationSP(float fSkillPoint)
@@ -1587,7 +1624,7 @@ DWORD CPythonSkill::SSkillData::GetContinuationSP(float fSkillPoint)
 	if (strContinuationSPFormula.empty())
 		return 0;
 
-	return DWORD(ProcessFormula(strContinuationSPFormula, fSkillPoint));
+	return SafeFloatToDWORD(ProcessFormula(strContinuationSPFormula, fSkillPoint));
 }
 
 DWORD CPythonSkill::SSkillData::GetDuration(float fSkillPoint)
@@ -1595,7 +1632,7 @@ DWORD CPythonSkill::SSkillData::GetDuration(float fSkillPoint)
 	if (strDuration.empty())
 		return 0;
 
-	return DWORD(ProcessFormula(strDuration, fSkillPoint));
+	return SafeFloatToDWORD(ProcessFormula(strDuration, fSkillPoint));
 }
 
 CPythonSkill::SSkillData::SSkillData()
@@ -1620,7 +1657,7 @@ CPythonSkill::SSkillData::SSkillData()
 	strName = "";
 	pImage = NULL;
 
-	for (int j = 0; j < SKILL_GRADE_COUNT; ++j)
+	for (int j = 0; j < SKILL_EFFECT_COUNT; ++j)
 	{
 		TGradeData & rGradeData = GradeData[j];
 		rGradeData.strName = "";
@@ -1702,7 +1739,7 @@ PyObject * skillGetSkillName(PyObject * poSelf, PyObject * poArgs)
 		return Py_BuildValue("s", "");
 
 	if (-1 != iSkillGrade)
-		if (iSkillGrade >= 0 && iSkillGrade < CPythonSkill::SKILL_GRADE_COUNT)
+		if (iSkillGrade >= 0 && iSkillGrade < CPythonSkill::SKILL_EFFECT_COUNT)
 		{
 			return Py_BuildValue("s", c_pSkillData->GradeData[iSkillGrade].strName.c_str());
 		}
@@ -2310,8 +2347,8 @@ PyObject * skillGetIconImageNew(PyObject * poSelf, PyObject * poArgs)
 	if (iGradeIndex < 0)
 		iGradeIndex = 0;
 	
-	if (iGradeIndex >= CPythonSkill::SKILL_GRADE_COUNT)		
-		iGradeIndex = CPythonSkill::SKILL_GRADE_COUNT-1;
+	if (iGradeIndex >= CPythonSkill::SKILL_EFFECT_COUNT)		
+		iGradeIndex = CPythonSkill::SKILL_EFFECT_COUNT-1;
 
 	return Py_BuildValue("K", c_pSkillData->GradeData[iGradeIndex].pImage);
 }
@@ -2335,8 +2372,8 @@ PyObject * skillGetIconInstanceNew(PyObject * poSelf, PyObject * poArgs)
 	if (iGradeIndex < 0)
 		iGradeIndex = 0;
 	
-	if (iGradeIndex >= CPythonSkill::SKILL_GRADE_COUNT)		
-		iGradeIndex = CPythonSkill::SKILL_GRADE_COUNT-1;
+	if (iGradeIndex >= CPythonSkill::SKILL_EFFECT_COUNT)		
+		iGradeIndex = CPythonSkill::SKILL_EFFECT_COUNT-1;
 
 	CGraphicImageInstance * pImageInstance = CGraphicImageInstance::New();
 	pImageInstance->SetImagePointer(c_pSkillData->GradeData[iGradeIndex].pImage);
@@ -2368,7 +2405,7 @@ PyObject * skillGetGradeData(PyObject * poSelf, PyObject * poArgs)
 	if (!CPythonSkill::Instance().GetSkillData(iSkillIndex, &c_pSkillData))
 		return Py_BuildException("skill.GetGradeData - Failed to find skill by %d", iSkillIndex);
 
-	if (iGradeIndex < 0 || iGradeIndex >= CPythonSkill::SKILL_GRADE_COUNT)
+	if (iGradeIndex < 0 || iGradeIndex >= CPythonSkill::SKILL_EFFECT_COUNT)
 		return Py_BuildException("Strange grade index [%d]", iSkillIndex, iGradeIndex);
 
 	return Py_BuildValue("i", c_pSkillData->GradeData[iGradeIndex]);

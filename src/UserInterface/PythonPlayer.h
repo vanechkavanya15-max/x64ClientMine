@@ -411,7 +411,11 @@ class CPythonPlayer : public CSingleton<CPythonPlayer>, public IAbstractPlayer
 		// Quickslot
 		int		GetQuickPage();
 		void	SetQuickPage(int nPageIndex);
-		void	AddQuickSlot(int QuickslotIndex, char IconType, char IconPosition);
+		void	AddQuickSlot(int QuickslotIndex, BYTE IconType, int IconPosition);
+		__inline void AddQuickSlot(int QuickslotIndex, BYTE IconType, BYTE IconPosition)
+		{
+			AddQuickSlot(QuickslotIndex, IconType, static_cast<int>(IconPosition));
+		}
 		void	DeleteQuickSlot(int QuickslotIndex);
 		void	MoveQuickSlot(int Source, int Target);
 
@@ -513,8 +517,25 @@ class CPythonPlayer : public CSingleton<CPythonPlayer>, public IAbstractPlayer
 		BOOL	__ToggleCoolTime();
 		BOOL	__ToggleLevelLimit();
 
-		__inline const	SAutoPotionInfo& GetAutoPotionInfo(int type) const	{ return m_kAutoPotionInfo[type]; }
-		__inline		SAutoPotionInfo& GetAutoPotionInfo(int type)		{ return m_kAutoPotionInfo[type]; }
+		__inline const	SAutoPotionInfo& GetAutoPotionInfo(int type) const
+		{
+			if (type < 0 || type >= AUTO_POTION_TYPE_NUM)
+			{
+				static const SAutoPotionInfo s_empty{};
+				return s_empty;
+			}
+			return m_kAutoPotionInfo[type];
+		}
+		__inline		SAutoPotionInfo& GetAutoPotionInfo(int type)
+		{
+			if (type < 0 || type >= AUTO_POTION_TYPE_NUM)
+			{
+				static SAutoPotionInfo s_dummy{};
+				s_dummy = SAutoPotionInfo{};
+				return s_dummy;
+			}
+			return m_kAutoPotionInfo[type];
+		}
 		void					 SetAutoPotionInfo(int type, const SAutoPotionInfo& info);		
 
 	protected:

@@ -938,20 +938,30 @@ void CPythonEventManager::ClearLine(TEventSet * pEventSet)
 	if (!pEventSet)
 		return;
 
+	pEventSet->isConfirmWait = FALSE;
+	pEventSet->pConfirmTimeTextLine = NULL;
+	pEventSet->iConfirmEndTime = 0;
+
 	for (TScriptTextLineList::iterator itor = pEventSet->ScriptTextLineList.begin(); itor != pEventSet->ScriptTextLineList.end(); ++itor)
 	{
 		TTextLine & rkLine = *itor;
-		CGraphicTextInstance * pInstance = rkLine.pInstance;
-		pInstance->Destroy();
-		pInstance->Update();
+		if (rkLine.pInstance)
+		{
+			rkLine.pInstance->Destroy();
+			m_ScriptTextLinePool.Free(rkLine.pInstance);
+		}
+	}
+	pEventSet->ScriptTextLineList.clear();
+
+	if (pEventSet->pCurrentTextLine)
+	{
+		pEventSet->pCurrentTextLine->Destroy();
+		m_ScriptTextLinePool.Free(pEventSet->pCurrentTextLine);
+		pEventSet->pCurrentTextLine = NULL;
 	}
 
-	pEventSet->pCurrentTextLine->Destroy();
-	pEventSet->pCurrentTextLine->Update();
-
-	// clear
-	pEventSet->pCurrentTextLine = NULL;
-	pEventSet->ScriptTextLineList.clear();
+	pEventSet->strCurrentLine = "";
+	pEventSet->iCurrentLetter = 0;
 
 	__InsertLine(*pEventSet);
 }

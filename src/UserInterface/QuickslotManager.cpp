@@ -99,7 +99,7 @@ TQuickSlot & QuickslotManager::RefGlobalQuickSlot(int SlotIndex)
     return m_quickSlots[SlotIndex];
 }
 
-void QuickslotManager::AddQuickSlot(int QuickslotIndex, char IconType, char IconPosition)
+void QuickslotManager::AddQuickSlot(int QuickslotIndex, BYTE IconType, BYTE IconPosition)
 {
     if (QuickslotIndex < 0 || QuickslotIndex >= QUICKSLOT_MAX_NUM)
         return;

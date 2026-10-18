@@ -4,15 +4,27 @@
 #include <filesystem>
 #include <cstring>
 
-static thread_local ZSTD_DCtx* g_zstdDCtx = nullptr;
+namespace
+{
+	struct ThreadLocalZstdDCtx
+	{
+		ZSTD_DCtx* ctx = nullptr;
+		ThreadLocalZstdDCtx() : ctx(ZSTD_createDCtx()) {}
+		~ThreadLocalZstdDCtx()
+		{
+			if (ctx)
+			{
+				ZSTD_freeDCtx(ctx);
+				ctx = nullptr;
+			}
+		}
+	};
+	static thread_local ThreadLocalZstdDCtx s_zstdDCtx;
+}
 
 static ZSTD_DCtx* GetThreadLocalZSTDContext()
 {
-	if (!g_zstdDCtx)
-	{
-		g_zstdDCtx = ZSTD_createDCtx();
-	}
-	return g_zstdDCtx;
+	return s_zstdDCtx.ctx;
 }
 
 void CPack::DecryptData(uint8_t* data, size_t len, const uint8_t* nonce)
@@ -39,7 +51,16 @@ bool CPack::Load(const std::string& path)
 
 	memcpy(&m_header, m_file.data(), sizeof(TPackFileHeader));
 
-	if (file_size < sizeof(TPackFileHeader) + m_header.entry_num * sizeof(TPackFileEntry)) {
+	if (m_header.entry_num > file_size / sizeof(TPackFileEntry)) {
+		return false;
+	}
+
+	uint64_t index_bytes = static_cast<uint64_t>(m_header.entry_num) * sizeof(TPackFileEntry);
+	if (file_size - sizeof(TPackFileHeader) < index_bytes) {
+		return false;
+	}
+
+	if (m_header.data_begin > file_size) {
 		return false;
 	}
 
@@ -50,7 +71,16 @@ bool CPack::Load(const std::string& path)
 		memcpy(&entry, m_file.data() + sizeof(TPackFileHeader) + i * sizeof(TPackFileEntry), sizeof(TPackFileEntry));
 		DecryptData((uint8_t*)&entry, sizeof(TPackFileEntry), m_header.nonce);
 
-		if (file_size < m_header.data_begin + entry.offset + entry.compressed_size) {
+		if (entry.offset > file_size || entry.compressed_size > file_size) {
+			return false;
+		}
+
+		uint64_t entry_end = static_cast<uint64_t>(m_header.data_begin) + entry.offset;
+		if (entry_end < m_header.data_begin) {
+			return false;
+		}
+
+		if (entry_end + entry.compressed_size < entry_end || entry_end + entry.compressed_size > file_size) {
 			return false;
 		}
 	}
@@ -74,7 +104,7 @@ bool CPack::GetFileWithPool(const TPackFileEntry& entry, TPackFile& result, CBuf
 	{
 		case 0: {
 			size_t decompressed_size = ZSTD_decompressDCtx(dctx, result.data(), result.size(), m_file.data() + offset, entry.compressed_size);
-			if (decompressed_size != entry.file_size) {
+			if (ZSTD_isError(decompressed_size) || decompressed_size != entry.file_size) {
 				return false;
 			}
 		} break;
@@ -96,7 +126,7 @@ bool CPack::GetFileWithPool(const TPackFileEntry& entry, TPackFile& result, CBuf
 				pPool->Release(std::move(compressed_data));
 			}
 
-			if (decompressed_size != entry.file_size) {
+			if (ZSTD_isError(decompressed_size) || decompressed_size != entry.file_size) {
 				return false;
 			}
 		} break;
