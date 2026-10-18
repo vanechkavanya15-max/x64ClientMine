@@ -93,8 +93,12 @@ void CPythonMiniMap::Update(float fCenterX, float fCenterY)
 	for(i = rkChrMgr.CharacterInstanceBegin(); i!=rkChrMgr.CharacterInstanceEnd(); ++i)
 	{
 		CInstanceBase* pkInstEach=*i;
+		if (!pkInstEach)
+			continue;
 
 		TPixelPosition kInstancePosition;
+		pkInstEach->NEW_GetPixelPosition(&kInstancePosition);
+
 		float fMarkScreenX = 0.0f;
 		float fMarkScreenY = 0.0f;
 		if (!MiniMap::MiniMapCoordinateProjector::ProjectWorldToMiniMap(
@@ -344,6 +348,7 @@ void CPythonMiniMap::Render(float fScreenX, float fScreenY)
 	{
 		m_fScreenX = fScreenX;
 		m_fScreenY = fScreenY;
+		__SetPosition();
 	}
 
 	SMiniMapTerrainPass terrainPass;
