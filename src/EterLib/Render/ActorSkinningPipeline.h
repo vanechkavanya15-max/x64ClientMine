@@ -4,6 +4,8 @@
 #include <d3dx9.h>
 #include <cstdint>
 #include <vector>
+#include <span>
+#include <array>
 
 namespace EterLib::Render {
 
@@ -82,6 +84,11 @@ public:
         UINT count,
         std::vector<float>& outRegisters);
 
+    static void PackBonePaletteTo4x3Registers(
+        const void* pMatrices,
+        UINT count,
+        std::span<float> outRegisters) noexcept;
+
     static void PackBoneMatricesTo4x3Registers(
         const float* pSourceMatrices4x4,
         UINT boneCount,
@@ -91,6 +98,7 @@ public:
     }
 
 private:
+    std::array<float, ActorSkinningShaderConstants::kMaxBones * 12> m_packedBonesCache{};
     LPDIRECT3DDEVICE9 m_device{nullptr};
     IDirect3DVertexDeclaration9* m_vertexDecl{nullptr};
     IDirect3DVertexShader9* m_vertexShader{nullptr};

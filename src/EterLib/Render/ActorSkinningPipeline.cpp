@@ -233,18 +233,24 @@ void ActorSkinningPipeline::Shutdown() noexcept {
 void ActorSkinningPipeline::PackBonePaletteTo4x3Registers(
     const void* pMatrices,
     UINT count,
-    std::vector<float>& outRegisters)
+    std::span<float> outRegisters) noexcept
 {
     const UINT clampedCount = std::min(count, ActorSkinningShaderConstants::kMaxBones);
+    
+    if (outRegisters.size() < clampedCount * 12) {
+        return; // Prevents writing out of bounds
+    }
+
     if (!pMatrices || clampedCount == 0) {
-        outRegisters.assign(12, 0.0f);
-        outRegisters[0]  = 1.0f;
-        outRegisters[5]  = 1.0f;
-        outRegisters[10] = 1.0f;
+        if (outRegisters.size() >= 12) {
+            std::ranges::fill(outRegisters.begin(), outRegisters.begin() + 12, 0.0f);
+            outRegisters[0]  = 1.0f;
+            outRegisters[5]  = 1.0f;
+            outRegisters[10] = 1.0f;
+        }
         return;
     }
 
-    outRegisters.resize(clampedCount * 12, 0.0f);
     const float* src = static_cast<const float*>(pMatrices);
 
     for (UINT i = 0; i < clampedCount; ++i) {
@@ -257,6 +263,17 @@ void ActorSkinningPipeline::PackBonePaletteTo4x3Registers(
         dst[4]  = m[1]; dst[5]  = m[5]; dst[6]  = m[9];  dst[7]  = m[13];
         dst[8]  = m[2]; dst[9]  = m[6]; dst[10] = m[10]; dst[11] = m[14];
     }
+}
+
+void ActorSkinningPipeline::PackBonePaletteTo4x3Registers(
+    const void* pMatrices,
+    UINT count,
+    std::vector<float>& outRegisters)
+{
+    const UINT clampedCount = std::min(count, ActorSkinningShaderConstants::kMaxBones);
+    const UINT neededSize = std::max<UINT>(12, clampedCount * 12);
+    outRegisters.resize(neededSize, 0.0f);
+    PackBonePaletteTo4x3Registers(pMatrices, count, std::span<float>{outRegisters.data(), neededSize});
 }
 
 bool ActorSkinningPipeline::Begin(const ActorSkinningBindDesc& desc) noexcept {
@@ -281,6 +298,10 @@ bool ActorSkinningPipeline::Begin(
         STATEMANAGER.SaveVertexShader(m_vertexShader);
         STATEMANAGER.SavePixelShader(m_pixelShader);
     } else {
+        m_prevVertexDecl = nullptr;
+        m_prevVertexShader = nullptr;
+        m_prevPixelShader = nullptr;
+
         m_device->GetVertexDeclaration(&m_prevVertexDecl);
         m_device->GetVertexShader(&m_prevVertexShader);
         m_device->GetPixelShader(&m_prevPixelShader);
@@ -346,20 +367,19 @@ void ActorSkinningPipeline::UploadBonePalette(const void* pMatrices, UINT count)
         return;
     }
 
-    std::vector<float> packedRegisters;
-    PackBonePaletteTo4x3Registers(pMatrices, count, packedRegisters);
+    const UINT clampedCount = std::min(count, ActorSkinningShaderConstants::kMaxBones);
+    PackBonePaletteTo4x3Registers(pMatrices, clampedCount, std::span<float>{m_packedBonesCache.data(), clampedCount * 12});
 
-    const UINT numBonesUploaded = static_cast<UINT>(packedRegisters.size() / 12);
     if (CStateManager::InstancePtr()) {
         STATEMANAGER.SetVertexShaderConstant(
             ActorSkinningShaderConstants::kRegBonePalette,
-            packedRegisters.data(),
-            numBonesUploaded * ActorSkinningShaderConstants::kRegsPerBone);
+            m_packedBonesCache.data(),
+            clampedCount * ActorSkinningShaderConstants::kRegsPerBone);
     } else {
         m_device->SetVertexShaderConstantF(
             ActorSkinningShaderConstants::kRegBonePalette,
-            packedRegisters.data(),
-            numBonesUploaded * ActorSkinningShaderConstants::kRegsPerBone);
+            m_packedBonesCache.data(),
+            clampedCount * ActorSkinningShaderConstants::kRegsPerBone);
     }
 }
 
