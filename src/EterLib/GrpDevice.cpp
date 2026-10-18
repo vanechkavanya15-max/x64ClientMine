@@ -111,7 +111,16 @@ bool CGraphicDevice::ResizeBackBuffer(UINT uWidth, UINT uHeight)
 
 			IDirect3DDevice9Ex& rkD3DDev = *ms_lpd3dDevice;
 
-			HRESULT hr = rkD3DDev.Reset(&rkD3DPP);
+			D3DDISPLAYMODEEX displayModeEx;
+			ZeroMemory(&displayModeEx, sizeof(displayModeEx));
+			displayModeEx.Size = sizeof(D3DDISPLAYMODEEX);
+			displayModeEx.Width = rkD3DPP.BackBufferWidth;
+			displayModeEx.Height = rkD3DPP.BackBufferHeight;
+			displayModeEx.RefreshRate = rkD3DPP.FullScreen_RefreshRateInHz;
+			displayModeEx.Format = rkD3DPP.BackBufferFormat;
+			displayModeEx.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
+			D3DDISPLAYMODEEX* pDisplayMode = rkD3DPP.Windowed ? NULL : &displayModeEx;
+			HRESULT hr = rkD3DDev.ResetEx(&rkD3DPP, pDisplayMode);
 			if (FAILED(hr))
 			{
 				if (hr == D3DERR_DEVICELOST)
@@ -247,7 +256,16 @@ bool CGraphicDevice::ResetWithParams(D3DPRESENT_PARAMETERS& d3dpp)
 	// Release all D3DPOOL_DEFAULT resources and unbind textures/shaders in STATEMANAGER
 	__ReleaseDefaultResources();
 
-	HRESULT hr = ms_lpd3dDevice->Reset(&d3dpp);
+	D3DDISPLAYMODEEX displayModeEx;
+	ZeroMemory(&displayModeEx, sizeof(displayModeEx));
+	displayModeEx.Size = sizeof(D3DDISPLAYMODEEX);
+	displayModeEx.Width = d3dpp.BackBufferWidth;
+	displayModeEx.Height = d3dpp.BackBufferHeight;
+	displayModeEx.RefreshRate = d3dpp.FullScreen_RefreshRateInHz;
+	displayModeEx.Format = d3dpp.BackBufferFormat;
+	displayModeEx.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
+	D3DDISPLAYMODEEX* pDisplayMode = d3dpp.Windowed ? NULL : &displayModeEx;
+	HRESULT hr = ms_lpd3dDevice->ResetEx(&d3dpp, pDisplayMode);
 	if (FAILED(hr))
 	{
 		if (hr == D3DERR_DEVICELOST)
@@ -369,6 +387,8 @@ DWORD CGraphicDevice::DetermineD3DBehavior(const D3DCAPS9& d3dCaps, int& iRet)
 		iRet |= CREATE_NO_TNL;
 	}
 
+	dwBehavior |= D3DCREATE_FPU_PRESERVE;
+
 	return dwBehavior;
 }
 
@@ -485,36 +505,37 @@ bool CGraphicDevice::CreateD3DDeviceWithFallback(HWND hWnd, int iHres, int iVres
 
 void CGraphicDevice::CheckTextureFormats(bool windowed, const D3DDISPLAYMODE& d3dDisplayMode)
 {
+	ms_bSupportDXT = true;
 	const D3DFORMAT baseFormatForTextureCheck = windowed ? d3dDisplayMode.Format : ms_d3dPresentParameter.BackBufferFormat;
-	if (ms_lpd3d->CheckDeviceFormat(
+	if (FAILED(ms_lpd3d->CheckDeviceFormat(
 		D3DADAPTER_DEFAULT,
 		D3DDEVTYPE_HAL,
 		baseFormatForTextureCheck,
 		0,
 		D3DRTYPE_TEXTURE,
-		D3DFMT_DXT1) == D3DERR_NOTAVAILABLE)
+		D3DFMT_DXT1)))
 	{
 		ms_bSupportDXT = false;
 	}
 
-	if (ms_lpd3d->CheckDeviceFormat(
+	if (FAILED(ms_lpd3d->CheckDeviceFormat(
 		D3DADAPTER_DEFAULT,
 		D3DDEVTYPE_HAL,
 		baseFormatForTextureCheck,
 		0,
 		D3DRTYPE_TEXTURE,
-		D3DFMT_DXT3) == D3DERR_NOTAVAILABLE)
+		D3DFMT_DXT3)))
 	{
 		ms_bSupportDXT = false;
 	}
 
-	if (ms_lpd3d->CheckDeviceFormat(
+	if (FAILED(ms_lpd3d->CheckDeviceFormat(
 		D3DADAPTER_DEFAULT,
 		D3DDEVTYPE_HAL,
 		baseFormatForTextureCheck,
 		0,
 		D3DRTYPE_TEXTURE,
-		D3DFMT_DXT5) == D3DERR_NOTAVAILABLE)
+		D3DFMT_DXT5)))
 	{
 		ms_bSupportDXT = false;
 	}
