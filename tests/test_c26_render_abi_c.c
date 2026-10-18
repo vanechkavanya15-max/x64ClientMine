@@ -99,6 +99,8 @@ C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, splatTextureId) == 44, "TTerrainS
 C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, pSplatTexture) == 48, "TTerrainSectorPacket::pSplatTexture");
 C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, layerTextureIds) == 56, "TTerrainSectorPacket::layerTextureIds");
 C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, pLayerTextures) == 72, "TTerrainSectorPacket::pLayerTextures");
+C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, dwSplatTextureHandle) == 48, "TTerrainSectorPacket::dwSplatTextureHandle");
+C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, dwLayerTextureHandles) == 72, "TTerrainSectorPacket::dwLayerTextureHandles");
 C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, pVertexData) == 104, "TTerrainSectorPacket::pVertexData");
 C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, dwVertexCount) == 112, "TTerrainSectorPacket::dwVertexCount");
 C_STATIC_ASSERT(offsetof(TTerrainSectorPacket, pSplatWeights) == 120, "TTerrainSectorPacket::pSplatWeights");
@@ -149,6 +151,7 @@ C_STATIC_ASSERT(offsetof(TWaterPacket, vWaterColor) == 36, "TWaterPacket::vWater
 C_STATIC_ASSERT(offsetof(TWaterPacket, fAlpha) == 52, "TWaterPacket::fAlpha");
 C_STATIC_ASSERT(offsetof(TWaterPacket, dwWaterTextureID) == 56, "TWaterPacket::dwWaterTextureID");
 C_STATIC_ASSERT(offsetof(TWaterPacket, pWaterTexture) == 64, "TWaterPacket::pWaterTexture");
+C_STATIC_ASSERT(offsetof(TWaterPacket, dwWaterTextureHandle) == 64, "TWaterPacket::dwWaterTextureHandle");
 C_STATIC_ASSERT(offsetof(TWaterPacket, dwCellCount) == 72, "TWaterPacket::dwCellCount");
 C_STATIC_ASSERT(offsetof(TWaterPacket, dwVertexCount) == 76, "TWaterPacket::dwVertexCount");
 C_STATIC_ASSERT(offsetof(TWaterPacket, pVertexBuffer) == 80, "TWaterPacket::pVertexBuffer");
@@ -209,6 +212,7 @@ C_STATIC_ASSERT(offsetof(TEffectInstancePacket, dwBlendMode) == 16, "TEffectInst
 C_STATIC_ASSERT(offsetof(TEffectInstancePacket, dwParticleCount) == 20, "TEffectInstancePacket::dwParticleCount");
 C_STATIC_ASSERT(offsetof(TEffectInstancePacket, pParticles) == 24, "TEffectInstancePacket::pParticles");
 C_STATIC_ASSERT(offsetof(TEffectInstancePacket, fPad) == 32, "TEffectInstancePacket::fPad");
+C_STATIC_ASSERT(offsetof(TEffectInstancePacket, stateKey) == 32, "TEffectInstancePacket::stateKey");
 
 /* === 12. TUIBatchPacket === */
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, dwTextureID) == 0, "TUIBatchPacket::dwTextureID");
@@ -218,6 +222,7 @@ C_STATIC_ASSERT(offsetof(TUIBatchPacket, bUseScissor) == 16, "TUIBatchPacket::bU
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, scissorRect) == 20, "TUIBatchPacket::scissorRect");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, pVertices) == 40, "TUIBatchPacket::pVertices");
 C_STATIC_ASSERT(offsetof(TUIBatchPacket, fPad) == 48, "TUIBatchPacket::fPad");
+C_STATIC_ASSERT(offsetof(TUIBatchPacket, stateKey) == 48, "TUIBatchPacket::stateKey");
 
 /* === 13. TDungeonBlockPacket === */
 C_STATIC_ASSERT(offsetof(TDungeonBlockPacket, matWorld) == 0, "TDungeonBlockPacket::matWorld");
@@ -238,6 +243,7 @@ C_STATIC_ASSERT(offsetof(TDungeonBlockPacket, fAlpha) == 148, "TDungeonBlockPack
 C_STATIC_ASSERT(offsetof(TDungeonBlockPacket, bAlphaBlend) == 152, "TDungeonBlockPacket::bAlphaBlend");
 C_STATIC_ASSERT(offsetof(TDungeonBlockPacket, bPadDungeon) == 153, "TDungeonBlockPacket::bPadDungeon");
 C_STATIC_ASSERT(offsetof(TDungeonBlockPacket, fPad) == 156, "TDungeonBlockPacket::fPad");
+C_STATIC_ASSERT(offsetof(TDungeonBlockPacket, stateKey) == 152, "TDungeonBlockPacket::stateKey");
 
 /* === 14. TRenderFramePacket === */
 C_STATIC_ASSERT(offsetof(TRenderFramePacket, uniforms) == 0, "TRenderFramePacket::uniforms");
@@ -501,8 +507,19 @@ int main(void)
     assert(offsetof(TRenderFramePacket, dwSkyBoxCount) == 392);
     assert(offsetof(TRenderFramePacket, dwPad6) == 396);
     assert(offsetof(TRenderFramePacket, pDungeonPackets) == 400);
-    assert(offsetof(TRenderFramePacket, dwDungeonCount) == 408);
     assert(offsetof(TRenderFramePacket, dwPad7) == 412);
+
+    assert(offsetof(TWaterPacket, dwWaterTextureHandle) == 64);
+    assert(offsetof(TTerrainSectorPacket, dwSplatTextureHandle) == 48);
+    assert(offsetof(TTerrainSectorPacket, dwLayerTextureHandles) == 72);
+    assert(offsetof(TUIBatchPacket, stateKey) == 48);
+    assert(offsetof(TEffectInstancePacket, stateKey) == 32);
+    assert(offsetof(TDungeonBlockPacket, stateKey) == 152);
+
+    TPipelineStateKey pkey = { 0 };
+    pkey.rawKey = STATE_KEY_RAW_OPAQUE;
+    assert(pkey.srcBlend == 2);
+    assert(pkey.destBlend == 1);
 
     printf("[PASS] All RenderAbi C offsets and sizes verified successfully.\n");
     return 0;

@@ -7,6 +7,9 @@
 #include <DirectXMath.h>
 #include "SkeletalMath.h"
 
+namespace EterModelLib
+{
+
 using Matrix4x4 = EterModelLib::Matrix4x4;
 
 static_assert(sizeof(Matrix4x4) == 64, "Matrix4x4 size mismatch");
@@ -16,6 +19,7 @@ struct float2 { float x, y; };
 struct float3 { float x, y, z; };
 struct float4 { float x, y, z, w; };
 struct uint4 { unsigned int x, y, z, w; };
+
 struct float4x4
 {
     float m[4][4];
@@ -42,14 +46,16 @@ struct float4x4
     }
 
     template <typename T>
-    float4x4(const T& other)
+    explicit float4x4(const T& other)
     {
+        static_assert(sizeof(other.m) == sizeof(m), "Source matrix size mismatch");
         std::memcpy(m, other.m, sizeof(m));
     }
 
     template <typename T>
     float4x4& operator=(const T& other)
     {
+        static_assert(sizeof(other.m) == sizeof(m), "Source matrix size mismatch");
         std::memcpy(m, other.m, sizeof(m));
         return *this;
     }
@@ -99,11 +105,19 @@ enum class GltfAnimationPathType
     Unknown
 };
 
+enum class GltfInterpolationType
+{
+    Linear,
+    Step,
+    CubicSpline
+};
+
 struct GltfAnimationChannel
 {
     int jointIndex;
     std::string targetNodeName;
     GltfAnimationPathType pathType;
+    GltfInterpolationType interpolation = GltfInterpolationType::Linear;
     std::vector<float> times;
     std::vector<float4> values;
 };
@@ -142,17 +156,22 @@ struct GltfModelData
     std::vector<GltfMotionData> motions;
 };
 
-namespace EterModelLib
-{
-    using GltfVertex = ::GltfVertex;
-    using GltfSubmesh = ::GltfSubmesh;
-    using GltfJoint = ::GltfJoint;
-    using GltfSkin = ::GltfSkin;
-    using GltfAnimationPathType = ::GltfAnimationPathType;
-    using GltfAnimationChannel = ::GltfAnimationChannel;
-    using GltfEvent = ::GltfEvent;
-    using GltfMotionData = ::GltfMotionData;
-    using GltfMaterial = ::GltfMaterial;
-    using GltfModelData = ::GltfModelData;
-}
+} // namespace EterModelLib
 
+using Matrix4x4 = EterModelLib::Matrix4x4;
+using float2 = EterModelLib::float2;
+using float3 = EterModelLib::float3;
+using float4 = EterModelLib::float4;
+using uint4 = EterModelLib::uint4;
+using float4x4 = EterModelLib::float4x4;
+using GltfVertex = EterModelLib::GltfVertex;
+using GltfSubmesh = EterModelLib::GltfSubmesh;
+using GltfJoint = EterModelLib::GltfJoint;
+using GltfSkin = EterModelLib::GltfSkin;
+using GltfAnimationPathType = EterModelLib::GltfAnimationPathType;
+using GltfInterpolationType = EterModelLib::GltfInterpolationType;
+using GltfAnimationChannel = EterModelLib::GltfAnimationChannel;
+using GltfEvent = EterModelLib::GltfEvent;
+using GltfMotionData = EterModelLib::GltfMotionData;
+using GltfMaterial = EterModelLib::GltfMaterial;
+using GltfModelData = EterModelLib::GltfModelData;

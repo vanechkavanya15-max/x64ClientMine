@@ -19,9 +19,7 @@
 
 using namespace EterModelLib;
 
-#include "EterLib/Camera.h"
-
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
+// float CCamera::CAMERA_MAX_DISTANCE = 2500.0f; // Already defined in EterLib/Camera.cpp
 
 static bool ApproxEqual(float a, float b, float epsilon = 0.01f)
 {

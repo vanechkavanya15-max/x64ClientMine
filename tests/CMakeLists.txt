@@ -540,8 +540,12 @@ target_link_libraries(test_c29_gltf_d3d_bridge PRIVATE
     EterLib
     EterImageLib
     PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
     DirectX
+    Dbghelp
     sodium
     freetype
     libzstd_static

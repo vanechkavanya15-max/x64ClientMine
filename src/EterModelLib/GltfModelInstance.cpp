@@ -27,23 +27,8 @@ CGltfModelInstance::CGltfModelInstance()
 }
 
 CGltfModelInstance::CGltfModelInstance(const CGltfModel* pModel)
-    : m_pModel(nullptr)
-    , m_pLinkedModelInstance(nullptr)
-    , m_pParentInstance(nullptr)
-    , m_parentBoneIndex(-1)
-    , m_bHasParentBoneMatrix(false)
-    , m_currentAnimIndex(-1)
-    , m_pExternalMotion(nullptr)
-    , m_currentTime(0.0f)
-    , m_prevTime(0.0f)
-    , m_duration(0.0f)
-    , m_isLoop(true)
-    , m_isFinished(false)
-    , m_playSpeed(1.0f)
-    , m_bSkinningDirty(true)
-    , m_deformCount(0)
+    : CGltfModelInstance()
 {
-    m_parentBoneMatrix = Matrix4x4::Identity();
     SetModel(pModel);
 }
 
@@ -66,6 +51,25 @@ void CGltfModelInstance::UnregisterLinkedChild(CGltfModelInstance* pChild) const
     }
 }
 
+void CGltfModelInstance::RegisterAttachedChild(CGltfModelInstance* pChild) const
+{
+    if (!pChild) return;
+    if (std::find(m_attachedChildren.begin(), m_attachedChildren.end(), pChild) == m_attachedChildren.end())
+    {
+        m_attachedChildren.push_back(pChild);
+    }
+}
+
+void CGltfModelInstance::UnregisterAttachedChild(CGltfModelInstance* pChild) const
+{
+    if (!pChild) return;
+    auto it = std::find(m_attachedChildren.begin(), m_attachedChildren.end(), pChild);
+    if (it != m_attachedChildren.end())
+    {
+        m_attachedChildren.erase(it);
+    }
+}
+
 CGltfModelInstance::~CGltfModelInstance()
 {
     if (m_pLinkedModelInstance)
@@ -82,6 +86,23 @@ CGltfModelInstance::~CGltfModelInstance()
         }
     }
     m_linkedChildren.clear();
+
+    if (m_pParentInstance)
+    {
+        m_pParentInstance->UnregisterAttachedChild(this);
+        m_pParentInstance = nullptr;
+    }
+
+    for (auto* pChild : m_attachedChildren)
+    {
+        if (pChild)
+        {
+            pChild->m_pParentInstance = nullptr;
+            pChild->m_parentBoneIndex = -1;
+            pChild->m_parentBoneName.clear();
+        }
+    }
+    m_attachedChildren.clear();
 }
 
 void CGltfModelInstance::LinkSkeleton(const CGltfModelInstance* pParentInstance)
@@ -110,7 +131,17 @@ void CGltfModelInstance::LinkSkeleton(const CGltfModelInstance* pParentInstance)
 
 void CGltfModelInstance::SetParentModelInstance(const CGltfModelInstance* pParentInstance, const char* szBoneName)
 {
+    if (m_pParentInstance && m_pParentInstance != pParentInstance)
+    {
+        m_pParentInstance->UnregisterAttachedChild(this);
+    }
+
     m_pParentInstance = pParentInstance;
+    if (m_pParentInstance)
+    {
+        m_pParentInstance->RegisterAttachedChild(this);
+    }
+
     m_parentBoneName = (szBoneName ? szBoneName : "");
     m_parentBoneIndex = -1;
     if (pParentInstance && pParentInstance->GetModel())
@@ -127,7 +158,17 @@ void CGltfModelInstance::SetParentModelInstance(const CGltfModelInstance* pParen
 
 void CGltfModelInstance::SetParentModelInstance(const CGltfModelInstance* pParentInstance, int boneIndex)
 {
+    if (m_pParentInstance && m_pParentInstance != pParentInstance)
+    {
+        m_pParentInstance->UnregisterAttachedChild(this);
+    }
+
     m_pParentInstance = pParentInstance;
+    if (m_pParentInstance)
+    {
+        m_pParentInstance->RegisterAttachedChild(this);
+    }
+
     m_parentBoneIndex = boneIndex;
     m_parentBoneName.clear();
     m_bHasParentBoneMatrix = false;
@@ -204,11 +245,7 @@ void CGltfModelInstance::SetModel(const CGltfModel* pModel)
         m_workInvBindMatrices.resize(boneCount);
         m_workNodeState.resize(boneCount);
 
-        size_t vertexCount = m_pModel->GetVertexCount();
         m_deformedVertices.clear();
-        m_deformedVertices.reserve(vertexCount);
-        const auto& srcVertices = m_pModel->GetVertices();
-        m_deformedVertices.assign(srcVertices.begin(), srcVertices.end());
 
         UpdateTransforms(0.0f);
     }
@@ -344,12 +381,18 @@ void CGltfModelInstance::SetCurrentTime(float time)
         {
             if (m_isLoop)
             {
-                m_currentTime = m_duration + std::fmod(m_currentTime, m_duration);
+                float rem = std::fmod(m_currentTime, m_duration);
+                if (rem < 0.0f) rem += m_duration;
+                m_currentTime = rem;
             }
             else
             {
                 m_currentTime = 0.0f;
             }
+        }
+        else
+        {
+            m_isFinished = false;
         }
     }
 
@@ -386,7 +429,9 @@ void CGltfModelInstance::Update(float deltaTime)
         {
             if (m_isLoop)
             {
-                m_currentTime = m_duration + std::fmod(m_currentTime, m_duration);
+                float rem = std::fmod(m_currentTime, m_duration);
+                if (rem < 0.0f) rem += m_duration;
+                m_currentTime = rem;
             }
             else
             {
@@ -465,131 +510,69 @@ void CGltfModelInstance::UpdateTransforms(float time)
     {
         for (const auto& channel : pMotion->channels)
         {
-            int jointIdx = -1;
-            if (!channel.targetNodeName.empty())
-            {
+            if (channel.times.empty() || channel.values.empty())
+                continue;
+
+            int jointIdx = (m_pExternalMotion == nullptr) ? channel.jointIndex : -1;
+            if (jointIdx < 0 && !channel.targetNodeName.empty())
                 jointIdx = m_pModel->FindBoneIndex(channel.targetNodeName);
-            }
             if (jointIdx < 0)
-            {
                 jointIdx = channel.jointIndex;
-            }
 
             if (jointIdx < 0 || static_cast<size_t>(jointIdx) >= boneCount)
-            {
                 continue;
-            }
 
-            if (channel.times.empty() || channel.values.empty())
-            {
-                continue;
-            }
+            auto applyConstantValue = [&](const float4& val) {
+                if (channel.pathType == GltfAnimationPathType::Translation)
+                    translations[jointIdx] = Vector3(val.x, val.y, val.z);
+                else if (channel.pathType == GltfAnimationPathType::Rotation)
+                {
+                    rotations[jointIdx] = Quaternion(val.x, val.y, val.z, val.w);
+                    rotations[jointIdx].Normalize();
+                }
+                else if (channel.pathType == GltfAnimationPathType::Scale)
+                    scales[jointIdx] = Vector3(val.x, val.y, val.z);
+            };
 
             if (channel.times.size() == 1 || time <= channel.times.front())
             {
-                const auto& val = channel.values.front();
-                if (channel.pathType == GltfAnimationPathType::Translation)
-                    translations[jointIdx] = Vector3(val.x, val.y, val.z);
-                else if (channel.pathType == GltfAnimationPathType::Rotation)
-                {
-                    rotations[jointIdx] = Quaternion(val.x, val.y, val.z, val.w);
-                    rotations[jointIdx].Normalize();
-                }
-                else if (channel.pathType == GltfAnimationPathType::Scale)
-                    scales[jointIdx] = Vector3(val.x, val.y, val.z);
+                applyConstantValue(channel.values.front());
             }
             else if (time >= channel.times.back())
             {
-                const auto& val = channel.values.back();
-                if (channel.pathType == GltfAnimationPathType::Translation)
-                    translations[jointIdx] = Vector3(val.x, val.y, val.z);
-                else if (channel.pathType == GltfAnimationPathType::Rotation)
-                {
-                    rotations[jointIdx] = Quaternion(val.x, val.y, val.z, val.w);
-                    rotations[jointIdx].Normalize();
-                }
-                else if (channel.pathType == GltfAnimationPathType::Scale)
-                    scales[jointIdx] = Vector3(val.x, val.y, val.z);
+                applyConstantValue(channel.values.back());
             }
             else
             {
                 auto it = std::upper_bound(channel.times.begin(), channel.times.end(), time);
-                if (it == channel.times.begin())
-                {
-                    if (!channel.values.empty())
-                    {
-                        const auto& val = channel.values[0];
-                        if (channel.pathType == GltfAnimationPathType::Translation)
-                            translations[jointIdx] = Vector3(val.x, val.y, val.z);
-                        else if (channel.pathType == GltfAnimationPathType::Rotation)
-                        {
-                            rotations[jointIdx] = Quaternion(val.x, val.y, val.z, val.w);
-                            rotations[jointIdx].Normalize();
-                        }
-                        else if (channel.pathType == GltfAnimationPathType::Scale)
-                            scales[jointIdx] = Vector3(val.x, val.y, val.z);
-                    }
-                    continue;
-                }
-
-                if (it == channel.times.end())
-                {
-                    if (!channel.values.empty())
-                    {
-                        const auto& val = channel.values.back();
-                        if (channel.pathType == GltfAnimationPathType::Translation)
-                            translations[jointIdx] = Vector3(val.x, val.y, val.z);
-                        else if (channel.pathType == GltfAnimationPathType::Rotation)
-                        {
-                            rotations[jointIdx] = Quaternion(val.x, val.y, val.z, val.w);
-                            rotations[jointIdx].Normalize();
-                        }
-                        else if (channel.pathType == GltfAnimationPathType::Scale)
-                            scales[jointIdx] = Vector3(val.x, val.y, val.z);
-                    }
-                    continue;
-                }
-
-                size_t idx1 = std::distance(channel.times.begin(), it);
+                size_t idx1 = static_cast<size_t>(std::distance(channel.times.begin(), it));
                 size_t idx0 = idx1 - 1;
 
-                if (idx1 >= channel.values.size() || idx0 >= channel.values.size())
+                if (idx1 >= channel.values.size())
                 {
+                    applyConstantValue(channel.values.back());
                     continue;
                 }
 
-                float t0 = channel.times[idx0];
-                float t1 = channel.times[idx1];
-                float factor = 0.0f;
-                if (t1 > t0)
+                if (channel.interpolation == GltfInterpolationType::Step)
                 {
-                    factor = (time - t0) / (t1 - t0);
+                    applyConstantValue(channel.values[idx0]);
+                    continue;
                 }
 
-                if (factor < 0.0f) factor = 0.0f;
-                if (factor > 1.0f) factor = 1.0f;
+                const float t0 = channel.times[idx0];
+                const float t1 = channel.times[idx1];
+                const float factor = (t1 > t0) ? std::clamp((time - t0) / (t1 - t0), 0.0f, 1.0f) : 0.0f;
 
                 const auto& v0 = channel.values[idx0];
                 const auto& v1 = channel.values[idx1];
 
                 if (channel.pathType == GltfAnimationPathType::Translation)
-                {
-                    Vector3 p0(v0.x, v0.y, v0.z);
-                    Vector3 p1(v1.x, v1.y, v1.z);
-                    translations[jointIdx] = Vector3::Lerp(p0, p1, factor);
-                }
+                    translations[jointIdx] = Vector3::Lerp({v0.x, v0.y, v0.z}, {v1.x, v1.y, v1.z}, factor);
                 else if (channel.pathType == GltfAnimationPathType::Rotation)
-                {
-                    Quaternion q0(v0.x, v0.y, v0.z, v0.w);
-                    Quaternion q1(v1.x, v1.y, v1.z, v1.w);
-                    rotations[jointIdx] = Quaternion::Slerp(q0, q1, factor);
-                }
+                    rotations[jointIdx] = Quaternion::Slerp({v0.x, v0.y, v0.z, v0.w}, {v1.x, v1.y, v1.z, v1.w}, factor);
                 else if (channel.pathType == GltfAnimationPathType::Scale)
-                {
-                    Vector3 s0(v0.x, v0.y, v0.z);
-                    Vector3 s1(v1.x, v1.y, v1.z);
-                    scales[jointIdx] = Vector3::Lerp(s0, s1, factor);
-                }
+                    scales[jointIdx] = Vector3::Lerp({v0.x, v0.y, v0.z}, {v1.x, v1.y, v1.z}, factor);
             }
         }
     }
@@ -605,54 +588,30 @@ void CGltfModelInstance::UpdateTransforms(float time)
         parentIndices[j] = skin.joints[j].parentIndex;
     }
 
-    EvaluateHierarchy(parentIndices, m_localTransforms, m_worldTransforms);
+    EvaluateHierarchy(parentIndices, m_localTransforms, m_worldTransforms, state);
 
     if (m_pLinkedModelInstance)
     {
         for (size_t j = 0; j < boneCount; ++j)
         {
-            const Matrix4x4* pParentMat = nullptr;
             if (!skin.joints[j].name.empty())
             {
-                pParentMat = m_pLinkedModelInstance->GetBoneMatrixPointer(skin.joints[j].name.c_str());
+                if (const Matrix4x4* pParentMat = m_pLinkedModelInstance->GetBoneMatrixPointer(skin.joints[j].name.c_str()))
+                {
+                    m_worldTransforms[j] = *pParentMat;
+                    continue;
+                }
             }
-            if (pParentMat)
-            {
-                m_worldTransforms[j] = *pParentMat;
-            }
-            else if (j < m_pLinkedModelInstance->GetWorldTransforms().size())
-            {
-                m_worldTransforms[j] = m_pLinkedModelInstance->GetWorldTransforms()[j];
-            }
+            int p = parentIndices[j];
+            if (p >= 0 && static_cast<size_t>(p) < boneCount && static_cast<size_t>(p) != j)
+                m_worldTransforms[j] = m_localTransforms[j] * m_worldTransforms[p];
         }
     }
 
-    const Matrix4x4* pAttachMat = GetParentBoneMatrix();
-    if (pAttachMat)
+    if (const Matrix4x4* pAttachMat = GetParentBoneMatrix())
     {
-        std::fill(state.begin(), state.end(), static_cast<uint8_t>(0)); // 0: unvisited, 1: visiting, 2: visited
-        auto computeAttachedNode = [&](auto& self, size_t i) -> void {
-            if (state[i] == 2) return;
-            if (state[i] == 1) {
-                m_worldTransforms[i] = m_localTransforms[i] * (*pAttachMat);
-                state[i] = 2;
-                return;
-            }
-            state[i] = 1;
-            int p = parentIndices[i];
-            if (p >= 0 && static_cast<size_t>(p) < boneCount && static_cast<size_t>(p) != i) {
-                self(self, static_cast<size_t>(p));
-                m_worldTransforms[i] = m_localTransforms[i] * m_worldTransforms[p];
-            } else {
-                m_worldTransforms[i] = m_localTransforms[i] * (*pAttachMat);
-            }
-            state[i] = 2;
-        };
-
         for (size_t j = 0; j < boneCount; ++j)
-        {
-            computeAttachedNode(computeAttachedNode, j);
-        }
+            m_worldTransforms[j] = m_worldTransforms[j] * (*pAttachMat);
     }
 
     for (size_t j = 0; j < boneCount; ++j)
@@ -700,7 +659,7 @@ void CGltfModelInstance::DeformVertices(bool bForce)
         {
             m_deformedVertices.reserve(srcVertices.size());
         }
-        m_deformedVertices.resize(srcVertices.size());
+        m_deformedVertices.assign(srcVertices.begin(), srcVertices.end());
     }
 
     if (m_skinningMatrices.empty())
@@ -714,10 +673,6 @@ void CGltfModelInstance::DeformVertices(bool bForce)
             {
                 const GltfVertex& src = srcVertices[v];
                 GltfVertex& dst = m_deformedVertices[v];
-                dst.uv0 = src.uv0;
-                dst.uv1 = src.uv1;
-                dst.jointIndices = src.jointIndices;
-                dst.jointWeights = src.jointWeights;
 
                 float px = src.position.x * mat[0][0] + src.position.y * mat[1][0] + src.position.z * mat[2][0] + mat[3][0];
                 float py = src.position.x * mat[0][1] + src.position.y * mat[1][1] + src.position.z * mat[2][1] + mat[3][1];
@@ -749,11 +704,6 @@ void CGltfModelInstance::DeformVertices(bool bForce)
     {
         const GltfVertex& src = srcVertices[v];
         GltfVertex& dst = m_deformedVertices[v];
-
-        dst.uv0 = src.uv0;
-        dst.uv1 = src.uv1;
-        dst.jointIndices = src.jointIndices;
-        dst.jointWeights = src.jointWeights;
 
         const unsigned int joints[4] = {
             src.jointIndices.x,
@@ -854,7 +804,7 @@ void CGltfModelInstance::DeformVertices(bool bForce)
 
 void CGltfModelInstance::CheckEvents(float prevTime, float currTime, std::vector<GltfEvent>& outEvents) const
 {
-    if (!m_pModel || !m_pModel->IsLoaded())
+    if (!m_pModel || !m_pModel->IsLoaded() || prevTime == currTime)
     {
         return;
     }
@@ -865,7 +815,7 @@ void CGltfModelInstance::CheckEvents(float prevTime, float currTime, std::vector
         return;
     }
 
-    if (prevTime <= currTime)
+    if (prevTime < currTime)
     {
         for (const auto& evt : pMotion->events)
         {
@@ -876,7 +826,7 @@ void CGltfModelInstance::CheckEvents(float prevTime, float currTime, std::vector
             }
         }
     }
-    else
+    else if (m_playSpeed > 0.0f)
     {
         // Nastapil przeskok / zapetlenie animacji (prevTime > currTime)
         float duration = m_duration > 0.0f ? m_duration : pMotion->duration;

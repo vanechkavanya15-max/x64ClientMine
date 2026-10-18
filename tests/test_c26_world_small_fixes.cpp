@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <cstddef>
 #include <GameLib/TerrainPatch.h>
+#include <GameLib/MapOutdoorWater.h>
+#include <EterLib/ParticleQuad.h>
 
 // S2.8 / T064: Unit tests for GameLib small fixes (DungeonBlock bbox, Area::Find, terrain bounds, fog clamp, mipmap loop)
 
@@ -309,5 +311,99 @@ TEST_SUITE("WorldSmallFixes")
         CHECK(sizeof(HardwareTransformPatch_SSourceVertex) == 24);
         CHECK(offsetof(HardwareTransformPatch_SSourceVertex, kPosition) == 0);
         CHECK(offsetof(HardwareTransformPatch_SSourceVertex, kNormal) == 12);
+    }
+
+    // 8. T103 / R1.3: ComputeWaterWaveHeight pure mathematical wave function
+    TEST_CASE("WaterWave_ComputeWaterWaveHeight_PureFunctionDeterminism")
+    {
+        const float x = 120.0f;
+        const float y = 340.0f;
+        const float time = 2.5f;
+        const float freq = 1.5f;
+        const float amp = 5.0f;
+
+        // 1. Determinism and purity
+        const float h1 = ComputeWaterWaveHeight(x, y, time, freq, amp);
+        const float h2 = ComputeWaterWaveHeight(x, y, time, freq, amp);
+        CHECK(h1 == h2);
+
+        // 2. Zero origin check: matches legacy formula exactly
+        const float legacyVal = -6.0f + 5.0f * std::sin(time * 1.5f) + 1.0f * std::sin(time * 3.1f);
+        const float pureVal = ComputeWaterWaveHeight(0.0f, 0.0f, time, freq, amp);
+        CHECK(pureVal == doctest::Approx(legacyVal).epsilon(0.0001f));
+
+        // 3. Amplitude scaling: with zero amplitude, stays at base level (-6.0f)
+        const float hFlat = ComputeWaterWaveHeight(x, y, time, freq, 0.0f);
+        CHECK(hFlat == doctest::Approx(-6.0f).epsilon(0.0001f));
+
+        // 4. Amplitude bounds check
+        const float maxExpected = -6.0f + amp * 1.2f;
+        const float minExpected = -6.0f - amp * 1.2f;
+        for (float t = 0.0f; t < 10.0f; t += 0.25f)
+        {
+            const float val = ComputeWaterWaveHeight(x, y, t, freq, amp);
+            CHECK(val <= maxExpected + 0.001f);
+            CHECK(val >= minExpected - 0.001f);
+        }
+    }
+
+    // 9. T103 / R1.3: ComputeParticleBillboardQuad pure camera quad calculation
+    TEST_CASE("ParticleQuad_ComputeParticleBillboardQuad_PureCalculation")
+    {
+        SCameraParameters cam;
+        cam.v3Eye = D3DXVECTOR3(0.0f, -500.0f, 100.0f);
+        cam.v3Up = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+        cam.v3Cross = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+        cam.v3View = D3DXVECTOR3(0.0f, 1.0f, 0.0f);
+
+        const D3DXVECTOR3 center(100.0f, 200.0f, 50.0f);
+        const float halfWidth = 20.0f;
+        const float halfHeight = 30.0f;
+
+        // 1. BILLBOARD_ALL mode (type 0), 0 rotation
+        SParticleQuad quad = ComputeParticleBillboardQuad(
+            0,
+            false,
+            center,
+            halfWidth,
+            halfHeight,
+            0.0f,
+            cam
+        );
+
+        // Quad center of mass should equal input center position
+        const D3DXVECTOR3 avgPos = (quad.positions[0] + quad.positions[1] + quad.positions[2] + quad.positions[3]) * 0.25f;
+        CHECK(avgPos.x == doctest::Approx(center.x).epsilon(0.001f));
+        CHECK(avgPos.y == doctest::Approx(center.y).epsilon(0.001f));
+        CHECK(avgPos.z == doctest::Approx(center.z).epsilon(0.001f));
+
+        // Diagonal distance check (halfWidth 20, halfHeight 30 => diagonal ~ 72.111)
+        D3DXVECTOR3 diag = quad.positions[3] - quad.positions[0];
+        float diagLen = D3DXVec3Length(&diag);
+        CHECK(diagLen == doctest::Approx(72.111f).epsilon(0.01f));
+
+        // 2. Determinism test
+        SParticleQuad quad2 = ComputeParticleBillboardQuad(0, false, center, halfWidth, halfHeight, 0.0f, cam);
+        for (int i = 0; i < 4; ++i)
+        {
+            CHECK(quad.positions[i].x == quad2.positions[i].x);
+            CHECK(quad.positions[i].y == quad2.positions[i].y);
+            CHECK(quad.positions[i].z == quad2.positions[i].z);
+        }
+
+        // 3. BILLBOARD_LIE mode (type 3, lying flat in XY plane)
+        SParticleQuad quadLie = ComputeParticleBillboardQuad(
+            3,
+            false,
+            center,
+            halfWidth,
+            halfHeight,
+            0.0f,
+            cam
+        );
+        for (int i = 0; i < 4; ++i)
+        {
+            CHECK(quadLie.positions[i].z == doctest::Approx(center.z).epsilon(0.001f));
+        }
     }
 }

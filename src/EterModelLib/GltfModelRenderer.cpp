@@ -143,7 +143,7 @@ void GltfModelRenderer::SetMaterialImagePointer(
         if (!_stricmp(diffName.c_str(), targetName.c_str()) ||
             !_stricmp(baseDiff.c_str(), baseTarget.c_str()) ||
             !_stricmp(baseDiffNoExt.c_str(), baseTargetNoExt.c_str()) ||
-            m_materials.size() == 1)
+            (m_materials.size() == 1 && targetName.empty()))
         {
             m_materials[m].roDiffuseImage.SetPointer(pImage);
         }
@@ -239,6 +239,8 @@ void GltfModelRenderer::Render(
     STATEMANAGER.SetStreamSource(0, pModel->GetVertexBuffer(), sizeof(EterLib::Render::GpuSkinnedVertex));
     STATEMANAGER.SetIndices(pModel->GetIndexBuffer(), 0);
 
+    const auto& matWorldAbi = ToAbi(matWorld);
+
     for (size_t s = 0; s < modelData.submeshes.size(); ++s) {
         const GltfSubmesh& submesh = modelData.submeshes[s];
         if (submesh.indexCount == 0)
@@ -266,12 +268,12 @@ void GltfModelRenderer::Render(
         item.modelId = modelId;
         item.submeshIndex = static_cast<uint32_t>(s);
         item.pass = pass;
-        item.matWorld = ToAbi(matWorld);
+        item.matWorld = matWorldAbi;
         item.bTwoSided = isTwoSided ? 1 : 0;
         item.fAlpha = 1.0f;
         item.materialColor = 0xffffffff;
 
-        ExecuteDrawItemD3D9(pDevice, pInstance, item);
+        ExecuteDrawItemD3D9(pDevice, pInstance, item, true);
     }
 
     if (bUsingShader) {
@@ -282,7 +284,8 @@ void GltfModelRenderer::Render(
 void GltfModelRenderer::ExecuteDrawItemD3D9(
     LPDIRECT3DDEVICE9 pDevice,
     const CGltfModelInstance* pInstance,
-    const TModelDrawItem& item)
+    const TModelDrawItem& item,
+    bool bBuffersAlreadyBound)
 {
     if (!pInstance || !pDevice)
         return;
@@ -303,19 +306,28 @@ void GltfModelRenderer::ExecuteDrawItemD3D9(
     if (primitiveCount == 0 || (submesh.indexOffset + submesh.indexCount) > modelData.indices.size())
         return;
 
-    if (!EnsureStaticGpuBuffers(pDevice, pInstance))
-        return;
+    if (!bBuffersAlreadyBound) {
+        if (!EnsureStaticGpuBuffers(pDevice, pInstance))
+            return;
 
-    STATEMANAGER.SetStreamSource(0, pModel->GetVertexBuffer(), sizeof(EterLib::Render::GpuSkinnedVertex));
-    STATEMANAGER.SetIndices(pModel->GetIndexBuffer(), 0);
+        STATEMANAGER.SetStreamSource(0, pModel->GetVertexBuffer(), sizeof(EterLib::Render::GpuSkinnedVertex));
+        STATEMANAGER.SetIndices(pModel->GetIndexBuffer(), 0);
+    }
 
     LPDIRECT3DTEXTURE9 pD3DTexture = nullptr;
+    LPDIRECT3DTEXTURE9 pD3DOpacityTexture = nullptr;
     if (submesh.materialIndex >= 0 && submesh.materialIndex < static_cast<int>(m_materials.size())) {
         const SGltfMaterialState& state = m_materials[submesh.materialIndex];
         if (!state.roDiffuseImage.IsNull()) {
             CGraphicImage* pImg = state.roDiffuseImage.GetPointer();
             if (pImg && !pImg->IsEmpty() && pImg->GetTexturePointer()) {
                 pD3DTexture = pImg->GetTexturePointer()->GetD3DTexture();
+            }
+        }
+        if (!state.roOpacityImage.IsNull()) {
+            CGraphicImage* pOpacImg = state.roOpacityImage.GetPointer();
+            if (pOpacImg && !pOpacImg->IsEmpty() && pOpacImg->GetTexturePointer()) {
+                pD3DOpacityTexture = pOpacImg->GetTexturePointer()->GetD3DTexture();
             }
         }
     }
@@ -344,7 +356,7 @@ void GltfModelRenderer::ExecuteDrawItemD3D9(
 
     // 3. Izolacja tekstur przez CStateManager
     STATEMANAGER.SaveTexture(0, pD3DTexture);
-    STATEMANAGER.SaveTexture(1, nullptr);
+    STATEMANAGER.SaveTexture(1, pD3DOpacityTexture);
 
     // 4. Rysowanie prymitywow
     const UINT minVertexIndex = submesh.vertexOffset;

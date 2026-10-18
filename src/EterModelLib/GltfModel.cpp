@@ -27,6 +27,48 @@ void CGltfModel::Clear()
     m_modelData.skin.name.clear();
     m_modelData.skin.joints.clear();
     m_modelData.motions.clear();
+    m_boneIndexMap.clear();
+    m_animIndexMap.clear();
+}
+
+void CGltfModel::SetLoaded(bool loaded)
+{
+    m_bLoaded = loaded;
+    if (loaded)
+    {
+        RebuildLookupTables();
+    }
+}
+
+void CGltfModel::SetModelData(const GltfModelData& modelData)
+{
+    ReleaseGpuBuffers();
+    m_modelData = modelData;
+    RebuildLookupTables();
+    m_bLoaded = true;
+}
+
+void CGltfModel::RebuildLookupTables()
+{
+    m_boneIndexMap.clear();
+    m_boneIndexMap.reserve(m_modelData.skin.joints.size());
+    for (size_t i = 0; i < m_modelData.skin.joints.size(); ++i)
+    {
+        if (!m_modelData.skin.joints[i].name.empty())
+        {
+            m_boneIndexMap.emplace(m_modelData.skin.joints[i].name, static_cast<int>(i));
+        }
+    }
+
+    m_animIndexMap.clear();
+    m_animIndexMap.reserve(m_modelData.motions.size());
+    for (size_t i = 0; i < m_modelData.motions.size(); ++i)
+    {
+        if (!m_modelData.motions[i].name.empty())
+        {
+            m_animIndexMap.emplace(m_modelData.motions[i].name, static_cast<int>(i));
+        }
+    }
 }
 
 bool CGltfModel::LoadFromFile(const std::string& filename)
@@ -50,6 +92,7 @@ bool CGltfModel::LoadFromFile(const std::string& filename)
             m_modelData.name.c_str(), m_modelData.vertices.size(), m_modelData.indices.size());
     }
 
+    RebuildLookupTables();
     m_bLoaded = true;
     return true;
 }
@@ -70,6 +113,7 @@ bool CGltfModel::LoadFromMemory(const void* data, size_t size, const std::string
         m_modelData.name = modelName;
     }
 
+    RebuildLookupTables();
     m_bLoaded = true;
     return true;
 }
@@ -94,6 +138,13 @@ const GltfJoint* CGltfModel::GetBone(size_t index) const
 
 int CGltfModel::FindBoneIndex(const std::string& name) const
 {
+    auto it = m_boneIndexMap.find(name);
+    if (it != m_boneIndexMap.end())
+    {
+        return it->second;
+    }
+
+    // Fallback w razie dynamicznej modyfikacji m_modelData bez wywolania RebuildLookupTables
     for (size_t i = 0; i < m_modelData.skin.joints.size(); ++i)
     {
         if (m_modelData.skin.joints[i].name == name)
@@ -115,6 +166,12 @@ const GltfMotionData* CGltfModel::GetAnimation(size_t index) const
 
 int CGltfModel::FindAnimationIndex(const std::string& name) const
 {
+    auto it = m_animIndexMap.find(name);
+    if (it != m_animIndexMap.end())
+    {
+        return it->second;
+    }
+
     for (size_t i = 0; i < m_modelData.motions.size(); ++i)
     {
         if (m_modelData.motions[i].name == name)
@@ -183,7 +240,7 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     const UINT ibSize = static_cast<UINT>(m_modelData.indices.size() * sizeof(unsigned int));
 
     HRESULT hrVB = pDevice->CreateVertexBuffer(
-        vbSize, D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &m_pVertexBuffer, nullptr);
+        vbSize, D3DUSAGE_WRITEONLY, 0, D3DPOOL_MANAGED, &m_pVertexBuffer, nullptr);
     if (FAILED(hrVB))
     {
         TraceError("CGltfModel::EnsureGpuBuffers: CreateVertexBuffer failed hr=0x%08X size=%u", hrVB, vbSize);
@@ -225,7 +282,7 @@ bool CGltfModel::EnsureGpuBuffers(LPDIRECT3DDEVICE9 pDevice) const
     m_pVertexBuffer->Unlock();
 
     HRESULT hrIB = pDevice->CreateIndexBuffer(
-        ibSize, D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &m_pIndexBuffer, nullptr);
+        ibSize, D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_MANAGED, &m_pIndexBuffer, nullptr);
     if (FAILED(hrIB))
     {
         TraceError("CGltfModel::EnsureGpuBuffers: CreateIndexBuffer failed hr=0x%08X size=%u", hrIB, ibSize);

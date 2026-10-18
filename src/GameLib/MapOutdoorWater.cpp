@@ -40,7 +40,7 @@ void CMapOutdoor::RenderWater()
 
 	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
 	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
-	const float fWaterHeightCurrent = CalculateWaterWaveHeight(0.0f, 0.0f, fTimeSec);
+	const float fWaterHeightCurrent = ComputeWaterWaveHeight(0.0f, 0.0f, fTimeSec, 1.5f, 5.0f);
 
 	const DWORD dwWaterFrame = CalculateWaterAnimationFrameIndex(ELTimer_GetMSec());
 	CGraphicImageInstance* pWaterInstance = &m_WaterInstances[dwWaterFrame];
@@ -140,7 +140,7 @@ void CMapOutdoor::DrawWater(long patchnum)
 {
 	const DWORD dwCurTime = CTimer::Instance().GetCurrentMillisecond();
 	const float fTimeSec = static_cast<float>(dwCurTime) * 0.001f;
-	const float fWaterHeightCurrent = CalculateWaterWaveHeight(0.0f, 0.0f, fTimeSec);
+	const float fWaterHeightCurrent = ComputeWaterWaveHeight(0.0f, 0.0f, fTimeSec, 1.5f, 5.0f);
 
 	const DWORD dwWaterFrame = CalculateWaterAnimationFrameIndex(ELTimer_GetMSec());
 	CGraphicImageInstance* pWaterInstance = &m_WaterInstances[dwWaterFrame];

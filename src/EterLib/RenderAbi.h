@@ -142,17 +142,47 @@ typedef enum EUIBlendMode
     UI_BLEND_LCD_PASS2 = 5
 } EUIBlendMode;
 
-typedef struct TPipelineStateKey
+#pragma pack(push, 4)
+typedef union TPipelineStateKey
 {
-    uint8_t srcBlend;
-    uint8_t destBlend;
-    uint8_t cullMode;
-    uint8_t zTest;
-    uint8_t zWrite;
-    uint8_t alphaRef;
-    uint8_t fogEnable;
-    uint8_t colorWrite;
+    uint64_t rawKey;
+    struct
+    {
+        uint8_t srcBlend;
+        uint8_t destBlend;
+        uint8_t cullMode;
+        uint8_t zTest;
+        uint8_t zWrite;
+        uint8_t alphaRef;
+        uint8_t fogEnable;
+        uint8_t colorWrite;
+    };
+#ifdef __cplusplus
+    constexpr TPipelineStateKey() noexcept : rawKey(0) {}
+    constexpr explicit TPipelineStateKey(uint64_t raw) noexcept : rawKey(raw) {}
+    constexpr TPipelineStateKey(uint8_t src, uint8_t dest, uint8_t cull, uint8_t zt, uint8_t zw, uint8_t aref, uint8_t fog, uint8_t cwrite) noexcept
+        : srcBlend(src), destBlend(dest), cullMode(cull), zTest(zt), zWrite(zw), alphaRef(aref), fogEnable(fog), colorWrite(cwrite) {}
+
+    [[nodiscard]] constexpr bool operator==(const TPipelineStateKey& o) const noexcept { return rawKey == o.rawKey; }
+    [[nodiscard]] constexpr bool operator!=(const TPipelineStateKey& o) const noexcept { return rawKey != o.rawKey; }
+    [[nodiscard]] constexpr bool operator<(const TPipelineStateKey& o) const noexcept { return rawKey < o.rawKey; }
+#endif
 } TPipelineStateKey;
+#pragma pack(pop)
+
+#define STATE_KEY_RAW_OPAQUE       0x0F01000101020102ULL
+#define STATE_KEY_RAW_ALPHA_BLEND  0x0F01000001020605ULL
+#define STATE_KEY_RAW_ADDITIVE     0x0F01000001020205ULL
+
+#ifdef __cplusplus
+constexpr TPipelineStateKey STATE_KEY_OPAQUE{ STATE_KEY_RAW_OPAQUE };
+constexpr TPipelineStateKey STATE_KEY_ALPHA_BLEND{ STATE_KEY_RAW_ALPHA_BLEND };
+constexpr TPipelineStateKey STATE_KEY_ADDITIVE{ STATE_KEY_RAW_ADDITIVE };
+#else
+#define STATE_KEY_OPAQUE ((TPipelineStateKey){ .rawKey = STATE_KEY_RAW_OPAQUE })
+#define STATE_KEY_ALPHA_BLEND ((TPipelineStateKey){ .rawKey = STATE_KEY_RAW_ALPHA_BLEND })
+#define STATE_KEY_ADDITIVE ((TPipelineStateKey){ .rawKey = STATE_KEY_RAW_ADDITIVE })
+#endif
 
 typedef enum EMaterialType
 {
@@ -304,9 +334,17 @@ typedef struct RENDER_ABI_ALIGN(16) TTerrainSectorPacket
     };
     uint32_t patchNum;
     uint32_t splatTextureId;
-    void* pSplatTexture;
+    union
+    {
+        void* pSplatTexture;
+        uint32_t dwSplatTextureHandle;
+    };
     uint32_t layerTextureIds[4];
-    void* pLayerTextures[4];
+    union
+    {
+        void* pLayerTextures[4];
+        uint32_t dwLayerTextureHandles[4];
+    };
     void* pVertexData;
     uint32_t dwVertexCount;
     union
@@ -414,7 +452,11 @@ typedef struct RENDER_ABI_ALIGN(16) TWaterPacket
     float fAlpha;
     uint32_t dwWaterTextureID;
     uint32_t dwPadTexture;
-    void* pWaterTexture;
+    union
+    {
+        void* pWaterTexture;
+        uint32_t dwWaterTextureHandle;
+    };
     uint32_t dwCellCount;
     uint32_t dwVertexCount;
     void* pVertexBuffer;
@@ -616,7 +658,12 @@ typedef struct RENDER_ABI_ALIGN(16) TEffectInstancePacket
     };
     uint32_t dwParticleCount;
     const TParticleInstanceData* pParticles;
-    float fPad[2];
+    union
+    {
+        float fPad[2];
+        TPipelineStateKey stateKey;
+        uint64_t qwStateKey;
+    };
 
 #ifdef __cplusplus
     TEffectInstancePacket()
@@ -635,7 +682,12 @@ typedef struct RENDER_ABI_ALIGN(16) TUIBatchPacket
     uint32_t bUseScissor;
     RENDER_RECT_TYPE scissorRect;
     const TUIVertex* pVertices;
-    float fPad[2];
+    union
+    {
+        float fPad[2];
+        TPipelineStateKey stateKey;
+        uint64_t qwStateKey;
+    };
 
 #ifdef __cplusplus
     TUIBatchPacket()
@@ -663,9 +715,17 @@ typedef struct RENDER_ABI_ALIGN(16) TDungeonBlockPacket
     uint32_t dwStartIndex;
     int32_t nBaseVertexIndex;
     float fAlpha;
-    uint8_t bAlphaBlend;
-    uint8_t bPadDungeon[3];
-    float fPad;
+    union
+    {
+        struct
+        {
+            uint8_t bAlphaBlend;
+            uint8_t bPadDungeon[3];
+            float fPad;
+        };
+        TPipelineStateKey stateKey;
+        uint64_t qwStateKey;
+    };
 
 #ifdef __cplusplus
     TDungeonBlockPacket()

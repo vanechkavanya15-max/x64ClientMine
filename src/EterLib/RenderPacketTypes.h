@@ -245,5 +245,11 @@ static_assert(offsetof(TEffectMeshPacket, srcBlend) == 76, "ABI: effect mesh src
 static_assert(offsetof(TEffectMeshPacket, destBlend) == 77, "ABI: effect mesh destBlend");
 static_assert(offsetof(TEffectMeshPacket, vertexOffset) == 80, "ABI: effect mesh vertexOffset");
 static_assert(offsetof(TEffectMeshPacket, vertexCount) == 84, "ABI: effect mesh vertexCount");
+static_assert(offsetof(TWaterPacket, dwWaterTextureHandle) == 64, "ABI: water dwWaterTextureHandle");
+static_assert(offsetof(TTerrainSectorPacket, dwSplatTextureHandle) == 48, "ABI: terrain dwSplatTextureHandle");
+static_assert(offsetof(TTerrainSectorPacket, dwLayerTextureHandles) == 72, "ABI: terrain dwLayerTextureHandles");
+static_assert(offsetof(TUIBatchPacket, stateKey) == 48, "ABI: ui stateKey");
+static_assert(offsetof(TEffectInstancePacket, stateKey) == 32, "ABI: effect stateKey");
+static_assert(offsetof(TDungeonBlockPacket, stateKey) == 152, "ABI: dungeon stateKey");
 #endif
 

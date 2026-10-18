@@ -60,7 +60,8 @@ public:
     void ExecuteDrawItemD3D9(
         LPDIRECT3DDEVICE9 pDevice,
         const CGltfModelInstance* pInstance,
-        const TModelDrawItem& item);
+        const TModelDrawItem& item,
+        bool bBuffersAlreadyBound = false);
 
     [[nodiscard]] const std::vector<SGltfMaterialState>& GetMaterialStates() const noexcept {
         return m_materials;

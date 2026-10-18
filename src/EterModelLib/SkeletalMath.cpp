@@ -85,22 +85,29 @@ Quaternion Quaternion::operator*(const Quaternion& q) const {
 }
 Matrix4x4 Quaternion::ToMatrix4x4() const {
     Matrix4x4 mat;
-    float xx = x * x, yy = y * y, zz = z * z;
-    float xy = x * y, xz = x * z, xw = x * w;
-    float yz = y * z, yw = y * w, zw = z * w;
-    mat.m[0][0] = 1 - 2 * (yy + zz);
-    mat.m[0][1] = 2 * (xy - zw);
-    mat.m[0][2] = 2 * (xz + yw);
-    mat.m[0][3] = 0;
-    mat.m[1][0] = 2 * (xy + zw);
-    mat.m[1][1] = 1 - 2 * (xx + zz);
-    mat.m[1][2] = 2 * (yz - xw);
-    mat.m[1][3] = 0;
-    mat.m[2][0] = 2 * (xz - yw);
-    mat.m[2][1] = 2 * (yz + xw);
-    mat.m[2][2] = 1 - 2 * (xx + yy);
-    mat.m[2][3] = 0;
-    mat.m[3][0] = 0; mat.m[3][1] = 0; mat.m[3][2] = 0; mat.m[3][3] = 1;
+    const float xx = x * x, yy = y * y, zz = z * z;
+    const float xy = x * y, xz = x * z, xw = x * w;
+    const float yz = y * z, yw = y * w, zw = z * w;
+
+    mat.m[0][0] = 1.0f - 2.0f * (yy + zz);
+    mat.m[0][1] = 2.0f * (xy + zw);
+    mat.m[0][2] = 2.0f * (xz - yw);
+    mat.m[0][3] = 0.0f;
+
+    mat.m[1][0] = 2.0f * (xy - zw);
+    mat.m[1][1] = 1.0f - 2.0f * (xx + zz);
+    mat.m[1][2] = 2.0f * (yz + xw);
+    mat.m[1][3] = 0.0f;
+
+    mat.m[2][0] = 2.0f * (xz + yw);
+    mat.m[2][1] = 2.0f * (yz - xw);
+    mat.m[2][2] = 1.0f - 2.0f * (xx + yy);
+    mat.m[2][3] = 0.0f;
+
+    mat.m[3][0] = 0.0f;
+    mat.m[3][1] = 0.0f;
+    mat.m[3][2] = 0.0f;
+    mat.m[3][3] = 1.0f;
     return mat;
 }
 
@@ -175,20 +182,27 @@ Matrix4x4 Matrix4x4::Transpose() const {
     return res;
 }
 Matrix4x4 Matrix4x4::TRS(const Vector3& translation, const Quaternion& rotation, const Vector3& scale) {
-    Matrix4x4 s = Matrix4x4::Identity();
-    s.m[0][0] = scale.x; s.m[1][1] = scale.y; s.m[2][2] = scale.z;
-    Matrix4x4 r = rotation.ToMatrix4x4().Transpose();
-    Matrix4x4 t = Matrix4x4::Identity();
-    t.m[3][0] = translation.x; t.m[3][1] = translation.y; t.m[3][2] = translation.z;
-    return s * r * t; 
+    Matrix4x4 m = rotation.ToMatrix4x4();
+    m.m[0][0] *= scale.x; m.m[0][1] *= scale.x; m.m[0][2] *= scale.x;
+    m.m[1][0] *= scale.y; m.m[1][1] *= scale.y; m.m[1][2] *= scale.y;
+    m.m[2][0] *= scale.z; m.m[2][1] *= scale.z; m.m[2][2] *= scale.z;
+    m.m[3][0] = translation.x;
+    m.m[3][1] = translation.y;
+    m.m[3][2] = translation.z;
+    return m;
 }
 
-void EvaluateHierarchy(const std::vector<int32_t>& parentIndices, const std::vector<Matrix4x4>& localTransforms, std::vector<Matrix4x4>& outWorldTransforms) {
-    size_t count = localTransforms.size();
+void EvaluateHierarchy(
+    const std::vector<int32_t>& parentIndices,
+    const std::vector<Matrix4x4>& localTransforms,
+    std::vector<Matrix4x4>& outWorldTransforms,
+    std::vector<uint8_t>& state)
+{
+    const size_t count = localTransforms.size();
     outWorldTransforms.resize(count);
     if (count == 0) return;
 
-    std::vector<uint8_t> state(count, 0); // 0: unvisited, 1: visiting, 2: visited
+    state.assign(count, 0);
 
     auto computeNode = [&](auto& self, size_t i) -> void {
         if (state[i] == 2) return;
@@ -199,7 +213,7 @@ void EvaluateHierarchy(const std::vector<int32_t>& parentIndices, const std::vec
             return;
         }
         state[i] = 1;
-        int p = parentIndices[i];
+        const int p = parentIndices[i];
         if (p >= 0 && static_cast<size_t>(p) < count && static_cast<size_t>(p) != i) {
             self(self, static_cast<size_t>(p));
             outWorldTransforms[i] = localTransforms[i] * outWorldTransforms[p];
@@ -213,6 +227,16 @@ void EvaluateHierarchy(const std::vector<int32_t>& parentIndices, const std::vec
         computeNode(computeNode, i);
     }
 }
+
+void EvaluateHierarchy(
+    const std::vector<int32_t>& parentIndices,
+    const std::vector<Matrix4x4>& localTransforms,
+    std::vector<Matrix4x4>& outWorldTransforms)
+{
+    std::vector<uint8_t> state;
+    EvaluateHierarchy(parentIndices, localTransforms, outWorldTransforms, state);
+}
+
 void ComputeSkinningMatrices(const std::vector<Matrix4x4>& worldTransforms, const std::vector<Matrix4x4>& invBindMatrices, std::vector<Matrix4x4>& outSkinMatrices) {
     size_t worldCount = worldTransforms.size();
     size_t invCount = invBindMatrices.size();

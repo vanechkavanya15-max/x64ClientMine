@@ -42,6 +42,7 @@ struct Matrix4x4 {
     static Matrix4x4 TRS(const Vector3& translation, const Quaternion& rotation, const Vector3& scale);
 };
 
+void EvaluateHierarchy(const std::vector<int32_t>& parentIndices, const std::vector<Matrix4x4>& localTransforms, std::vector<Matrix4x4>& outWorldTransforms, std::vector<uint8_t>& workState);
 void EvaluateHierarchy(const std::vector<int32_t>& parentIndices, const std::vector<Matrix4x4>& localTransforms, std::vector<Matrix4x4>& outWorldTransforms);
 void ComputeSkinningMatrices(const std::vector<Matrix4x4>& worldTransforms, const std::vector<Matrix4x4>& invBindMatrices, std::vector<Matrix4x4>& outSkinMatrices);
 

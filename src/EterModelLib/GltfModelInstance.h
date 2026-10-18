@@ -51,6 +51,11 @@ public:
     explicit CGltfModelInstance(const CGltfModel* pModel);
     virtual ~CGltfModelInstance();
 
+    CGltfModelInstance(const CGltfModelInstance&) = delete;
+    CGltfModelInstance& operator=(const CGltfModelInstance&) = delete;
+    CGltfModelInstance(CGltfModelInstance&&) noexcept = default;
+    CGltfModelInstance& operator=(CGltfModelInstance&&) noexcept = default;
+
     // Przypisanie i odczyt modelu zrodlowego
     void SetModel(const CGltfModel* pModel);
     const CGltfModel* GetModel() const { return m_pModel; }
@@ -139,6 +144,9 @@ public:
     void RegisterLinkedChild(CGltfModelInstance* pChild) const;
     void UnregisterLinkedChild(CGltfModelInstance* pChild) const;
 
+    void RegisterAttachedChild(CGltfModelInstance* pChild) const;
+    void UnregisterAttachedChild(CGltfModelInstance* pChild) const;
+
     // Gniazda kosci (Bone Attachment / Sockets)
     void SetParentModelInstance(const CGltfModelInstance* pParentInstance, const char* szBoneName);
     void SetParentModelInstance(const CGltfModelInstance* pParentInstance, int boneIndex);
@@ -158,6 +166,7 @@ private:
 
     // Gniazdo kosci (Bone Attachment / Socket)
     const CGltfModelInstance* m_pParentInstance;
+    mutable std::vector<CGltfModelInstance*> m_attachedChildren;
     std::string m_parentBoneName;
     int m_parentBoneIndex;
     Matrix4x4 m_parentBoneMatrix;

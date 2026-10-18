@@ -3,8 +3,10 @@
 #include <cgltf/cgltf.h>
 #include <iostream>
 #include <cstring>
+#include <cmath>
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 
 GltfLoader::GltfLoader() {}
 GltfLoader::~GltfLoader() {}
@@ -16,6 +18,90 @@ namespace
         cgltf_data* data = nullptr;
         ~CgltfScopeGuard() { if (data) cgltf_free(data); }
     };
+
+    void DecomposeMatrixColMajor(const float m[16], float3& outTranslation, float4& outRotation, float3& outScale)
+    {
+        // Translacja (kolumna 3 w formacie kolumnowym glTF)
+        outTranslation = { m[12], m[13], m[14] };
+
+        // Skala (dlugosci kolumn bazy 0, 1, 2)
+        float sx = std::sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
+        float sy = std::sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6]);
+        float sz = std::sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10]);
+
+        if (sx < 1e-6f) sx = 1.0f;
+        if (sy < 1e-6f) sy = 1.0f;
+        if (sz < 1e-6f) sz = 1.0f;
+
+        // Normalizacja kolumn rotacji
+        float r00 = m[0] / sx, r10 = m[1] / sx, r20 = m[2] / sx;
+        float r01 = m[4] / sy, r11 = m[5] / sy, r21 = m[6] / sy;
+        float r02 = m[8] / sz, r12 = m[9] / sz, r22 = m[10] / sz;
+
+        // Sprawdzenie wyznacznika pod katem odbicia lustrzanego (ujemna skala)
+        float det = r00 * (r11 * r22 - r12 * r21) - r01 * (r10 * r22 - r12 * r20) + r02 * (r10 * r21 - r11 * r20);
+        if (det < 0.0f)
+        {
+            sz = -sz;
+            r02 = -r02;
+            r12 = -r12;
+            r22 = -r22;
+        }
+
+        outScale = { sx, sy, sz };
+
+        // Rotacja z macierzy ortonormalnej 3x3 do kwaternionu (x, y, z, w)
+        float trace = r00 + r11 + r22;
+        float qx = 0.0f, qy = 0.0f, qz = 0.0f, qw = 1.0f;
+
+        if (trace > 0.0f)
+        {
+            float s = 0.5f / std::sqrt(trace + 1.0f);
+            qw = 0.25f / s;
+            qx = (r21 - r12) * s;
+            qy = (r02 - r20) * s;
+            qz = (r10 - r01) * s;
+        }
+        else
+        {
+            if (r00 > r11 && r00 > r22)
+            {
+                float s = 2.0f * std::sqrt(1.0f + r00 - r11 - r22);
+                qw = (r21 - r12) / s;
+                qx = 0.25f * s;
+                qy = (r01 + r10) / s;
+                qz = (r02 + r20) / s;
+            }
+            else if (r11 > r22)
+            {
+                float s = 2.0f * std::sqrt(1.0f + r11 - r00 - r22);
+                qw = (r02 - r20) / s;
+                qx = (r01 + r10) / s;
+                qy = 0.25f * s;
+                qz = (r12 + r21) / s;
+            }
+            else
+            {
+                float s = 2.0f * std::sqrt(1.0f + r22 - r00 - r11);
+                qw = (r10 - r01) / s;
+                qx = (r02 + r20) / s;
+                qy = (r12 + r21) / s;
+                qz = 0.25f * s;
+            }
+        }
+
+        float qlen = std::sqrt(qx * qx + qy * qy + qz * qz + qw * qw);
+        if (qlen > 1e-6f)
+        {
+            qx /= qlen; qy /= qlen; qz /= qlen; qw /= qlen;
+        }
+        else
+        {
+            qx = 0.0f; qy = 0.0f; qz = 0.0f; qw = 1.0f;
+        }
+
+        outRotation = { qx, qy, qz, qw };
+    }
 }
 
 bool GltfLoader::LoadFromFile(const std::string& path, GltfModelData& outModelData)
@@ -75,6 +161,18 @@ static void ParseMetin2Events(const std::string& json, std::vector<GltfEvent>& o
     size_t arrEnd = json.find(']', arrStart);
     if (arrStart == std::string::npos || arrEnd == std::string::npos) return;
 
+    auto extractStringField = [](const std::string& obj, const char* key) -> std::string {
+        size_t keyPos = obj.find(key);
+        if (keyPos == std::string::npos) return "";
+        size_t colon = obj.find(':', keyPos);
+        if (colon == std::string::npos) return "";
+        size_t q1 = obj.find('\"', colon + 1);
+        if (q1 == std::string::npos) return "";
+        size_t q2 = obj.find('\"', q1 + 1);
+        if (q2 == std::string::npos) return "";
+        return obj.substr(q1 + 1, q2 - q1 - 1);
+    };
+
     size_t cur = arrStart + 1;
     while (cur < arrEnd)
     {
@@ -84,7 +182,7 @@ static void ParseMetin2Events(const std::string& json, std::vector<GltfEvent>& o
         if (objEnd == std::string::npos || objEnd > arrEnd) break;
 
         std::string objStr = json.substr(objStart, objEnd - objStart + 1);
-        GltfEvent ev;
+        GltfEvent ev{};
         ev.time = 0.0f;
 
         size_t timePos = objStr.find("\"time\"");
@@ -96,32 +194,17 @@ static void ParseMetin2Events(const std::string& json, std::vector<GltfEvent>& o
                 size_t numStart = objStr.find_first_not_of(" \t\r\n", colon + 1);
                 if (numStart != std::string::npos)
                 {
-                    ev.time = (float)std::atof(objStr.c_str() + numStart);
+                    std::from_chars(objStr.data() + numStart, objStr.data() + objStr.size(), ev.time);
                 }
             }
         }
 
-        size_t typePos = objStr.find("\"type\"");
-        if (typePos != std::string::npos)
-        {
-            size_t colon = objStr.find(':', typePos);
-            if (colon != std::string::npos)
-            {
-                size_t quoteStart = objStr.find('\"', colon + 1);
-                if (quoteStart != std::string::npos)
-                {
-                    size_t quoteEnd = objStr.find('\"', quoteStart + 1);
-                    if (quoteEnd != std::string::npos)
-                    {
-                        ev.type = objStr.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
-                    }
-                }
-            }
-        }
+        ev.type = extractStringField(objStr, "\"type\"");
+        ev.arg  = extractStringField(objStr, "\"arg\"");
 
         if (!ev.type.empty())
         {
-            outEvents.push_back(ev);
+            outEvents.push_back(std::move(ev));
         }
 
         cur = objEnd + 1;
@@ -183,6 +266,7 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
     if (!data) return false;
 
     // Materialy
+    outModelData.materials.reserve(data->materials_count);
     for (size_t i = 0; i < data->materials_count; ++i)
     {
         const cgltf_material& mat = data->materials[i];
@@ -195,6 +279,16 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
         {
             ParseMaterialExtras(matExtras, m.diffuseTexture, m.opacityTexture);
         }
+
+        if (m.diffuseTexture.empty() &&
+            mat.has_pbr_metallic_roughness &&
+            mat.pbr_metallic_roughness.base_color_texture.texture &&
+            mat.pbr_metallic_roughness.base_color_texture.texture->image &&
+            mat.pbr_metallic_roughness.base_color_texture.texture->image->uri)
+        {
+            m.diffuseTexture = mat.pbr_metallic_roughness.base_color_texture.texture->image->uri;
+        }
+
         outModelData.materials.push_back(m);
     }
 
@@ -205,6 +299,8 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
         for (size_t j = 0; j < mesh.primitives_count; ++j)
         {
             const cgltf_primitive& prim = mesh.primitives[j];
+            if (prim.type != cgltf_primitive_type_triangles)
+                continue;
             
             GltfSubmesh submesh;
             submesh.name = mesh.name ? mesh.name : "unnamed_mesh";
@@ -241,7 +337,9 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
                         if (attr.index == 0) vertex.uv0 = {values[0], values[1]};
                         else if (attr.index == 1) vertex.uv1 = {values[0], values[1]};
                     } else if (attr.type == cgltf_attribute_type_joints) {
-                        vertex.jointIndices = {(unsigned int)values[0], (unsigned int)values[1], (unsigned int)values[2], (unsigned int)values[3]};
+                        cgltf_uint joints[4] = {0, 0, 0, 0};
+                        cgltf_accessor_read_uint(attr.data, v, joints, 4);
+                        vertex.jointIndices = {joints[0], joints[1], joints[2], joints[3]};
                     } else if (attr.type == cgltf_attribute_type_weights) {
                         vertex.jointWeights = {values[0], values[1], values[2], values[3]};
                     }
@@ -455,14 +553,18 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
             }
 
             // Odczyt bind pose (rest pose) kosci
-            if (jointNode->has_translation) {
-                joint.localTranslation = {jointNode->translation[0], jointNode->translation[1], jointNode->translation[2]};
-            }
-            if (jointNode->has_rotation) {
-                joint.localRotation = {jointNode->rotation[0], jointNode->rotation[1], jointNode->rotation[2], jointNode->rotation[3]};
-            }
-            if (jointNode->has_scale) {
-                joint.localScale = {jointNode->scale[0], jointNode->scale[1], jointNode->scale[2]};
+            if (jointNode->has_matrix) {
+                DecomposeMatrixColMajor(jointNode->matrix, joint.localTranslation, joint.localRotation, joint.localScale);
+            } else {
+                if (jointNode->has_translation) {
+                    joint.localTranslation = {jointNode->translation[0], jointNode->translation[1], jointNode->translation[2]};
+                }
+                if (jointNode->has_rotation) {
+                    joint.localRotation = {jointNode->rotation[0], jointNode->rotation[1], jointNode->rotation[2], jointNode->rotation[3]};
+                }
+                if (jointNode->has_scale) {
+                    joint.localScale = {jointNode->scale[0], jointNode->scale[1], jointNode->scale[2]};
+                }
             }
             
             for (int r = 0; r < 4; ++r) {
@@ -510,6 +612,14 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
             const cgltf_animation_sampler* sampler = channel.sampler;
             if (sampler && sampler->input && sampler->output)
             {
+                if (sampler->interpolation == cgltf_interpolation_type_step) {
+                    animChannel.interpolation = GltfInterpolationType::Step;
+                } else if (sampler->interpolation == cgltf_interpolation_type_cubic_spline) {
+                    animChannel.interpolation = GltfInterpolationType::CubicSpline;
+                } else {
+                    animChannel.interpolation = GltfInterpolationType::Linear;
+                }
+
                 size_t inputCount = sampler->input->count;
                 animChannel.times.resize(inputCount);
                 for (size_t t = 0; t < inputCount; ++t) {
@@ -519,13 +629,30 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
                     if (time > motion.duration) motion.duration = time;
                 }
                 
-                size_t outputCount = sampler->output->count;
-                animChannel.values.resize(outputCount);
-                for (size_t v = 0; v < outputCount; ++v) {
-                    float val[4] = {0,0,0,0};
-                    size_t numComps = cgltf_num_components(sampler->output->type);
-                    cgltf_accessor_read_float(sampler->output, v, val, numComps);
-                    animChannel.values[v] = {val[0], val[1], val[2], val[3]};
+                size_t numComps = cgltf_num_components(sampler->output->type);
+                if (animChannel.interpolation == GltfInterpolationType::CubicSpline)
+                {
+                    // W specyfikacji glTF 2.0 dla CUBICSPLINE na kazdy punkt czasu przypadaja 3 elementy: in-tangent, value, out-tangent.
+                    // Pobieramy wartosc kluczowa z indeksu t * 3 + 1, zachowujac synchronizacje 1:1 z channel.times.
+                    animChannel.values.resize(inputCount);
+                    for (size_t t = 0; t < inputCount; ++t) {
+                        float val[4] = {0, 0, 0, 0};
+                        size_t valueIndex = t * 3 + 1;
+                        if (valueIndex < sampler->output->count) {
+                            cgltf_accessor_read_float(sampler->output, valueIndex, val, numComps);
+                        }
+                        animChannel.values[t] = {val[0], val[1], val[2], val[3]};
+                    }
+                }
+                else
+                {
+                    size_t outputCount = sampler->output->count;
+                    animChannel.values.resize(outputCount);
+                    for (size_t v = 0; v < outputCount; ++v) {
+                        float val[4] = {0,0,0,0};
+                        cgltf_accessor_read_float(sampler->output, v, val, numComps);
+                        animChannel.values[v] = {val[0], val[1], val[2], val[3]};
+                    }
                 }
             }
             motion.channels.push_back(animChannel);

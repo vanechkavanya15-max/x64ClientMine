@@ -122,6 +122,12 @@ static_assert(offsetof(TDungeonBlockPacket, fAlpha) == 148, "Offset: dungeon fAl
 static_assert(offsetof(TDungeonBlockPacket, bAlphaBlend) == 152, "Offset: dungeon bAlphaBlend");
 static_assert(offsetof(TDungeonBlockPacket, bPadDungeon) == 153, "Offset: dungeon bPadDungeon");
 static_assert(offsetof(TDungeonBlockPacket, fPad) == 156, "Offset: dungeon fPad");
+static_assert(offsetof(TWaterPacket, dwWaterTextureHandle) == 64, "Offset: water dwWaterTextureHandle");
+static_assert(offsetof(TTerrainSectorPacket, dwSplatTextureHandle) == 48, "Offset: terrain dwSplatTextureHandle");
+static_assert(offsetof(TTerrainSectorPacket, dwLayerTextureHandles) == 72, "Offset: terrain dwLayerTextureHandles");
+static_assert(offsetof(TUIBatchPacket, stateKey) == 48, "Offset: ui stateKey");
+static_assert(offsetof(TEffectInstancePacket, stateKey) == 32, "Offset: effect stateKey");
+static_assert(offsetof(TDungeonBlockPacket, stateKey) == 152, "Offset: dungeon stateKey");
 
 static_assert(offsetof(TRenderFramePacket, uniforms) == 0, "Offset: frame uniforms");
 static_assert(offsetof(TRenderFramePacket, pTerrainPackets) == 288, "Offset: frame pTerrainPackets");
@@ -256,4 +262,65 @@ TEST_CASE("RenderPacketABI - TActorRenderPacket Zero-Init and ShadowSize")
 
 	// GetBoneMatrices() zwraca bufor wewnetrzny gdy wskaznik jest nullptr
 	CHECK(actor.GetBoneMatrices() == actor.boneMatrices);
+}
+
+TEST_CASE("RenderPacketABI - T101 TextureHandle in TWaterPacket and TTerrainSectorPacket")
+{
+    TWaterPacket water{};
+    water.dwWaterTextureHandle = 0x12345678u;
+    CHECK(water.dwWaterTextureHandle == 0x12345678u);
+    CHECK(reinterpret_cast<uintptr_t>(water.pWaterTexture) == 0x12345678u);
+
+    TTerrainSectorPacket terrain{};
+    terrain.dwSplatTextureHandle = 101u;
+    terrain.dwLayerTextureHandles[0] = 201u;
+    terrain.dwLayerTextureHandles[1] = 202u;
+    terrain.dwLayerTextureHandles[2] = 203u;
+    terrain.dwLayerTextureHandles[3] = 204u;
+    CHECK(terrain.dwSplatTextureHandle == 101u);
+    CHECK(terrain.dwLayerTextureHandles[0] == 201u);
+    CHECK(terrain.dwLayerTextureHandles[1] == 202u);
+    CHECK(terrain.dwLayerTextureHandles[2] == 203u);
+    CHECK(terrain.dwLayerTextureHandles[3] == 204u);
+}
+
+TEST_CASE("RenderPacketABI - T102 TPipelineStateKey and Packet State Keys")
+{
+    TPipelineStateKey key{};
+    CHECK(key.rawKey == 0ULL);
+    key.srcBlend = 5;
+    key.destBlend = 6;
+    key.cullMode = 2;
+    key.zTest = 1;
+    key.zWrite = 0;
+    key.alphaRef = 128;
+    key.fogEnable = 1;
+    key.colorWrite = 15;
+    CHECK(key.srcBlend == 5);
+    CHECK(key.destBlend == 6);
+    CHECK(key.cullMode == 2);
+    CHECK(key.zTest == 1);
+    CHECK(key.zWrite == 0);
+    CHECK(key.alphaRef == 128);
+    CHECK(key.fogEnable == 1);
+    CHECK(key.colorWrite == 15);
+
+    CHECK(STATE_KEY_OPAQUE.srcBlend == 2);
+    CHECK(STATE_KEY_OPAQUE.destBlend == 1);
+    CHECK(STATE_KEY_ALPHA_BLEND.srcBlend == 5);
+    CHECK(STATE_KEY_ALPHA_BLEND.destBlend == 6);
+    CHECK(STATE_KEY_ADDITIVE.srcBlend == 5);
+    CHECK(STATE_KEY_ADDITIVE.destBlend == 2);
+
+    TUIBatchPacket ui{};
+    ui.stateKey = STATE_KEY_ALPHA_BLEND;
+    CHECK(ui.stateKey == STATE_KEY_ALPHA_BLEND);
+
+    TEffectInstancePacket effect{};
+    effect.stateKey = STATE_KEY_ADDITIVE;
+    CHECK(effect.stateKey == STATE_KEY_ADDITIVE);
+
+    TDungeonBlockPacket dungeon{};
+    dungeon.stateKey = STATE_KEY_OPAQUE;
+    CHECK(dungeon.stateKey == STATE_KEY_OPAQUE);
 }

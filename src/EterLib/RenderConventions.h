@@ -81,9 +81,19 @@ inline constexpr uint32_t ToBgraDword(uint8_t r, uint8_t g, uint8_t b, uint8_t a
 	       static_cast<uint32_t>(b);
 }
 
-inline float CalculateWaterWaveHeight(float /*x*/, float /*y*/, float fTime)
+[[nodiscard]] inline float ComputeWaterWaveHeight(float x, float y, float time, float freq, float amp) noexcept
 {
-	return -6.0f + 5.0f * sinf(fTime * 1.5f) + 1.0f * sinf(fTime * 3.1f);
+	const float spatialPhase = 0.002f * x + 0.003f * y;
+	const float harmonicFreq = (freq != 0.0f) ? (freq * 2.0666667f) : 3.1f;
+	const float harmonicAmp = amp * 0.2f;
+
+	return -6.0f + amp * std::sin(time * freq + spatialPhase)
+	             + harmonicAmp * std::sin(time * harmonicFreq + spatialPhase * 1.5f);
+}
+
+inline float CalculateWaterWaveHeight(float x, float y, float fTime)
+{
+	return ComputeWaterWaveHeight(x, y, fTime, 1.5f, 5.0f);
 }
 
 inline void BuildWaterUVTransformMatrix(D3DXMATRIX* pOutMat, const D3DXMATRIX& matViewInverse, float fWaterTexCoordBase)
@@ -106,6 +116,7 @@ namespace EterLib
 	using ::kCloudAspect;
 	using ::ToBgraDword;
 	using ::CalculateWaterWaveHeight;
+	using ::ComputeWaterWaveHeight;
 	using ::BuildWaterUVTransformMatrix;
 	using ::CalculateWaterAnimationFrameIndex;
 
