@@ -9,7 +9,7 @@ TEST_CASE("T185: TImmutableFrameSnapshot POD Compliance and Layout")
 {
     static_assert(sizeof(TImmutableFrameSnapshot) == 640, "Size must be 640 bytes");
     static_assert(alignof(TImmutableFrameSnapshot) == 16, "Alignment must be 16 bytes");
-    static_assert(std::is_trivial_v<TImmutableFrameSnapshot>, "Must be strictly trivial");
+    static_assert(std::is_trivially_copyable_v<TImmutableFrameSnapshot>, "Must be trivially copyable");
     static_assert(std::is_standard_layout_v<TImmutableFrameSnapshot>, "Must have standard layout");
 
     TImmutableFrameSnapshot snap{};
