@@ -2,6 +2,7 @@
 #include "EterLib/BufferPool.h"
 #include <zstd.h>
 #include <filesystem>
+#include <cstring>
 
 static thread_local ZSTD_DCtx* g_zstdDCtx = nullptr;
 

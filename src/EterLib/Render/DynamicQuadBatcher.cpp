@@ -27,6 +27,9 @@ namespace EterLib::Render
 
     void DynamicQuadBatcher::Reserve(size_t vertexCapacity, size_t batchCapacity)
     {
+        if (m_frameVertexOffset > 0)
+            return; // Zakaz reallokacji w trakcie rysowania klatki
+
         if (vertexCapacity > m_frameVertexBuffer.size())
             m_frameVertexBuffer.resize(vertexCapacity);
 
@@ -57,13 +60,6 @@ namespace EterLib::Render
 
         m_bScissorEnable = bEnable;
         m_currentScissorRect = rect;
-
-        // Wymus nowa partie przy zmianie stanu Scissor
-        if (m_activeBatchCount > 0 && m_batchPool[m_activeBatchCount - 1].vertexCount > 0)
-        {
-            const auto& last = m_batchPool[m_activeBatchCount - 1];
-            PrepareBatch(last.dwTextureID, last.dwBlendMode);
-        }
     }
 
     void DynamicQuadBatcher::ResetScissorRect() noexcept
@@ -90,6 +86,15 @@ namespace EterLib::Render
         if (m_activeBatchCount > 0)
         {
             auto& lastBatch = m_batchPool[m_activeBatchCount - 1];
+            if (lastBatch.vertexCount == 0)
+            {
+                lastBatch.dwTextureID = dwTextureID;
+                lastBatch.dwBlendMode = dwBlendMode;
+                lastBatch.bUseScissor = m_bScissorEnable ? 1u : 0u;
+                lastBatch.scissorRect = m_currentScissorRect;
+                lastBatch.startIndex = static_cast<uint32_t>(m_frameVertexOffset);
+                return;
+            }
             if (lastBatch.dwTextureID == dwTextureID &&
                 lastBatch.dwBlendMode == dwBlendMode &&
                 lastBatch.bUseScissor == (m_bScissorEnable ? 1u : 0u) &&
@@ -106,7 +111,7 @@ namespace EterLib::Render
 
         if (m_activeBatchCount >= m_batchPool.size())
         {
-            m_batchPool.resize(m_batchPool.size() * 2);
+            m_batchPool.resize(m_batchPool.empty() ? DEFAULT_BATCH_CAPACITY : m_batchPool.size() * 2);
         }
 
         auto& newBatch = m_batchPool[m_activeBatchCount++];
@@ -238,6 +243,9 @@ namespace EterLib::Render
         v[3].position = D3DXVECTOR3(ex - nx, ey - ny, 0.0f);
         v[3].color = color;
         v[3].texCoord = D3DXVECTOR2(m_fWhitePixelU, m_fWhitePixelV);
+
+        // Zmiana kolejnosci wierzcholkow V1 i V2 zeby zachowac zgodnosc z AddQuad
+        std::swap(v[1], v[2]);
 
         AddQuadVertices(v, m_dwWhiteTextureID, 0);
     }
