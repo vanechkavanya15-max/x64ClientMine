@@ -53,7 +53,7 @@ bool CGraphicText::OnLoad(int /*iSize*/, const void* /*c_pvBuf*/)
 		char num[8];
 
 		int i = 0;
-		while (*p && isdigit(*p))
+		while (*p && isdigit(static_cast<unsigned char>(*p)) && i < 7)
 		{
 			num[i++] = *(p++);
 		}

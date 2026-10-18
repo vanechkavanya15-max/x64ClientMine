@@ -526,7 +526,7 @@ void CPythonTextTail::ShowItemTextTail(DWORD VirtualID)
 	m_ItemTextTailList.push_back(pTextTail);
 }
 
-bool CPythonTextTail::isIn(CPythonTextTail::TTextTail * pSource, CPythonTextTail::TTextTail * pTarget)
+bool CPythonTextTail::isIn(const CPythonTextTail::TTextTail * pSource, const CPythonTextTail::TTextTail * pTarget)
 {
 	float x1Source = pSource->x + pSource->xStart;
 	float y1Source = pSource->y + pSource->yStart;
@@ -610,7 +610,7 @@ void CPythonTextTail::RegisterItemTextTail(DWORD VirtualID, const char * c_szTex
 {
 #ifdef __DEBUG
 	char szName[256];
-	spritnf(szName, "%s[%d]", c_szText, VirtualID);
+	sprintf(szName, "%s[%d]", c_szText, VirtualID);
 
 	TTextTail * pTextTail = RegisterTextTail(VirtualID, c_szText, pOwner, c_TextTail_Name_Position, c_TextTail_Item_Color);
 	m_ItemTextTailMap.insert(TTextTailMap::value_type(VirtualID, pTextTail));
@@ -798,7 +798,13 @@ void CPythonTextTail::DeleteCharacterTextTail(DWORD VirtualID)
 
 	if (m_CharacterTextTailMap.end() != itorCharacter)
 	{
-		DeleteTextTail(itorCharacter->second);
+		TTextTail * pTextTail = itorCharacter->second;
+		
+		auto it = std::find(m_CharacterTextTailList.begin(), m_CharacterTextTailList.end(), pTextTail);
+		if (it != m_CharacterTextTailList.end())
+			m_CharacterTextTailList.erase(it);
+
+		DeleteTextTail(pTextTail);
 		m_CharacterTextTailMap.erase(itorCharacter);
 	}
 	else
@@ -823,7 +829,13 @@ void CPythonTextTail::DeleteItemTextTail(DWORD VirtualID)
 		return;
 	}
 
-	DeleteTextTail(itor->second);
+	TTextTail * pTextTail = itor->second;
+
+	auto it = std::find(m_ItemTextTailList.begin(), m_ItemTextTailList.end(), pTextTail);
+	if (it != m_ItemTextTailList.end())
+		m_ItemTextTailList.erase(it);
+
+	DeleteTextTail(pTextTail);
 	m_ItemTextTailMap.erase(itor);
 }
 
@@ -1085,11 +1097,26 @@ void CPythonTextTail::Destroy()
 
 void CPythonTextTail::Clear()
 {
+	for (TTextTailMap::iterator itor = m_CharacterTextTailMap.begin(); itor != m_CharacterTextTailMap.end(); ++itor)
+	{
+		DeleteTextTail(itor->second);
+	}
 	m_CharacterTextTailMap.clear();
-	m_CharacterTextTailList.clear();
+
+	for (TTextTailMap::iterator itor = m_ItemTextTailMap.begin(); itor != m_ItemTextTailMap.end(); ++itor)
+	{
+		DeleteTextTail(itor->second);
+	}
 	m_ItemTextTailMap.clear();
-	m_ItemTextTailList.clear();
+
+	for (TChatTailMap::iterator itor = m_ChatTailMap.begin(); itor != m_ChatTailMap.end(); ++itor)
+	{
+		DeleteTextTail(itor->second);
+	}
 	m_ChatTailMap.clear();
+
+	m_CharacterTextTailList.clear();
+	m_ItemTextTailList.clear();
 
 	m_TextTailPool.Clear();
 }

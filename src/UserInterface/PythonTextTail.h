@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+#include <unordered_map>
 #include "EterBase/Singleton.h"
 
 /*
@@ -47,8 +49,8 @@ class CPythonTextTail : public CSingleton<CPythonTextTail>
 			virtual ~STextTail() {}
 		} TTextTail;
 
-		typedef std::map<DWORD, TTextTail*>		TTextTailMap;
-		typedef std::list<TTextTail*>			TTextTailList;
+		typedef std::unordered_map<DWORD, TTextTail*>		TTextTailMap;
+		typedef std::vector<TTextTail*>			TTextTailList;
 		typedef TTextTailMap					TChatTailMap;
 
 	public:
@@ -104,7 +106,7 @@ class CPythonTextTail : public CSingleton<CPythonTextTail>
 		void RenderTextTailName(TTextTail * pTextTail);
 		void UpdateDistance(const TPixelPosition & c_rCenterPosition, TTextTail * pTextTail);
 
-		bool isIn(TTextTail * pSource, TTextTail * pTarget);
+		bool isIn(const TTextTail * pSource, const TTextTail * pTarget);
 
 	protected:
 		TTextTailMap				m_CharacterTextTailMap;
