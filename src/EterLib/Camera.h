@@ -10,6 +10,7 @@
 #endif // _MSC_VER > 1000
 
 #include <map>
+#include <memory>
 
 #include "EterBase/Singleton.h"
 #include "Ray.h"
@@ -254,7 +255,7 @@ class CCamera
 		static float CAMERA_MAX_DISTANCE;
 };
 
-typedef std::map<BYTE, CCamera *> TCameraMap;
+typedef std::map<BYTE, std::unique_ptr<CCamera>> TCameraMap;
 
 class CCameraManager : public CSingleton<CCameraManager>
 {

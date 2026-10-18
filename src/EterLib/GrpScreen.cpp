@@ -278,32 +278,31 @@ void CScreen::RenderCircle2d(float fx, float fy, float fz, float fRadius, int iS
 	if (iStep < 3)
 		return;
 
-	int count;
-	float theta, delta;
-	float x, y, z;
-	std::vector<D3DXVECTOR3> pts;
+	float theta = 0.0f;
+	float delta = 2 * D3DX_PI / float(iStep);
 
-	pts.clear();
-	pts.resize(iStep);
+	std::vector<SPDTVertexRaw> vertices(iStep + 1);
 
-	theta = 0.0;
-	delta = 2 * D3DX_PI / float(iStep);
-
-	for (count=0; count<iStep; count++)
+	for (int count=0; count<iStep; count++)
 	{
-		x = fx + fRadius * cosf(theta);
-		y = fy + fRadius * sinf(theta);
-		z = fz;
-
-		pts[count] = D3DXVECTOR3(x, y, z);
+		vertices[count].px = fx + fRadius * cosf(theta);
+		vertices[count].py = fy + fRadius * sinf(theta);
+		vertices[count].pz = fz;
+		vertices[count].diffuse = ms_diffuseColor;
+		vertices[count].u = 0.0f;
+		vertices[count].v = 0.0f;
 
 		theta += delta;
 	}
-	for (count=0; count<iStep - 1; count++)
+	vertices[iStep] = vertices[0];
+
+	if (SetPDTStream(vertices.data(), iStep + 1))
 	{
-		RenderLine3d(pts[count].x, pts[count].y, pts[count].z, pts[count + 1].x, pts[count + 1].y, pts[count + 1].z);
+		STATEMANAGER.SetTexture(0, NULL);
+		STATEMANAGER.SetTexture(1, NULL);
+		STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);
+		STATEMANAGER.DrawPrimitive(D3DPT_LINESTRIP, 0, iStep);
 	}
-	RenderLine3d(pts[iStep - 1].x, pts[iStep - 1].y, pts[iStep - 1].z, pts[0].x, pts[0].y, pts[0].z);
 }
 
 void CScreen::RenderCircle3d(float fx, float fy, float fz, float fRadius, int iStep)
@@ -311,32 +310,36 @@ void CScreen::RenderCircle3d(float fx, float fy, float fz, float fRadius, int iS
 	if (iStep < 3)
 		return;
 
-	int count;
-	float theta, delta;
-	std::vector<D3DXVECTOR3> pts;
+	float theta = 0.0f;
+	float delta = 2 * D3DX_PI / float(iStep);
 
-	pts.clear();
-	pts.resize(iStep);
-
-	theta = 0.0;
-	delta = 2 * D3DX_PI / float(iStep);
+	std::vector<SPDTVertexRaw> vertices(iStep + 1);
 
 	const D3DXMATRIX & c_rmatInvView = CCameraManager::Instance().GetCurrentCamera()->GetBillboardMatrix();
 
-	for (count=0; count<iStep; count++)
+	for (int count=0; count<iStep; count++)
 	{
-		pts[count] = D3DXVECTOR3(fRadius * cosf(theta), fRadius * sinf(theta), 0.0f);
-		D3DXVec3TransformCoord(&pts[count], &pts[count], &c_rmatInvView);
+		D3DXVECTOR3 pt(fRadius * cosf(theta), fRadius * sinf(theta), 0.0f);
+		D3DXVec3TransformCoord(&pt, &pt, &c_rmatInvView);
+
+		vertices[count].px = fx + pt.x;
+		vertices[count].py = fy + pt.y;
+		vertices[count].pz = fz + pt.z;
+		vertices[count].diffuse = ms_diffuseColor;
+		vertices[count].u = 0.0f;
+		vertices[count].v = 0.0f;
 
 		theta += delta;
 	}
-	for (count=0; count<iStep - 1; count++)
+	vertices[iStep] = vertices[0];
+
+	if (SetPDTStream(vertices.data(), iStep + 1))
 	{
-		RenderLine3d(fx+pts[count].x, fy+pts[count].y, fz+pts[count].z,
-					 fx+pts[count + 1].x, fy+pts[count + 1].y, fz+pts[count + 1].z);
+		STATEMANAGER.SetTexture(0, NULL);
+		STATEMANAGER.SetTexture(1, NULL);
+		STATEMANAGER.SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1);
+		STATEMANAGER.DrawPrimitive(D3DPT_LINESTRIP, 0, iStep);
 	}
-	RenderLine3d(fx+pts[iStep - 1].x, fy+pts[iStep - 1].y, fz+pts[iStep - 1].z,
-				 fx+pts[0].x, fy+pts[0].y, fz+pts[0].z);
 }
 
 class CD3DXMeshRenderingOption : public CScreen
@@ -394,10 +397,13 @@ void CScreen::RenderD3DXMesh(LPD3DXMESH lpMesh, const D3DXMATRIX * c_pmatWorld, 
 	LPDIRECT3DVERTEXBUFFER9 lpVertexBuffer = NULL;
 	lpMesh->GetIndexBuffer(&lpIndexBuffer);
 	lpMesh->GetVertexBuffer(&lpVertexBuffer);
-	STATEMANAGER.SetFVF(lpMesh->GetFVF());
-	STATEMANAGER.SetIndices(lpIndexBuffer, 0);
-	STATEMANAGER.SetStreamSource(0, lpVertexBuffer, lpMesh->GetNumBytesPerVertex());
-	STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, lpMesh->GetNumVertices(), 0, lpMesh->GetNumFaces());
+	if (lpIndexBuffer && lpVertexBuffer)
+	{
+		STATEMANAGER.SetFVF(lpMesh->GetFVF());
+		STATEMANAGER.SetIndices(lpIndexBuffer, 0);
+		STATEMANAGER.SetStreamSource(0, lpVertexBuffer, lpMesh->GetNumBytesPerVertex());
+		STATEMANAGER.DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, lpMesh->GetNumVertices(), 0, lpMesh->GetNumFaces());
+	}
 	if (lpIndexBuffer)
 	{
 		lpIndexBuffer->Release();
@@ -525,59 +531,30 @@ bool CScreen::GetCursorPosition(float* px, float* py, float* pz)
 
 bool CScreen::GetCursorXYPosition(float* px, float* py)
 {
-	D3DXVECTOR3 v3Eye = CCameraManager::Instance().GetCurrentCamera()->GetEye();
+	if (fabs(ms_vtPickRayDir.z) < 1e-6f)
+		return false;
 
-	TPosition posVertices[4];
-	posVertices[0] = TPosition(v3Eye.x-kDefaultPlaneHalfExtent, v3Eye.y+kDefaultPlaneHalfExtent, 0.0f);
-	posVertices[1] = TPosition(v3Eye.x-kDefaultPlaneHalfExtent, v3Eye.y-kDefaultPlaneHalfExtent, 0.0f);
-	posVertices[2] = TPosition(v3Eye.x+kDefaultPlaneHalfExtent, v3Eye.y+kDefaultPlaneHalfExtent, 0.0f);
-	posVertices[3] = TPosition(v3Eye.x+kDefaultPlaneHalfExtent, v3Eye.y-kDefaultPlaneHalfExtent, 0.0f);
+	float t = -ms_vtPickRayOrig.z / ms_vtPickRayDir.z;
+	if (t < 0.0f)
+		return false;
 
-	static const WORD sc_awFillRectIndices[6] = { 0, 2, 1, 2, 3, 1, };
-
-	float u, v, t;	
-	for (int i = 0; i < 2; ++i)
-	{
-		if (IntersectTriangle(ms_vtPickRayOrig, ms_vtPickRayDir,
-							 posVertices[sc_awFillRectIndices[i*3+0]],
-							 posVertices[sc_awFillRectIndices[i*3+1]],
-							 posVertices[sc_awFillRectIndices[i*3+2]],
-							 &u, &v, &t))
-		{
-			*px = ms_vtPickRayOrig.x + ms_vtPickRayDir.x * t;
-			*py = ms_vtPickRayOrig.y + ms_vtPickRayDir.y * t;
-			return true;
-		}
-	}
-	return false;
+	*px = ms_vtPickRayOrig.x + ms_vtPickRayDir.x * t;
+	*py = ms_vtPickRayOrig.y + ms_vtPickRayDir.y * t;
+	return true;
 }
 
 bool CScreen::GetCursorZPosition(float* pz)
 {
-	D3DXVECTOR3 v3Eye = CCameraManager::Instance().GetCurrentCamera()->GetEye();
+	if (fabs(ms_vtPickRayDir.y) < 1e-6f)
+		return false;
 
-	TPosition posVertices[4];
-	posVertices[0] = TPosition(v3Eye.x-kDefaultPlaneHalfExtent, 0.0f, v3Eye.z+kDefaultPlaneHalfExtent);
-	posVertices[1] = TPosition(v3Eye.x-kDefaultPlaneHalfExtent, 0.0f, v3Eye.z-kDefaultPlaneHalfExtent);
-	posVertices[2] = TPosition(v3Eye.x+kDefaultPlaneHalfExtent, 0.0f, v3Eye.z+kDefaultPlaneHalfExtent);
-	posVertices[3] = TPosition(v3Eye.x+kDefaultPlaneHalfExtent, 0.0f, v3Eye.z-kDefaultPlaneHalfExtent);
+	float t = -ms_vtPickRayOrig.y / ms_vtPickRayDir.y;
+	if (t < 0.0f)
+		return false;
 
-	static const WORD sc_awFillRectIndices[6] = { 0, 2, 1, 2, 3, 1, };
-
-	float u, v, t;
-	for (int i = 0; i < 2; ++i)
-	{
-		if (IntersectTriangle(ms_vtPickRayOrig, ms_vtPickRayDir,
-							 posVertices[sc_awFillRectIndices[i*3+0]],
-							 posVertices[sc_awFillRectIndices[i*3+1]],
-							 posVertices[sc_awFillRectIndices[i*3+2]],
-							 &u, &v, &t))
-		{
-			*pz = ms_vtPickRayOrig.z + ms_vtPickRayDir.z * t;
-			return true;
-		}
-	}
-	return false;
+	*pz = ms_vtPickRayOrig.z + ms_vtPickRayDir.z * t;
+	return true;
+}
 }
 
 void CScreen::GetPickingPosition(float t, float* x, float* y, float* z)

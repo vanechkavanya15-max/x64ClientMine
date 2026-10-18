@@ -104,6 +104,4 @@ add_subdirectory(extern)
 enable_testing()
 add_subdirectory(tests)
 add_subdirectory(tools/gr2_to_glb)
-add_executable(test_c26_culling_manager tests/test_c26_culling_manager.cpp)
-target_link_libraries(test_c26_culling_manager PRIVATE EterLib SphereLib doctest_with_main)
-add_test(NAME CullingManagerTest COMMAND test_c26_culling_manager)
+

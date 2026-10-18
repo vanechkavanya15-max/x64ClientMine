@@ -769,10 +769,6 @@ m_pPreviousCamera(NULL)
 
 CCameraManager::~CCameraManager()
 {
-	for (TCameraMap::iterator itor = m_CameraMap.begin(); itor != m_CameraMap.end(); ++itor)
-	{
-		delete (*itor).second;
-	}
 	m_CameraMap.clear();
 }
 
@@ -789,7 +785,7 @@ void CCameraManager::SetCurrentCamera(unsigned char ucCameraNum)
 	if (itor == m_CameraMap.end())
 		return;
 
-	CCamera * pNewCamera = itor->second;
+	CCamera * pNewCamera = itor->second.get();
 	if (m_pCurrentCamera != pNewCamera)
 		m_pPreviousCamera = m_pCurrentCamera;
 
@@ -802,7 +798,7 @@ bool CCameraManager::isCurrentCamera(unsigned char ucCameraNum)
 	if (itor == m_CameraMap.end())
 		return false;
 
-	return (itor->second == m_pCurrentCamera);
+	return (itor->second.get() == m_pCurrentCamera);
 }
 
 // 잡스러운 함수들...
@@ -810,7 +806,7 @@ bool CCameraManager::AddCamera(unsigned char ucCameraNum)
 {
 	if(m_CameraMap.end() != m_CameraMap.find(ucCameraNum))
 		return false;
-	m_CameraMap.insert(TCameraMap::value_type(ucCameraNum, new CCamera));
+	m_CameraMap.insert(TCameraMap::value_type(ucCameraNum, std::make_unique<CCamera>()));
 	return true;
 }
 
@@ -819,7 +815,7 @@ unsigned char CCameraManager::GetCurrentCameraNum()
 	if (!m_pCurrentCamera)
 		return NO_CURRENT_CAMERA;
 	for (TCameraMap::iterator itor = m_CameraMap.begin(); itor != m_CameraMap.end(); ++itor)
-		if(m_pCurrentCamera == (*itor).second)
+		if(m_pCurrentCamera == (*itor).second.get())
 			return (*itor).first;
 	return NO_CURRENT_CAMERA;
 }
