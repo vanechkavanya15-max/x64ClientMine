@@ -19,7 +19,7 @@ namespace EterLib::Render
         m_frameVertexBuffer.resize(vertexCapacity);
         m_frameVertexOffset = 0;
         m_activeVertexCount = 0;
-        m_batchPool.resize(batchCapacity);
+        m_batchPool.resize(std::max<size_t>(16, batchCapacity));
         m_activeBatchCount = 0;
         m_overflowQuads = 0;
         m_overflowVertices = 0;
@@ -27,14 +27,16 @@ namespace EterLib::Render
 
     void DynamicQuadBatcher::Reserve(size_t vertexCapacity, size_t batchCapacity)
     {
-        if (m_frameVertexOffset > 0)
-            return; // Zakaz reallokacji w trakcie rysowania klatki
+        // Zakaz reallokacji / uniewaznienia wskaznikow w trakcie klatki (eliminacja Use-After-Free)
+        if (m_frameVertexOffset > 0 || m_activeVertexCount > 0 || m_activeBatchCount > 0)
+            return;
 
         if (vertexCapacity > m_frameVertexBuffer.size())
             m_frameVertexBuffer.resize(vertexCapacity);
 
-        if (batchCapacity > m_batchPool.size())
-            m_batchPool.resize(batchCapacity);
+        const size_t safeBatchCapacity = std::max<size_t>(16, batchCapacity);
+        if (safeBatchCapacity > m_batchPool.size())
+            m_batchPool.resize(safeBatchCapacity);
     }
 
     void DynamicQuadBatcher::BeginFrame() noexcept
@@ -60,6 +62,14 @@ namespace EterLib::Render
 
         m_bScissorEnable = bEnable;
         m_currentScissorRect = rect;
+
+        // Eliminacja partii widm: jesli ostatnia partia nie ma wierzcholkow, modyfikujemy ja w miejscu
+        if (m_activeBatchCount > 0 && m_batchPool[m_activeBatchCount - 1].vertexCount == 0)
+        {
+            auto& lastBatch = m_batchPool[m_activeBatchCount - 1];
+            lastBatch.bUseScissor = bEnable ? 1u : 0u;
+            lastBatch.scissorRect = rect;
+        }
     }
 
     void DynamicQuadBatcher::ResetScissorRect() noexcept
@@ -81,6 +91,13 @@ namespace EterLib::Render
         return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
     }
 
+    uint32_t DynamicQuadBatcher::GetBatchLockFlags(size_t index) const noexcept
+    {
+        if (index < m_activeBatchCount)
+            return m_batchPool[index].lockFlags;
+        return D3D_LOCK_DISCARD;
+    }
+
     void DynamicQuadBatcher::PrepareBatch(uintptr_t dwTextureID, uint32_t dwBlendMode)
     {
         if (m_activeBatchCount > 0)
@@ -93,6 +110,7 @@ namespace EterLib::Render
                 lastBatch.bUseScissor = m_bScissorEnable ? 1u : 0u;
                 lastBatch.scissorRect = m_currentScissorRect;
                 lastBatch.startIndex = static_cast<uint32_t>(m_frameVertexOffset);
+                lastBatch.lockFlags = GetLockFlagsForStartIndex(lastBatch.startIndex);
                 return;
             }
             if (lastBatch.dwTextureID == dwTextureID &&
@@ -100,18 +118,21 @@ namespace EterLib::Render
                 lastBatch.bUseScissor == (m_bScissorEnable ? 1u : 0u) &&
                 (!m_bScissorEnable || AreRectsEqual(lastBatch.scissorRect, m_currentScissorRect)))
             {
-                // Jesli partia nie przekracza limitu 16380 czworokatow (65520 wierzcholkow), dopisujemy do niej
+                // Limit 16380 czworokatow (65520 wierzcholkow)
                 if (lastBatch.vertexCount + 4 <= MAX_VERTICES_PER_BATCH)
                 {
                     return;
                 }
-                // W przeciwnym razie wymuszamy nowa podpartie (sub-batch split) dla zachowania limitu 16-bitowych indeksow
             }
         }
 
+        // Bezpieczna alokacja puli partii - eliminacja crasha przy pustej puli
         if (m_activeBatchCount >= m_batchPool.size())
         {
-            m_batchPool.resize(m_batchPool.empty() ? DEFAULT_BATCH_CAPACITY : m_batchPool.size() * 2);
+            const size_t newCapacity = m_batchPool.empty()
+                ? std::max<size_t>(16, DEFAULT_BATCH_CAPACITY)
+                : std::max<size_t>(16, m_batchPool.size() * 2);
+            m_batchPool.resize(newCapacity);
         }
 
         auto& newBatch = m_batchPool[m_activeBatchCount++];
@@ -121,6 +142,7 @@ namespace EterLib::Render
         newBatch.scissorRect = m_currentScissorRect;
         newBatch.startIndex = static_cast<uint32_t>(m_frameVertexOffset);
         newBatch.vertexCount = 0;
+        newBatch.lockFlags = GetLockFlagsForStartIndex(newBatch.startIndex);
     }
 
     void DynamicQuadBatcher::AddQuad(float x, float y, float w, float h,
@@ -157,6 +179,12 @@ namespace EterLib::Render
                                              uintptr_t dwTextureID,
                                              uint32_t dwBlendMode)
     {
+        // Dynamiczna inicjalizacja jesli bufor wystartowal z zerowa pojemnoscia
+        if (m_frameVertexBuffer.empty())
+        {
+            m_frameVertexBuffer.resize(DEFAULT_VERTEX_CAPACITY);
+        }
+
         // Zakaz reallokacji / resize Vertex Buffera w trakcie rysowania klatki (eliminacja Use-After-Free)
         if (m_frameVertexOffset + 4 > m_frameVertexBuffer.size())
         {
@@ -243,9 +271,6 @@ namespace EterLib::Render
         v[3].position = D3DXVECTOR3(ex - nx, ey - ny, 0.0f);
         v[3].color = color;
         v[3].texCoord = D3DXVECTOR2(m_fWhitePixelU, m_fWhitePixelV);
-
-        // Zmiana kolejnosci wierzcholkow V1 i V2 zeby zachowac zgodnosc z AddQuad
-        std::swap(v[1], v[2]);
 
         AddQuadVertices(v, m_dwWhiteTextureID, 0);
     }

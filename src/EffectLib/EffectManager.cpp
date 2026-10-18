@@ -72,6 +72,9 @@ void CEffectManager::Update()
 			continue;
 		}
 
+		if (m_pSelectedEffectInstance == pEffectInstance)
+			m_pSelectedEffectInstance = nullptr;
+
 		itor = m_kEftInstMap.erase(itor);
 		CEffectInstance::Delete(pEffectInstance);
 	}
@@ -205,10 +208,20 @@ void CEffectManager::CreateEffectInstance(DWORD dwInstanceIndex, DWORD dwID)
 		return;
 	}
 
+	TEffectInstanceMap::iterator existingIt = m_kEftInstMap.find(dwInstanceIndex);
+	if (existingIt != m_kEftInstMap.end())
+	{
+		if (m_pSelectedEffectInstance == existingIt->second)
+			m_pSelectedEffectInstance = nullptr;
+
+		CEffectInstance::Delete(existingIt->second);
+		m_kEftInstMap.erase(existingIt);
+	}
+
 	CEffectInstance * pEffectInstance = CEffectInstance::New();	
 	pEffectInstance->SetEffectDataPointer(pEffect);
 
-	m_kEftInstMap.insert(TEffectInstanceMap::value_type(dwInstanceIndex, pEffectInstance));
+	m_kEftInstMap.emplace(dwInstanceIndex, pEffectInstance);
 }
 
 bool CEffectManager::DestroyEffectInstance(DWORD dwInstanceIndex)
@@ -219,6 +232,9 @@ bool CEffectManager::DestroyEffectInstance(DWORD dwInstanceIndex)
 		return false;
 
 	CEffectInstance * pEffectInstance = itor->second;
+
+	if (m_pSelectedEffectInstance == pEffectInstance)
+		m_pSelectedEffectInstance = nullptr;
 
 	m_kEftInstMap.erase(itor);
 
@@ -257,6 +273,9 @@ bool CEffectManager::DestroyUnsafeEffectInstance(CEffectInstance * pEffectInstan
 {
 	if (!pEffectInstance)
 		return false;
+
+	if (m_pSelectedEffectInstance == pEffectInstance)
+		m_pSelectedEffectInstance = nullptr;
 
 	CEffectInstance::Delete(pEffectInstance);
 	
@@ -381,6 +400,9 @@ bool CEffectManager::GetEffectData(DWORD dwID, const CEffectData ** c_ppEffect)
 
 DWORD CEffectManager::GetRandomEffect()
 {
+	if (m_kEftDataMap.empty())
+		return 0;
+
 	int iIndex = random() % m_kEftDataMap.size();
 
 	TEffectDataMap::iterator itor = m_kEftDataMap.begin();
@@ -417,6 +439,7 @@ void CEffectManager::__DestroyEffectInstanceMap()
 	}
 
 	m_kEftInstMap.clear();
+	m_pSelectedEffectInstance = nullptr;
 }
 
 void CEffectManager::__DestroyEffectCacheMap()

@@ -10,12 +10,12 @@ namespace EterLib::Render
 {
 	enum EBillboardMode : uint8_t
 	{
-		BILLBOARD_ALL = 0,
-		BILLBOARD_Y = 1,
-		BILLBOARD_LIE = 2,
-		BILLBOARD_2FACE = 3,
-		BILLBOARD_3FACE = 4,
-		BILLBOARD_STRETCH = 5
+		BILLBOARD_ALL = 1,
+		BILLBOARD_Y = 2,
+		BILLBOARD_LIE = 3,
+		BILLBOARD_2FACE = 4,
+		BILLBOARD_3FACE = 5,
+		BILLBOARD_STRETCH = 6
 	};
 }
 
@@ -84,10 +84,18 @@ struct SParticleQuad
 	D3DXVECTOR3 v3Up(0.0f, 0.0f, 0.0f);
 	D3DXVECTOR3 v3Cross(0.0f, 0.0f, 0.0f);
 
+	if (byBillboardType == EterLib::Render::BILLBOARD_STRETCH || byBillboardType == 6)
+	{
+		bStretch = true;
+	}
+
 	if (!bStretch)
 	{
-		const bool isLie = (byBillboardType == 3);
-		const bool isY = (byBillboardType == 2 || byBillboardType == 4 || byBillboardType == 5);
+		const bool isLie = (byBillboardType == EterLib::Render::BILLBOARD_LIE || byBillboardType == 3);
+		const bool isY = (byBillboardType == EterLib::Render::BILLBOARD_Y ||
+		                  byBillboardType == EterLib::Render::BILLBOARD_2FACE ||
+		                  byBillboardType == EterLib::Render::BILLBOARD_3FACE ||
+		                  byBillboardType == 2 || byBillboardType == 4 || byBillboardType == 5);
 
 		if (isLie)
 		{
@@ -126,8 +134,8 @@ struct SParticleQuad
 			if (fRotationDeg != 0.0f)
 			{
 				const float rad = D3DXToRadian(fRotationDeg);
-				const float fCos = -std::sin(rad);
-				const float fSin = std::cos(rad);
+				const float fCos = std::cos(rad);
+				const float fSin = std::sin(rad);
 
 				const D3DXVECTOR3 v3Temp = v3Up * fCos - v3Cross * fSin;
 				v3Cross = v3Cross * fCos + v3Up * fSin;

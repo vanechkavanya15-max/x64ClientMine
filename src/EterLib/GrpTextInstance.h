@@ -197,6 +197,11 @@ class CGraphicTextInstance
 		// Bufor wynikowy czystego ukladu CPU
 		std::vector<STextQuad> m_layoutQuads;
 
+		// Pola kontroli brudnego stanu ukladu (F-NEW-LAYOUT-CACHE)
+		bool m_isLayoutDirty{ true };
+		bool m_hasLastClipRect{ false };
+		RECT m_lastClipRect{ 0, 0, 0, 0 };
+
 		// Pola instancji zastepujace bufory static (F-NEW-056)
 		std::vector<wchar_t> m_wTextBuf;
 		std::vector<wchar_t> m_currentSegment;

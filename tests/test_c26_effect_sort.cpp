@@ -11,7 +11,6 @@
 #include <numeric>
 
 #include "EterLib/Camera.h"
-float CCamera::CAMERA_MAX_DISTANCE = 2500.0f;
 static CTimer s_timer;
 
 TEST_CASE("EffectSortTest - Billboard Rotation Constant")

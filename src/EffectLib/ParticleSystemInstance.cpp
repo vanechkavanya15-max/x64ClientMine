@@ -80,12 +80,20 @@ void CParticleSystemInstance::CreateParticles(float fElapsedTime)
 		if (BILLBOARD_TYPE_LIE == m_pParticleProperty->m_byBillboardType && mc_pmatLocal)
 		{
 			float fsx = mc_pmatLocal->_32;
-			float fcx = sqrtf(1.0f - fsx * fsx);
+			float fcx2 = 1.0f - fsx * fsx;
 
-			if (fcx >= 0.00001f) 
+			if (fcx2 >= 1e-10f) 
 				fLieRotation = D3DXToDegree(atan2f(-mc_pmatLocal->_12, mc_pmatLocal->_22));
 		}
 
+	}
+
+	D3DXVECTOR3 v3TransformedTimePosition = _v3TimePosition;
+	D3DXVECTOR3 v3TransformedVelocity = _v3Velocity;
+	if (mc_pmatLocal && !m_pParticleProperty->m_bAttachFlag)
+	{
+		D3DXVec3TransformCoord(&v3TransformedTimePosition, &_v3TimePosition, mc_pmatLocal);
+		D3DXVec3TransformNormal(&v3TransformedVelocity, &_v3Velocity, mc_pmatLocal);
 	}
 
 	for (int i = 0; i < iCreatingCount; ++i)
@@ -149,14 +157,13 @@ void CParticleSystemInstance::CreateParticles(float fElapsedTime)
 		}
 
 		// Position
-		D3DXVECTOR3 v3TimePosition=_v3TimePosition;
-
+		D3DXVECTOR3 v3TimePosition = _v3TimePosition;
 		pInstance->m_v3Position += v3TimePosition;
 
 		if (mc_pmatLocal && !m_pParticleProperty->m_bAttachFlag)
 		{
-			D3DXVec3TransformCoord(&pInstance->m_v3Position,&pInstance->m_v3Position,mc_pmatLocal);
-			D3DXVec3TransformCoord(&v3TimePosition, &v3TimePosition, mc_pmatLocal);
+			D3DXVec3TransformCoord(&pInstance->m_v3Position, &pInstance->m_v3Position, mc_pmatLocal);
+			v3TimePosition = v3TransformedTimePosition;
 		}
 		pInstance->m_v3StartPosition = v3TimePosition;
 		// NOTE : Update를 호출하지 않고 Rendering 되기 때문에 length가 0이 되는 문제가 있다.
@@ -190,12 +197,7 @@ void CParticleSystemInstance::CreateParticles(float fElapsedTime)
 			}
 		}
 
-		D3DXVECTOR3 v3Velocity = _v3Velocity;
-		if (mc_pmatLocal && !m_pParticleProperty->m_bAttachFlag)
-		{
-			D3DXVec3TransformNormal(&v3Velocity, &v3Velocity, mc_pmatLocal);
-		}
-
+		const D3DXVECTOR3& v3Velocity = (mc_pmatLocal && !m_pParticleProperty->m_bAttachFlag) ? v3TransformedVelocity : _v3Velocity;
 		pInstance->m_v3Velocity += v3Velocity;
 		if (m_pEmitterProperty->m_v3EmittingDirection.x > 0.0f)
 			pInstance->m_v3Velocity.x += frandom(-m_pEmitterProperty->m_v3EmittingDirection.x/2.0f, m_pEmitterProperty->m_v3EmittingDirection.x/2.0f) * 1000.0f;
@@ -210,7 +212,6 @@ void CParticleSystemInstance::CreateParticles(float fElapsedTime)
 		pInstance->m_v2HalfSize = v2HalfSize;
 
 		// Rotation
-		pInstance->m_fRotation = m_pParticleProperty->m_wRotationRandomStartingBegin;
 		pInstance->m_fRotation = frandom(m_pParticleProperty->m_wRotationRandomStartingBegin,m_pParticleProperty->m_wRotationRandomStartingEnd);
 		// Rotation - Lie 일 경우 LocalMatrix 의 Rotation 값을 Random 에 적용한다.
 		//            매번 할 필요는 없을듯. 어느 정도의 최적화가 필요. - [levites]

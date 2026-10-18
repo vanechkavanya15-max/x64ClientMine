@@ -380,33 +380,36 @@ void CSkyBox::SetSkyObjectQuadVertical(TSkyObjectQuadVector * pSkyObjectQuadVect
 	pSkyObjectQuadVector->resize(m_ucVirticalGradientLevelUpper + m_ucVirticalGradientLevelLower);
 
 	unsigned char ucY;
+	float fUpperDiv = std::max(1, (int)m_ucVirticalGradientLevelUpper);
+	float fLowerDiv = std::max(1, (int)m_ucVirticalGradientLevelLower);
+
 	for (ucY = 0; ucY < m_ucVirticalGradientLevelUpper; ++ucY)
 	{
 		CSkyObjectQuad & rSkyObjectQuad = pSkyObjectQuadVector->at(dwIndex++);
 
 		aPDTVertex.position.x = c_pv2QuadPoints[0].x;
 		aPDTVertex.position.y = c_pv2QuadPoints[0].y;
-		aPDTVertex.position.z = 1.0f - (float)(ucY + 1)/ (float)(m_ucVirticalGradientLevelUpper); 
+		aPDTVertex.position.z = 1.0f - (float)(ucY + 1)/ fUpperDiv; 
 		aPDTVertex.texCoord.x = 0.0f;
-		aPDTVertex.texCoord.y = (float)(ucY + 1)/ (float)(m_ucVirticalGradientLevelUpper) * 0.5f;
+		aPDTVertex.texCoord.y = (float)(ucY + 1)/ fUpperDiv * 0.5f;
 		rSkyObjectQuad.SetVertex(0 , aPDTVertex);
 		aPDTVertex.position.x = c_pv2QuadPoints[0].x;
 		aPDTVertex.position.y = c_pv2QuadPoints[0].y;
-		aPDTVertex.position.z = 1.0f - (float)(ucY) / (float)(m_ucVirticalGradientLevelUpper); 
+		aPDTVertex.position.z = 1.0f - (float)(ucY) / fUpperDiv; 
 		aPDTVertex.texCoord.x = 0.0f;
-		aPDTVertex.texCoord.y = (float)(ucY)/ (float)(m_ucVirticalGradientLevelUpper) * 0.5f;
+		aPDTVertex.texCoord.y = (float)(ucY)/ fUpperDiv * 0.5f;
 		rSkyObjectQuad.SetVertex(1, aPDTVertex);
 		aPDTVertex.position.x = c_pv2QuadPoints[1].x;
 		aPDTVertex.position.y = c_pv2QuadPoints[1].y;
-		aPDTVertex.position.z = 1.0f - (float)(ucY + 1) / (float)(m_ucVirticalGradientLevelUpper); 
+		aPDTVertex.position.z = 1.0f - (float)(ucY + 1) / fUpperDiv; 
 		aPDTVertex.texCoord.x = 1.0f;
-		aPDTVertex.texCoord.y = (float)(ucY + 1)/ (float)(m_ucVirticalGradientLevelUpper) * 0.5f;
+		aPDTVertex.texCoord.y = (float)(ucY + 1)/ fUpperDiv * 0.5f;
 		rSkyObjectQuad.SetVertex(2, aPDTVertex);
 		aPDTVertex.position.x = c_pv2QuadPoints[1].x;
 		aPDTVertex.position.y = c_pv2QuadPoints[1].y;
-		aPDTVertex.position.z = 1.0f - (float)(ucY) / (float)(m_ucVirticalGradientLevelUpper); 
+		aPDTVertex.position.z = 1.0f - (float)(ucY) / fUpperDiv; 
 		aPDTVertex.texCoord.x = 1.0f;
-		aPDTVertex.texCoord.y = (float)(ucY)/ (float)(m_ucVirticalGradientLevelUpper) * 0.5f;
+		aPDTVertex.texCoord.y = (float)(ucY)/ fUpperDiv * 0.5f;
 		rSkyObjectQuad.SetVertex(3, aPDTVertex);
 	}
 	for (ucY = 0; ucY < m_ucVirticalGradientLevelLower; ++ucY)
@@ -415,27 +418,27 @@ void CSkyBox::SetSkyObjectQuadVertical(TSkyObjectQuadVector * pSkyObjectQuadVect
 
 		aPDTVertex.position.x = c_pv2QuadPoints[0].x;
 		aPDTVertex.position.y = c_pv2QuadPoints[0].y;
-		aPDTVertex.position.z = -(float)(ucY + 1)/ (float)(m_ucVirticalGradientLevelLower); 
+		aPDTVertex.position.z = -(float)(ucY + 1)/ fLowerDiv; 
 		aPDTVertex.texCoord.x = 0.0f;
-		aPDTVertex.texCoord.y = 0.5f + (float)(ucY + 1)/ (float)(m_ucVirticalGradientLevelUpper) * 0.5f;
+		aPDTVertex.texCoord.y = 0.5f + (float)(ucY + 1)/ fLowerDiv * 0.5f;
 		rSkyObjectQuad.SetVertex(0, aPDTVertex);
 		aPDTVertex.position.x = c_pv2QuadPoints[0].x;
 		aPDTVertex.position.y = c_pv2QuadPoints[0].y;
-		aPDTVertex.position.z = -(float)(ucY) / (float)(m_ucVirticalGradientLevelLower);
+		aPDTVertex.position.z = -(float)(ucY) / fLowerDiv;
 		aPDTVertex.texCoord.x = 0.0f;
-		aPDTVertex.texCoord.y = 0.5f + (float)(ucY)/ (float)(m_ucVirticalGradientLevelUpper) * 0.5f;
+		aPDTVertex.texCoord.y = 0.5f + (float)(ucY)/ fLowerDiv * 0.5f;
 		rSkyObjectQuad.SetVertex(1, aPDTVertex);
 		aPDTVertex.position.x = c_pv2QuadPoints[1].x;
 		aPDTVertex.position.y = c_pv2QuadPoints[1].y;
-		aPDTVertex.position.z = -(float)(ucY + 1) / (float)(m_ucVirticalGradientLevelLower); 
+		aPDTVertex.position.z = -(float)(ucY + 1) / fLowerDiv; 
 		aPDTVertex.texCoord.x = 1.0f;
-		aPDTVertex.texCoord.y = 0.5f + (float)(ucY + 1)/ (float)(m_ucVirticalGradientLevelUpper) * 0.5f;
+		aPDTVertex.texCoord.y = 0.5f + (float)(ucY + 1)/ fLowerDiv * 0.5f;
 		rSkyObjectQuad.SetVertex(2, aPDTVertex);
 		aPDTVertex.position.x = c_pv2QuadPoints[1].x;
 		aPDTVertex.position.y = c_pv2QuadPoints[1].y;
-		aPDTVertex.position.z = -(float)(ucY) / (float)(m_ucVirticalGradientLevelLower); 
+		aPDTVertex.position.z = -(float)(ucY) / fLowerDiv; 
 		aPDTVertex.texCoord.x = 1.0f;
-		aPDTVertex.texCoord.y = 0.5f + (float)(ucY)/ (float)(m_ucVirticalGradientLevelUpper) * 0.5f;
+		aPDTVertex.texCoord.y = 0.5f + (float)(ucY)/ fLowerDiv * 0.5f;
 		rSkyObjectQuad.SetVertex(3, aPDTVertex);
 	}
 }
@@ -842,6 +845,23 @@ void CSkyBox::Update()
 {
 	CSkyObject::Update();
 
+	DWORD dwCurTime = CTimer::InstancePtr() ? CTimer::Instance().GetCurrentMillisecond() : 0;
+	if (m_dwlastTime == 0)
+		m_dwlastTime = dwCurTime;
+
+	m_fCloudPositionU += m_fCloudScrollSpeedU * (float)( dwCurTime - m_dwlastTime ) * 0.001f;
+	if (m_fCloudPositionU >= 1.0f)
+		m_fCloudPositionU = 0.0f;
+
+	m_fCloudPositionV += m_fCloudScrollSpeedV * (float)( dwCurTime - m_dwlastTime ) * 0.001f;
+	if (m_fCloudPositionV >= 1.0f)
+		m_fCloudPositionV = 0.0f;
+
+	m_dwlastTime = dwCurTime;
+
+	m_matTextureCloud._31 = m_fCloudPositionU;
+	m_matTextureCloud._32 = m_fCloudPositionV;
+
 	if (!m_bTransitionStarted)
 		return;
 	
@@ -1080,19 +1100,7 @@ void CSkyBox::RenderCloud()
 
 	m_matTextureCloud._31 = m_fCloudPositionU;
 	m_matTextureCloud._32 = m_fCloudPositionV;
-	
-	DWORD dwCurTime = CTimer::InstancePtr() ? CTimer::Instance().GetCurrentMillisecond() : 0;
-	
-	m_fCloudPositionU += m_fCloudScrollSpeedU * (float)( dwCurTime - m_dwlastTime ) * 0.001f;
-	if (m_fCloudPositionU >= 1.0f)
-		m_fCloudPositionU = 0.0f;
-	
-	m_fCloudPositionV += m_fCloudScrollSpeedV * (float)( dwCurTime - m_dwlastTime ) * 0.001f;
-	if (m_fCloudPositionV >= 1.0f)
-		m_fCloudPositionV = 0.0f;
-	
-	m_dwlastTime = dwCurTime;
-	
+
 	STATEMANAGER.SaveTransform(D3DTS_TEXTURE0, &m_matTextureCloud);
 
 	STATEMANAGER.SaveTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATEINVALPHA_ADDCOLOR);

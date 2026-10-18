@@ -21,8 +21,10 @@ void CSnowParticle::Update(float fElapsedTime, const D3DXVECTOR3 & c_rv3Pos)
 {
 	m_v3Position += m_v3Velocity * fElapsedTime;
 
-	m_v3Position.x += m_v3Cross.x * std::sin(m_fcurRadian) * 6.0f * fElapsedTime;
-	m_v3Position.y += m_v3Cross.y * std::sin(m_fcurRadian) * 6.0f * fElapsedTime;
+	const float fCrossNormX = (m_fHalfHeight > 0.0f) ? (m_v3Cross.x / m_fHalfHeight) : 1.0f;
+	const float fCrossNormY = (m_fHalfHeight > 0.0f) ? (m_v3Cross.y / m_fHalfHeight) : 0.0f;
+	m_v3Position.x += fCrossNormX * std::sin(m_fcurRadian) * m_fAmplitude * 6.0f * fElapsedTime;
+	m_v3Position.y += fCrossNormY * std::sin(m_fcurRadian) * m_fAmplitude * 6.0f * fElapsedTime;
 	m_fcurRadian += m_fPeriod * fElapsedTime;
 
 	constexpr float c_fTwoPi = 6.28318530717958647692f;
@@ -35,11 +37,12 @@ void CSnowParticle::Update(float fElapsedTime, const D3DXVECTOR3 & c_rv3Pos)
 		m_fcurRadian = std::fmod(m_fcurRadian, c_fTwoPi);
 	}
 
+	constexpr float c_fMaxSnowRadius = c_fSnowDistance / 10.0f + 500.0f;
 	if (m_v3Position.z < c_rv3Pos.z - 500.0f)
 		m_bActivate = false;
-	else if (std::abs(m_v3Position.x - c_rv3Pos.x) > c_fSnowDistance)
+	else if (std::abs(m_v3Position.x - c_rv3Pos.x) > c_fMaxSnowRadius)
 		m_bActivate = false;
-	else if (std::abs(m_v3Position.y - c_rv3Pos.y) > c_fSnowDistance)
+	else if (std::abs(m_v3Position.y - c_rv3Pos.y) > c_fMaxSnowRadius)
 		m_bActivate = false;
 }
 

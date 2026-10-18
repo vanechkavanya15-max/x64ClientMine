@@ -70,38 +70,17 @@ void CGraphicImageInstance::OnRender()
 	float ev = (c_rRect.top + (c_rRect.bottom-c_rRect.top)) * texReverseHeight;
 	
 	
-	TPDTVertex vertices[4];	
-	vertices[0].position.x	= m_v2Position.x - kUiHalfPixelOffset;
-	vertices[0].position.y	= m_v2Position.y - kUiHalfPixelOffset;
-	vertices[0].position.z	= 0.0f;
-	vertices[0].texCoord	= TTextureCoordinate(su, sv);
-	vertices[0].diffuse		= m_DiffuseColor;
+	const float snappedX = std::floor(m_v2Position.x + 0.5f) - kUiHalfPixelOffset;
+	const float snappedY = std::floor(m_v2Position.y + 0.5f) - kUiHalfPixelOffset;
+	const uint32_t packedColor = static_cast<uint32_t>(static_cast<DWORD>(m_DiffuseColor));
 
-	vertices[1].position.x	= m_v2Position.x + fimgWidth - kUiHalfPixelOffset;
-	vertices[1].position.y	= m_v2Position.y - kUiHalfPixelOffset;
-	vertices[1].position.z	= 0.0f;
-	vertices[1].texCoord	= TTextureCoordinate(eu, sv);
-	vertices[1].diffuse		= m_DiffuseColor;
+	TUIVertex uiVertices[4] = {
+		{ D3DXVECTOR3(snappedX,             snappedY,              0.0f), packedColor, TTextureCoordinate(su, sv) },
+		{ D3DXVECTOR3(snappedX + fimgWidth, snappedY,              0.0f), packedColor, TTextureCoordinate(eu, sv) },
+		{ D3DXVECTOR3(snappedX,             snappedY + fimgHeight, 0.0f), packedColor, TTextureCoordinate(su, ev) },
+		{ D3DXVECTOR3(snappedX + fimgWidth, snappedY + fimgHeight, 0.0f), packedColor, TTextureCoordinate(eu, ev) }
+	};
 
-	vertices[2].position.x	= m_v2Position.x - kUiHalfPixelOffset;
-	vertices[2].position.y	= m_v2Position.y + fimgHeight - kUiHalfPixelOffset;
-	vertices[2].position.z	= 0.0f;
-	vertices[2].texCoord	= TTextureCoordinate(su, ev);
-	vertices[2].diffuse		= m_DiffuseColor;
-
-	vertices[3].position.x	= m_v2Position.x + fimgWidth - kUiHalfPixelOffset;
-	vertices[3].position.y	= m_v2Position.y + fimgHeight - kUiHalfPixelOffset;
-	vertices[3].position.z	= 0.0f;
-	vertices[3].texCoord	= TTextureCoordinate(eu, ev);	
-	vertices[3].diffuse		= m_DiffuseColor;
-
-	TUIVertex uiVertices[4];
-	for (int i = 0; i < 4; ++i)
-	{
-		uiVertices[i].position = D3DXVECTOR3(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z);
-		uiVertices[i].color = static_cast<uint32_t>(vertices[i].diffuse);
-		uiVertices[i].texCoord = vertices[i].texCoord;
-	}
 	EterLib::Render::DynamicQuadBatcher::Instance().AddQuadVertices(
 		uiVertices,
 		reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture()),

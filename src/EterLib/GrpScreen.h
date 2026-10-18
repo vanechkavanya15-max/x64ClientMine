@@ -56,7 +56,8 @@ public:
 	bool GetCursorZPosition(float* pz); 
 	void GetPickingPosition(float t, float* x, float* y, float* z);
 	void ProjectPosition(float x, float y, float z, float * pfX, float * pfY);
-	void ProjectPosition(float x, float y, float z, float * pfX, float * pfY, float * pfZ);		
+	void ProjectPosition(float x, float y, float z, float * pfX, float * pfY, float * pfZ);
+	bool ProjectPositionFast(float x, float y, float z, const D3DXMATRIX& c_rmatViewProj, float * pfX, float * pfY, float * pfZ = nullptr);
 	void UnprojectPosition(float x, float y, float z, float * pfX, float * pfY, float * pfZ);		
 
 	BOOL IsLostDevice();

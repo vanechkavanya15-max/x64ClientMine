@@ -16,6 +16,9 @@ void CBlockTexture::SetClipRect(const RECT & c_rRect)
 
 void CBlockTexture::Render(int ix, int iy)
 {
+	if (!m_lpd3dTexture)
+		return;
+
 	int isx = ix + m_rect.left;
 	int isy = iy + m_rect.top;
 	int iex = ix + m_rect.left + m_dwWidth;
@@ -121,6 +124,13 @@ void CBlockTexture::Render(int ix, int iy)
 
 void CBlockTexture::InvalidateRect(const RECT & c_rsrcRect)
 {
+	if (!m_pDIB || !m_lpd3dTexture)
+		return;
+
+	void* pDibRaw = m_pDIB->GetPointer();
+	if (!pDibRaw)
+		return;
+
 	RECT dstRect = m_rect;
 	if (c_rsrcRect.right < dstRect.left ||
 		c_rsrcRect.left > dstRect.right ||
@@ -143,7 +153,7 @@ void CBlockTexture::InvalidateRect(const RECT & c_rsrcRect)
 
 
 	DWORD * pdwSrc;
-	pdwSrc = (DWORD *)m_pDIB->GetPointer();
+	pdwSrc = (DWORD *)pDibRaw;
 	pdwSrc += (dstRect.left + clipRect.left) + (dstRect.top + clipRect.top)*m_pDIB->GetWidth();
 
 	D3DLOCKED_RECT lockedRect;
@@ -191,6 +201,36 @@ bool CBlockTexture::Create(CGraphicDib * pDIB, const RECT & c_rRect, DWORD dwWid
 	return true;
 }
 
+void CBlockTexture::Reset()
+{
+	safe_release(m_lpd3dTexture);
+	m_lpd3dTexture = NULL;
+}
+
+void CBlockTexture::DestroyDeviceObjects()
+{
+	Reset();
+}
+
+bool CBlockTexture::CreateDeviceObjects()
+{
+	if (!m_pDIB || m_dwWidth == 0 || m_dwHeight == 0)
+		return true;
+	if (m_lpd3dTexture)
+		return true;
+	if (!ms_lpd3dDevice)
+		return false;
+
+	if (FAILED(ms_lpd3dDevice->CreateTexture(m_dwWidth, m_dwHeight, 0, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_lpd3dTexture, nullptr)))
+	{
+		Tracef("Failed to recreate block texture %u, %u\n", m_dwWidth, m_dwHeight);
+		return false;
+	}
+
+	InvalidateRect(m_rect);
+	return true;
+}
+
 CBlockTexture::CBlockTexture()
 {
 	m_pDIB = NULL;
@@ -199,6 +239,5 @@ CBlockTexture::CBlockTexture()
 
 CBlockTexture::~CBlockTexture()
 {
-	safe_release(m_lpd3dTexture);
-	m_lpd3dTexture = NULL;
+	Reset();
 }

@@ -289,10 +289,30 @@ bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize, const void * c_pvB
 			{
 				if (lr.pBits && m_width > 0 && m_height > 0)
 				{
-					size_t rowBytes = std::min<size_t>(static_cast<size_t>(lr.Pitch), static_cast<size_t>(m_width) * 4);
-					std::vector<uint8_t> exactData(m_height * rowBytes);
+					D3DFORMAT fmt = static_cast<D3DFORMAT>(texFormat);
+					UINT numRows = m_height;
+					size_t rowBytes = 0;
+
+					if (fmt == D3DFMT_DXT1)
+					{
+						numRows = std::max<UINT>(1, (m_height + 3) / 4);
+						rowBytes = std::max<UINT>(1, (m_width + 3) / 4) * 8;
+					}
+					else if (fmt == D3DFMT_DXT2 || fmt == D3DFMT_DXT3 || fmt == D3DFMT_DXT4 || fmt == D3DFMT_DXT5)
+					{
+						numRows = std::max<UINT>(1, (m_height + 3) / 4);
+						rowBytes = std::max<UINT>(1, (m_width + 3) / 4) * 16;
+					}
+					else
+					{
+						numRows = m_height;
+						rowBytes = std::min<size_t>(static_cast<size_t>(lr.Pitch), static_cast<size_t>(m_width) * 4);
+					}
+
+					rowBytes = std::min<size_t>(static_cast<size_t>(lr.Pitch), rowBytes);
+					std::vector<uint8_t> exactData(numRows * rowBytes);
 					const uint8_t* pRow = static_cast<const uint8_t*>(lr.pBits);
-					for (UINT y = 0; y < m_height; ++y)
+					for (UINT y = 0; y < numRows; ++y)
 					{
 						memcpy(exactData.data() + y * rowBytes, pRow, rowBytes);
 						pRow += lr.Pitch;

@@ -25,6 +25,9 @@ namespace EterLib::Render
         static constexpr size_t MAX_QUADS_PER_BATCH = 16380;
         static constexpr size_t MAX_VERTICES_PER_BATCH = MAX_QUADS_PER_BATCH * 4; // 65520 wierzcholkow
 
+        static constexpr uint32_t D3D_LOCK_DISCARD = 0x2000;      // D3DLOCK_DISCARD
+        static constexpr uint32_t D3D_LOCK_NOOVERWRITE = 0x1000;   // D3DLOCK_NOOVERWRITE
+
         static DynamicQuadBatcher& Instance();
 
         DynamicQuadBatcher(size_t vertexCapacity = DEFAULT_VERTEX_CAPACITY,
@@ -95,6 +98,19 @@ namespace EterLib::Render
         [[nodiscard]] size_t GetOverflowCount() const noexcept { return m_overflowQuads; }
         [[nodiscard]] const TUIVertex* GetVertexBufferData() const noexcept { return m_frameVertexBuffer.data(); }
 
+        // Ring-Buffer D3D lock helpers
+        [[nodiscard]] static uint32_t GetLockFlagsForStartIndex(uint32_t startIndex) noexcept
+        {
+            return (startIndex == 0) ? D3D_LOCK_DISCARD : D3D_LOCK_NOOVERWRITE;
+        }
+
+        [[nodiscard]] uint32_t GetCurrentLockFlags() const noexcept
+        {
+            return (m_frameVertexOffset == 0) ? D3D_LOCK_DISCARD : D3D_LOCK_NOOVERWRITE;
+        }
+
+        [[nodiscard]] uint32_t GetBatchLockFlags(size_t index) const noexcept;
+
     private:
         struct BatchEntry
         {
@@ -104,6 +120,7 @@ namespace EterLib::Render
             RECT scissorRect{ 0, 0, 0, 0 };
             uint32_t startIndex = 0;
             uint32_t vertexCount = 0;
+            uint32_t lockFlags = 0;
         };
 
         void PrepareBatch(uintptr_t dwTextureID, uint32_t dwBlendMode);

@@ -55,7 +55,7 @@ void CFlyingData::SetBombEffect(const char* szEffectName)
 		return;
 	}
 	StringPath(m_strBombEffectName);
-	if (CEffectManager::Instance().RegisterEffect(m_strBombEffectName.c_str()),true)
+	if (CEffectManager::Instance().RegisterEffect(m_strBombEffectName.c_str()))
 	{
 		m_dwBombEffectID = GetCaseCRC32(m_strBombEffectName.c_str(),m_strBombEffectName.size());
 	}

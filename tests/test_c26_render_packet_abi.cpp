@@ -13,7 +13,7 @@ static_assert(alignof(TRenderFrameUniforms) == 16, "ABI align: TRenderFrameUnifo
 static_assert(sizeof(TTerrainSectorPacket) == 176, "ABI size: TTerrainSectorPacket");
 static_assert(alignof(TTerrainSectorPacket) == 16, "ABI align: TTerrainSectorPacket");
 
-static_assert(sizeof(TActorRenderPacket) == 5008, "ABI size: TActorRenderPacket");
+static_assert(sizeof(TActorRenderPacket) == 5040, "ABI size: TActorRenderPacket");
 static_assert(alignof(TActorRenderPacket) == 16, "ABI align: TActorRenderPacket");
 
 static_assert(sizeof(TWaterPacket) == 176, "ABI size: TWaterPacket");
@@ -80,21 +80,21 @@ static_assert(offsetof(TRenderFrameUniforms, fFogEnable) == 284, "Offset: fFogEn
 static_assert(offsetof(TActorRenderPacket, dwActorID) == 0, "Offset: dwActorID");
 static_assert(offsetof(TActorRenderPacket, matWorld) == 16, "Offset: matWorld");
 static_assert(offsetof(TActorRenderPacket, pBoneMatrices) == 80, "Offset: pBoneMatrices");
-static_assert(offsetof(TActorRenderPacket, boneMatrices) == 88, "Offset: boneMatrices");
-static_assert(offsetof(TActorRenderPacket, dwWeaponMeshID) == 4184, "Offset: dwWeaponMeshID");
-static_assert(offsetof(TActorRenderPacket, matWeaponSocket) == 4192, "Offset: matWeaponSocket");
-static_assert(offsetof(TActorRenderPacket, matWeaponLeftSocket) == 4256, "Offset: matWeaponLeftSocket");
-static_assert(offsetof(TActorRenderPacket, matHelmetSocket) == 4320, "Offset: matHelmetSocket");
-static_assert(offsetof(TActorRenderPacket, matHairSocket) == 4384, "Offset: matHairSocket");
-static_assert(offsetof(TActorRenderPacket, dwAuraEffectCount) == 4448, "Offset: dwAuraEffectCount");
-static_assert(offsetof(TActorRenderPacket, matAuraEffectSockets) == 4452, "Offset: matAuraEffectSockets");
-static_assert(offsetof(TActorRenderPacket, dwAuraEffectIDs) == 4964, "Offset: dwAuraEffectIDs");
-static_assert(offsetof(TActorRenderPacket, bRenderShadow) == 4996, "Offset: bRenderShadow");
-static_assert(offsetof(TActorRenderPacket, bIsDead) == 4997, "Offset: bIsDead");
-static_assert(offsetof(TActorRenderPacket, bSelected) == 4998, "Offset: bSelected");
-static_assert(offsetof(TActorRenderPacket, bAlphaBlend) == 4999, "Offset: bAlphaBlend");
-static_assert(offsetof(TActorRenderPacket, fAlpha) == 5000, "Offset: fAlpha");
-static_assert(offsetof(TActorRenderPacket, fShadowSize) == 5004, "Offset: fShadowSize");
+static_assert(offsetof(TActorRenderPacket, boneMatrices) == 96, "Offset: boneMatrices");
+static_assert(offsetof(TActorRenderPacket, dwWeaponMeshID) == 4192, "Offset: dwWeaponMeshID");
+static_assert(offsetof(TActorRenderPacket, matWeaponSocket) == 4208, "Offset: matWeaponSocket");
+static_assert(offsetof(TActorRenderPacket, matWeaponLeftSocket) == 4272, "Offset: matWeaponLeftSocket");
+static_assert(offsetof(TActorRenderPacket, matHelmetSocket) == 4336, "Offset: matHelmetSocket");
+static_assert(offsetof(TActorRenderPacket, matHairSocket) == 4400, "Offset: matHairSocket");
+static_assert(offsetof(TActorRenderPacket, dwAuraEffectCount) == 4464, "Offset: dwAuraEffectCount");
+static_assert(offsetof(TActorRenderPacket, matAuraEffectSockets) == 4480, "Offset: matAuraEffectSockets");
+static_assert(offsetof(TActorRenderPacket, dwAuraEffectIDs) == 4992, "Offset: dwAuraEffectIDs");
+static_assert(offsetof(TActorRenderPacket, bRenderShadow) == 5024, "Offset: bRenderShadow");
+static_assert(offsetof(TActorRenderPacket, bIsDead) == 5025, "Offset: bIsDead");
+static_assert(offsetof(TActorRenderPacket, bSelected) == 5026, "Offset: bSelected");
+static_assert(offsetof(TActorRenderPacket, bAlphaBlend) == 5027, "Offset: bAlphaBlend");
+static_assert(offsetof(TActorRenderPacket, fAlpha) == 5028, "Offset: fAlpha");
+static_assert(offsetof(TActorRenderPacket, fShadowSize) == 5032, "Offset: fShadowSize");
 
 static_assert(offsetof(TParticleInstanceData, vWorldPos) == 0, "Offset: vWorldPos");
 static_assert(offsetof(TParticleInstanceData, vColor) == 16, "Offset: vColor");
@@ -149,7 +149,7 @@ TEST_CASE("RenderPacketABI - Exact Sizes Check")
 {
 	CHECK(sizeof(TRenderFrameUniforms) == 288u);
 	CHECK(sizeof(TTerrainSectorPacket) == 176u);
-	CHECK(sizeof(TActorRenderPacket) == 5008u);
+	CHECK(sizeof(TActorRenderPacket) == 5040u);
 	CHECK(sizeof(TWaterPacket) == 176u);
 	CHECK(sizeof(TSpeedTreeInstanceData) == 112u);
 	CHECK(sizeof(TSpeedTreePacket) == 48u);

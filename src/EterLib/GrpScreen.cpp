@@ -555,7 +555,6 @@ bool CScreen::GetCursorZPosition(float* pz)
 	*pz = ms_vtPickRayOrig.z + ms_vtPickRayDir.z * t;
 	return true;
 }
-}
 
 void CScreen::GetPickingPosition(float t, float* x, float* y, float* z)
 {
@@ -733,6 +732,31 @@ void CScreen::ProjectPosition(float x, float y, float z, float * pfX, float * pf
 	*pfX = Output.x;
 	*pfY = Output.y;
 	*pfZ = Output.z;
+}
+
+bool CScreen::ProjectPositionFast(float x, float y, float z, const D3DXMATRIX& c_rmatViewProj, float * pfX, float * pfY, float * pfZ)
+{
+	const float fClipX = x * c_rmatViewProj._11 + y * c_rmatViewProj._21 + z * c_rmatViewProj._31 + c_rmatViewProj._41;
+	const float fClipY = x * c_rmatViewProj._12 + y * c_rmatViewProj._22 + z * c_rmatViewProj._32 + c_rmatViewProj._42;
+	const float fClipZ = x * c_rmatViewProj._13 + y * c_rmatViewProj._23 + z * c_rmatViewProj._33 + c_rmatViewProj._43;
+	const float fClipW = x * c_rmatViewProj._14 + y * c_rmatViewProj._24 + z * c_rmatViewProj._34 + c_rmatViewProj._44;
+
+	if (fClipW <= 0.0001f)
+		return false;
+
+	const float fInvW = 1.0f / fClipW;
+	const float fNdcX = fClipX * fInvW;
+	const float fNdcY = fClipY * fInvW;
+	const float fNdcZ = fClipZ * fInvW;
+
+	if (pfX)
+		*pfX = (fNdcX + 1.0f) * 0.5f * static_cast<float>(ms_Viewport.Width) + static_cast<float>(ms_Viewport.X);
+	if (pfY)
+		*pfY = (1.0f - fNdcY) * 0.5f * static_cast<float>(ms_Viewport.Height) + static_cast<float>(ms_Viewport.Y);
+	if (pfZ)
+		*pfZ = ms_Viewport.MinZ + fNdcZ * (ms_Viewport.MaxZ - ms_Viewport.MinZ);
+
+	return true;
 }
 
 void CScreen::UnprojectPosition(float x, float y, float z, float * pfX, float * pfY, float * pfZ)

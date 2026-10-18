@@ -227,6 +227,10 @@ typedef struct TUIVertex
     {
         std::memset(this, 0, sizeof(*this));
     }
+    TUIVertex(const RENDER_VEC3_TYPE& pos, uint32_t col, const RENDER_VEC2_TYPE& uv)
+        : position(pos), color(col), texCoord(uv)
+    {
+    }
 #endif
 } TUIVertex;
 
@@ -471,7 +475,6 @@ typedef struct RENDER_ABI_ALIGN(16) TWaterPacket
     uint8_t bPadWater[2];
     float fFogDistance;
     float fPad;
-    uint32_t dwPad2;
     uint32_t dwPadAlign16;
     union
     {
@@ -732,7 +735,6 @@ typedef struct RENDER_ABI_ALIGN(16) TDungeonBlockPacket
             uint8_t bAlphaBlend;
             uint8_t bPadDungeon[3];
             float fPad;
-    uint32_t dwPad2;
         };
         TPipelineStateKey stateKey;
         uint64_t qwStateKey;
@@ -972,7 +974,6 @@ typedef struct RENDER_ABI_ALIGN(16) TParticlePacket
     uint8_t bStretch;
     uint32_t dwEffectID;
     uint32_t dwPad0;
-    float fPad0;
     uintptr_t dwTextureID;
     float fPad1[2];
 

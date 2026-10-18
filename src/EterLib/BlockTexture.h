@@ -14,6 +14,10 @@ class CBlockTexture : public CGraphicBase
 		void SetClipRect(const RECT & c_rRect);
 		void Render(int ix, int iy);
 		void InvalidateRect(const RECT & c_rsrcRect);
+		void Reset();
+
+		virtual void DestroyDeviceObjects();
+		virtual bool CreateDeviceObjects();
 
 	protected:
 		CGraphicDib * m_pDIB;

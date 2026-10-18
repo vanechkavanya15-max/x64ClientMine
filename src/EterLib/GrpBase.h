@@ -146,6 +146,7 @@ class CGraphicBase
 	public:
 		static DWORD GetAvailableTextureMemory();
 		static const D3DXMATRIX& GetViewMatrix();
+		static const D3DXMATRIX& GetProjMatrix();
 		static const D3DXMATRIX & GetIdentityMatrix();
 
 		enum

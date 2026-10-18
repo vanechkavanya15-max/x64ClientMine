@@ -1,14 +1,12 @@
 #include "StdAfx.h"
-#include "GrpText.h"
+#include "GrpFontTexture.h"
 #include "FontManager.h"
+#include "StateManager.h"
+#include "Util.h"
 #include "EterBase/Stl.h"
 
-#include "Util.h"
-
-#include <ft2build.h>
-#include FT_FREETYPE_H
-
 #include <cmath>
+#include <algorithm>
 
 CGraphicFontTexture::CGraphicFontTexture()
 {
@@ -23,6 +21,7 @@ CGraphicFontTexture::~CGraphicFontTexture()
 void CGraphicFontTexture::Initialize()
 {
 	CGraphicTexture::Initialize();
+
 	m_bOwnsTexture = false;
 	m_ftFace = nullptr;
 	m_pAtlasBuffer = nullptr;
@@ -37,21 +36,25 @@ void CGraphicFontTexture::Initialize()
 	m_y = 0;
 	m_step = 0;
 	m_fontSize = 0;
-}
-
-bool CGraphicFontTexture::IsEmpty() const
-{
-	return m_ftFace == nullptr;
+	m_atlasFormat = EFontAtlasFormat::A8R8G8B8;
+	m_activePageIndex = 0;
+	m_currentLruTick = 0;
+	m_pageLastUsed.clear();
+	SetRectEmpty(&m_dirtyRect);
 }
 
 void CGraphicFontTexture::Destroy()
 {
-	delete[] m_pAtlasBuffer;
-	m_pAtlasBuffer = nullptr;
+	if (m_pAtlasBuffer)
+	{
+		delete[] reinterpret_cast<uint8_t*>(m_pAtlasBuffer);
+		m_pAtlasBuffer = nullptr;
+	}
 
 	CGraphicTexture::Destroy();
 	stl_wipe(m_pFontTextureVector);
 	m_charInfoMap.clear();
+	m_pageLastUsed.clear();
 
 	if (m_ftFace)
 	{
@@ -67,9 +70,6 @@ bool CGraphicFontTexture::CreateDeviceObjects()
 	if (!m_ftFace)
 		return true;
 
-	// After device reset: wipe GPU textures, clear atlas state, and
-	// re-render all previously cached characters on demand.
-	// We keep m_charInfoMap keys but clear the entries so glyphs get re-rasterized.
 	std::vector<TCharacterKey> cachedKeys;
 	cachedKeys.reserve(m_charInfoMap.size());
 	for (const auto& pair : m_charInfoMap)
@@ -77,21 +77,27 @@ bool CGraphicFontTexture::CreateDeviceObjects()
 
 	stl_wipe(m_pFontTextureVector);
 	m_pFontTextureVector.reserve(4);
+	m_pageLastUsed.clear();
 	m_charInfoMap.clear();
 	m_x = 0;
 	m_y = 0;
 	m_step = 0;
 	m_isDirty = false;
+	m_activePageIndex = 0;
+	m_currentLruTick = 0;
+	SetRectEmpty(&m_dirtyRect);
 
-	// Reset CPU atlas buffer
 	if (m_pAtlasBuffer)
-		memset(m_pAtlasBuffer, 0, m_atlasWidth * m_atlasHeight * sizeof(DWORD));
+	{
+		const size_t bufferBytes = (m_atlasFormat == EFontAtlasFormat::A8)
+			? (m_atlasWidth * m_atlasHeight * sizeof(uint8_t))
+			: (m_atlasWidth * m_atlasHeight * sizeof(DWORD));
+		memset(m_pAtlasBuffer, 0, bufferBytes);
+	}
 
-	// Create first GPU texture page
 	if (!AppendTexture())
 		return false;
 
-	// Re-rasterize all previously cached glyphs
 	for (TCharacterKey key : cachedKeys)
 		UpdateCharacterInfomation(key);
 
@@ -103,6 +109,7 @@ void CGraphicFontTexture::DestroyDeviceObjects()
 {
 	CGraphicTexture::DestroyDeviceObjects();
 	stl_wipe(m_pFontTextureVector);
+	m_pageLastUsed.clear();
 }
 
 bool CGraphicFontTexture::Create(const char* c_szFontName, int fontSize, bool bItalic)
@@ -110,15 +117,17 @@ bool CGraphicFontTexture::Create(const char* c_szFontName, int fontSize, bool bI
 	Destroy();
 
 	m_pFontTextureVector.reserve(4);
+	m_pageLastUsed.reserve(MAX_FONT_TEXTURE_PAGES);
 
 	m_fontSize = fontSize;
 	m_bItalic = bItalic;
+	m_activePageIndex = 0;
+	m_currentLruTick = 0;
 
 	m_x = 0;
 	m_y = 0;
 	m_step = 0;
 
-	// Determine atlas dimensions
 	DWORD width = 256, height = 256;
 	if (GetMaxTextureWidth() > 512)
 		width = 512;
@@ -128,15 +137,19 @@ bool CGraphicFontTexture::Create(const char* c_szFontName, int fontSize, bool bI
 	m_atlasWidth = width;
 	m_atlasHeight = height;
 
-	// Allocate CPU-side atlas buffer
-	m_pAtlasBuffer = new DWORD[width * height];
-	memset(m_pAtlasBuffer, 0, width * height * sizeof(DWORD));
+	const size_t bufferBytes = (m_atlasFormat == EFontAtlasFormat::A8)
+		? (width * height * sizeof(uint8_t))
+		: (width * height * sizeof(DWORD));
 
-	// Create a per-instance FT_Face (this instance owns it)
+	m_pAtlasBuffer = reinterpret_cast<DWORD*>(new uint8_t[bufferBytes]);
+	memset(m_pAtlasBuffer, 0, bufferBytes);
+
 	m_ftFace = CFontManager::Instance().CreateFace(c_szFontName);
 	if (!m_ftFace)
 	{
 		TraceError("CGraphicFontTexture::Create - Failed to create face for '%s'", c_szFontName ? c_szFontName : "(null)");
+		delete[] reinterpret_cast<uint8_t*>(m_pAtlasBuffer);
+		m_pAtlasBuffer = nullptr;
 		return false;
 	}
 
@@ -148,12 +161,11 @@ bool CGraphicFontTexture::Create(const char* c_szFontName, int fontSize, bool bI
 
 	m_hasKerning = FT_HAS_KERNING(m_ftFace) != 0;
 
-	// Apply italic via shear matrix if needed
 	if (bItalic)
 	{
 		FT_Matrix matrix;
 		matrix.xx = 0x10000L;
-		matrix.xy = 0x5800L;  // ~0.34 shear for synthetic italic
+		matrix.xy = 0x5800L;
 		matrix.yx = 0;
 		matrix.yy = 0x10000L;
 		FT_Set_Transform(m_ftFace, &matrix, NULL);
@@ -163,27 +175,70 @@ bool CGraphicFontTexture::Create(const char* c_szFontName, int fontSize, bool bI
 		FT_Set_Transform(m_ftFace, NULL, NULL);
 	}
 
-	// Cache font metrics
 	m_ascender = (int)(m_ftFace->size->metrics.ascender >> 6);
 	m_lineHeight = (int)(m_ftFace->size->metrics.height >> 6);
 
 	if (!AppendTexture())
+	{
+		Destroy();
 		return false;
+	}
 
 	return true;
 }
 
 bool CGraphicFontTexture::AppendTexture()
 {
-	CGraphicImageTexture* pNewTexture = new CGraphicImageTexture;
+	// Bounded atlas growth & LRU page recycling
+	if (m_pFontTextureVector.size() >= MAX_FONT_TEXTURE_PAGES)
+	{
+		size_t lruIndex = 0;
+		uint64_t minTick = UINT64_MAX;
+		for (size_t p = 0; p < m_pageLastUsed.size(); ++p)
+		{
+			if (m_pageLastUsed[p] < minTick)
+			{
+				minTick = m_pageLastUsed[p];
+				lruIndex = p;
+			}
+		}
 
-	if (!pNewTexture->Create(m_atlasWidth, m_atlasHeight, D3DFMT_A8R8G8B8))
+		for (auto it = m_charInfoMap.begin(); it != m_charInfoMap.end(); )
+		{
+			if (it->second.index == static_cast<short>(lruIndex))
+				it = m_charInfoMap.erase(it);
+			else
+				++it;
+		}
+
+		m_activePageIndex = lruIndex;
+		m_pageLastUsed[lruIndex] = ++m_currentLruTick;
+
+		const size_t bufferBytes = (m_atlasFormat == EFontAtlasFormat::A8)
+			? (m_atlasWidth * m_atlasHeight * sizeof(uint8_t))
+			: (m_atlasWidth * m_atlasHeight * sizeof(DWORD));
+		memset(m_pAtlasBuffer, 0, bufferBytes);
+
+		m_x = 0;
+		m_y = 0;
+		m_step = 0;
+		m_isDirty = false;
+		SetRectEmpty(&m_dirtyRect);
+		return true;
+	}
+
+	CGraphicImageTexture* pNewTexture = new CGraphicImageTexture;
+	const D3DFORMAT d3dFmt = (m_atlasFormat == EFontAtlasFormat::A8) ? D3DFMT_A8 : D3DFMT_A8R8G8B8;
+
+	if (!pNewTexture->Create(m_atlasWidth, m_atlasHeight, d3dFmt))
 	{
 		delete pNewTexture;
 		return false;
 	}
 
+	m_activePageIndex = m_pFontTextureVector.size();
 	m_pFontTextureVector.push_back(pNewTexture);
+	m_pageLastUsed.push_back(++m_currentLruTick);
 	return true;
 }
 
@@ -192,35 +247,52 @@ bool CGraphicFontTexture::UpdateTexture()
 	if (!m_isDirty)
 		return true;
 
-	if (!ms_lpd3dDevice)
+	if (!ms_lpd3dDevice || m_pFontTextureVector.empty())
 	{
 		m_isDirty = false;
+		SetRectEmpty(&m_dirtyRect);
 		return true;
 	}
 
 	m_isDirty = false;
 
-	CGraphicImageTexture* pFontTexture = m_pFontTextureVector.back();
+	if (m_activePageIndex >= m_pFontTextureVector.size())
+		m_activePageIndex = m_pFontTextureVector.size() - 1;
 
+	CGraphicImageTexture* pFontTexture = m_pFontTextureVector[m_activePageIndex];
 	if (!pFontTexture)
 		return false;
 
-	DWORD* pdwDst;
-	int pitch;
+	void* pDst = nullptr;
+	int pitch = 0;
 
-	if (!pFontTexture->Lock(&pitch, (void**)&pdwDst))
+	if (!pFontTexture->Lock(&pitch, &pDst))
 		return false;
 
-	pitch /= 4;  // pitch in DWORDs (A8R8G8B8 = 4 bytes per pixel)
-
-	DWORD* pdwSrc = m_pAtlasBuffer;
-
-	for (int y = 0; y < m_atlasHeight; ++y, pdwDst += pitch, pdwSrc += m_atlasWidth)
+	if (m_atlasFormat == EFontAtlasFormat::A8)
 	{
-		memcpy(pdwDst, pdwSrc, m_atlasWidth * sizeof(DWORD));
+		uint8_t* pDst8 = reinterpret_cast<uint8_t*>(pDst);
+		const uint8_t* pSrc8 = reinterpret_cast<const uint8_t*>(m_pAtlasBuffer);
+
+		for (int y = 0; y < m_atlasHeight; ++y, pDst8 += pitch, pSrc8 += m_atlasWidth)
+		{
+			memcpy(pDst8, pSrc8, m_atlasWidth * sizeof(uint8_t));
+		}
+	}
+	else
+	{
+		DWORD* pdwDst = reinterpret_cast<DWORD*>(pDst);
+		const DWORD* pdwSrc = m_pAtlasBuffer;
+		const int pitchDwords = pitch / sizeof(DWORD);
+
+		for (int y = 0; y < m_atlasHeight; ++y, pdwDst += pitchDwords, pdwSrc += m_atlasWidth)
+		{
+			memcpy(pdwDst, pdwSrc, m_atlasWidth * sizeof(DWORD));
+		}
 	}
 
 	pFontTexture->Unlock();
+	SetRectEmpty(&m_dirtyRect);
 	return true;
 }
 
@@ -245,17 +317,35 @@ float CGraphicFontTexture::GetKerning(wchar_t prev, wchar_t cur)
 CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::GetCharacterInfomation(wchar_t keyValue)
 {
 	TCharacterKey code = keyValue;
-
 	TCharacterInfomationMap::iterator f = m_charInfoMap.find(code);
 
 	if (m_charInfoMap.end() == f)
 	{
 		return UpdateCharacterInfomation(code);
 	}
-	else
+
+	if (f->second.index >= 0 && static_cast<size_t>(f->second.index) < m_pageLastUsed.size())
 	{
-		return &f->second;
+		m_pageLastUsed[f->second.index] = ++m_currentLruTick;
 	}
+
+	return &f->second;
+}
+
+bool CGraphicFontTexture::CheckTextureIndex(DWORD dwTexture)
+{
+	return dwTexture < m_pFontTextureVector.size();
+}
+
+void CGraphicFontTexture::SelectTexture(DWORD dwTexture)
+{
+	if (dwTexture >= m_pFontTextureVector.size())
+		return;
+
+	m_lpd3dTexture = m_pFontTextureVector[dwTexture]->GetD3DTexture();
+
+	if (dwTexture < m_pageLastUsed.size())
+		m_pageLastUsed[dwTexture] = ++m_currentLruTick;
 }
 
 CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterInfomation(TCharacterKey keyValue)
@@ -263,49 +353,41 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 	if (!m_ftFace)
 		return NULL;
 
-	if (keyValue == 0x08)
-		keyValue = L' ';
-
-	// Load and render the glyph
 	FT_UInt glyphIndex = FT_Get_Char_Index(m_ftFace, keyValue);
-	if (glyphIndex == 0 && keyValue != L' ')
+	if (glyphIndex == 0 && keyValue != ' ')
 	{
-		// Try space as fallback for unknown characters
-		glyphIndex = FT_Get_Char_Index(m_ftFace, L' ');
-		if (glyphIndex == 0)
-			return NULL;
+		glyphIndex = FT_Get_Char_Index(m_ftFace, '?');
 	}
 
-	if (FT_Load_Glyph(m_ftFace, glyphIndex, FT_LOAD_DEFAULT) != 0)
+	FT_Int32 loadFlags = FT_LOAD_DEFAULT;
+	if (FT_Load_Glyph(m_ftFace, glyphIndex, loadFlags) != 0)
 		return NULL;
 
-	if (FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL) != 0)
+	FT_Render_Mode renderMode = FT_RENDER_MODE_NORMAL;
+	if (FT_Render_Glyph(m_ftFace->glyph, renderMode) != 0)
 		return NULL;
 
 	FT_GlyphSlot slot = m_ftFace->glyph;
 	FT_Bitmap& bitmap = slot->bitmap;
 
-	int glyphBitmapWidth = (bitmap.pixel_mode == FT_PIXEL_MODE_LCD) ? (bitmap.width / 3) : bitmap.width;
+	int glyphBitmapWidth = bitmap.width;
 	int glyphBitmapHeight = bitmap.rows;
+
 	int bearingX = slot->bitmap_left;
 	int bearingY = slot->bitmap_top;
 	float advance = ceilf((float)(slot->advance.x) / 64.0f);
 
-	// Normalize glyph placement to common baseline
-	// yOffset = distance from atlas row top to where the glyph bitmap starts
 	int yOffset = m_ascender - bearingY;
 	if (yOffset < 0)
 		yOffset = 0;
 
-	// The effective cell height is the full line height
 	int cellHeight = m_lineHeight;
 	int cellWidth = glyphBitmapWidth;
 
-	// For spacing characters (space, etc.)
 	if (glyphBitmapWidth == 0 || glyphBitmapHeight == 0)
 	{
 		TCharacterInfomation& rNewCharInfo = m_charInfoMap[keyValue];
-		rNewCharInfo.index = static_cast<short>(m_pFontTextureVector.size() - 1);
+		rNewCharInfo.index = static_cast<short>(m_activePageIndex);
 		rNewCharInfo.width = 0;
 		rNewCharInfo.height = (short)cellHeight;
 		rNewCharInfo.left = 0;
@@ -317,7 +399,6 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 		return &rNewCharInfo;
 	}
 
-	// Make sure cell fits the glyph including offset
 	int requiredHeight = yOffset + glyphBitmapHeight;
 	if (requiredHeight > cellHeight)
 		cellHeight = requiredHeight;
@@ -325,7 +406,6 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 	int width = m_atlasWidth;
 	int height = m_atlasHeight;
 
-	// Atlas packing (row-based)
 	if (m_x + cellWidth >= (width - 1))
 	{
 		m_y += (m_step + 1);
@@ -340,55 +420,92 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 			if (!AppendTexture())
 				return NULL;
 
-			// Reset atlas buffer for new texture
-			memset(m_pAtlasBuffer, 0, m_atlasWidth * m_atlasHeight * sizeof(DWORD));
 			m_y = 0;
 		}
 	}
 
-	// Copy FreeType glyph bitmap into atlas buffer (A8R8G8B8: Alpha = coverage, RGB = 0xFFFFFF for pure modulation)
+	const int srcPitch = bitmap.pitch;
+	const unsigned char* srcBase = (srcPitch < 0)
+		? (bitmap.buffer + (glyphBitmapHeight - 1) * (-srcPitch))
+		: bitmap.buffer;
+
 	for (int row = 0; row < glyphBitmapHeight; ++row)
 	{
 		int atlasY = m_y + yOffset + row;
 		if (atlasY < 0 || atlasY >= height)
 			continue;
 
-		unsigned char* srcRow = bitmap.buffer + row * bitmap.pitch;
-		DWORD* dstRow = m_pAtlasBuffer + atlasY * m_atlasWidth + m_x;
+		const unsigned char* srcRow = (srcPitch < 0)
+			? (srcBase - row * (-srcPitch))
+			: (srcBase + row * srcPitch);
 
-		if (bitmap.pixel_mode == FT_PIXEL_MODE_LCD)
+		if (m_atlasFormat == EFontAtlasFormat::A8)
 		{
-			for (int col = 0; col < glyphBitmapWidth; ++col)
+			uint8_t* dstRow = reinterpret_cast<uint8_t*>(m_pAtlasBuffer) + atlasY * m_atlasWidth + m_x;
+
+			if (bitmap.pixel_mode == FT_PIXEL_MODE_LCD)
 			{
-				unsigned char r = srcRow[col * 3 + 0];
-				unsigned char g = srcRow[col * 3 + 1];
-				unsigned char b = srcRow[col * 3 + 2];
-				unsigned char a = (r > g) ? r : g;
-				if (b > a) a = b;
-				if (a > 0)
+				for (int col = 0; col < glyphBitmapWidth; ++col)
 				{
-					dstRow[col] = ((DWORD)a << 24) | 0x00FFFFFF;
+					unsigned char r = srcRow[col * 3 + 0];
+					unsigned char g = srcRow[col * 3 + 1];
+					unsigned char b = srcRow[col * 3 + 2];
+					unsigned char a = (r > g) ? r : g;
+					if (b > a) a = b;
+					if (a > 0)
+						dstRow[col] = a;
+				}
+			}
+			else if (bitmap.pixel_mode == FT_PIXEL_MODE_MONO)
+			{
+				for (int col = 0; col < glyphBitmapWidth; ++col)
+				{
+					if (srcRow[col >> 3] & (0x80 >> (col & 7)))
+						dstRow[col] = 0xFF;
+				}
+			}
+			else
+			{
+				for (int col = 0; col < glyphBitmapWidth; ++col)
+				{
+					unsigned char a = srcRow[col];
+					if (a > 0)
+						dstRow[col] = a;
 				}
 			}
 		}
-		else if (bitmap.pixel_mode == FT_PIXEL_MODE_MONO)
+		else
 		{
-			for (int col = 0; col < glyphBitmapWidth; ++col)
+			DWORD* dstRow = m_pAtlasBuffer + atlasY * m_atlasWidth + m_x;
+
+			if (bitmap.pixel_mode == FT_PIXEL_MODE_LCD)
 			{
-				if (srcRow[col >> 3] & (0x80 >> (col & 7)))
+				for (int col = 0; col < glyphBitmapWidth; ++col)
 				{
-					dstRow[col] = 0xFFFFFFFF;
+					unsigned char r = srcRow[col * 3 + 0];
+					unsigned char g = srcRow[col * 3 + 1];
+					unsigned char b = srcRow[col * 3 + 2];
+					unsigned char a = (r > g) ? r : g;
+					if (b > a) a = b;
+					if (a > 0)
+						dstRow[col] = ((DWORD)a << 24) | 0x00FFFFFF;
 				}
 			}
-		}
-		else // FT_PIXEL_MODE_GRAY (default)
-		{
-			for (int col = 0; col < glyphBitmapWidth; ++col)
+			else if (bitmap.pixel_mode == FT_PIXEL_MODE_MONO)
 			{
-				unsigned char a = srcRow[col];
-				if (a > 0)
+				for (int col = 0; col < glyphBitmapWidth; ++col)
 				{
-					dstRow[col] = ((DWORD)a << 24) | 0x00FFFFFF;
+					if (srcRow[col >> 3] & (0x80 >> (col & 7)))
+						dstRow[col] = 0xFFFFFFFF;
+				}
+			}
+			else
+			{
+				for (int col = 0; col < glyphBitmapWidth; ++col)
+				{
+					unsigned char a = srcRow[col];
+					if (a > 0)
+						dstRow[col] = ((DWORD)a << 24) | 0x00FFFFFF;
 				}
 			}
 		}
@@ -398,8 +515,7 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 	float rhheight = 1.0f / float(height);
 
 	TCharacterInfomation& rNewCharInfo = m_charInfoMap[keyValue];
-
-	rNewCharInfo.index = static_cast<short>(m_pFontTextureVector.size() - 1);
+	rNewCharInfo.index = static_cast<short>(m_activePageIndex);
 	rNewCharInfo.width = (short)cellWidth;
 	rNewCharInfo.height = (short)cellHeight;
 	rNewCharInfo.left = float(m_x) * rhwidth;
@@ -409,26 +525,19 @@ CGraphicFontTexture::TCharacterInfomation* CGraphicFontTexture::UpdateCharacterI
 	rNewCharInfo.advance = advance;
 	rNewCharInfo.bearingX = (float)bearingX;
 
-	m_x += cellWidth + 1;  // +1 horizontal padding to prevent bilinear bleed
+	if (m_activePageIndex < m_pageLastUsed.size())
+		m_pageLastUsed[m_activePageIndex] = ++m_currentLruTick;
+
+	m_x += cellWidth + 1;
 
 	if (m_step < cellHeight)
 		m_step = cellHeight;
 
 	m_isDirty = true;
-
 	return &rNewCharInfo;
 }
 
-bool CGraphicFontTexture::CheckTextureIndex(DWORD dwTexture)
+bool CGraphicFontTexture::IsEmpty() const
 {
-	if (dwTexture >= m_pFontTextureVector.size())
-		return false;
-
-	return true;
-}
-
-void CGraphicFontTexture::SelectTexture(DWORD dwTexture)
-{
-	assert(CheckTextureIndex(dwTexture));
-	m_lpd3dTexture = m_pFontTextureVector[dwTexture]->GetD3DTexture();
+	return m_pFontTextureVector.empty();
 }

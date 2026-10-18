@@ -125,21 +125,25 @@ void CPythonTextTail::UpdateShowingTextTail()
 
 void CPythonTextTail::UpdateTextTail(TTextTail * pTextTail)
 {
-	if (!pTextTail->pOwner)
+	if (!pTextTail || !pTextTail->pOwner)
 		return;
 
-	/////
-
-	CPythonGraphic & rpyGraphic = CPythonGraphic::Instance();
-	rpyGraphic.Identity();
+	const D3DXMATRIX matViewProj = CGraphicBase::GetViewMatrix() * CGraphicBase::GetProjMatrix();
 
 	const D3DXVECTOR3 & c_rv3Position = pTextTail->pOwner->GetPosition();
-	rpyGraphic.ProjectPosition(c_rv3Position.x,
-							   c_rv3Position.y,
-							   c_rv3Position.z + pTextTail->fHeight,
-							   &pTextTail->x,
-							   &pTextTail->y,
-							   &pTextTail->z);
+	if (!CPythonGraphic::Instance().ProjectPositionFast(
+			c_rv3Position.x,
+			c_rv3Position.y,
+			c_rv3Position.z + pTextTail->fHeight,
+			matViewProj,
+			&pTextTail->x,
+			&pTextTail->y,
+			&pTextTail->z))
+	{
+		pTextTail->x = -10000.0f;
+		pTextTail->y = -10000.0f;
+		return;
+	}
 
 	pTextTail->x = floorf(pTextTail->x);
 	pTextTail->y = floorf(pTextTail->y);
@@ -163,36 +167,22 @@ void CPythonTextTail::ArrangeTextTail()
 
 	DWORD dwTime = CTimer::Instance().GetCurrentMillisecond();
 
+	std::sort(m_ItemTextTailList.begin(), m_ItemTextTailList.end(), [](const TTextTail* a, const TTextTail* b) {
+		return a->y < b->y;
+	});
+
 	for (itor = m_ItemTextTailList.begin(); itor != m_ItemTextTailList.end(); ++itor)
 	{
 		TTextTail * pInsertTextTail = *itor;
-
 		int yTemp = 5;
-		int LimitCount = 0;
 
-		for (itorCompare = m_ItemTextTailList.begin(); itorCompare != m_ItemTextTailList.end();)
+		for (itorCompare = m_ItemTextTailList.begin(); itorCompare != itor; ++itorCompare)
 		{
 			TTextTail * pCompareTextTail = *itorCompare;
-
-			if (*itorCompare == *itor)
-			{
-				++itorCompare;
-				continue;
-			}
-
-			if (LimitCount >= 20)
-				break;
-
 			if (isIn(pInsertTextTail, pCompareTextTail))
 			{
 				pInsertTextTail->y = (pCompareTextTail->y + pCompareTextTail->yEnd + yTemp);
-
-				itorCompare = m_ItemTextTailList.begin();
-				++LimitCount;
-				continue;
 			}
-
-			++itorCompare;
 		}
 
 		// Dampened LERP for item text tail vertical position
@@ -239,36 +229,22 @@ void CPythonTextTail::ArrangeTextTail()
 	}
 
 	// Character TextTail collision resolution
+	std::sort(m_CharacterTextTailList.begin(), m_CharacterTextTailList.end(), [](const TTextTail* a, const TTextTail* b) {
+		return a->y > b->y;
+	});
+
 	for (itor = m_CharacterTextTailList.begin(); itor != m_CharacterTextTailList.end(); ++itor)
 	{
 		TTextTail * pInsertTextTail = *itor;
-
 		int yTemp = 3;
-		int LimitCount = 0;
 
-		for (itorCompare = m_CharacterTextTailList.begin(); itorCompare != m_CharacterTextTailList.end();)
+		for (itorCompare = m_CharacterTextTailList.begin(); itorCompare != itor; ++itorCompare)
 		{
 			TTextTail * pCompareTextTail = *itorCompare;
-
-			if (*itorCompare == *itor)
-			{
-				++itorCompare;
-				continue;
-			}
-
-			if (LimitCount >= 10)
-				break;
-
 			if (isIn(pInsertTextTail, pCompareTextTail))
 			{
 				pInsertTextTail->y = pCompareTextTail->y - (pCompareTextTail->yEnd - pCompareTextTail->yStart + yTemp);
-
-				itorCompare = m_CharacterTextTailList.begin();
-				++LimitCount;
-				continue;
 			}
-
-			++itorCompare;
 		}
 	}
 

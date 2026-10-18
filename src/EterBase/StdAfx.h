@@ -4,7 +4,7 @@
 #pragma warning(disable:4786)	// character 255 넘어가는거 끄기
 #pragma warning(disable:4244)	// type conversion possible lose of data
 
-//#include <windows.h>
+#include <windows.h>
 #include <assert.h>
 #include <stdio.h>
 #pragma warning ( disable : 4201 )

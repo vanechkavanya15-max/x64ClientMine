@@ -44,7 +44,7 @@ PyObject* grpImageGenerate(PyObject * poSelf, PyObject* poArgs)
 
 	CResource * pResource = CResourceManager::Instance().GetResourcePointer(szFileName);
 
-	if (!pResource->IsType(CGraphicImage::Type()))
+	if (!pResource || !pResource->IsType(CGraphicImage::Type()))
 		return Py_BuildException("Resource is not an image (filename: %s)", szFileName);
 
 	CGraphicImageInstance * pImageInstance = CGraphicImageInstance::New();
@@ -68,7 +68,7 @@ PyObject* grpImageGenerateExpanded(PyObject* poSelf, PyObject* poArgs)
 
 	CResource* pResource = CResourceManager::Instance().GetResourcePointer(szFileName);
 
-	if (!pResource->IsType(CGraphicImage::Type()))
+	if (!pResource || !pResource->IsType(CGraphicImage::Type()))
 		return Py_BuildException("Resource is not an image (filename: %s)", szFileName);
 
 	CGraphicExpandedImageInstance * pImageInstance = CGraphicExpandedImageInstance::New();
@@ -102,7 +102,10 @@ PyObject* grpImageDelete(PyObject* poSelf, PyObject* poArgs)
 	if (!pImageInstance)
 		return Py_BuildNone();
 
-	CGraphicImageInstance::Delete(pImageInstance);
+	if (pImageInstance->IsType(CGraphicExpandedImageInstance::Type()))
+		CGraphicExpandedImageInstance::Delete(static_cast<CGraphicExpandedImageInstance*>(pImageInstance));
+	else
+		CGraphicImageInstance::Delete(pImageInstance);
 	
 	return Py_BuildNone();
 }
@@ -129,7 +132,7 @@ PyObject* grpImageSetFileName(PyObject* poSelf, PyObject* poArgs)
 
 	CResource * pResource = CResourceManager::Instance().GetResourcePointer(szFileName);
 
-	if (!pResource->IsType(CGraphicImage::Type()))
+	if (!pResource || !pResource->IsType(CGraphicImage::Type()))
 		return Py_BuildException("Resource is not an image (filename: %s)", szFileName);
 
 	pImageInstance->SetImagePointer(static_cast<CGraphicImage*>(pResource));

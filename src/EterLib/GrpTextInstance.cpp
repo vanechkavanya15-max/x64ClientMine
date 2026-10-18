@@ -565,11 +565,41 @@ CGraphicTextInstance::STextAlignment CGraphicTextInstance::ComputeAlignmentOffse
 
 const std::vector<STextQuad>& CGraphicTextInstance::LayoutGlyphs(RECT* pClipRect)
 {
+	bool clipMatches = false;
+	if (!pClipRect && !m_hasLastClipRect)
+	{
+		clipMatches = true;
+	}
+	else if (pClipRect && m_hasLastClipRect &&
+	         m_lastClipRect.left == pClipRect->left &&
+	         m_lastClipRect.top == pClipRect->top &&
+	         m_lastClipRect.right == pClipRect->right &&
+	         m_lastClipRect.bottom == pClipRect->bottom)
+	{
+		clipMatches = true;
+	}
+
+	if (!m_isLayoutDirty && clipMatches && m_isUpdate && !m_isCursor && !m_layoutQuads.empty())
+	{
+		return m_layoutQuads;
+	}
+
 	m_layoutQuads.clear();
 
 	if (!m_isUpdate)
 	{
 		Update();
+	}
+
+	if (pClipRect)
+	{
+		m_hasLastClipRect = true;
+		m_lastClipRect = *pClipRect;
+	}
+	else
+	{
+		m_hasLastClipRect = false;
+		SetRectEmpty(&m_lastClipRect);
 	}
 
 	CGraphicText* pkText = m_roText.GetPointer();
@@ -861,6 +891,7 @@ const std::vector<STextQuad>& CGraphicTextInstance::LayoutGlyphs(RECT* pClipRect
 		}
 	}
 
+	m_isLayoutDirty = false;
 	return m_layoutQuads;
 }
 
@@ -1172,14 +1203,20 @@ void CGraphicTextInstance::SetChatValue(const char* c_szName, const char* c_szMe
 
 void CGraphicTextInstance::SetPosition(float fx, float fy, float fz)
 {
-	m_v3Position.x = fx;
-	m_v3Position.y = fy;
-	m_v3Position.z = fz;
+	if (m_v3Position.x != fx || m_v3Position.y != fy || m_v3Position.z != fz)
+	{
+		m_v3Position.x = fx;
+		m_v3Position.y = fy;
+		m_v3Position.z = fz;
+		m_isLayoutDirty = true;
+	}
 }
 
 void CGraphicTextInstance::SetTextPointer(CGraphicText* pText)
 {
 	m_roText = pText;
+	m_isLayoutDirty = true;
+	m_isUpdate = false;
 }
 
 void CGraphicTextInstance::SetTextDirection(ETextDirection dir)
@@ -1316,6 +1353,10 @@ void CGraphicTextInstance::__Initialize()
 	m_v3Position.x = m_v3Position.y = m_v3Position.z = 0.0f;
 
 	m_dwOutLineColor=0xff000000;
+
+	m_isLayoutDirty = true;
+	m_hasLastClipRect = false;
+	SetRectEmpty(&m_lastClipRect);
 
 	m_layoutQuads.clear();
 	m_wTextBuf.clear();

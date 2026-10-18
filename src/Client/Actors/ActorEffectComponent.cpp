@@ -32,11 +32,20 @@ EffectResult<void> ActorEffectComponent::DetachEffect(EffectHandle handle) {
         return std::unexpected(EffectError::EffectNotFound);
     }
 
+    if (m_detachCallback) {
+        m_detachCallback(it->id, it->handle);
+    }
+
     m_activeEffects.erase(it);
     return {};
 }
 
 EffectResult<void> ActorEffectComponent::DetachAllEffects() {
+    if (m_detachCallback) {
+        for (const auto& effect : m_activeEffects) {
+            m_detachCallback(effect.id, effect.handle);
+        }
+    }
     m_activeEffects.clear();
     return {};
 }

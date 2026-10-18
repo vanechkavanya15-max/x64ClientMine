@@ -249,6 +249,11 @@ void CEffectInstance::__SetLightData(CLightData* pData)
 
 void CEffectInstance::SetEffectDataPointer(CEffectData * pEffectData)
 {
+	Clear();
+
+	if (!pEffectData)
+		return;
+
 	m_isAlive=true;
 
 	m_pkEftData=pEffectData;
@@ -298,6 +303,8 @@ bool CEffectInstance::GetBoundingSphere(D3DXVECTOR3 & v3Center, float & fRadius)
 
 void CEffectInstance::Clear()
 {
+	CGraphicObjectInstance::Clear();
+
 	if (!m_ParticleInstanceVector.empty())
 	{
 		std::for_each(m_ParticleInstanceVector.begin(), m_ParticleInstanceVector.end(), CParticleSystemInstance::Delete);
@@ -345,4 +352,19 @@ CEffectInstance::~CEffectInstance()
 	assert(m_ParticleInstanceVector.empty());
 	assert(m_MeshInstanceVector.empty());
 	assert(m_LightInstanceVector.empty());
+}
+
+bool CEffectInstance::ExtractRenderPacket(TEffectRenderPacket& outPacket) const
+{
+	if (!m_isAlive)
+		return false;
+
+	outPacket.dwEffectID = GetEffectDataCRC();
+	outPacket.dwTextureID = 0;
+	outPacket.dwBlendMode = 0;
+	outPacket.dwParticleCount = 0;
+	outPacket.pParticles = nullptr;
+	outPacket.stateKey = STATE_KEY_ALPHA_BLEND;
+
+	return true;
 }

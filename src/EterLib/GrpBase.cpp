@@ -196,6 +196,11 @@ const D3DXMATRIX& CGraphicBase::GetViewMatrix()
 	return ms_matView;
 }
 
+const D3DXMATRIX& CGraphicBase::GetProjMatrix()
+{
+	return ms_matProj;
+}
+
 const D3DXMATRIX & CGraphicBase::GetIdentityMatrix()
 {
 	return ms_matIdentity;

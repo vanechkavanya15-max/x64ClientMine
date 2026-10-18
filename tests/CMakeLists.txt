@@ -7543,12 +7543,19 @@ target_include_directories(test_DynamicQuadBatcher PRIVATE
 target_link_libraries(test_DynamicQuadBatcher PRIVATE
     Client2026
     EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
     EterBase
     libzstd_static
     sodium
     lzo2
     mio
     ws2_32
+    DirectX
+    Dbghelp
 )
 add_test(NAME test_DynamicQuadBatcher COMMAND test_DynamicQuadBatcher)
 

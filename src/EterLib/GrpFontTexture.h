@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <map>
+#include <cstdint>
 
 class CGraphicFontTexture : public CGraphicTexture
 {
@@ -28,6 +29,14 @@ class CGraphicFontTexture : public CGraphicTexture
 		} TCharacterInfomation;
 
 		typedef std::vector<TCharacterInfomation*> TPCharacterInfomationVector;
+
+		enum class EFontAtlasFormat : uint8_t
+		{
+			A8R8G8B8 = 0,
+			A8 = 1
+		};
+
+		static constexpr size_t MAX_FONT_TEXTURE_PAGES = 8;
 
 	public:
 		CGraphicFontTexture();
@@ -51,6 +60,10 @@ class CGraphicFontTexture : public CGraphicTexture
 
 		bool IsEmpty() const;
 
+		void SetAtlasFormat(EFontAtlasFormat format) noexcept { m_atlasFormat = format; }
+		[[nodiscard]] EFontAtlasFormat GetAtlasFormat() const noexcept { return m_atlasFormat; }
+		[[nodiscard]] bool IsA8Format() const noexcept { return m_atlasFormat == EFontAtlasFormat::A8; }
+
 	protected:
 		void Initialize();
 
@@ -63,13 +76,11 @@ class CGraphicFontTexture : public CGraphicTexture
 	protected:
 		FT_Face m_ftFace;
 
-		// CPU-side atlas buffer (replaces CGraphicDib)
 		DWORD* m_pAtlasBuffer;
 		int m_atlasWidth;
 		int m_atlasHeight;
 
 		TGraphicImageTexturePointerVector m_pFontTextureVector;
-
 		TCharacterInfomationMap m_charInfoMap;
 
 		int m_x;
@@ -80,8 +91,13 @@ class CGraphicFontTexture : public CGraphicTexture
 		LONG m_fontSize;
 		bool m_bItalic;
 
-		// FreeType metrics cached per-font
 		int m_ascender;
 		int m_lineHeight;
 		bool m_hasKerning;
+
+		EFontAtlasFormat m_atlasFormat{ EFontAtlasFormat::A8R8G8B8 };
+		size_t m_activePageIndex{ 0 };
+		uint64_t m_currentLruTick{ 0 };
+		std::vector<uint64_t> m_pageLastUsed;
+		RECT m_dirtyRect{ 0, 0, 0, 0 };
 };

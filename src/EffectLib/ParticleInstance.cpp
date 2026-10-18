@@ -7,6 +7,7 @@
 #include "EterLib/Camera.h"
 #include "EterLib/StateManager.h"
 #include "EterLib/ParticleQuad.h"
+#include "EterBase/Timer.h"
 
 CDynamicPool<CParticleInstance> CParticleInstance::ms_kPool;
 
@@ -192,10 +193,23 @@ void CParticleInstance::Transform(const D3DXMATRIX * c_matLocal)
 {
 	STATEMANAGER.SetRenderState(D3DRS_TEXTUREFACTOR, m_Color);
 
-	CCamera * pCurrentCamera = CCameraManager::Instance().GetCurrentCamera();
-	const D3DXVECTOR3 c_rv3Up = pCurrentCamera ? pCurrentCamera->GetUp() : D3DXVECTOR3(0.0f, 0.0f, 1.0f);
-	const D3DXVECTOR3 c_rv3Cross = pCurrentCamera ? pCurrentCamera->GetCross() : D3DXVECTOR3(1.0f, 0.0f, 0.0f);
-	const D3DXVECTOR3 c_rv3View = pCurrentCamera ? pCurrentCamera->GetView() : D3DXVECTOR3(0.0f, 1.0f, 0.0f);
+	static D3DXVECTOR3 s_v3Up(0.0f, 0.0f, 1.0f);
+	static D3DXVECTOR3 s_v3Cross(1.0f, 0.0f, 0.0f);
+	static D3DXVECTOR3 s_v3View(0.0f, 1.0f, 0.0f);
+	static DWORD s_dwLastCacheTime = 0xFFFFFFFF;
+
+	DWORD dwCurrentTime = ELTimer_GetMSec();
+	if (dwCurrentTime != s_dwLastCacheTime)
+	{
+		s_dwLastCacheTime = dwCurrentTime;
+		CCamera * pCurrentCamera = CCameraManager::InstancePtr() ? CCameraManager::Instance().GetCurrentCamera() : nullptr;
+		if (pCurrentCamera)
+		{
+			s_v3Up = pCurrentCamera->GetUp();
+			s_v3Cross = pCurrentCamera->GetCross();
+			s_v3View = pCurrentCamera->GetView();
+		}
+	}
 
 	const D3DXVECTOR3 v3Velocity = m_v3Position - m_v3LastPosition;
 	D3DXVECTOR3 positions[4];
@@ -207,9 +221,9 @@ void CParticleInstance::Transform(const D3DXMATRIX * c_matLocal)
 		m_v2HalfSize.x * m_v2Scale.x,
 		m_v2HalfSize.y * m_v2Scale.y,
 		m_fRotation,
-		c_rv3Up,
-		c_rv3Cross,
-		c_rv3View,
+		s_v3Up,
+		s_v3Cross,
+		s_v3View,
 		v3Velocity,
 		positions,
 		c_matLocal,
@@ -228,10 +242,23 @@ void CParticleInstance::Transform(const D3DXMATRIX * c_matLocal, const float c_f
 {
 	STATEMANAGER.SetRenderState(D3DRS_TEXTUREFACTOR, m_Color);
 
-	CCamera * pCurrentCamera = CCameraManager::Instance().GetCurrentCamera();
-	const D3DXVECTOR3 c_rv3Up = pCurrentCamera ? pCurrentCamera->GetUp() : D3DXVECTOR3(0.0f, 0.0f, 1.0f);
-	const D3DXVECTOR3 c_rv3Cross = pCurrentCamera ? pCurrentCamera->GetCross() : D3DXVECTOR3(1.0f, 0.0f, 0.0f);
-	const D3DXVECTOR3 c_rv3View = pCurrentCamera ? pCurrentCamera->GetView() : D3DXVECTOR3(0.0f, 1.0f, 0.0f);
+	static D3DXVECTOR3 s_v3Up(0.0f, 0.0f, 1.0f);
+	static D3DXVECTOR3 s_v3Cross(1.0f, 0.0f, 0.0f);
+	static D3DXVECTOR3 s_v3View(0.0f, 1.0f, 0.0f);
+	static DWORD s_dwLastCacheTime = 0xFFFFFFFF;
+
+	DWORD dwCurrentTime = ELTimer_GetMSec();
+	if (dwCurrentTime != s_dwLastCacheTime)
+	{
+		s_dwLastCacheTime = dwCurrentTime;
+		CCamera * pCurrentCamera = CCameraManager::InstancePtr() ? CCameraManager::Instance().GetCurrentCamera() : nullptr;
+		if (pCurrentCamera)
+		{
+			s_v3Up = pCurrentCamera->GetUp();
+			s_v3Cross = pCurrentCamera->GetCross();
+			s_v3View = pCurrentCamera->GetView();
+		}
+	}
 
 	const D3DXVECTOR3 v3Velocity = m_v3Position - m_v3LastPosition;
 	D3DXVECTOR3 positions[4];
@@ -243,9 +270,9 @@ void CParticleInstance::Transform(const D3DXMATRIX * c_matLocal, const float c_f
 		m_v2HalfSize.x * m_v2Scale.x,
 		m_v2HalfSize.y * m_v2Scale.y,
 		m_fRotation,
-		c_rv3Up,
-		c_rv3Cross,
-		c_rv3View,
+		s_v3Up,
+		s_v3Cross,
+		s_v3View,
 		v3Velocity,
 		positions,
 		c_matLocal,

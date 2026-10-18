@@ -49,7 +49,7 @@ bool CGraphicSubImage::SetImageFileName(const char* c_szFileName)
 {
 	CResource* pResource = CResourceManager::Instance().GetResourcePointer(c_szFileName);
 
-	if (!pResource->IsType(CGraphicImage::Type()))
+	if (!pResource || !pResource->IsType(CGraphicImage::Type()))
 		return false;
 
 	SetImagePointer(static_cast<CGraphicImage*>(pResource));
@@ -119,6 +119,8 @@ bool CGraphicSubImage::OnLoad(int iSize, const void* c_pvBuf)
 		if (nPos>=0)
 		{
 			nPos++;
+			if (static_cast<size_t>(nPos) + c_rstImage.length() >= sizeof(szFileName))
+				return false;
 			memcpy(szFileName, c_rstSubFileName.c_str(), nPos);
 			szFileName[nPos]='\0';
 			memcpy(szFileName+nPos, c_rstImage.c_str(), c_rstImage.length());
@@ -126,12 +128,16 @@ bool CGraphicSubImage::OnLoad(int iSize, const void* c_pvBuf)
 		}
 		else
 		{
+			if (c_rstImage.length() >= sizeof(szFileName))
+				return false;
 			memcpy(szFileName, c_rstImage.c_str(), c_rstImage.length());
+			szFileName[c_rstImage.length()] = '\0';
 		}
 	}
 	else
 	{
 		_snprintf(szFileName, sizeof(szFileName), "%s%s", m_SearchPath, c_rstImage.c_str());
+		szFileName[sizeof(szFileName) - 1] = '\0';
 	}
 
 	SetImageFileName(szFileName);

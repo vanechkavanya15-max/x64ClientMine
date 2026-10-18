@@ -167,6 +167,9 @@ bool CFlyingManager::RegisterIndexedFlyData(DWORD dwIndex, BYTE byType, const ch
 
 void CFlyingManager::CreateIndexedFly(DWORD dwIndex, CActorInstance * pStartActor, CActorInstance * pEndActor)
 {
+	if (!pStartActor)
+		return;
+
 	if (m_kMap_dwIndexFlyData.end() == m_kMap_dwIndexFlyData.find(dwIndex))
 	{
 		TraceError("CFlyingManager::CreateIndexedFly(dwIndex=%d) - Not registered index", dwIndex);
@@ -181,6 +184,8 @@ void CFlyingManager::CreateIndexedFly(DWORD dwIndex, CActorInstance * pStartActo
 	{
 		case INDEX_FLY_TYPE_NORMAL:
 		{
+			if (!pEndActor)
+				break;
 			CreateFlyingInstanceFlyTarget(rIndexFlyData.dwCRC,
 											D3DXVECTOR3(posStart.x, posStart.y, posStart.z),
 											pEndActor,
@@ -204,6 +209,8 @@ void CFlyingManager::CreateIndexedFly(DWORD dwIndex, CActorInstance * pStartActo
 		}
 		case INDEX_FLY_TYPE_AUTO_FIRE:
 		{
+			if (!pEndActor)
+				break;
 			CreateFlyingInstanceFlyTarget(rIndexFlyData.dwCRC,
 											D3DXVECTOR3(posStart.x, posStart.y, posStart.z+100.0f),
 											pEndActor,

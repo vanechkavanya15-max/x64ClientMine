@@ -89,9 +89,6 @@ void CGraphicExpandedImageInstance::OnRender()
 		vertices[2].position.y += fimgHeight + m_RenderingRect.bottom;
 		vertices[3].position.x += fimgWidth + m_RenderingRect.right;
 		vertices[3].position.y += fimgHeight + m_RenderingRect.bottom;
-		if ((0.0f < m_v2Scale.x && 0.0f > m_v2Scale.y) || (0.0f > m_v2Scale.x && 0.0f < m_v2Scale.y)) {
-			STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
-		}
 	}
 	else
 	{
@@ -108,7 +105,7 @@ void CGraphicExpandedImageInstance::OnRender()
 		vertices[0].position.x += (-fimgHalfWidth*cosf(fRadian)) - (-fimgHalfHeight*sinf(fRadian));
 		vertices[0].position.y += (-fimgHalfWidth*sinf(fRadian)) + (-fimgHalfHeight*cosf(fRadian));
 		vertices[1].position.x += (+fimgHalfWidth*cosf(fRadian)) - (-fimgHalfHeight*sinf(fRadian));
-		vertices[1].position.y += (+fimgHalfWidth*sinf(fRadian)) + (-fimgHalfHeight*cosf(fRadian));
+		vertices[1].position.y += (+fimgHalfWidth*sinf(fRadian)) + (+fimgHalfHeight*cosf(fRadian));
 		vertices[2].position.x += (-fimgHalfWidth*cosf(fRadian)) - (+fimgHalfHeight*sinf(fRadian));
 		vertices[2].position.y += (-fimgHalfWidth*sinf(fRadian)) + (+fimgHalfHeight*cosf(fRadian));
 		vertices[3].position.x += (+fimgHalfWidth*cosf(fRadian)) - (+fimgHalfHeight*sinf(fRadian));
@@ -122,7 +119,24 @@ void CGraphicExpandedImageInstance::OnRender()
 		uiVertices[i].color = static_cast<uint32_t>(vertices[i].diffuse);
 		uiVertices[i].texCoord = vertices[i].texCoord;
 	}
-	uint32_t blendMode = (m_iRenderingMode == RENDERING_MODE_SCREEN || m_iRenderingMode == RENDERING_MODE_COLOR_DODGE) ? 1 : 0;
+
+	// Przy ujemnej skali odwracamy wierzcholki 1 i 2 na CPU zamiast zanieczyszczac D3DRS_CULLMODE
+	if ((m_v2Scale.x * m_v2Scale.y) < 0.0f)
+	{
+		std::swap(uiVertices[1], uiVertices[2]);
+	}
+
+	// Pelne zachowanie wszystkich trybow mieszania EUiBlendMode
+	uint32_t blendMode = 0;
+	switch (m_iRenderingMode)
+	{
+		case RENDERING_MODE_SCREEN:      blendMode = 1; break;
+		case RENDERING_MODE_COLOR_DODGE: blendMode = 2; break;
+		case RENDERING_MODE_MODULATE:    blendMode = 3; break;
+		case RENDERING_MODE_NORMAL:
+		default:                         blendMode = 0; break;
+	}
+
 	EterLib::Render::DynamicQuadBatcher::Instance().AddQuadVertices(
 		uiVertices,
 		reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture()),

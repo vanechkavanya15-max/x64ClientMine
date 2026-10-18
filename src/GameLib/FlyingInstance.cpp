@@ -147,9 +147,15 @@ void CFlyingInstance::AdjustDirectionForHoming(const D3DXVECTOR3 & v3TargetPosit
 	const DirectX::XMVECTOR vCurrentPos = MathSIMD::Load3(&m_v3Position.x);
 	const DirectX::XMVECTOR vTargetPos = MathSIMD::Load3(&v3TargetPosition.x);
 	DirectX::XMVECTOR vTargetDir = DirectX::XMVectorSubtract(vTargetPos, vCurrentPos);
+	const float fDistSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(vTargetDir));
+	if (fDistSq < 1e-6f || std::isnan(fDistSq))
+		return;
 	vTargetDir = DirectX::XMVector3Normalize(vTargetDir);
 
 	DirectX::XMVECTOR vVel = MathSIMD::Load3(&m_v3Velocity.x);
+	const float fVelSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(vVel));
+	if (fVelSq < 1e-6f || std::isnan(fVelSq))
+		return;
 	vVel = DirectX::XMVector3Normalize(vVel);
 
 	const DirectX::XMVECTOR vDiff = DirectX::XMVectorSubtract(vVel, vTargetDir);
@@ -167,6 +173,13 @@ void CFlyingInstance::AdjustDirectionForHoming(const D3DXVECTOR3 & v3TargetPosit
 		Vec3TransformQuaternionSafe(&m_v3Velocity, &m_v3Velocity, &q);
 		Vec3TransformQuaternionSafe(&m_v3Accel, &m_v3Accel, &q);
 		D3DXQuaternionMultiply(&m_qRot, &q, &m_qRot);
+
+	if (std::isnan(m_v3Velocity.x) || std::isnan(m_v3Velocity.y) || std::isnan(m_v3Velocity.z))
+	{
+		float speed = m_pData ? m_pData->m_fInitVel : 1000.0f;
+		m_v3Velocity = vTargetDir3 * speed;
+		m_v3Accel = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+	}
 		return;
 	}
 
@@ -182,11 +195,15 @@ void CFlyingInstance::AdjustDirectionForHoming(const D3DXVECTOR3 & v3TargetPosit
 	}
 	else if (q.w <= c && q.w <= 1.0f - 0.0001f)
 	{
-		float factor = s / sqrtf(1.0f - q.w * q.w);
-		q.x *= factor;
-		q.y *= factor;
-		q.z *= factor;
-		q.w = c;
+		float denom = 1.0f - q.w * q.w;
+		if (denom > 1e-8f)
+		{
+			float factor = s / sqrtf(denom);
+			q.x *= factor;
+			q.y *= factor;
+			q.z *= factor;
+			q.w = c;
+		}
 	}
 	/*else
 	{
@@ -244,7 +261,8 @@ void CFlyingInstance::UpdateAttachInstance()
 			case CFlyingData::FLY_ATTACH_TYPE_SINE:
 				{
 					//Tracenf("%f",CTimer::Instance().GetCurrentSecond());
-					float angle = (CTimer::Instance().GetCurrentSecond() - m_fStartTime)*2*3.1415926535897931f/rfad.fPeriod;
+					float fPeriod = (fabsf(rfad.fPeriod) > 1e-4f) ? rfad.fPeriod : 1.0f;
+					float angle = (CTimer::Instance().GetCurrentSecond() - m_fStartTime)*2*3.1415926535897931f/fPeriod;
 					D3DXVECTOR3 p(
 						-sinf(D3DXToRadian(rfad.fRoll))*rfad.fAmplitude*sinf(angle),
 						0.0f,
@@ -263,7 +281,8 @@ void CFlyingInstance::UpdateAttachInstance()
 			case CFlyingData::FLY_ATTACH_TYPE_EXP:
 				{
 					float dt = CTimer::Instance().GetCurrentSecond() - m_fStartTime;
-					float angle = dt/rfad.fPeriod;
+					float fPeriod = (fabsf(rfad.fPeriod) > 1e-4f) ? rfad.fPeriod : 1.0f;
+					float angle = dt/fPeriod;
 					D3DXVECTOR3 p(
 						-sinf(D3DXToRadian(rfad.fRoll))*rfad.fAmplitude*exp(-angle)*angle,
 						0.0f,
@@ -387,6 +406,17 @@ bool CFlyingInstance::Update()
 	float _fMoveDistance = DirectX::XMVectorGetX(DirectX::XMVector3Length(vMovement));
 	float fCollisionSphereRadius = std::max(_fMoveDistance * 2.0f, m_pData->m_fCollisionSphereRadius);
 	m_fRemainRange -= _fMoveDistance;
+
+	const float fCurSec = CTimer::Instance().GetCurrentSecond();
+	constexpr float MAX_FLY_TTL = 15.0f;
+	if (fCurSec - m_fStartTime > MAX_FLY_TTL || std::isnan(m_fRemainRange) || std::isnan(m_v3Position.x) || std::isnan(m_v3Position.y) || std::isnan(m_v3Position.z))
+	{
+		if (m_pHandler)
+			m_pHandler->OnExplodingOutOfRange();
+
+		__Explode(false);
+		return false;
+	}
 
 	UpdateAttachInstance();
 

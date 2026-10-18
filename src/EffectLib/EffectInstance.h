@@ -11,6 +11,9 @@
 #include "ParticleSystemInstance.h"
 #include "SimpleLightInstance.h"
 
+#include "EterLib/RenderPacketTypes.h"
+typedef TEffectInstancePacket TEffectRenderPacket;
+
 class CEffectInstance : public CGraphicObjectInstance
 {
 	public:
@@ -52,6 +55,8 @@ class CEffectInstance : public CGraphicObjectInstance
 		DWORD GetEffectDataCRC() const;
 		float GetLifeTime() const { return m_fLifeTime; }
 		void SetLifeTime(float fLifeTime) { m_fLifeTime = fLifeTime; }
+
+		bool ExtractRenderPacket(TEffectRenderPacket& outPacket) const;
 
 		void Clear();
 		BOOL isAlive();

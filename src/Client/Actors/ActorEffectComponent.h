@@ -6,6 +6,7 @@
 #include <optional>
 #include <string_view>
 #include <format>
+#include <functional>
 #include "EterBase/StrongTypes.h"
 #include "Client/Core/Result.h"
 
@@ -41,14 +42,19 @@ using EffectResult = std::expected<T, E>;
 class ActorEffectComponent {
 public:
     static constexpr size_t MAX_ACTIVE_EFFECTS = 255;
+    using DetachCallback = std::function<void(EffectId, EffectHandle)>;
 
     ActorEffectComponent() = default;
-    ~ActorEffectComponent() = default;
+    ~ActorEffectComponent() {
+        DetachAllEffects();
+    }
 
     ActorEffectComponent(const ActorEffectComponent&) = delete;
     ActorEffectComponent& operator=(const ActorEffectComponent&) = delete;
     ActorEffectComponent(ActorEffectComponent&&) noexcept = default;
     ActorEffectComponent& operator=(ActorEffectComponent&&) noexcept = default;
+
+    void SetDetachCallback(DetachCallback cb) { m_detachCallback = std::move(cb); }
 
     EffectResult<EffectHandle> AttachEffect(EffectId effectId);
     EffectResult<void> DetachEffect(EffectHandle handle);
@@ -68,6 +74,7 @@ private:
 
     std::vector<ActiveEffect> m_activeEffects;
     uint32_t m_nextHandleId{1};
+    DetachCallback m_detachCallback;
 };
 
 } // namespace Client::Actors
