@@ -22,7 +22,7 @@ dump/
 DUMP/
 *dump/
 *DUMP/
-client/
+/client/
 output/
 
 # ─── 3. ARTEFAKTY BUDOWANIA CMAKE, MSVC I NINJA (6.0+ GB) ────────────────────

@@ -6204,6 +6204,18 @@ target_link_libraries(test_c26_ui_window_events PRIVATE Client2026 EterLib EterB
 add_test(NAME test_c26_ui_window_events COMMAND test_c26_ui_window_events)
 
 
+add_executable(test_c26_ui_event_dispatcher test_c26_ui_event_dispatcher.cpp ${CMAKE_SOURCE_DIR}/src/Client/UI/UiEventDispatcher.cpp)
+target_include_directories(test_c26_ui_event_dispatcher PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_SOURCE_DIR}/src/Client/UI
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_ui_event_dispatcher PRIVATE Client2026 EterLib EterBase ws2_32)
+add_test(NAME test_c26_ui_event_dispatcher COMMAND test_c26_ui_event_dispatcher)
+
+
+
 add_executable(test_c26_phase_game_char_state test_c26_phase_game_char_state.cpp ${CMAKE_SOURCE_DIR}/src/Client/Bridge/PhaseGameCharacterStateBridge.cpp)
 target_include_directories(test_c26_phase_game_char_state PRIVATE
     ${CMAKE_SOURCE_DIR}/src
