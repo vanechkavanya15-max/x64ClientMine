@@ -7684,3 +7684,46 @@ target_link_libraries(test_map_outdoor PRIVATE
 )
 add_test(NAME test_map_outdoor COMMAND test_map_outdoor)
 
+# --- Autonomicznie zarejestrowane testy roju Jules (Architektura 2026) ---
+add_executable(test_c27_gltf_model_audit test_c27_gltf_model_audit.cpp)
+target_include_directories(test_c27_gltf_model_audit PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c27_gltf_model_audit PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c27_gltf_model_audit COMMAND test_c27_gltf_model_audit)
+
+add_executable(test_c27_gltf_model_audit_no_main test_c27_gltf_model_audit_no_main.cpp)
+target_include_directories(test_c27_gltf_model_audit_no_main PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c27_gltf_model_audit_no_main PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c27_gltf_model_audit_no_main COMMAND test_c27_gltf_model_audit_no_main)
+
