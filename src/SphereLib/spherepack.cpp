@@ -82,7 +82,16 @@ void SpherePackFactory::Process(void)
 			if (!pack) break;
 			pack->SetFifo1(0); // no longer on the fifo!!
 			bool kill = pack->Recompute(mSuperSphereGravy);
-			if (kill) Remove(pack);
+			if (kill)
+			{
+				Remove(pack);
+			}
+			else if (pack->HasSpherePackFlag(SPF_LEAF_TREE) && pack->HasSpherePackFlag(SPF_SUPERSPHERE) && !pack->HasSpherePackFlag(SPF_ROOTNODE))
+			{
+				SpherePack *link = (SpherePack *) pack->GetUserData();
+				if (link)
+					link->NewPosRadius(pack->GetPos(), pack->GetRadius());
+			}
 		}
 	}
 	
@@ -545,6 +554,11 @@ void SpherePackFactory::Integrate(SpherePack *pack,
 	}
 	
 	pack->ClearSpherePackFlag(SPF_INTEGRATE); // we've been integrated!
+	pack->ClearSpherePackFlag(SpherePackFlag(SPF_HIDDEN | SPF_PARTIAL | SPF_INSIDE));
+	for (SpherePack* p = pack->GetParent(); p; p = p->GetParent())
+	{
+		p->ClearSpherePackFlag(SpherePackFlag(SPF_HIDDEN | SPF_PARTIAL | SPF_INSIDE));
+	}
 }
 
 
@@ -657,7 +671,7 @@ void SpherePackFactory::RangeTest(const Vector3d &center,float radius,SpherePack
 	{
 		TraceError("SpherePackFactory::RangeTest - RANGE ERROR %f, %f, %f",
 			center.x, center.y, center.z);
-		assert("SpherePackFactory::RangeTest - RANGE ERROR");
+		assert(!"SpherePackFactory::RangeTest - RANGE ERROR");
 		return;
 	}
 #endif
@@ -672,7 +686,7 @@ void SpherePackFactory::PointTest2d(const Vector3d &center, SpherePackCallback *
 	{
 		TraceError("SpherePackFactory::RangeTest2d - RANGE ERROR %f, %f, %f",
 			center.x, center.y, center.z);
-		assert("SpherePackFactory::RangeTest2d - RANGE ERROR");
+		assert(!"SpherePackFactory::RangeTest2d - RANGE ERROR");
 		return;
 	}
 #endif
@@ -731,12 +745,12 @@ void SpherePack::PointTest2d(const Vector3d &p,
 {
 	if (state == VS_PARTIAL)
 	{
-		float dx=p.x-mCenter.x;
-		float dy=p.y-mCenter.y;
-		float distSquare = (dx*dx)+(dy*dy);
+		float dx = p.x - mCenter.x;
+		float dy = p.y - mCenter.y;
+		float distSquare = (dx * dx) + (dy * dy);
 
-		if (distSquare > GetRadius2()) return;;
-		if (GetRadius2() < -distSquare) state = VS_INSIDE;
+		if (distSquare > GetRadius2()) return;
+		state = VS_INSIDE;
 	}
 	
 	if (HasSpherePackFlag(SPF_SUPERSPHERE))

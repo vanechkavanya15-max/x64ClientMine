@@ -83,8 +83,8 @@ bool CPythonApplication::IsTurboTicksMode()
 	return ms_dwTurboTicks > 0;
 }
 
-float c_fDefaultCameraRotateSpeed = 1.5f;
-float c_fDefaultCameraPitchSpeed = 1.5f;
+float c_fDefaultCameraRotateSpeed = 2.25f; // Zwiekszona o 50% czulosc obrotu kamery (bylo 1.5f)
+float c_fDefaultCameraPitchSpeed = 2.25f; // Zwiekszona o 50% czulosc pochylenia kamery (bylo 1.5f)
 float c_fDefaultCameraZoomSpeed = 0.05f;
 
 CPythonApplication::CPythonApplication() :
@@ -260,11 +260,10 @@ void CPythonApplication::RenderGame()
 		m_pyGraphic.SetCursorPosition(lx, ly);
 	}
 
-	m_pyBackground.RenderSky();
-
-	m_pyBackground.RenderBeforeLensFlare();
-
-	m_pyBackground.RenderCloud();
+	// Calkowite wylaczenie renderowania nieba i flar (0 CPU/GPU, czarne tlo)
+	// m_pyBackground.RenderSky();
+	// m_pyBackground.RenderBeforeLensFlare();
+	// m_pyBackground.RenderCloud();
 
 	m_pyBackground.BeginEnvironment();
 	m_pyBackground.Render();
@@ -287,7 +286,7 @@ void CPythonApplication::RenderGame()
 	m_pyBackground.RenderPCBlocker();
 	m_pyBackground.EndEnvironment();
 
-	m_pyBackground.RenderAfterLensFlare();
+	// m_pyBackground.RenderAfterLensFlare();
 
 	// Aktualizacja macierzy kamery i czasu klatki w TRenderFrameUniforms przed Flush
 	{
@@ -310,6 +309,10 @@ void CPythonApplication::RenderGame()
 
 	// Po wyrenderowaniu klatki wyczysc bufor linii diagnostycznych
 	Client::Graphics::Debug::DebugRenderer::Instance().Clear();
+
+	// Izolacja stanu i przywrocenie macierzy 2D UI po renderowaniu swiata gry 3D
+	m_pyGraphic.PopState();
+	m_pyGraphic.SetInterfaceRenderState();
 }
 
 void CPythonApplication::UpdateGame()

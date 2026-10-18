@@ -104,6 +104,12 @@ bool Sphere::RayIntersectionInFront(const Vector3d &rayOrigin,
 														        const Vector3d &V,
         														Vector3d *intersect)
 {
+  if (rayOrigin.DistanceSq(mCenter) <= mRadius2)
+  {
+    if (intersect) *intersect = rayOrigin;
+    return true;
+  }
+
   Vector3d sect;
   bool hit = RayIntersection(rayOrigin,V,&sect);
 
@@ -144,6 +150,14 @@ from "Graphics Gems", Academic Press, 1990
 
 void Sphere::Compute(const SphereInterface &source)
 {
+  int count = source.GetVertexCount();
+  if (count <= 0)
+  {
+    mCenter.Zero();
+    mRadius = 0.0f;
+    mRadius2 = 0.0f;
+    return;
+  }
 
   Vector3d xmin,xmax,ymin,ymax,zmin,zmax,dia1,dia2;
 
@@ -154,8 +168,6 @@ void Sphere::Compute(const SphereInterface &source)
   ymax.Set(-BIGNUMBER,-BIGNUMBER,-BIGNUMBER);
   zmin.Set(BIGNUMBER,BIGNUMBER,BIGNUMBER);
   zmax.Set(-BIGNUMBER,-BIGNUMBER,-BIGNUMBER);
-
-  int count = source.GetVertexCount();
 
   for (int i=0; i<count; i++)
 	{

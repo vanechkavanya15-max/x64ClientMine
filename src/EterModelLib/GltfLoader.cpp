@@ -291,18 +291,38 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
             return s;
         };
 
-        std::vector<int> faceMatIndices;
-        std::vector<int> nonFaceMatIndices;
-        for (int idx : validMatIndices)
-        {
+        auto isDetailMat = [&](int idx) -> bool {
+            if (idx < 0 || idx >= (int)outModelData.materials.size()) return false;
             std::string texLow = toLowerStr(outModelData.materials[idx].diffuseTexture);
             std::string nameLow = toLowerStr(outModelData.materials[idx].name);
-            if (texLow.find("face") != std::string::npos || nameLow.find("face") != std::string::npos)
-                faceMatIndices.push_back(idx);
-            else
-                nonFaceMatIndices.push_back(idx);
+            const char* detailKeywords[] = {
+                "teeth", "tooth", "face", "eye", "hair", "tongue",
+                "horn", "wing", "feather", "tail", "weapon", "glass"
+            };
+            for (const char* kw : detailKeywords)
+            {
+                if (texLow.find(kw) != std::string::npos || nameLow.find(kw) != std::string::npos)
+                    return true;
+            }
+            return false;
+        };
+
+        // Znajdz submeshe, ktore maja juz poprawny material, i oznacz te materialy jako zajete (claimed)
+        std::vector<bool> matClaimed(outModelData.materials.size(), false);
+        size_t maxVertexCount = 0;
+        for (size_t s = 0; s < outModelData.submeshes.size(); ++s)
+        {
+            if (outModelData.submeshes[s].vertexCount > maxVertexCount)
+                maxVertexCount = outModelData.submeshes[s].vertexCount;
+
+            int midx = outModelData.submeshes[s].materialIndex;
+            if (midx >= 0 && midx < (int)outModelData.materials.size() && !outModelData.materials[midx].diffuseTexture.empty())
+            {
+                matClaimed[midx] = true;
+            }
         }
 
+        // Dopasowanie dla submeshy bez poprawnego materialu
         for (size_t s = 0; s < outModelData.submeshes.size(); ++s)
         {
             GltfSubmesh& sub = outModelData.submeshes[s];
@@ -310,36 +330,91 @@ bool GltfLoader::ProcessData(cgltf_data* data, GltfModelData& outModelData)
             if (midx >= 0 && midx < (int)outModelData.materials.size() && !outModelData.materials[midx].diffuseTexture.empty())
                 continue; // Material ma juz poprawna teksture
 
-            if (validMatIndices.size() == 1)
-            {
-                sub.materialIndex = validMatIndices[0];
-            }
-            else
-            {
-                std::string subNameLow = toLowerStr(sub.name);
-                bool isFaceMesh = (subNameLow.find("face") != std::string::npos);
+            std::string subNameLow = toLowerStr(sub.name);
+            bool isMainSubmesh = (maxVertexCount > 0 && sub.vertexCount >= (maxVertexCount * 2) / 3);
+            bool isSubmeshDetail = (!isMainSubmesh && maxVertexCount > 0 && sub.vertexCount <= maxVertexCount / 3);
 
-                if (isFaceMesh && !faceMatIndices.empty())
+            // 1. Sprawdz czy submesh pasuje bezposrednio nazwa do slowa kluczowego w teksturze (np. "face", "teeth")
+            int bestMatchIdx = -1;
+            for (int idx : validMatIndices)
+            {
+                std::string texLow = toLowerStr(outModelData.materials[idx].diffuseTexture);
+                std::string nameLow = toLowerStr(outModelData.materials[idx].name);
+                if (subNameLow.find("face") != std::string::npos && (texLow.find("face") != std::string::npos || nameLow.find("face") != std::string::npos))
                 {
-                    sub.materialIndex = faceMatIndices[0];
+                    bestMatchIdx = idx;
+                    break;
                 }
-                else if (!isFaceMesh && !faceMatIndices.empty() && nonFaceMatIndices.size() == 1)
+                if (subNameLow.find("teeth") != std::string::npos && (texLow.find("teeth") != std::string::npos || nameLow.find("teeth") != std::string::npos))
                 {
-                    sub.materialIndex = nonFaceMatIndices[0];
-                }
-                else if (outModelData.submeshes.size() == validMatIndices.size())
-                {
-                    sub.materialIndex = validMatIndices[s];
-                }
-                else if (midx >= 0 && midx < (int)validMatIndices.size())
-                {
-                    sub.materialIndex = validMatIndices[midx];
-                }
-                else
-                {
-                    sub.materialIndex = !nonFaceMatIndices.empty() ? nonFaceMatIndices.back() : validMatIndices.back();
+                    bestMatchIdx = idx;
+                    break;
                 }
             }
+
+            // 2. Jesli to glowny submesh (cialo), szukamy NIEZAJETEGO materialu BAZOWEGO (nie bedacego detalem typu teeth/face)
+            if (bestMatchIdx < 0 && isMainSubmesh)
+            {
+                // Preferuj niezajety material nie-detaliczny
+                for (int idx : validMatIndices)
+                {
+                    if (!matClaimed[idx] && !isDetailMat(idx))
+                    {
+                        bestMatchIdx = idx;
+                        break;
+                    }
+                }
+                // Jesli wszystkie sa zajete, preferuj dowolny nie-detaliczny
+                if (bestMatchIdx < 0)
+                {
+                    for (int idx : validMatIndices)
+                    {
+                        if (!isDetailMat(idx))
+                        {
+                            bestMatchIdx = idx;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 3. Jesli to detaliczny submesh, preferuj material detaliczny
+            if (bestMatchIdx < 0 && isSubmeshDetail)
+            {
+                for (int idx : validMatIndices)
+                {
+                    if (!matClaimed[idx] && isDetailMat(idx))
+                    {
+                        bestMatchIdx = idx;
+                        break;
+                    }
+                }
+            }
+
+            // 4. Szukaj dowolnego niezajetego poprawnego materialu
+            if (bestMatchIdx < 0)
+            {
+                for (int idx : validMatIndices)
+                {
+                    if (!matClaimed[idx])
+                    {
+                        bestMatchIdx = idx;
+                        break;
+                    }
+                }
+            }
+
+            // 5. Fallback: jesli midx miesci sie w validMatIndices
+            if (bestMatchIdx < 0)
+            {
+                if (midx >= 0 && midx < (int)validMatIndices.size())
+                    bestMatchIdx = validMatIndices[midx];
+                else
+                    bestMatchIdx = validMatIndices[0];
+            }
+
+            sub.materialIndex = bestMatchIdx;
+            matClaimed[bestMatchIdx] = true;
         }
     }
 

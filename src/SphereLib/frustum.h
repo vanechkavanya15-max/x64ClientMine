@@ -73,6 +73,10 @@ class Frustum
 		[[nodiscard]] const D3DXPLANE* GetPlanes() const noexcept { return m_plane; }
 		[[nodiscard]] const D3DXPLANE& GetPlane(size_t index) const noexcept { return m_plane[index]; }
 
+		[[nodiscard]] const D3DXVECTOR3& GetCenter() const noexcept { return m_v3Center; }
+		[[nodiscard]] float GetRadius() const noexcept { return m_fRadius; }
+		[[nodiscard]] bool IsUsingSphere() const noexcept { return m_bUsingSphere; }
+
 	private:
 		bool m_bUsingSphere;
 		D3DXVECTOR3 m_v3Center;

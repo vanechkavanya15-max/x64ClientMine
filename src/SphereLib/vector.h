@@ -11,7 +11,7 @@
 
 #include <math.h>
 #include <vector>
-//#include "stl.h"
+#include <d3dx9math.h>
 
 
 /***********************************************************************/
@@ -133,9 +133,9 @@ public:
 	
 	void Lerp(const Vector3d& from,const Vector3d& to,float slerp)
 	{
-		*this = to-from; // delta on all 3 axis
-		*this*=slerp;    // times interpolant distance.
-		*this+=from;     // plus source
+		x = from.x + (to.x - from.x) * slerp;
+		y = from.y + (to.y - from.y) * slerp;
+		z = from.z + (to.z - from.z) * slerp;
 	};
 	
 	float Length(void) const          // length of vector.
@@ -185,15 +185,16 @@ public:
 	float Normalize(void)       // normalize to a unit vector, returns distance.
 	{
 		float l = Length(); // get length.
-		if ( l != 0 )
+		if ( l != 0.0f )
 		{
-			x/=l;
-			y/=l;
-			z/=l;
+			float invL = 1.0f / l;
+			x *= invL;
+			y *= invL;
+			z *= invL;
 		}
 		else
 		{
-			x = y = z = 0;
+			x = y = z = 0.0f;
 		}
 		return l;
 	};
@@ -205,9 +206,12 @@ public:
 	bool IsInStaticRange() const;
 	void Cross(const Vector3d &a,const Vector3d &b)  // cross two vectors result in this one.
 	{
-		x = a.y*b.z - a.z*b.y;
-		y = a.z*b.x - a.x*b.z;
-		z = a.x*b.y - a.y*b.x;
+		const float cx = a.y*b.z - a.z*b.y;
+		const float cy = a.z*b.x - a.x*b.z;
+		const float cz = a.x*b.y - a.y*b.x;
+		x = cx;
+		y = cy;
+		z = cz;
 	};
 	
 	//private:

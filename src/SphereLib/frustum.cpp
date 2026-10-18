@@ -79,14 +79,17 @@ void Frustum::BuildViewFrustum(const D3DXMATRIX & mat, bool bNegatePlaneY)
 
 void Frustum::BuildViewFrustum2(const D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook)
 {
-	float fViewLen = fFar - fNear;
-	float fH = fViewLen * tan(fFov * 0.5f);
-	float fW = fH * fAspect;
-	D3DXVECTOR3 P(0.0f, 0.0f, fNear + fViewLen * 0.5f);
-	D3DXVECTOR3 Q(fW, fH, fViewLen);
-	D3DXVECTOR3 PQ = P - Q;
-	m_fRadius = D3DXVec3Length(&PQ);
-	m_v3Center = vCamera + vLook * (fNear + fViewLen * 0.5f);
+	const float tanHalf = tanf(fFov * 0.5f);
+	const float hFar = fFar * tanHalf;
+	const float wFar = hFar * fAspect;
+	const float halfLen = 0.5f * (fFar - fNear);
+
+	m_fRadius = sqrtf(wFar * wFar + hFar * hFar + halfLen * halfLen);
+
+	D3DXVECTOR3 vLookNorm = vLook;
+	D3DXVec3Normalize(&vLookNorm, &vLookNorm);
+	m_v3Center = vCamera + vLookNorm * (fNear + halfLen);
+
 	BuildViewFrustum(mat, false);
 	m_bUsingSphere = true;
 }
@@ -104,44 +107,34 @@ ViewState Frustum::ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRad
 ViewState Frustum::ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin, bool bNegateY) const
 {
 	const float effectiveRadius = c_fRadius + c_fMargin;
-	D3DXVECTOR3 center = c_v3Center;
-	if (bNegateY)
-	{
-		center.y = -center.y;
-	}
+	const float cx = c_v3Center.x;
+	const float cy = bNegateY ? -c_v3Center.y : c_v3Center.y;
+	const float cz = c_v3Center.z;
 
 	if (m_bUsingSphere && !bNegateY)
 	{
-		D3DXVECTOR3 v(
-			center.x - m_v3Center.x,
-			center.y - m_v3Center.y,
-			center.z - m_v3Center.z);
+		const float dx = cx - m_v3Center.x;
+		const float dy = cy - m_v3Center.y;
+		const float dz = cz - m_v3Center.z;
 
 		const float maxDist = effectiveRadius + m_fRadius;
-		if (maxDist * maxDist < D3DXVec3LengthSq(&v))
+		if (maxDist * maxDist < (dx * dx + dy * dy + dz * dz))
 		{
 			return VS_OUTSIDE;
 		}
 	}	
 	
-	constexpr int count = 6;
-
-	float distance[count];
-	for (int i = 0; i < count; ++i)
+	bool allInside = true;
+	for (int i = 0; i < 6; ++i)
 	{
-		distance[i] = D3DXPlaneDotCoord(&m_plane[i], &center);
-		// Margines histerezy: odrzucenie tylko gdy kula przekroczy bufor bezpieczenstwa (brak poppingu)
-		if (distance[i] <= -effectiveRadius) 
+		const float dist = m_plane[i].a * cx + m_plane[i].b * cy + m_plane[i].c * cz + m_plane[i].d;
+		if (dist <= -effectiveRadius) 
 			return VS_OUTSIDE;
-	}
-
-	for (int i = 0; i < count; ++i)
-	{
-		if (distance[i] <= c_fRadius) 
-			return VS_PARTIAL;
+		if (dist <= c_fRadius)
+			allInside = false;
 	}
 	
-	return VS_INSIDE;
+	return allInside ? VS_INSIDE : VS_PARTIAL;
 }
 
 ViewState Frustum::ViewVolumeTestTerrain(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin) const

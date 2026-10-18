@@ -7250,4 +7250,20 @@ target_link_libraries(test_c26_god_functions PRIVATE
 add_test(NAME test_c26_god_functions COMMAND test_c26_god_functions)
 add_test(NAME GodFunctionsTest COMMAND test_c26_god_functions)
 
+add_executable(test_c26_spherelib_audit test_c26_spherelib_audit.cpp)
+target_include_directories(test_c26_spherelib_audit PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/SphereLib
+    ${CMAKE_SOURCE_DIR}/vendor/DirectX9/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(test_c26_spherelib_audit PRIVATE
+    SphereLib
+    EterBase
+    DirectX
+    doctest
+)
+add_test(NAME test_c26_spherelib_audit COMMAND test_c26_spherelib_audit)
+
+
 

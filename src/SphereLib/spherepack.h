@@ -215,9 +215,9 @@ public:
 	
 	const Vector3d& GetPos(void) const { return mCenter; };
 	
-	inline void Render(unsigned int color);
+	void Render(unsigned int color);
 	
-	inline bool Recompute(float gravy);
+	bool Recompute(float gravy);
 	
 	int GetChildCount(void) const { return mChildCount; };
 	
@@ -307,6 +307,9 @@ public:
 		mFifo = new SpherePack *[mFifoSize];
 	};
 	
+	SpherePackFifo(const SpherePackFifo&) = delete;
+	SpherePackFifo& operator=(const SpherePackFifo&) = delete;
+
 	virtual ~SpherePackFifo(void)
 	{
 		delete [] mFifo;
@@ -373,6 +376,9 @@ public:
 		float gravy);
 	
 	
+	SpherePackFactory(const SpherePackFactory&) = delete;
+	SpherePackFactory& operator=(const SpherePackFactory&) = delete;
+
 	virtual ~SpherePackFactory(void);
 	
 	void Process(void);
@@ -468,25 +474,21 @@ void SpherePack::NewPos(const Vector3d &pos)
 
 void SpherePack::NewPosRadius(const Vector3d &pos,float radius)
 {
-	// New position and, possibly, a new radius.
 	mCenter = pos;
-	
-	if (mParent && !HasSpherePackFlag(SPF_INTEGRATE))
-	{
-		if (radius != GetRadius())
-		{
-			SetRadius(radius);
-			ComputeBindingDistance(mParent);
-		}
-		
-		mFactory->AddRecompute(mParent);
+	const bool radiusChanged = (radius != GetRadius());
+	if (radiusChanged)
+		SetRadius(radius);
 
-		float dist = DistanceSquared(mParent);
-	
-		if (dist >= mBindingDistance)
-		{
-			Unlink();
-			mFactory->AddIntegrate(this);
-		}
+	if (!mParent || HasSpherePackFlag(SPF_INTEGRATE))
+		return;
+
+	if (radiusChanged)
+		ComputeBindingDistance(mParent);
+
+	if (DistanceSquared(mParent) >= mBindingDistance)
+	{
+		mFactory->AddRecompute(mParent);
+		Unlink();
+		mFactory->AddIntegrate(this);
 	}
 }

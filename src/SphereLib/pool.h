@@ -27,7 +27,11 @@ public:
 		mCurrent = 0;
 		mFreeCount = 0;
 		mUsedCount = 0;
+		mMaxItems = 0;
 	};
+
+	Pool(const Pool&) = delete;
+	Pool& operator=(const Pool&) = delete;
 	
 	~Pool(void)
 	{
@@ -48,28 +52,51 @@ public:
 		mCurrent = 0;
 		mFreeCount = 0;
 		mUsedCount = 0;
+		mMaxItems = 0;
 	};
 	
 	void Set(int maxitems)
 	{
 		if (mData)
 			delete [] mData; // delete any previous incarnation.
+		if (maxitems <= 0)
+		{
+			mData = 0;
+			mFree = 0;
+			mHead = 0;
+			mCurrent = 0;
+			mFreeCount = 0;
+			mUsedCount = 0;
+			mMaxItems = 0;
+			return;
+		}
+
 		mMaxItems = maxitems;
 		mData = new Type[mMaxItems];
 		mFree = mData;
 		mHead = 0;
-		int loopValue = (mMaxItems-1);
-		for (int i=0; i<loopValue; i++)
+
+		if (mMaxItems == 1)
 		{
-			mData[i].SetNext( &mData[i+1] );
-			if ( i == 0 )
-				mData[i].SetPrevious( 0 );
-			else
-				mData[i].SetPrevious( &mData[i-1] );
+			mData[0].SetNext(0);
+			mData[0].SetPrevious(0);
 		}
-		
-		mData[loopValue].SetNext(0);
-		mData[loopValue].SetPrevious( &mData[loopValue-1] );
+		else
+		{
+			int loopValue = (mMaxItems-1);
+			for (int i=0; i<loopValue; i++)
+			{
+				mData[i].SetNext( &mData[i+1] );
+				if ( i == 0 )
+					mData[i].SetPrevious( 0 );
+				else
+					mData[i].SetPrevious( &mData[i-1] );
+			}
+			
+			mData[loopValue].SetNext(0);
+			mData[loopValue].SetPrevious( &mData[loopValue-1] );
+		}
+
 		mCurrent = 0; // there is no current, currently. <g>
 		mFreeCount = maxitems;
 		mUsedCount = 0;

@@ -11,7 +11,7 @@
 #include "GameLib/ItemManager.h"
 
 
-const long c_lNormal_Waiting_Time = 10;
+const long c_lNormal_Waiting_Time = 0;
 const int c_fLine_Temp = 16;
 
 void ShowArgument(script::TArgList & rArgumentList)
@@ -334,28 +334,15 @@ void CPythonEventManager::UpdateEventSet(int iIndex, int ix, int iy)
 	// Process EventSet
 	long lElapsedTime = CTimer::Instance().GetElapsedMilliecond();
 
-	pEventSet->lLastDelayTime = std::max(0l, pEventSet->lLastDelayTime - lElapsedTime);
-
-	while (lElapsedTime > 0)
+	if (pEventSet->lLastDelayTime > 0)
 	{
-		pEventSet->lLastDelayTime -= lElapsedTime;
+		pEventSet->lLastDelayTime = std::max(0l, pEventSet->lLastDelayTime - lElapsedTime);
+	}
 
-		if (pEventSet->lLastDelayTime <= 0)
-		{
-			lElapsedTime = -pEventSet->lLastDelayTime;
-			if (lElapsedTime <= 0)
-				break;
-
-			ProcessEventSet(pEventSet);
-
-			if (pEventSet->lLastDelayTime < 0)
-			{
-				pEventSet->lLastDelayTime = 0;
-				break;
-			}
-		}
-		else
-			break;
+	// Natychmiastowe procesowanie calego tekstu questu (zero typewriter delay)
+	while (!pEventSet->isLock && !pEventSet->isWaitFlag && pEventSet->lLastDelayTime <= 0)
+	{
+		ProcessEventSet(pEventSet);
 	}
 }
 
@@ -406,16 +393,13 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 				__InsertLine(*pEventSet);
 			}
 
-			pEventSet->lLastDelayTime = pEventSet->lWaitingTime;
+			pEventSet->lLastDelayTime = 0;
 			break;
 		}
 
 		case EVENT_TYPE_DELAY:
 		{
-			if (EVENT_POSITION_START == pEventPosition)
-				pEventSet->lWaitingTime = atoi(GetArgument("value", ScriptCommand.argList));
-			else
-				pEventSet->lWaitingTime = c_lNormal_Waiting_Time;
+			pEventSet->lWaitingTime = 0;
 			break;
 		}
 
@@ -717,7 +701,7 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 				if (pEventSet->iCurrentLetter >= pEventSet->iRestrictedCharacterCount)
 					__InsertLine(*pEventSet);
 
-				pEventSet->lLastDelayTime = pEventSet->lWaitingTime;
+				pEventSet->lLastDelayTime = 0;
 			}
 
 			break;
@@ -737,7 +721,7 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 				if (pEventSet->iCurrentLetter >= pEventSet->iRestrictedCharacterCount)
 					__InsertLine(*pEventSet);
 
-				pEventSet->lLastDelayTime = pEventSet->lWaitingTime;
+				pEventSet->lLastDelayTime = 0;
 			}
 
 			break;

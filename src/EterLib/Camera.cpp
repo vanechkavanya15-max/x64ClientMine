@@ -11,7 +11,7 @@
 #include <cmath>
 #include <algorithm>
 
-const float c_fDefaultResistance = 0.3f;
+const float c_fDefaultResistance = 0.45f; // Zwiekszona o 50% czulosc obrotu kamery myszka (bylo 0.3f)
 
 float CCamera::CAMERA_MIN_DISTANCE = kDefaultCameraMinDistance;
 float CCamera::CAMERA_MAX_DISTANCE = kDefaultCameraMaxDistance;
