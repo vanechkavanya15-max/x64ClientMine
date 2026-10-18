@@ -128,6 +128,15 @@ bool CreateTextureFromRGBA(
 		stagingPixels.size()
 	);
 
+	CTextureUploadBridge::Instance().RegisterTexture(
+		reinterpret_cast<uintptr_t>(pDestTexture),
+		width,
+		height,
+		static_cast<uint32_t>(format),
+		stagingPixels.data(),
+		stagingPixels.size()
+	);
+
 	*ppDestTexture = pDestTexture;
 	return true;
 }

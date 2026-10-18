@@ -61,8 +61,10 @@ void CWgpuRenderBackend::Resize(unsigned int width, unsigned int height)
 
 void CWgpuRenderBackend::BeginFrame(const TRenderFrameUniforms& uniforms)
 {
+	m_cachedUIPackets.clear();
 	m_framePacket = TRenderFramePacket{};
 	m_framePacket.uniforms = uniforms;
+	m_bFrameRendered = false;
 }
 
 void CWgpuRenderBackend::RenderSkyBox(const TSkyBoxPacket* pPackets, unsigned int count)
@@ -103,8 +105,12 @@ void CWgpuRenderBackend::RenderEffects(const TEffectInstancePacket* pPackets, un
 
 void CWgpuRenderBackend::RenderUI(const TUIBatchPacket* pPackets, unsigned int count)
 {
-	m_framePacket.pUIPackets = pPackets;
-	m_framePacket.dwUICount = count;
+	if (pPackets && count > 0)
+	{
+		m_cachedUIPackets.insert(m_cachedUIPackets.end(), pPackets, pPackets + count);
+		m_framePacket.pUIPackets = m_cachedUIPackets.data();
+		m_framePacket.dwUICount = static_cast<uint32_t>(m_cachedUIPackets.size());
+	}
 }
 
 void CWgpuRenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets, unsigned int count)
@@ -115,8 +121,9 @@ void CWgpuRenderBackend::RenderDungeonBlocks(const TDungeonBlockPacket* pPackets
 
 void CWgpuRenderBackend::EndFrame()
 {
-	if (m_bInitialized)
+	if (m_bInitialized && !m_bFrameRendered)
 	{
+		m_bFrameRendered = true;
 		CWgpuModule::Instance().RenderFrame(&m_framePacket);
 	}
 }

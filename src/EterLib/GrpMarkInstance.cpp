@@ -121,9 +121,13 @@ void CGraphicMarkInstance::OnRender()
 		uiVertices[i].color = static_cast<uint32_t>(vertices[i].diffuse);
 		uiVertices[i].texCoord = vertices[i].texCoord;
 	}
+	const uintptr_t dwTextureID = (pTexture && pTexture->GetD3DTexture())
+		? reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture())
+		: (pTexture ? reinterpret_cast<uintptr_t>(pTexture) : 0);
+
 	EterLib::Render::DynamicQuadBatcher::Instance().AddQuadVertices(
 		uiVertices,
-		reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture()),
+		dwTextureID,
 		0
 	);
 }

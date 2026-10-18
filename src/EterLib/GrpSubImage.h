@@ -27,6 +27,7 @@ class CGraphicSubImage : public CGraphicImage
 		static void SetSearchPath(const char * c_szFileName);
 
 		void SetImagePointer(CGraphicImage* pImage);
+		virtual CGraphicTexture* GetTexturePointer() override;
 
 	protected:
 

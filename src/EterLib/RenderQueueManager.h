@@ -412,6 +412,7 @@ public:
 	void RecordPacket(ERenderCategory category, uint32_t count = 1);
 	void RecordDroppedPacket(ERenderCategory category, uint32_t count = 1);
 	const SRenderFrameStats& GetFrameStats() const { return m_frameStats; }
+	bool HasFlushedThisFrame() const noexcept { return m_bFlushedThisFrame.load(std::memory_order_relaxed); }
 
 private:
 	CRenderQueueManager(const CRenderQueueManager&) = delete;
@@ -422,7 +423,7 @@ private:
 	SFrameBuffer m_frameBuffers[FRAME_BUFFER_COUNT];
 	std::atomic<size_t> m_activeFrameIndex{ 0 };
 	std::atomic<bool> m_bHasSwappedFrame{ false };
-
+	std::atomic<bool> m_bFlushedThisFrame{ false };
 
 	IRenderBackend* m_pActiveBackend{ nullptr };
 	bool m_bPendingDump{ false };

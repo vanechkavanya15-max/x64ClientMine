@@ -41,11 +41,14 @@ public:
 	bool IsDllLoaded() const noexcept;
 	static bool IsConfiguredInConfigJson();
 	HMODULE GetModuleHandle() const noexcept;
+	bool IsDeferred() const override { return true; }
 
 private:
 	HWND m_hWnd{ nullptr };
 	unsigned int m_width{ 0 };
 	unsigned int m_height{ 0 };
 	bool m_bInitialized{ false };
+	bool m_bFrameRendered{ false };
 	TRenderFramePacket m_framePacket{};
+	std::vector<TUIBatchPacket> m_cachedUIPackets{};
 };

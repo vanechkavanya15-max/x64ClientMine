@@ -274,6 +274,7 @@ void CRenderQueueManager::BeginFrame()
 {
 	m_frameBuffers[GetWorkFrameIndex()].Clear();
 	ResetFrameStats();
+	m_bFlushedThisFrame.store(false, std::memory_order_release);
 }
 
 void CRenderQueueManager::SwapFrameBuffers()
@@ -293,6 +294,7 @@ void CRenderQueueManager::EndFrame()
 		ClearPendingFrameDump();
 	}
 	SwapFrameBuffers();
+	m_bFlushedThisFrame.store(false, std::memory_order_release);
 }
 
 void CRenderQueueManager::SetFrameUniforms(const TRenderFrameUniforms& uniforms)
@@ -417,6 +419,12 @@ const std::vector<TDebugLinePacket>& CRenderQueueManager::GetDebugLinePackets() 
 
 void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 {
+	if (m_bFlushedThisFrame.exchange(true, std::memory_order_acq_rel))
+	{
+		// Zapobieganie wielokrotnemu Flush() w tej samej klatce
+		return;
+	}
+
 	if (!pBackend)
 		pBackend = GetActiveBackend();
 	if (!pBackend)
@@ -442,13 +450,24 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 	if (!renderFrame.waterPackets.empty())
 		pBackend->RenderWater(renderFrame.waterPackets.data(), static_cast<unsigned int>(renderFrame.waterPackets.size()));
 
-	if (renderFrame.flushedSpeedTreeOffset < renderFrame.speedTreePackets.size())
+	if (!renderFrame.speedTreePackets.empty())
 	{
-		pBackend->RenderSpeedTree(
-			renderFrame.speedTreePackets.data() + renderFrame.flushedSpeedTreeOffset,
-			static_cast<unsigned int>(renderFrame.speedTreePackets.size() - renderFrame.flushedSpeedTreeOffset)
-		);
-		renderFrame.flushedSpeedTreeOffset = renderFrame.speedTreePackets.size();
+		if (pBackend->IsDeferred() || renderFrame.flushedSpeedTreeOffset == 0)
+		{
+			pBackend->RenderSpeedTree(
+				renderFrame.speedTreePackets.data(),
+				static_cast<unsigned int>(renderFrame.speedTreePackets.size())
+			);
+			renderFrame.flushedSpeedTreeOffset = renderFrame.speedTreePackets.size();
+		}
+		else if (renderFrame.flushedSpeedTreeOffset < renderFrame.speedTreePackets.size())
+		{
+			pBackend->RenderSpeedTree(
+				renderFrame.speedTreePackets.data() + renderFrame.flushedSpeedTreeOffset,
+				static_cast<unsigned int>(renderFrame.speedTreePackets.size() - renderFrame.flushedSpeedTreeOffset)
+			);
+			renderFrame.flushedSpeedTreeOffset = renderFrame.speedTreePackets.size();
+		}
 	}
 
 	if (!renderFrame.actorPackets.empty())
@@ -466,13 +485,24 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 	if (!renderFrame.debugLinePackets.empty())
 		pBackend->RenderDebugLines(renderFrame.debugLinePackets.data(), static_cast<unsigned int>(renderFrame.debugLinePackets.size()));
 
-	if (renderFrame.flushedUIOffset < renderFrame.uiPackets.size())
+	if (!renderFrame.uiPackets.empty())
 	{
-		pBackend->RenderUI(
-			renderFrame.uiPackets.data() + renderFrame.flushedUIOffset,
-			static_cast<unsigned int>(renderFrame.uiPackets.size() - renderFrame.flushedUIOffset)
-		);
-		renderFrame.flushedUIOffset = renderFrame.uiPackets.size();
+		if (pBackend->IsDeferred() || renderFrame.flushedUIOffset == 0)
+		{
+			pBackend->RenderUI(
+				renderFrame.uiPackets.data(),
+				static_cast<unsigned int>(renderFrame.uiPackets.size())
+			);
+			renderFrame.flushedUIOffset = renderFrame.uiPackets.size();
+		}
+		else if (renderFrame.flushedUIOffset < renderFrame.uiPackets.size())
+		{
+			pBackend->RenderUI(
+				renderFrame.uiPackets.data() + renderFrame.flushedUIOffset,
+				static_cast<unsigned int>(renderFrame.uiPackets.size() - renderFrame.flushedUIOffset)
+			);
+			renderFrame.flushedUIOffset = renderFrame.uiPackets.size();
+		}
 	}
 
 	pBackend->EndFrame();
@@ -481,7 +511,7 @@ void CRenderQueueManager::Flush(IRenderBackend* pBackend)
 void CRenderQueueManager::FlushUI()
 {
 	IRenderBackend* pBackend = GetActiveBackend();
-	if (!pBackend)
+	if (!pBackend || pBackend->IsDeferred())
 		return;
 
 	// 1. Sprawdz bufor roboczy (GetWorkFrameIndex()), do ktorego bezposrednio trafiaja quady UI

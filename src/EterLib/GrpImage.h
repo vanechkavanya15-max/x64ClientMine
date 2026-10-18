@@ -26,7 +26,7 @@ class CGraphicImage : public CResource
 		const RECT & GetRectReference() const;
 
 		const CGraphicTexture & GetTextureReference() const;
-		CGraphicTexture * GetTexturePointer();
+		virtual CGraphicTexture * GetTexturePointer();
 		LPDIRECT3DTEXTURE9 GetD3DTexture() const { return m_imageTexture.GetD3DTexture(); }
 
 	protected:

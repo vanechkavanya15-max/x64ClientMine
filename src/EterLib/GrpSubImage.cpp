@@ -45,6 +45,13 @@ void CGraphicSubImage::SetImagePointer(CGraphicImage* pImage)
 	CreateDeviceObjects();
 }
 
+CGraphicTexture* CGraphicSubImage::GetTexturePointer()
+{
+	if (!m_roImage.IsNull())
+		return m_roImage->GetTexturePointer();
+	return &m_imageTexture;
+}
+
 bool CGraphicSubImage::SetImageFileName(const char* c_szFileName)
 {
 	CResource* pResource = CResourceManager::Instance().GetResourcePointer(c_szFileName);

@@ -33,27 +33,19 @@ bool CTextureUploadBridge::EnsureWgpuLoaded()
 	if (module.IsLoaded())
 		return true;
 
-	if (RenderOwnership::IsWgpuConfigured())
-	{
-		return module.Load();
-	}
-
-	return false;
+	return module.Load();
 }
 
 bool CTextureUploadBridge::IsWgpuActive() const
 {
-	// Sprawdz czy aktywny backend w CRenderQueueManager to WGPU
-	IRenderBackend* pActive = CRenderQueueManager::Instance().GetActiveBackend();
-	if (pActive && pActive == &CWgpuRenderBackend::Instance())
+	if (RenderOwnership::IsWgpuConfigured())
 		return true;
 
-	// Sprawdz czy instancja CWgpuModule jest zaladowana
 	if (CWgpuModule::Instance().IsLoaded())
 		return true;
 
-	// Sprawdz czy config.json lub zmienna M2_GRAPHICS_ENGINE wskazuje wgpu
-	if (RenderOwnership::IsWgpuConfigured())
+	IRenderBackend* pActive = CRenderQueueManager::Instance().GetActiveBackend();
+	if (pActive && pActive == &CWgpuRenderBackend::Instance())
 		return true;
 
 	return false;

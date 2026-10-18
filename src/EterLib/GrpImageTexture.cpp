@@ -34,6 +34,7 @@ void CGraphicImageTexture::Initialize()
 {
 	CGraphicTexture::Initialize();
 
+	m_pSrcTexture = nullptr;
 	m_stFileName = "";
 
 	m_d3dFmt=D3DFMT_UNKNOWN;
@@ -49,21 +50,20 @@ void CGraphicImageTexture::Destroy()
 
 bool CGraphicImageTexture::CreateDeviceObjects()
 {
-	if (!ms_lpd3dDevice)
-	{
-		m_bEmpty = false;
-		return true;
-	}
-
 	assert(m_lpd3dTexture == NULL);
 
 	if (m_stFileName.empty())
 	{
-		// 폰트 텍스쳐
-		if (FAILED(ms_lpd3dDevice->CreateTexture(m_width, m_height, 1, D3DUSAGE_DYNAMIC, m_d3dFmt, D3DPOOL_DEFAULT, &m_lpd3dTexture, nullptr)))
-			return false;
+		// 폰트 텍스쳐 (dynamiczna bez pliku zrodlowego)
+		if (ms_lpd3dDevice)
+		{
+			if (FAILED(ms_lpd3dDevice->CreateTexture(m_width, m_height, 1, D3DUSAGE_DYNAMIC, m_d3dFmt, D3DPOOL_DEFAULT, &m_lpd3dTexture, nullptr)))
+				return false;
 
-		CRenderResourceRegistry::SafeRegisterTexture(m_lpd3dTexture, "FontTexture");
+			CRenderResourceRegistry::SafeRegisterTexture(m_lpd3dTexture, "FontTexture");
+		}
+		m_bEmpty = false;
+		return true;
 	}
 	else
 	{
@@ -102,6 +102,7 @@ void CGraphicImageTexture::CreateFromTexturePointer(const CGraphicTexture* c_pSr
 		m_lpd3dTexture->Release();
 
 	m_bOwnsTexture = false;
+	m_pSrcTexture = c_pSrcTexture;
 
 	if (!c_pSrcTexture)
 	{
@@ -121,10 +122,18 @@ void CGraphicImageTexture::CreateFromTexturePointer(const CGraphicTexture* c_pSr
 
 bool CGraphicImageTexture::CreateFromDDSTexture(UINT bufSize, const void* c_pvBuf)
 {
+	if (!c_pvBuf || bufSize < 128)
+		return false;
+
+	const uint32_t* pMagic = reinterpret_cast<const uint32_t*>(c_pvBuf);
+	if (*pMagic != 0x20534444) // "DDS "
+		return false;
+
 	if (!ms_lpd3dDevice)
 	{
-		m_width = 32;
-		m_height = 32;
+		const uint32_t* pHeader = pMagic + 1;
+		m_height = static_cast<int>(pHeader[2]);
+		m_width = static_cast<int>(pHeader[3]);
 		m_bEmpty = false;
 		return true;
 	}
@@ -142,20 +151,37 @@ bool CGraphicImageTexture::CreateFromDDSTexture(UINT bufSize, const void* c_pvBu
 
 bool CGraphicImageTexture::CreateFromSTB(UINT bufSize, const void* c_pvBuf)
 {
-	if (!ms_lpd3dDevice)
-	{
-		m_width = 32;
-		m_height = 32;
-		m_bEmpty = false;
-		return true;
-	}
+	if (!c_pvBuf || bufSize == 0)
+		return false;
 
-	int width, height, channels;
-	unsigned char* data = stbi_load_from_memory((stbi_uc*)c_pvBuf, bufSize, &width, &height, &channels, 4); // force RGBA
+	int width = 0, height = 0, channels = 0;
+	unsigned char* data = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(c_pvBuf), bufSize, &width, &height, &channels, 4); // force RGBA
 	if (!data)
 		return false;
 
+	m_width = width;
+	m_height = height;
+	m_bEmpty = false;
+
 	D3DFORMAT format = (channels == 4) ? D3DFMT_A8R8G8B8 : D3DFMT_X8R8G8B8;
+	const size_t pixelBytes = static_cast<size_t>(width) * height * 4;
+
+	if (!ms_lpd3dDevice)
+	{
+		const uintptr_t dwTextureID = reinterpret_cast<uintptr_t>(this);
+		SwizzleRgbaToBgra(data, width * 4, data, width, height, width * 4);
+		CTextureUploadBridge::Instance().RegisterTexture(
+			dwTextureID,
+			static_cast<uint32_t>(m_width),
+			static_cast<uint32_t>(m_height),
+			static_cast<uint32_t>(format),
+			data,
+			pixelBytes
+		);
+		stbi_image_free(data);
+		return true;
+	}
+
 	LPDIRECT3DTEXTURE9 texture = nullptr;
 	if (!CreateTextureFromRGBA(ms_lpd3dDevice, width, height, format, data, width * 4, &texture))
 	{
@@ -165,36 +191,64 @@ bool CGraphicImageTexture::CreateFromSTB(UINT bufSize, const void* c_pvBuf)
 	}
 
 	stbi_image_free(data);
-	m_width = width;
-	m_height = height;
-	m_bEmpty = false;
 	m_lpd3dTexture = texture;
 	return true;
 }
 
 bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize, const void * c_pvBuf, D3DFORMAT d3dFmt, DWORD dwFilter)
 {
+	if (!c_pvBuf || bufSize == 0)
+		return false;
+
+	m_bEmpty = true;
+
 	if (!ms_lpd3dDevice)
 	{
-		m_width = 32;
-		m_height = 32;
-		m_bEmpty = false;
+		if (!CreateFromDDSTexture(bufSize, c_pvBuf))
+		{
+			if (!CreateFromSTB(bufSize, c_pvBuf))
+			{
+				TraceError("CreateFromMemoryFile (Pure WGPU): Cannot decode texture (%s, %u bytes)", m_stFileName.c_str(), bufSize);
+				return false;
+			}
+			return true;
+		}
 
+		uint32_t texFormat = static_cast<uint32_t>(d3dFmt);
+		const uint8_t* pPixelData = reinterpret_cast<const uint8_t*>(c_pvBuf);
+		size_t pixelDataSize = bufSize;
+
+		if (bufSize >= 128 && *reinterpret_cast<const uint32_t*>(c_pvBuf) == 0x20534444) // "DDS "
+		{
+			const uint32_t* pHeader = reinterpret_cast<const uint32_t*>(c_pvBuf) + 1;
+			uint32_t pfFlags = pHeader[19];
+			if (pfFlags & 0x00000004) // DDPF_FOURCC
+			{
+				texFormat = pHeader[20];
+			}
+			else
+			{
+				texFormat = D3DFMT_A8R8G8B8;
+			}
+			pPixelData = reinterpret_cast<const uint8_t*>(c_pvBuf) + 128;
+			pixelDataSize = bufSize - 128;
+		}
+
+		const uintptr_t dwTextureID = reinterpret_cast<uintptr_t>(this);
 		CTextureUploadBridge::Instance().RegisterTexture(
-			reinterpret_cast<uintptr_t>(this),
+			dwTextureID,
 			static_cast<uint32_t>(m_width),
 			static_cast<uint32_t>(m_height),
-			static_cast<uint32_t>(d3dFmt),
-			reinterpret_cast<const uint8_t*>(c_pvBuf),
-			static_cast<size_t>(bufSize)
+			texFormat,
+			pPixelData,
+			pixelDataSize
 		);
 
+		m_bEmpty = false;
 		return true;
 	}
 
 	assert(m_lpd3dTexture == NULL);
-
-	m_bEmpty = true;
 
 	if (!CreateFromDDSTexture(bufSize, c_pvBuf)) {
 		if (!CreateFromSTB(bufSize, c_pvBuf)) {

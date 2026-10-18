@@ -282,7 +282,12 @@ namespace EterLib::Render
 
         CGraphicImage* pImage = pInstance->GetGraphicImagePointer();
         if (!pImage)
+        {
+            AddQuad(x - kUiHalfPixelOffset, y - kUiHalfPixelOffset, 32.0f, 32.0f,
+                    overrideColor != 0 ? overrideColor : static_cast<uint32_t>(pInstance->GetDiffuseColor()),
+                    0, 0.0f, 0.0f, 1.0f, 1.0f, 0);
             return;
+        }
 
         AddImageInstance(pInstance, x, y, static_cast<float>(pImage->GetWidth()), static_cast<float>(pImage->GetHeight()),
                          overrideColor != 0 ? overrideColor : static_cast<uint32_t>(pInstance->GetDiffuseColor()));
@@ -296,19 +301,46 @@ namespace EterLib::Render
 
         CGraphicImage* pImage = pInstance->GetGraphicImagePointer();
         if (!pImage)
+        {
+            // Gdy brak obiektu obrazka, uzyj domyslnej bialej tekstury WGPU (uchwyt 0)
+            AddQuad(x - kUiHalfPixelOffset, y - kUiHalfPixelOffset, width, height, diffuseColor, 0, 0.0f, 0.0f, 1.0f, 1.0f, 0);
             return;
+        }
 
         CGraphicTexture* pTexture = pImage->GetTexturePointer();
         if (!pTexture)
+        {
+            // Gdy pTexture == nullptr, uzyj domyslnej bialej tekstury WGPU (uchwyt 0)
+            AddQuad(x - kUiHalfPixelOffset, y - kUiHalfPixelOffset, width, height, diffuseColor, 0, 0.0f, 0.0f, 1.0f, 1.0f, 0);
             return;
+        }
+
+        const CGraphicTexture* pSourceTexture = pTexture->GetSourceTexture();
+        if (pSourceTexture)
+        {
+            pTexture = const_cast<CGraphicTexture*>(pSourceTexture);
+        }
 
         int iWidth = pTexture->GetWidth();
         int iHeight = pTexture->GetHeight();
         if (iWidth <= 0 || iHeight <= 0)
+        {
+            // Gdy tekstura ma zerowe wymiary, uzyj domyslnej bialej tekstury WGPU (uchwyt 0)
+            AddQuad(x - kUiHalfPixelOffset, y - kUiHalfPixelOffset, width, height, diffuseColor, 0, 0.0f, 0.0f, 1.0f, 1.0f, 0);
             return;
+        }
 
         LPDIRECT3DTEXTURE9 pD3DTexture = pTexture->GetD3DTexture();
-        uintptr_t dwTextureID = reinterpret_cast<uintptr_t>(pD3DTexture);
+        uintptr_t dwTextureID = 0;
+        if (pD3DTexture)
+        {
+            dwTextureID = reinterpret_cast<uintptr_t>(pD3DTexture);
+        }
+        else
+        {
+            // W trybie czystego WGPU bez D3D9 uzyj unikalnego ID nadrzednej zarejestrowanej tekstury
+            dwTextureID = reinterpret_cast<uintptr_t>(pTexture);
+        }
 
         const RECT& rRect = pImage->GetRectReference();
         const float texReverseWidth = 1.0f / static_cast<float>(iWidth);

@@ -523,6 +523,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			RenderOwnership::SetAllWgpu();
 		}
 
+		if (strstr(lpCmdLine, "--legacy") != nullptr || strstr(lpCmdLine, "--d3d9") != nullptr)
+		{
+			RenderOwnership::SetWgpuConfigured(false);
+		}
+
 		if (strstr(lpCmdLine, "--wgpu") != nullptr)
 		{
 			RenderOwnership::SetWgpuConfigured(true);

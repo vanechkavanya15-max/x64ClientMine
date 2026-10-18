@@ -30,33 +30,74 @@ namespace
 
 	bool ReadWgpuConfigOnce()
 	{
+		// 1. Sprawdz wiersz polecen (GetCommandLineA)
+		const char* cmdLine = ::GetCommandLineA();
+		if (cmdLine)
+		{
+			std::string cl(cmdLine);
+			for (char& c : cl)
+				c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+
+			if (cl.find("--d3d9") != std::string::npos || cl.find("-d3d9") != std::string::npos ||
+				cl.find("--legacy") != std::string::npos || cl.find("-legacy") != std::string::npos)
+			{
+				return false;
+			}
+			if (cl.find("--wgpu") != std::string::npos || cl.find("-wgpu") != std::string::npos)
+			{
+				return true;
+			}
+		}
+
+		// 2. Sprawdz zmienna srodowiskowa M2_GRAPHICS_ENGINE
 		if (const char* envVal = std::getenv("M2_GRAPHICS_ENGINE"))
 		{
-			if (std::string(envVal) == "wgpu")
+			std::string envStr(envVal);
+			for (char& c : envStr)
+				c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+
+			if (envStr == "legacy" || envStr == "d3d9")
+				return false;
+			if (envStr == "wgpu")
 				return true;
 		}
 
+		// 3. Sprawdz plik konfiguracyjny config.json
 		std::ifstream file("config.json");
-		if (!file.is_open())
-			return false;
+		if (file.is_open())
+		{
+			std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			const auto keyPos = content.find("\"graphics_engine\"");
+			if (keyPos != std::string::npos)
+			{
+				std::string sub = content.substr(keyPos, 64);
+				for (char& c : sub)
+					c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
 
-		std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-		const auto keyPos = content.find("\"graphics_engine\"");
-		if (keyPos == std::string::npos)
-			return false;
+				if (sub.find("\"legacy\"") != std::string::npos || sub.find("\"d3d9\"") != std::string::npos)
+					return false;
+				if (sub.find("\"wgpu\"") != std::string::npos)
+					return true;
+			}
+		}
 
-		const auto wgpuPos = content.find("\"wgpu\"", keyPos);
-		return (wgpuPos != std::string::npos) && ((wgpuPos - keyPos) < 64);
+		// 4. DOMYSLNIE zwracamy true (WGPU backend jest domyslnym rendererem dla klienta)
+		return true;
 	}
 }
 
 bool RenderOwnership::LegacyDraws(ERenderCategory cat)
 {
+	if (!IsWgpuConfigured())
+		return true;
 	return Owner(cat) == ERenderOwner::Legacy;
 }
 
 ERenderOwner RenderOwnership::Owner(ERenderCategory cat)
 {
+	if (!IsWgpuConfigured())
+		return ERenderOwner::Legacy;
+
 	const auto idx = static_cast<size_t>(cat);
 	if (idx < static_cast<size_t>(ERenderCategory::Count))
 	{
@@ -76,20 +117,24 @@ void RenderOwnership::SetOwner(ERenderCategory cat, ERenderOwner owner)
 
 namespace
 {
-	static std::atomic<bool> s_bWgpuConfiguredExplicit{ false };
+	static std::atomic<int> s_wgpuExplicitState{ -1 }; // -1: niezainicjalizowany, 0: jawne wylaczenie (false), 1: jawne wlaczenie (true)
 }
 
 bool RenderOwnership::IsWgpuConfigured()
 {
-	if (s_bWgpuConfiguredExplicit.load(std::memory_order_relaxed))
+	const int explicitVal = s_wgpuExplicitState.load(std::memory_order_relaxed);
+	if (explicitVal == 1)
 		return true;
+	if (explicitVal == 0)
+		return false;
+
 	static const bool s_bWgpuConfigured = ReadWgpuConfigOnce();
 	return s_bWgpuConfigured;
 }
 
 void RenderOwnership::SetWgpuConfigured(bool configured)
 {
-	s_bWgpuConfiguredExplicit.store(configured, std::memory_order_relaxed);
+	s_wgpuExplicitState.store(configured ? 1 : 0, std::memory_order_relaxed);
 }
 
 void RenderOwnership::SetAllWgpu()

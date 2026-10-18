@@ -151,7 +151,8 @@ namespace UserInterface::FastBoot
 
         if (ImGui::GetCurrentContext() != nullptr)
         {
-            ImGui_ImplDX9_Shutdown();
+            if (STATEMANAGER.GetDevice() != nullptr)
+                ImGui_ImplDX9_Shutdown();
             ImGui_ImplWin32_Shutdown();
             ImGui::DestroyContext();
         }
@@ -163,13 +164,13 @@ namespace UserInterface::FastBoot
 
     void FastBootOverlay::OnLostDevice()
     {
-        if (m_bInitialized && ImGui::GetCurrentContext() != nullptr)
+        if (m_bInitialized && STATEMANAGER.GetDevice() != nullptr && ImGui::GetCurrentContext() != nullptr)
             ImGui_ImplDX9_InvalidateDeviceObjects();
     }
 
     void FastBootOverlay::OnResetDevice()
     {
-        if (m_bInitialized && ImGui::GetCurrentContext() != nullptr)
+        if (m_bInitialized && STATEMANAGER.GetDevice() != nullptr && ImGui::GetCurrentContext() != nullptr)
             ImGui_ImplDX9_CreateDeviceObjects();
     }
 
@@ -684,7 +685,12 @@ namespace UserInterface::FastBoot
         if (!m_bInitialized || !m_bVisible)
             return;
 
-        if (!m_pDevice || !m_hWnd || !IsWindow(m_hWnd))
+        // Gdy WGPU jest aktywne, a urzadzenie D3D9 jest null lub nieaktywne, FastBootOverlay::Render() nie moze wywolywac metod D3D9 ani powodowac crasha ImGui
+        LPDIRECT3DDEVICE9 pDevice = STATEMANAGER.GetDevice();
+        if (!pDevice)
+            return;
+
+        if (!m_pDevice || m_pDevice != pDevice || !m_hWnd || !IsWindow(m_hWnd))
             return;
 
         if (IsIconic(m_hWnd))
@@ -865,7 +871,7 @@ namespace UserInterface::FastBoot
         if (pDrawData && pDrawData->CmdListsCount > 0 && pDrawData->TotalVtxCount > 0)
         {
             // Bramka wlasnosci kategorii ImGui / UI (RenderOwnership)
-            if (CanDrawDirectly())
+            if (CanDrawDirectly() && STATEMANAGER.GetDevice() != nullptr)
             {
                 // Sekwencja Save/Restore stanow maszyny Direct3D 9 (zastepuje dawne twarde SetDefaultState)
                 EterLib::Render::D3D9StateBlockScope stateScope(m_pDevice);

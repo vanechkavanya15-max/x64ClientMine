@@ -36,6 +36,7 @@ class CGraphicTexture : public CGraphicBase
 		}
 
 		virtual bool IsEmpty() const;
+		virtual const CGraphicTexture* GetSourceTexture() const { return this; }
 
 		int GetWidth() const;
 		int GetHeight() const;

@@ -7900,3 +7900,33 @@ target_link_libraries(test_c26_network_framing_and_snapshot PRIVATE
 )
 add_test(NAME test_c26_network_framing_and_snapshot COMMAND test_c26_network_framing_and_snapshot)
 
+# --- Wave W6: Headless Render Loop and Single Flush Deduplication (T281) ---
+add_executable(test_c26_headless_render_loop test_c26_headless_render_loop.cpp)
+target_include_directories(test_c26_headless_render_loop PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c26_headless_render_loop PRIVATE
+    Client2026
+    EterLib
+    EterImageLib
+    PackLib
+    SpeedTreeLib
+    SpeedTree
+    SphereLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+    DirectX
+    Dbghelp
+)
+add_test(NAME test_c26_headless_render_loop COMMAND test_c26_headless_render_loop)
+
+

@@ -137,9 +137,13 @@ void CGraphicExpandedImageInstance::OnRender()
 		default:                         blendMode = 0; break;
 	}
 
+	const uintptr_t dwTextureID = (pTexture && pTexture->GetD3DTexture())
+		? reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture())
+		: (pTexture ? reinterpret_cast<uintptr_t>(pTexture) : 0);
+
 	EterLib::Render::DynamicQuadBatcher::Instance().AddQuadVertices(
 		uiVertices,
-		reinterpret_cast<uintptr_t>(pTexture->GetD3DTexture()),
+		dwTextureID,
 		blendMode
 	);
 }

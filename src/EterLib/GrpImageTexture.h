@@ -21,12 +21,15 @@ class CGraphicImageTexture : public CGraphicTexture
 
 		void		SetFileName(const char * c_szFileName);
 		
+		virtual const CGraphicTexture* GetSourceTexture() const override { return m_pSrcTexture ? m_pSrcTexture->GetSourceTexture() : this; }
+
 		bool		Lock(int* pRetPitch, void** ppRetPixels, int level=0);
 		void		Unlock(int level=0);
 
 	protected:
 		void		Initialize();
 		
+		const CGraphicTexture* m_pSrcTexture;
 		D3DFORMAT	m_d3dFmt;
 		DWORD		m_dwFilter;
 

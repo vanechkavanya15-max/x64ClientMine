@@ -72,13 +72,16 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 		case WM_WTSSESSION_CHANGE:
 			if (wParam == WTS_SESSION_LOCK)
 			{
-				ms_bSessionLocked.store(true, std::memory_order_release);
-				SetRenderThrottling(true);
+				if (!g_bHeadlessMode)
+				{
+					ms_bSessionLocked.store(true, std::memory_order_release);
+					SetRenderThrottling(true);
+				}
 			}
 			else if (wParam == WTS_SESSION_UNLOCK)
 			{
 				ms_bSessionLocked.store(false, std::memory_order_release);
-				if (!m_isMinimizedWnd)
+				if (!m_isMinimizedWnd && !g_bHeadlessMode)
 					SetRenderThrottling(false);
 				ResetFramePacer();
 			}
@@ -252,7 +255,8 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 
 			if (wParam == SIZE_MINIMIZED)
 			{
-				m_isMinimizedWnd = true;
+				if (!g_bHeadlessMode)
+					m_isMinimizedWnd = true;
 			}
 			else
 			{

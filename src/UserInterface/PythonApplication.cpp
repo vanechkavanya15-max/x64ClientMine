@@ -451,6 +451,34 @@ void CPythonApplication::ExtractSnapshot()
 	uniforms.vCameraPos = snapshot.v3CameraPos;
 	uniforms.fTime = snapshot.fTime;
 	uniforms.dwFrameIndex = snapshot.dwFrameIndex;
+
+	const TEnvironmentData* pEnvData = nullptr;
+	m_pyBackground.GetCurrentEnvironmentData(&pEnvData);
+	if (pEnvData)
+	{
+		uniforms.vSunLightDir = pEnvData->DirLights[ENV_DIRLIGHT_BACKGROUND].Direction;
+		uniforms.vSunLightColor = pEnvData->DirLights[ENV_DIRLIGHT_BACKGROUND].Diffuse;
+		uniforms.vAmbientColor = pEnvData->DirLights[ENV_DIRLIGHT_BACKGROUND].Ambient;
+		uniforms.vFogColor = pEnvData->FogColor;
+		uniforms.fFogNear = pEnvData->m_fFogNearDistance;
+		uniforms.fFogFar = pEnvData->m_fFogFarDistance;
+		float range = uniforms.fFogFar - uniforms.fFogNear;
+		uniforms.fFogInvRange = (range > 0.0001f) ? (1.0f / range) : 0.0f;
+		uniforms.fFogEnable = pEnvData->bFogEnable ? 1.0f : 0.0f;
+	}
+	else
+	{
+		uniforms.vSunLightDir = D3DXVECTOR3(0.0f, -0.7071f, 0.7071f);
+		uniforms.vSunLightColor = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
+		uniforms.vAmbientColor = D3DXCOLOR(0.4f, 0.4f, 0.4f, 1.0f);
+		uniforms.vFogColor = D3DXCOLOR(0.6f, 0.7f, 0.8f, 1.0f);
+		uniforms.fFogNear = 1000.0f;
+		uniforms.fFogFar = fFarClip;
+		float range = uniforms.fFogFar - uniforms.fFogNear;
+		uniforms.fFogInvRange = (range > 0.0001f) ? (1.0f / range) : 0.0f;
+		uniforms.fFogEnable = 0.0f;
+	}
+
 	CRenderQueueManager::Instance().SetFrameUniforms(uniforms);
 }
 
@@ -495,12 +523,6 @@ void CPythonApplication::RenderWorld3D()
 
 	// Transmit diagnostic debug lines to render queue
 	Client::Graphics::Debug::DebugRenderer::Instance().FlushToRenderQueue();
-
-	// Strangler Fig: Render queued packets through active backend (D3D9 / WGPU)
-	CRenderQueueManager::Instance().Flush(CRenderQueueManager::Instance().GetActiveBackend());
-
-	// Clear debug line buffer after render
-	Client::Graphics::Debug::DebugRenderer::Instance().Clear();
 
 	// Isolate state
 	m_pyGraphic.PopState();
@@ -716,17 +738,17 @@ bool CPythonApplication::Process()
 
 		DWORD dwRenderStartTime = ELTimer_GetMSec();		
 
-		if (m_dwRenderFramesLimit > 0)
+		if (m_dwRenderFramesLimit > 0 || g_bHeadlessMode)
 		{
 			canRender = true;
 		}
 		else
 		{
-			canRender = !g_bHeadlessMode && !m_isMinimizedWnd && !m_bRenderThrottling.load(std::memory_order_acquire) && !ms_bSessionLocked.load(std::memory_order_acquire);
+			canRender = !m_isMinimizedWnd && !m_bRenderThrottling.load(std::memory_order_acquire) && !ms_bSessionLocked.load(std::memory_order_acquire);
 		}
 
 		if (canRender) [[likely]] {
-			if (!RenderOwnership::IsWgpuConfigured() && m_pyGraphic.IsLostDevice()) [[unlikely]] {
+			if (!g_bHeadlessMode && !RenderOwnership::IsWgpuConfigured() && m_pyGraphic.IsLostDevice()) [[unlikely]] {
 				const int devState = CheckDeviceState();
 				if (devState == DEVICE_STATE_OK)
 				{
@@ -754,11 +776,10 @@ bool CPythonApplication::Process()
 
 		if (canRender) [[likely]]
 		{
-			ExtractSnapshot();
-
 			if (m_pyGraphic.Begin()) [[likely]] {
 				EterLib::Render::DynamicQuadBatcher::Instance().BeginFrame();
 				CRenderQueueManager::Instance().BeginFrame();
+				ExtractSnapshot();
 
 				m_pyGraphic.ClearDepthBuffer();
 				m_pyGraphic.SetClearColor(0.0f, 0.0f, 0.0f);
@@ -773,12 +794,10 @@ bool CPythonApplication::Process()
 				// Faza 7B: Nakladka interfejsu 2D
 				RenderUI2D();
 
-				if (RenderOwnership::IsWgpuConfigured())
-				{
-					CRenderQueueManager::Instance().Flush(CRenderQueueManager::Instance().GetActiveBackend());
-				}
+				CRenderQueueManager::Instance().Flush(CRenderQueueManager::Instance().GetActiveBackend());
 
 				CRenderQueueManager::Instance().EndFrame();
+				Client::Graphics::Debug::DebugRenderer::Instance().Clear();
 				m_pyGraphic.End();
 
 				if (m_dwRenderFramesLimit > 0)
@@ -1327,7 +1346,7 @@ bool CPythonApplication::Create(PyObject * poSelf, const char * c_szName, int wi
 		// Backend initialization
 		if (RenderOwnership::IsWgpuConfigured())
 		{
-			HWND targetWnd = g_bHeadlessMode ? nullptr : GetWindowHandle();
+			HWND targetWnd = GetWindowHandle();
 			if (!CWgpuRenderBackend::Instance().Initialize(targetWnd, m_pySystem.GetWidth(), m_pySystem.GetHeight()))
 			{
 				TraceError("Failed to initialize WGPU backend (m2_render_wgpu.dll)!");
@@ -1703,6 +1722,5 @@ bool CPythonApplication::SaveScreenShot(const char* c_szFileName)
 void CPythonApplication::FlushFrameUI()
 {
 	CDynamicQuadBatcher::Instance().FlushToQueue();
-	CRenderQueueManager::Instance().FlushUI();
 }
 

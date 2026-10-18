@@ -2,6 +2,7 @@
 #include "GrpFontTexture.h"
 #include "FontManager.h"
 #include "StateManager.h"
+#include "TextureUploadBridge.h"
 #include "Util.h"
 #include "EterBase/Stl.h"
 
@@ -246,6 +247,40 @@ bool CGraphicFontTexture::UpdateTexture()
 {
 	if (!m_isDirty)
 		return true;
+
+	if (CTextureUploadBridge::Instance().IsWgpuActive() && m_pAtlasBuffer && m_atlasWidth > 0 && m_atlasHeight > 0)
+	{
+		const uint32_t format = (m_atlasFormat == EFontAtlasFormat::A8) ? 28 : 21;
+		const size_t bufferBytes = (m_atlasFormat == EFontAtlasFormat::A8)
+			? (static_cast<size_t>(m_atlasWidth) * m_atlasHeight * sizeof(uint8_t))
+			: (static_cast<size_t>(m_atlasWidth) * m_atlasHeight * sizeof(DWORD));
+
+		CTextureUploadBridge::Instance().RegisterTexture(
+			reinterpret_cast<uintptr_t>(this),
+			static_cast<uint32_t>(m_atlasWidth),
+			static_cast<uint32_t>(m_atlasHeight),
+			format,
+			reinterpret_cast<const uint8_t*>(m_pAtlasBuffer),
+			bufferBytes
+		);
+
+		if (!m_pFontTextureVector.empty())
+		{
+			size_t pageIdx = (m_activePageIndex < m_pFontTextureVector.size()) ? m_activePageIndex : (m_pFontTextureVector.size() - 1);
+			CGraphicImageTexture* pPage = m_pFontTextureVector[pageIdx];
+			if (pPage)
+			{
+				CTextureUploadBridge::Instance().RegisterTexture(
+					reinterpret_cast<uintptr_t>(pPage),
+					static_cast<uint32_t>(m_atlasWidth),
+					static_cast<uint32_t>(m_atlasHeight),
+					format,
+					reinterpret_cast<const uint8_t*>(m_pAtlasBuffer),
+					bufferBytes
+				);
+			}
+		}
+	}
 
 	if (!ms_lpd3dDevice || m_pFontTextureVector.empty())
 	{

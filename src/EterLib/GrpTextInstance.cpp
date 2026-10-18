@@ -713,7 +713,9 @@ const std::vector<STextQuad>& CGraphicTextInstance::LayoutGlyphs(RECT* pClipRect
 			if (pFontTexture && pCurCharInfo->index >= 0 && pFontTexture->CheckTextureIndex(pCurCharInfo->index))
 			{
 				pFontTexture->SelectTexture(pCurCharInfo->index);
-				hTexture = reinterpret_cast<uintptr_t>(pFontTexture->GetD3DTexture());
+				hTexture = (pFontTexture->GetD3DTexture())
+					? reinterpret_cast<uintptr_t>(pFontTexture->GetD3DTexture())
+					: reinterpret_cast<uintptr_t>(pFontTexture);
 			}
 
 			const float offsets[4][2] = {
@@ -790,7 +792,9 @@ const std::vector<STextQuad>& CGraphicTextInstance::LayoutGlyphs(RECT* pClipRect
 			if (pFontTexture && pCurCharInfo->index >= 0 && pFontTexture->CheckTextureIndex(pCurCharInfo->index))
 			{
 				pFontTexture->SelectTexture(pCurCharInfo->index);
-				hTexture = reinterpret_cast<uintptr_t>(pFontTexture->GetD3DTexture());
+				hTexture = (pFontTexture->GetD3DTexture())
+					? reinterpret_cast<uintptr_t>(pFontTexture->GetD3DTexture())
+					: reinterpret_cast<uintptr_t>(pFontTexture);
 			}
 
 			STextQuad mainQuad{};

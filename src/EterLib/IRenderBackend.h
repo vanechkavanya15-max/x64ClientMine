@@ -29,4 +29,5 @@ public:
 	virtual const char* GetBackendName() const = 0;
 	virtual bool IsDeviceLost() const = 0;
 	virtual bool CaptureFrame(const char* szFilename) = 0;
+	virtual bool IsDeferred() const { return false; }
 };
