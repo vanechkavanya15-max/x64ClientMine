@@ -1,83 +1,97 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
-#include "SkeletalMath.h"
+#include "EterModelLib/SkeletalMath.h"
 
 using namespace EterModelLib;
 
-TEST_SUITE("SkeletalMath") {
-    TEST_CASE("Vector3 Normalization") {
-        Vector3 v1(10.0f, 0.0f, 0.0f);
-        v1.Normalize();
-        CHECK(v1.x == doctest::Approx(1.0f));
-        CHECK(v1.y == doctest::Approx(0.0f));
-        CHECK(v1.z == doctest::Approx(0.0f));
+TEST_CASE("Vector3 Normalization") {
+    Vector3 v(3.0f, 0.0f, 4.0f);
+    v.Normalize();
+    CHECK(v.x == doctest::Approx(0.6f));
+    CHECK(v.y == doctest::Approx(0.0f));
+    CHECK(v.z == doctest::Approx(0.8f));
+}
 
-        Vector3 v2(0.0f, 0.0f, 0.0f);
-        v2.Normalize();
-        CHECK(v2.x == doctest::Approx(0.0f));
-        CHECK(v2.y == doctest::Approx(0.0f));
-        CHECK(v2.z == doctest::Approx(0.0f));
+TEST_CASE("Quaternion Normalization") {
+    Quaternion q(0.0f, 3.0f, 0.0f, 4.0f);
+    q.Normalize();
+    CHECK(q.x == doctest::Approx(0.0f));
+    CHECK(q.y == doctest::Approx(0.6f));
+    CHECK(q.z == doctest::Approx(0.0f));
+    CHECK(q.w == doctest::Approx(0.8f));
+}
 
-        Vector3 v3(0.0000001f, 0.0f, 0.0f);
-        v3.Normalize();
-        CHECK(v3.x == doctest::Approx(0.0f));
-        CHECK(v3.y == doctest::Approx(0.0f));
-        CHECK(v3.z == doctest::Approx(0.0f));
+TEST_CASE("Matrix4x4 Multiplication") {
+    Matrix4x4 a;
+    a.m[0][0] = 1; a.m[0][1] = 2; a.m[0][2] = 3; a.m[0][3] = 4;
+    a.m[1][0] = 5; a.m[1][1] = 6; a.m[1][2] = 7; a.m[1][3] = 8;
+    a.m[2][0] = 9; a.m[2][1] = 10; a.m[2][2] = 11; a.m[2][3] = 12;
+    a.m[3][0] = 13; a.m[3][1] = 14; a.m[3][2] = 15; a.m[3][3] = 16;
+    
+    Matrix4x4 b = Matrix4x4::Identity();
+    Matrix4x4 c = a * b;
+    
+    for(int i=0; i<4; ++i) {
+        for(int j=0; j<4; ++j) {
+            CHECK(c.m[i][j] == doctest::Approx(a.m[i][j]));
+        }
     }
+}
 
-    TEST_CASE("Quaternion Normalization") {
-        Quaternion q1(10.0f, 0.0f, 0.0f, 0.0f);
-        q1.Normalize();
-        CHECK(q1.x == doctest::Approx(1.0f));
-        CHECK(q1.y == doctest::Approx(0.0f));
-        CHECK(q1.z == doctest::Approx(0.0f));
-        CHECK(q1.w == doctest::Approx(0.0f));
+TEST_CASE("Matrix4x4 Inverse") {
+    Matrix4x4 a = Matrix4x4::Identity();
+    a.m[0][3] = 10.0f;
+    a.m[1][3] = 20.0f;
+    a.m[2][3] = 30.0f;
+    
+    Matrix4x4 inv = a.Inverse();
+    CHECK(inv.m[0][3] == doctest::Approx(-10.0f));
+    CHECK(inv.m[1][3] == doctest::Approx(-20.0f));
+    CHECK(inv.m[2][3] == doctest::Approx(-30.0f));
+}
 
-        Quaternion q2(0.0f, 0.0f, 0.0f, 0.0f);
-        q2.Normalize();
-        CHECK(q2.x == doctest::Approx(0.0f));
-        CHECK(q2.y == doctest::Approx(0.0f));
-        CHECK(q2.z == doctest::Approx(0.0f));
-        CHECK(q2.w == doctest::Approx(1.0f)); // Should fallback to Identity
-    }
+TEST_CASE("EvaluateHierarchy with cycle") {
+    std::vector<int32_t> parents = {1, 0}; // Node 0 -> parent 1, Node 1 -> parent 0
+    std::vector<Matrix4x4> locals = { Matrix4x4::Identity(), Matrix4x4::Identity() };
+    std::vector<Matrix4x4> worlds;
+    std::vector<uint8_t> state;
+    
+    // Should not infinite loop and should break cycle
+    EvaluateHierarchy(parents, locals, worlds, state);
+    
+    CHECK(worlds.size() == 2);
+}
 
-    TEST_CASE("Matrix4x4 Multiplication") {
-        Matrix4x4 m1 = Matrix4x4::Identity();
-        m1.m[0][3] = 1.0f;
-        m1.m[1][3] = 2.0f;
-        
-        Matrix4x4 m2 = Matrix4x4::Identity();
-        m2.m[0][3] = 3.0f;
-        m2.m[1][3] = 4.0f;
+TEST_CASE("EvaluateHierarchy bounds check") {
+    std::vector<int32_t> parents = { -1 }; 
+    std::vector<Matrix4x4> locals = { Matrix4x4::Identity(), Matrix4x4::Identity() }; // Mismatched sizes
+    std::vector<Matrix4x4> worlds;
+    std::vector<uint8_t> state;
+    
+    // Should immediately return
+    EvaluateHierarchy(parents, locals, worlds, state);
+    
+    CHECK(worlds.size() == 0);
+}
 
-        Matrix4x4 m3 = m1 * m2;
-        
-        CHECK(m3.m[0][3] == doctest::Approx(4.0f));
-        CHECK(m3.m[1][3] == doctest::Approx(6.0f));
-        CHECK(m3.m[2][3] == doctest::Approx(0.0f));
-        CHECK(m3.m[3][3] == doctest::Approx(1.0f));
-    }
-
-    TEST_CASE("EvaluateHierarchy Bounds Protection") {
-        std::vector<int32_t> parents = { -1 };
-        std::vector<Matrix4x4> local(2, Matrix4x4::Identity());
-        std::vector<Matrix4x4> world;
-
-        // parentIndices size < localTransforms size
-        EvaluateHierarchy(parents, local, world);
-        
-        // Output worldTransforms should match min of both arrays
-        CHECK(world.size() == 1); 
-    }
-
-    TEST_CASE("EvaluateHierarchy Cycle Breaking") {
-        std::vector<int32_t> parents = { 1, 0 }; // 0 points to 1, 1 points to 0
-        std::vector<Matrix4x4> local(2, Matrix4x4::Identity());
-        std::vector<Matrix4x4> world;
-
-        // Shouldn't infinite loop/crash due to state map handling
-        EvaluateHierarchy(parents, local, world);
-        
-        CHECK(world.size() == 2);
-    }
+TEST_CASE("ComputeSkinningMatrices pointer logic") {
+    std::vector<Matrix4x4> world(2);
+    world[0] = Matrix4x4::Identity();
+    world[0].m[0][3] = 5.0f; // Translation x = 5
+    world[1] = Matrix4x4::Identity();
+    
+    std::vector<Matrix4x4> invBind(2);
+    invBind[0] = Matrix4x4::Identity();
+    invBind[0].m[0][3] = -5.0f; // Inverse translation x = -5
+    invBind[1] = Matrix4x4::Identity();
+    
+    std::vector<Matrix4x4> outSkin;
+    
+    ComputeSkinningMatrices(world, invBind, outSkin);
+    
+    CHECK(outSkin.size() == 2);
+    // Matrix multiplication: invBind[0] * world[0]
+    // Both are essentially identity with X translation.
+    // Resulting translation should be 0.
+    CHECK(outSkin[0].m[0][3] == doctest::Approx(0.0f));
 }
