@@ -9,12 +9,16 @@
 #include <optional>
 #include <tuple>
 #include <span>
+#include <cmath>
+#include <algorithm>
+#include <limits>
 
 namespace GameLib::Terrain {
 
     struct ChunkHeightData {
         std::vector<uint16_t> heights;      // 131 x 131 w formacie Metin2
         std::vector<uint8_t> waterHeights;  // 131 x 131 lub 128 x 128
+        uint32_t waterSize{0};              // Zapamietany wymiar siatki wody (np. 131 lub 128)
         float heightScale{1.0f};
         float baseHeight{0.0f};
 
@@ -28,12 +32,10 @@ namespace GameLib::Terrain {
         }
 
         [[nodiscard]] float GetWaterHeight(uint32_t rawX, uint32_t rawY) const noexcept {
-            if (waterHeights.empty()) return -10000.0f;
-            uint32_t size = static_cast<uint32_t>(std::sqrt(waterHeights.size()));
-            if (size == 0) return -10000.0f;
-            uint32_t x = std::min(rawX, size - 1);
-            uint32_t y = std::min(rawY, size - 1);
-            return static_cast<float>(waterHeights[y * size + x]);
+            if (waterSize == 0 || waterHeights.empty()) return -10000.0f;
+            uint32_t x = std::min(rawX, waterSize - 1);
+            uint32_t y = std::min(rawY, waterSize - 1);
+            return static_cast<float>(waterHeights[y * waterSize + x]);
         }
 
         // Dokladne probkowanie 2 trojkatow w komorce siatki (1:1 z Direct3D i AreaTerrain.cpp)

@@ -128,9 +128,16 @@ namespace GameLib::Terrain {
             it->second->SampleHeightTriangular(localX, localY, &xslope, &yslope);
         }
 
-        float gradient = std::sqrt(xslope * xslope + yslope * yslope);
-        float slopeAngle = std::atan(gradient) * (180.0f / 3.14159265358979323846f);
-        return slopeAngle <= maxSlopeAngle;
+        if (maxSlopeAngle >= 89.9f) return true;
+        float gradSq = (xslope * xslope) + (yslope * yslope);
+        if (maxSlopeAngle <= 0.0f) return gradSq <= 1e-6f;
+
+        // Analityczne porownanie kwadratow: grad^2 <= tan^2(maxSlopeAngle)
+        // Eliminuje powolne wywolania std::sqrt oraz std::atan w kazdym kroku detekcji kolizji
+        constexpr float degToRad = 3.14159265358979323846f / 180.0f;
+        float maxTan = std::tan(maxSlopeAngle * degToRad);
+        float maxGradSq = maxTan * maxTan;
+        return gradSq <= maxGradSq;
     }
 
     void TerrainHeightStorage::BatchSampleHeight(const float* x, const float* y, float* outZ, size_t count) const {

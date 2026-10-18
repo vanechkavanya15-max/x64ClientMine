@@ -15,6 +15,7 @@ namespace GameLib::Terrain {
         m_nodes.fill(LinearQuadNode{});
         m_isBuilt = false;
         m_sectorCoord = SectorCoord{};
+        m_origin = WorldPosition{};
     }
 
     void LinearSectorQuadtree::BuildQuadtree(int32_t sectorX, int32_t sectorY) {
@@ -29,64 +30,10 @@ namespace GameLib::Terrain {
     {
         Clear();
         m_sectorCoord = coord;
-        WorldPosition basePos = TerrainMetrics::SectorToWorld(coord);
+        m_origin = TerrainMetrics::SectorToWorld(coord);
 
         uint32_t nextNodeIndex = 1;
-        uint32_t leafPatchCounter = 0;
-
-        BuildNodeRecursive(0, basePos.x, basePos.y, TerrainMetrics::SectorSize, 0,
-                           -2000.0f, 5000.0f, nextNodeIndex, leafPatchCounter);
-
-        // Jesli przekazano bufor wysokosci (np. 131x131 w formacie Metin2), oblicz dokladne AABB Z dla kazdego liscia
-        if (!heights.empty() && heights.size() >= (TerrainMetrics::HeightmapSize * TerrainMetrics::HeightmapSize)) {
-            // Liscie zaczynaja sie od indeksu: 1 (L0) + 4 (L1) + 16 (L2) = 21
-            constexpr uint32_t leafStartIndex = 21;
-            for (uint32_t i = 0; i < TotalLeaves; ++i) {
-                uint32_t patchX = i % TerrainMetrics::PatchesPerSide;
-                uint32_t patchY = i / TerrainMetrics::PatchesPerSide;
-                CalculateLeafHeights(m_nodes[leafStartIndex + i], patchX, patchY, heights, heightScale, baseHeight);
-            }
-
-            // Propagacja minZ / maxZ w gore drzewa (od poziomu 2 do korzenia)
-            // Poziom 2: wezly 5..20 (16 wezlow)
-            for (uint32_t i = 5; i < 21; ++i) {
-                uint16_t childBase = m_nodes[i].childBaseIndex;
-                float minZ = m_nodes[childBase].minZ;
-                float maxZ = m_nodes[childBase].maxZ;
-                for (int c = 1; c < 4; ++c) {
-                    minZ = std::min(minZ, m_nodes[childBase + c].minZ);
-                    maxZ = std::max(maxZ, m_nodes[childBase + c].maxZ);
-                }
-                m_nodes[i].minZ = minZ;
-                m_nodes[i].maxZ = maxZ;
-            }
-
-            // Poziom 1: wezly 1..4 (4 wezly)
-            for (uint32_t i = 1; i < 5; ++i) {
-                uint16_t childBase = m_nodes[i].childBaseIndex;
-                float minZ = m_nodes[childBase].minZ;
-                float maxZ = m_nodes[childBase].maxZ;
-                for (int c = 1; c < 4; ++c) {
-                    minZ = std::min(minZ, m_nodes[childBase + c].minZ);
-                    maxZ = std::max(maxZ, m_nodes[childBase + c].maxZ);
-                }
-                m_nodes[i].minZ = minZ;
-                m_nodes[i].maxZ = maxZ;
-            }
-
-            // Poziom 0: korzen (wezel 0)
-            {
-                uint16_t childBase = m_nodes[0].childBaseIndex;
-                float minZ = m_nodes[childBase].minZ;
-                float maxZ = m_nodes[childBase].maxZ;
-                for (int c = 1; c < 4; ++c) {
-                    minZ = std::min(minZ, m_nodes[childBase + c].minZ);
-                    maxZ = std::max(maxZ, m_nodes[childBase + c].maxZ);
-                }
-                m_nodes[0].minZ = minZ;
-                m_nodes[0].maxZ = maxZ;
-            }
-        }
+        BuildNode(0, 0, 0, 0, nextNodeIndex, heights, heightScale, baseHeight);
 
         m_isBuilt = true;
         EterBase::ModernLogger::Info("LinearSectorQuadtree built for sector [{}, {}] ({} nodes, {} leaves).", 
@@ -96,38 +43,63 @@ namespace GameLib::Terrain {
         UserInterface::Core::EventBus::GetInstance().Publish(event);
     }
 
-    void LinearSectorQuadtree::BuildNodeRecursive(
-        uint32_t nodeIndex, float x, float y, float size, size_t currentDepth,
-        float minZ, float maxZ, uint32_t& nextFreeIndex, uint32_t& leafPatchCounter) noexcept 
+    void LinearSectorQuadtree::BuildNode(
+        uint32_t nodeIndex, 
+        uint32_t gx, 
+        uint32_t gy, 
+        uint32_t depth, 
+        uint32_t& nextFreeIndex, 
+        std::span<const uint16_t> heights, 
+        float heightScale, 
+        float baseHeight) noexcept 
     {
         auto& node = m_nodes[nodeIndex];
-        node.minX = x;
-        node.minY = y;
-        node.minZ = minZ;
-        node.maxX = x + size;
-        node.maxY = y + size;
-        node.maxZ = maxZ;
-        node.lodLevel = static_cast<uint8_t>(currentDepth);
+        node.lodLevel = static_cast<uint8_t>(depth);
 
-        if (currentDepth == Depth) {
+        // Rozmiar wezla w patchach (8 na poziomie 0, 4 na 1, 2 na 2, 1 na 3)
+        uint32_t span = TerrainMetrics::PatchesPerSide >> depth;
+        node.minX = m_origin.x + static_cast<float>(gx * TerrainMetrics::PatchSize);
+        node.minY = m_origin.y + static_cast<float>(gy * TerrainMetrics::PatchSize);
+        node.maxX = node.minX + static_cast<float>(span * TerrainMetrics::PatchSize);
+        node.maxY = node.minY + static_cast<float>(span * TerrainMetrics::PatchSize);
+
+        if (depth == Depth) {
             node.isLeaf = 1;
             node.childBaseIndex = 0;
-            node.patchId = leafPatchCounter++;
+            node.patchId = gy * TerrainMetrics::PatchesPerSide + gx; // Czysty row-major (0..63)
+
+            bool hasHeights = !heights.empty() && 
+                              (heights.size() >= (TerrainMetrics::HeightmapSize * TerrainMetrics::HeightmapSize));
+            if (hasHeights) {
+                CalculateLeafHeights(node, gx, gy, heights, heightScale, baseHeight);
+            } else {
+                node.minZ = -2000.0f;
+                node.maxZ = 5000.0f;
+            }
             return;
         }
 
         node.isLeaf = 0;
         node.patchId = 0;
         node.childBaseIndex = static_cast<uint16_t>(nextFreeIndex);
+        uint16_t base = node.childBaseIndex;
         nextFreeIndex += 4;
 
-        float halfSize = size * 0.5f;
-        uint16_t base = node.childBaseIndex;
+        uint32_t halfSpan = span >> 1;
+        BuildNode(base + 0, gx,            gy,            depth + 1, nextFreeIndex, heights, heightScale, baseHeight);
+        BuildNode(base + 1, gx + halfSpan, gy,            depth + 1, nextFreeIndex, heights, heightScale, baseHeight);
+        BuildNode(base + 2, gx,            gy + halfSpan, depth + 1, nextFreeIndex, heights, heightScale, baseHeight);
+        BuildNode(base + 3, gx + halfSpan, gy + halfSpan, depth + 1, nextFreeIndex, heights, heightScale, baseHeight);
 
-        BuildNodeRecursive(base + 0, x,            y,            halfSize, currentDepth + 1, minZ, maxZ, nextFreeIndex, leafPatchCounter);
-        BuildNodeRecursive(base + 1, x + halfSize, y,            halfSize, currentDepth + 1, minZ, maxZ, nextFreeIndex, leafPatchCounter);
-        BuildNodeRecursive(base + 2, x,            y + halfSize, halfSize, currentDepth + 1, minZ, maxZ, nextFreeIndex, leafPatchCounter);
-        BuildNodeRecursive(base + 3, x + halfSize, y + halfSize, halfSize, currentDepth + 1, minZ, maxZ, nextFreeIndex, leafPatchCounter);
+        // Bezposrednia agregacja Z z 4 zsynchronizowanych dzieci
+        float minZ = m_nodes[base].minZ;
+        float maxZ = m_nodes[base].maxZ;
+        for (int c = 1; c < 4; ++c) {
+            minZ = std::min(minZ, m_nodes[base + c].minZ);
+            maxZ = std::max(maxZ, m_nodes[base + c].maxZ);
+        }
+        node.minZ = minZ;
+        node.maxZ = maxZ;
     }
 
     void LinearSectorQuadtree::CalculateLeafHeights(

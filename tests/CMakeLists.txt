@@ -7292,6 +7292,20 @@ target_link_libraries(test_c26_terrain_textureset_audit PRIVATE
 )
 add_test(NAME test_c26_terrain_textureset_audit COMMAND test_c26_terrain_textureset_audit)
 
-
-
-
+add_executable(test_c26_terrain_quadtree_audit test_c26_terrain_quadtree_audit.cpp)
+target_include_directories(test_c26_terrain_quadtree_audit PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/GameLib
+    ${CMAKE_SOURCE_DIR}/src/GameLib/Terrain
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+)
+target_link_libraries(test_c26_terrain_quadtree_audit PRIVATE
+    GameLib
+    EterBase
+    lzo2
+    mio
+    ws2_32
+    doctest
+)
+add_test(NAME test_c26_terrain_quadtree_audit COMMAND test_c26_terrain_quadtree_audit)

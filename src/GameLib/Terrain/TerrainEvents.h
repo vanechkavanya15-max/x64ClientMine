@@ -6,6 +6,7 @@
 #include "IMapChunkStreamingService.h"
 #include <vector>
 #include <cstdint>
+#include <utility>
 
 namespace GameLib::Terrain {
 

@@ -17,6 +17,8 @@ namespace GameLib::Terrain {
         uint32_t patchId{0};       // Indeks patcha w sektorze (0..63)
     };
 
+    static_assert(sizeof(LinearQuadNode) == 32, "LinearQuadNode size mismatch");
+
     class LinearSectorQuadtree final : public ITerrainQuadtreeCuller {
     public:
         // Dla Metin2: Sektor 25600 ma 8x8 = 64 patche (PatchSize = 3200)
@@ -52,9 +54,15 @@ namespace GameLib::Terrain {
         [[nodiscard]] const LinearQuadNode& GetNode(size_t index) const noexcept { return m_nodes[index]; }
 
     private:
-        void BuildNodeRecursive(
-            uint32_t nodeIndex, float x, float y, float size, size_t currentDepth,
-            float minZ, float maxZ, uint32_t& nextFreeIndex, uint32_t& leafPatchCounter) noexcept;
+        void BuildNode(
+            uint32_t nodeIndex, 
+            uint32_t gx, 
+            uint32_t gy, 
+            uint32_t depth, 
+            uint32_t& nextFreeIndex, 
+            std::span<const uint16_t> heights, 
+            float heightScale, 
+            float baseHeight) noexcept;
 
         void CalculateLeafHeights(
             LinearQuadNode& node, 
@@ -64,9 +72,14 @@ namespace GameLib::Terrain {
             float heightScale, 
             float baseHeight) noexcept;
 
+        WorldPosition m_origin{};
         SectorCoord m_sectorCoord{};
         std::array<LinearQuadNode, TotalNodes> m_nodes{};
         bool m_isBuilt{false};
     };
+
+    static_assert(TerrainMetrics::PatchesPerSide == 8, "PatchesPerSide must be 8");
+    static_assert(LinearSectorQuadtree::TotalNodes == 85, "TotalNodes must be 85");
+    static_assert(LinearSectorQuadtree::TotalLeaves == 64, "TotalLeaves must be 64");
 
 } // namespace GameLib::Terrain

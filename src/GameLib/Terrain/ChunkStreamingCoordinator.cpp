@@ -89,45 +89,54 @@ namespace GameLib::Terrain {
         SectorCoord centerSector = TerrainMetrics::WorldToSector(playerPos);
         int32_t sectorRadius = static_cast<int32_t>(std::ceil(viewRadius / TerrainMetrics::SectorSize));
 
-        std::lock_guard lock(m_mutex);
-
-        // 1. Zidentyfikuj potrzebne sektory w zasiegu widzenia
-        for (int32_t dy = -sectorRadius; dy <= sectorRadius; ++dy) {
-            for (int32_t dx = -sectorRadius; dx <= sectorRadius; ++dx) {
-                SectorCoord target{centerSector.x + dx, centerSector.y + dy};
-
-                // Bezpieczny pomiar dystansu: Odleglosc do prostokata AABB sektora!
-                // Dla sektora gracza distSq wynosi dokladnie 0.0f!
-                float distSq = TerrainMetrics::DistanceSqPointToSectorAABB(playerPos, target);
-
-                if (distSq <= viewRadiusSq) {
-                    EnsureSlot(target, playerPos, playerVel);
-                }
-            }
-        }
-
         // 2. Bezpieczna ewikcja z histereza (+2000 jednostek bufora przeciwko migotaniu krawedzi)
         constexpr float evictRadius = viewRadius + 2000.0f;
         constexpr float evictRadiusSq = evictRadius * evictRadius;
 
         std::vector<SectorCoord> toEvict;
-        for (const auto& [coord, slot] : m_chunks) {
-            float distSq = TerrainMetrics::DistanceSqPointToSectorAABB(playerPos, coord);
-            if (distSq > evictRadiusSq) {
-                toEvict.push_back(coord);
-            }
-        }
+        {
+            std::lock_guard lock(m_mutex);
 
-        for (const auto& coord : toEvict) {
-            auto it = m_chunks.find(coord);
-            if (it != m_chunks.end()) {
-                if (it->second.state == ChunkState::Active && m_heightStorage) {
-                    m_heightStorage->RemoveChunk(coord);
+            // 1. Zidentyfikuj potrzebne sektory w zasiegu widzenia
+            for (int32_t dy = -sectorRadius; dy <= sectorRadius; ++dy) {
+                for (int32_t dx = -sectorRadius; dx <= sectorRadius; ++dx) {
+                    SectorCoord target{centerSector.x + dx, centerSector.y + dy};
+
+                    // Bezpieczny pomiar dystansu: Odleglosc do prostokata AABB sektora!
+                    // Dla sektora gracza distSq wynosi dokladnie 0.0f!
+                    float distSq = TerrainMetrics::DistanceSqPointToSectorAABB(playerPos, target);
+
+                    if (distSq <= viewRadiusSq) {
+                        EnsureSlot(target, playerPos, playerVel);
+                    }
                 }
-                m_chunks.erase(it);
-                UserInterface::Core::EventBus::GetInstance().Publish(ChunkEvictedEvent{coord});
-                EterBase::ModernLogger::Debug("Chunk [{}, {}] evicted safely.", coord.x, coord.y);
             }
+
+            for (const auto& [coord, slot] : m_chunks) {
+                float distSq = TerrainMetrics::DistanceSqPointToSectorAABB(playerPos, coord);
+                if (distSq > evictRadiusSq) {
+                    toEvict.push_back(coord);
+                }
+            }
+
+            for (const auto& coord : toEvict) {
+                auto it = m_chunks.find(coord);
+                if (it != m_chunks.end()) {
+                    if (it->second.state == ChunkState::Active && m_heightStorage) {
+                        m_heightStorage->RemoveChunk(coord);
+                    }
+                    m_chunks.erase(it);
+                }
+            }
+        } // Mutex ZWOLNIONY!
+
+        // Publikacja zdarzen i powiadomienie fasady POZA MUTEXEM (ochrona przed deadlockiem)
+        for (const auto& coord : toEvict) {
+            if (m_evictionCallback) {
+                m_evictionCallback(coord);
+            }
+            UserInterface::Core::EventBus::GetInstance().Publish(ChunkEvictedEvent{coord});
+            EterBase::ModernLogger::Debug("Chunk [{}, {}] evicted safely.", coord.x, coord.y);
         }
     }
 
@@ -135,37 +144,56 @@ namespace GameLib::Terrain {
         WorldPosition playerPos{playerX, playerY, 0.0f};
         float maxRadiusSq = maxRadius * maxRadius;
 
-        std::lock_guard lock(m_mutex);
         std::vector<SectorCoord> toEvict;
+        {
+            std::lock_guard lock(m_mutex);
 
-        for (const auto& [coord, slot] : m_chunks) {
-            float distSq = TerrainMetrics::DistanceSqPointToSectorAABB(playerPos, coord);
-            if (distSq > maxRadiusSq) {
-                toEvict.push_back(coord);
+            for (const auto& [coord, slot] : m_chunks) {
+                float distSq = TerrainMetrics::DistanceSqPointToSectorAABB(playerPos, coord);
+                if (distSq > maxRadiusSq) {
+                    toEvict.push_back(coord);
+                }
             }
-        }
+
+            for (const auto& coord : toEvict) {
+                auto it = m_chunks.find(coord);
+                if (it != m_chunks.end()) {
+                    if (it->second.state == ChunkState::Active && m_heightStorage) {
+                        m_heightStorage->RemoveChunk(coord);
+                    }
+                    m_chunks.erase(it);
+                }
+            }
+        } // Mutex ZWOLNIONY!
 
         for (const auto& coord : toEvict) {
-            auto it = m_chunks.find(coord);
-            if (it != m_chunks.end()) {
-                if (it->second.state == ChunkState::Active && m_heightStorage) {
-                    m_heightStorage->RemoveChunk(coord);
-                }
-                m_chunks.erase(it);
-                UserInterface::Core::EventBus::GetInstance().Publish(ChunkEvictedEvent{coord});
+            if (m_evictionCallback) {
+                m_evictionCallback(coord);
             }
+            UserInterface::Core::EventBus::GetInstance().Publish(ChunkEvictedEvent{coord});
         }
     }
 
     void ChunkStreamingCoordinator::ClearAllChunks() {
-        std::lock_guard lock(m_mutex);
-        for (const auto& [coord, slot] : m_chunks) {
+        std::vector<SectorCoord> allChunks;
+        {
+            std::lock_guard lock(m_mutex);
+            allChunks.reserve(m_chunks.size());
+            for (const auto& [coord, slot] : m_chunks) {
+                allChunks.push_back(coord);
+            }
+            m_chunks.clear();
+            m_hasLastPos = false;
+            if (m_heightStorage) {
+                m_heightStorage->Clear();
+            }
+        } // Mutex ZWOLNIONY!
+
+        for (const auto& coord : allChunks) {
+            if (m_evictionCallback) {
+                m_evictionCallback(coord);
+            }
             UserInterface::Core::EventBus::GetInstance().Publish(ChunkEvictedEvent{coord});
-        }
-        m_chunks.clear();
-        m_hasLastPos = false;
-        if (m_heightStorage) {
-            m_heightStorage->Clear();
         }
         EterBase::ModernLogger::Info("ChunkStreamingCoordinator: All chunks cleared.");
     }

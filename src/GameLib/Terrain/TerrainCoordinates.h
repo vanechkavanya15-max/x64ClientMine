@@ -4,6 +4,7 @@
 #include <cmath>
 #include <compare>
 #include <algorithm>
+#include <functional>
 
 namespace GameLib::Terrain {
 

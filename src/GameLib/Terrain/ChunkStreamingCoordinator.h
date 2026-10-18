@@ -43,10 +43,14 @@ namespace GameLib::Terrain {
         ChunkState GetChunkState(SectorCoord coord) const noexcept;
         std::vector<SectorCoord> GetPendingLoadQueue();
 
+        using EvictionCallback = std::function<void(SectorCoord)>;
+        void SetEvictionCallback(EvictionCallback cb) noexcept { m_evictionCallback = std::move(cb); }
+
     private:
         void EnsureSlot(SectorCoord coord, WorldPosition playerPos, WorldPosition playerVel);
 
         mutable std::mutex m_mutex;
+        EvictionCallback m_evictionCallback;
         TerrainHeightStorage* m_heightStorage{nullptr};
         std::unordered_map<SectorCoord, ChunkSlot> m_chunks;
 
