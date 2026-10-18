@@ -18,13 +18,17 @@ public:
     Client::Core::Result<void, Client::Core::CommandError> OccupySlot(EterBase::ItemSlot slot, uint8_t itemHeight);
     Client::Core::Result<void, Client::Core::CommandError> FreeSlot(EterBase::ItemSlot slot, uint8_t itemHeight);
 
+    [[nodiscard]] uint64_t GetPageMask(uint16_t page) const;
+    void Clear();
+
 private:
     uint16_t m_width;
     uint16_t m_height;
     uint16_t m_pages;
     uint16_t m_pageSize;
     uint16_t m_totalSize;
-    std::vector<bool> m_grid;
+    std::vector<uint64_t> m_pageMasks;
+    std::vector<bool> m_gridFallback;
 };
 
 } // namespace Client::Gameplay

@@ -363,7 +363,7 @@ DWORD GetMaxTextureHeight()
 
 int CGraphicDevice::InitD3DInterface(D3DADAPTER_IDENTIFIER9& d3dAdapterId, D3DDISPLAYMODE& d3dDisplayMode, bool windowed)
 {
-	if (RenderOwnership::IsWgpuConfigured())
+	if (g_bHeadlessMode)
 		return CREATE_OK;
 
 	Direct3DCreate9Ex(D3D_SDK_VERSION, &ms_lpd3d);
@@ -656,7 +656,7 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /
 	ms_hWnd		= hWnd;
 	ms_hDC		= GetDC(hWnd);
 
-	if (RenderOwnership::IsWgpuConfigured())
+	if (g_bHeadlessMode)
 	{
 		ms_Viewport.X = 0;
 		ms_Viewport.Y = 0;

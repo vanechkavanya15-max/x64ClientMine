@@ -95,6 +95,17 @@ void CStateManager::GetViewport(D3DVIEWPORT9* pViewport)
 		m_Viewport = *pViewport;
 		m_bViewportValid = true;
 	}
+	else
+	{
+		pViewport->X = 0;
+		pViewport->Y = 0;
+		pViewport->Width = 1024;
+		pViewport->Height = 768;
+		pViewport->MinZ = 0.0f;
+		pViewport->MaxZ = 1.0f;
+		m_Viewport = *pViewport;
+		m_bViewportValid = true;
+	}
 }
 
 void CStateManager::SetGammaRamp(DWORD dwFlags, const D3DGAMMARAMP* pRamp)
@@ -231,6 +242,10 @@ CStateManager::CStateManager(LPDIRECT3DDEVICE9EX lpDevice) : m_lpD3DDev(NULL)
 			lpDevice->GetRenderState((D3DRENDERSTATETYPE)i, &gs_DefaultRenderStates[i]);
 
 		SetDevice(lpDevice);
+	}
+	else
+	{
+		SetDefaultState();
 	}
 
 	m_iDrawCallCount = 0;
@@ -693,11 +708,8 @@ void CStateManager::SetTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9 pTexture)
 	if (dwStage >= STATEMANAGER_MAX_STAGES)
 		return;
 
-	if (!m_lpD3DDev)
-		return;
-
-	// Ochrona przed nullem, uszkodzonym lub wiszacym wskaznikiem tekstury COM
-	if (pTexture != nullptr && !IsValidTexturePointer(pTexture))
+	// Ochrona przed nullem, uszkodzonym lub wiszacym wskaznikiem tekstury COM (gdy istnieje urzadzenie D3D9)
+	if (pTexture != nullptr && m_lpD3DDev && !IsValidTexturePointer(pTexture))
 	{
 		pTexture = nullptr;
 	}
@@ -705,28 +717,32 @@ void CStateManager::SetTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9 pTexture)
 	if (!m_bForce && pTexture == m_CurrentState.m_Textures[dwStage])
 		return;
 
-	__try
+	m_CurrentState.m_Textures[dwStage] = pTexture;
+
+	if (m_lpD3DDev)
 	{
-		HRESULT hr = m_lpD3DDev->SetTexture(dwStage, pTexture);
-		if (FAILED(hr))
-		{
-			m_lpD3DDev->SetTexture(dwStage, nullptr);
-			m_CurrentState.m_Textures[dwStage] = nullptr;
-			return;
-		}
-		m_CurrentState.m_Textures[dwStage] = pTexture;
-	}
-	__except (EXCEPTION_EXECUTE_HANDLER)
-	{
-		// W razie wyjatku sprzetowego w d3d9.dll bezpiecznie odpinamy teksture
 		__try
 		{
-			m_lpD3DDev->SetTexture(dwStage, nullptr);
+			HRESULT hr = m_lpD3DDev->SetTexture(dwStage, pTexture);
+			if (FAILED(hr))
+			{
+				m_lpD3DDev->SetTexture(dwStage, nullptr);
+				m_CurrentState.m_Textures[dwStage] = nullptr;
+				return;
+			}
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
+			// W razie wyjatku sprzetowego w d3d9.dll bezpiecznie odpinamy teksture
+			__try
+			{
+				m_lpD3DDev->SetTexture(dwStage, nullptr);
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+			}
+			m_CurrentState.m_Textures[dwStage] = nullptr;
 		}
-		m_CurrentState.m_Textures[dwStage] = nullptr;
 	}
 }
 

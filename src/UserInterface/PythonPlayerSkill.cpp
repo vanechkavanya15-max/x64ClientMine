@@ -883,11 +883,6 @@ bool CPythonPlayer::__HasItem(DWORD dwItemID)
 		if (dwItemID == GetItemIndex(TItemPos(BELT_INVENTORY, i)))
 			return true;
 	}
-	for (int i = 0; i < c_DragonSoul_Inventory_Count; ++i)
-	{
-		if (dwItemID == GetItemIndex(TItemPos (DRAGON_SOUL_INVENTORY, i)))
-			return true;
-	}
 
 	return false;
 }

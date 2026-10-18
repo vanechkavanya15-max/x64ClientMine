@@ -287,4 +287,37 @@ inline void CleanIntersectLineSegments(
     return t;
 }
 
+/// Oblicza wektor slizgania wzdluz plaszczyzny o normalnej n (OnCollisionSlide) bez drgan.
+[[nodiscard]] inline CleanVec3 CleanCalculateSlideVector(
+    const CleanVec3& velocity,
+    const CleanVec3& normalNormalized) noexcept
+{
+    float dot = velocity.Dot(normalNormalized);
+    if (dot >= 0.0f) {
+        return velocity; // Ruch w kierunku od sciany
+    }
+    return velocity - normalNormalized * dot;
+}
+
+/// Oblicza wektor slizgania w narozniku dwoch scian o normalnych n1 i n2 bez drgan i blokowania.
+[[nodiscard]] inline CleanVec3 CleanCalculateCornerSlideVector(
+    const CleanVec3& velocity,
+    const CleanVec3& n1,
+    const CleanVec3& n2) noexcept
+{
+    CleanVec3 slide1 = CleanCalculateSlideVector(velocity, n1);
+    if (slide1.Dot(n2) >= 0.0f) {
+        return slide1;
+    }
+
+    CleanVec3 crease = n1.Cross(n2);
+    float creaseLenSq = crease.LengthSq();
+    if (creaseLenSq < 1e-6f) {
+        return CleanVec3{0.0f, 0.0f, 0.0f}; // Sciany przeciwstawne
+    }
+
+    CleanVec3 creaseDir = crease / std::sqrt(creaseLenSq);
+    return creaseDir * velocity.Dot(creaseDir);
+}
+
 } // namespace Client::Collision

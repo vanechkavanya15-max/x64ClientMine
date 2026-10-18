@@ -1655,9 +1655,9 @@ void CInstanceBase::Deform()
 
 	++ms_dwDeformCounter;
 
-	m_GraphicThingInstance.INSTANCEBASE_Deform();
-
+	// Fala W10 (T333): Eliminacja 1-frame lag - aktualizacja kosci siodla wierzchowca przed deformacja jezdzca
 	m_mountComponent.Deform();
+	m_GraphicThingInstance.INSTANCEBASE_Deform();
 }
 
 void CInstanceBase::RenderTrace()

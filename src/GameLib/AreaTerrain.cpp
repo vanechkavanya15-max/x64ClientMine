@@ -248,7 +248,7 @@ float CTerrain::GetHeight(int x, int y)
 	x -= m_wX * XSIZE * CELLSCALE;
 	y -= m_wY * YSIZE * CELLSCALE;
 
-	if (x < 0 || y < 0 || x > XSIZE * CELLSCALE || y > XSIZE * CELLSCALE)
+	if (x < 0 || y < 0 || x > XSIZE * CELLSCALE || y > YSIZE * CELLSCALE)
 		return 0.0f;
 
 	long	xdist;				/* x mod size of tile */

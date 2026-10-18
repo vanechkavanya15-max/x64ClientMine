@@ -3,7 +3,7 @@
 
 void CMapOutdoor::SetIndexBuffer()
 {
-	void * pIndices;
+	void * pIndices = nullptr;
 	long x, y;
 	
 	DWORD dwIndexNum = TERRAIN_PATCHSIZE * TERRAIN_PATCHSIZE * 4;
@@ -16,7 +16,7 @@ void CMapOutdoor::SetIndexBuffer()
 		count[uci] = 0;
 		count2[uci] = 0;
 		if ( !m_IndexBuffer[uci].Create(dwIndexNum, D3DFMT_INDEX16) )
-			TraceError("CMapOutdoor::SetIndexBuffer() IndexBuffer Create Error");
+			TraceError("CMapOutdoor::SetIndexBuffer() IndexBuffer Create Error (LOD=%d)", uci);
 	}
 
 	BYTE ucNumLineWarp = TERRAIN_PATCHSIZE + 1;
@@ -129,12 +129,19 @@ void CMapOutdoor::SetIndexBuffer()
 	for (uci = 0; uci < TERRAINPATCH_LODMAX; ++uci)
 	{
 		m_wNumIndices[uci] = count[uci];
-		if( !m_IndexBuffer[uci].Lock((void **) &pIndices) )
-			TraceError("CMapOutdoor::SetIndexBuffer() IndexBuffer Unlock Error");
+		if( !m_IndexBuffer[uci].Lock((void **) &pIndices) || !pIndices )
+		{
+			TraceError("CMapOutdoor::SetIndexBuffer() IndexBuffer Lock Error (LOD=%d, no D3D device?)", uci);
+			delete [] m_pwaIndices[uci];
+			m_pwaIndices[uci] = NULL;
+			pIndices = nullptr;
+			continue;
+		}
 		memcpy(pIndices, m_pwaIndices[uci], count[uci] * sizeof(WORD));
 		m_IndexBuffer[uci].Unlock();
 		delete [] m_pwaIndices[uci];
 		m_pwaIndices[uci] = NULL;
+		pIndices = nullptr;
 	}
 }
 

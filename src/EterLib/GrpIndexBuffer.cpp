@@ -20,10 +20,15 @@ void CGraphicIndexBuffer::SetIndices(int startIndex) const
 
 bool CGraphicIndexBuffer::Lock(void** pretIndices) const
 {
-	assert(m_lpd3dIdxBuf != NULL);
-
 	if (!m_lpd3dIdxBuf)
+	{
+		if (!m_cpuCopy.empty() && pretIndices)
+		{
+			*pretIndices = const_cast<uint8_t*>(m_cpuCopy.data());
+			return true;
+		}
 		return false;
+	}
 
 	DWORD dwLockFlag = m_dwLockFlag;
 	if (m_dwUsage & D3DUSAGE_DYNAMIC)
@@ -37,8 +42,6 @@ bool CGraphicIndexBuffer::Lock(void** pretIndices) const
 
 void CGraphicIndexBuffer::Unlock() const
 {
-	assert(m_lpd3dIdxBuf != NULL);
-
 	if (!m_lpd3dIdxBuf)
 		return;
 
@@ -47,10 +50,17 @@ void CGraphicIndexBuffer::Unlock() const
 
 bool CGraphicIndexBuffer::Lock(void** pretIndices)
 {
-	assert(m_lpd3dIdxBuf != NULL);
-
 	if (!m_lpd3dIdxBuf)
+	{
+		if (m_dwBufferSize > 0 && pretIndices)
+		{
+			if (m_cpuCopy.size() < m_dwBufferSize)
+				m_cpuCopy.resize(m_dwBufferSize, 0);
+			*pretIndices = m_cpuCopy.data();
+			return true;
+		}
 		return false;
+	}
 
 	DWORD dwLockFlag = m_dwLockFlag;
 	if (m_dwUsage & D3DUSAGE_DYNAMIC)
@@ -161,7 +171,11 @@ bool CGraphicIndexBuffer::Create(int faceCount, TFace* faces)
 bool CGraphicIndexBuffer::CreateDeviceObjects()
 {
 	if (!ms_lpd3dDevice)
+	{
+		if (m_dwBufferSize > 0)
+			m_cpuCopy.resize(m_dwBufferSize, 0);
 		return true;
+	}
 
 	assert(m_lpd3dIdxBuf == NULL);
 

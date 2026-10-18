@@ -116,6 +116,41 @@ void test_find_empty_slot_full() {
     assert(emptyRes.error() == Client::Core::CommandError::InventoryFull);
 }
 
+void test_bitmask_swar_and_clear() {
+    InventoryGridManager grid(5, 9, 2);
+    assert(grid.GetPageMask(0) == 0ULL);
+    assert(grid.GetPageMask(1) == 0ULL);
+
+    // Place 1x1 at slot 0: bit 0
+    auto occ1 = grid.OccupySlot(ItemSlot(0), 1);
+    assert(occ1.has_value());
+    assert(grid.GetPageMask(0) == 1ULL);
+
+    // Place 1x2 at slot 1: bit 1 and bit 6 (1 + 5)
+    auto occ2 = grid.OccupySlot(ItemSlot(1), 2);
+    assert(occ2.has_value());
+    uint64_t expectedMask = 1ULL | (1ULL << 1) | (1ULL << 6);
+    assert(grid.GetPageMask(0) == expectedMask);
+
+    // Place 1x3 at slot 2: bit 2, 7, 12
+    auto occ3 = grid.OccupySlot(ItemSlot(2), 3);
+    assert(occ3.has_value());
+    expectedMask |= (1ULL << 2) | (1ULL << 7) | (1ULL << 12);
+    assert(grid.GetPageMask(0) == expectedMask);
+
+    // SWAR: Find empty slot for height 3
+    auto empty3 = grid.FindEmptySlot(3);
+    assert(empty3.has_value());
+    assert(empty3.value().get() == 3); // slot 3 is free for height 3 (slots 3, 8, 13 free)
+
+    // Clear
+    grid.Clear();
+    assert(grid.GetPageMask(0) == 0ULL);
+    assert(grid.GetPageMask(1) == 0ULL);
+    auto emptyAfterClear = grid.FindEmptySlot(1);
+    assert(emptyAfterClear.has_value() && emptyAfterClear.value().get() == 0);
+}
+
 int main() {
     test_initialization();
     test_1x1_placement();
@@ -123,6 +158,7 @@ int main() {
     test_1x3_placement();
     test_out_of_bounds();
     test_find_empty_slot_full();
+    test_bitmask_swar_and_clear();
     
     std::cout << "All InventoryGridManager unit tests passed successfully!" << std::endl;
     return 0;

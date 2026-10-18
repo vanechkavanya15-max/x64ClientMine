@@ -34,7 +34,11 @@ bool CMapOutdoor::Load(float x, float y, float z)
 	m_lOldReadX = -1;
 
 	// TODO: SetRenderingDevice에서 Environment로 부터 라이트 속성을 넘겨줘야 스태틱 라이트가 제대로 작동한다.
-	CSpeedTreeForestDirectX::Instance().SetRenderingDevice(STATEMANAGER.GetDevice());
+	LPDIRECT3DDEVICE9 pSpeedTreeDevice = STATEMANAGER.GetDevice();
+	if (pSpeedTreeDevice)
+		CSpeedTreeForestDirectX::Instance().SetRenderingDevice(pSpeedTreeDevice);
+	else
+		TraceError("CMapOutdoor::Load: Skipping SpeedTree shader init — no D3D device (WGPU mode)");
 
 	Update(x, y, z);
 

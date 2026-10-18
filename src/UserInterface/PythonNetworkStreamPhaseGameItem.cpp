@@ -313,6 +313,9 @@ bool CPythonNetworkStream::RecvItemUpdatePacket()
 	if (!Recv(sizeof(TPacketGCItemUpdate), &packet_item_update))
 		return false;
 
+	std::span<const uint8_t> payload(reinterpret_cast<const uint8_t*>(&packet_item_update), sizeof(packet_item_update));
+	(void)Network::Dispatchers::NetworkStreamPhaseGameBridge::RouteGamePacket(GC::ITEM_UPDATE, payload);
+
 	IAbstractPlayer& rkPlayer=IAbstractPlayer::GetSingleton();
 	rkPlayer.SetItemCount(packet_item_update.Cell, packet_item_update.count);
 	for (int i = 0; i < ITEM_SOCKET_SLOT_MAX_NUM; ++i)
