@@ -164,6 +164,27 @@ class HarnessBridge:
         self.fuzz_history: List[Dict[str, Any]] = []
         self.last_crash_report: Optional[Dict[str, Any]] = None
 
+    @property
+    def player_pos(self) -> Dict[str, Any]:
+        return {
+            "x": self.player_coords.get("x", 45000.0),
+            "y": self.player_coords.get("y", 38000.0),
+            "z": self.player_coords.get("z", 0.0),
+            "rot": self.player_rotation
+        }
+
+    @property
+    def player_stats(self) -> Dict[str, Any]:
+        return {
+            "vid": self.player_vid,
+            "level": self.player_level,
+            "hp": self.player_hp,
+            "max_hp": self.player_max_hp,
+            "sp": self.player_mp,
+            "max_sp": self.player_max_mp,
+            "yang": 50000000
+        }
+
     # ------------------------------------------------------------------------
     # Obsluga procesu Metin2_Release.exe
     # ------------------------------------------------------------------------
