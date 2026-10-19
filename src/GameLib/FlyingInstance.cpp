@@ -1,3 +1,4 @@
+#include "../Client/Core/WorldContext.h"
 #include "Stdafx.h"
 #include "EterLib/GrpMath.h"
 #include "EffectLib/EffectManager.h"
@@ -647,4 +648,14 @@ void CFlyingInstance::__SetDataPointer(CFlyingData * pData, const D3DXVECTOR3 & 
 	UpdateAttachInstance();
 
 	m_iPierceCount = pData->m_iPierceCount;
+}
+
+bool CFlyingInstance::Update(Client::Core::WorldContext& context)
+{
+	return Update();
+}
+
+void CFlyingInstance::Render(Client::Core::WorldContext& context)
+{
+	Render();
 }

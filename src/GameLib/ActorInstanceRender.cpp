@@ -1,3 +1,4 @@
+#include "../Client/Core/WorldContext.h"
 #include "StdAfx.h"
 #include "EterLib/StateManager.h"
 
@@ -401,4 +402,9 @@ void CActorInstance::RenderToShadowMap()
 
 	if (m_pkHorse)
 		m_pkHorse->RenderToShadowMap();
+}
+
+void CActorInstance::Render(Client::Core::WorldContext& context)
+{
+	Render();
 }

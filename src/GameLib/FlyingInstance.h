@@ -8,6 +8,7 @@ class CFlyTrace;
 class IFlyEventHandler;
 class CActorInstance;
 
+namespace Client { namespace Core { struct WorldContext; } }
 class CFlyingInstance 
 {	
 public:
@@ -34,7 +35,9 @@ public:
 	void Create(CFlyingData* pData, const D3DXVECTOR3& c_rv3StartPos, const CFlyTarget & c_rkTarget, bool canAttack);		
 
 	bool Update();
+	bool Update(Client::Core::WorldContext& context);
 	void Render();
+	void Render(Client::Core::WorldContext& context);
 
 	bool IsAlive() { return m_bAlive; }
 

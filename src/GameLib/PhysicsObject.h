@@ -57,6 +57,7 @@ private:
 	static IObjectManager* ms_ObjManager;
 };
 
+namespace Client { namespace Core { struct WorldContext; } }
 class CPhysicsObject
 {
 	public:
@@ -66,6 +67,7 @@ class CPhysicsObject
 		void Initialize();
 
 		void Update(float fElapsedTime);
+		void Update(float fElapsedTime, Client::Core::WorldContext& context);
 
 		bool isBlending();
 

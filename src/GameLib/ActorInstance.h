@@ -29,6 +29,7 @@ class IMobProto : public CSingleton<IMobProto>
 		virtual bool FindRaceType(UINT eRace, UINT* puType);
 };
 
+namespace Client { namespace Core { struct WorldContext; } }
 class CActorInstance : public IActorInstance, public IFlyTargetableObject
 {
 	public:
@@ -309,6 +310,7 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 		const std::list<TAttachingEffect>& GetAttachingEffectList() const { return m_AttachingEffectList; }
 
 		bool Render();
+		void Render(Client::Core::WorldContext& context);
 		friend class ActorRenderExtractor;
 
 		UINT GetActorType() const;
@@ -631,6 +633,7 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 		bool		__IsInSplashTime();
 
 		void		OnUpdate();
+		void Update(Client::Core::WorldContext& context);
 		void		OnRender();
 
 		BOOL		isValidAttacking();

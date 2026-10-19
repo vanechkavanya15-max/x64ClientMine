@@ -1,3 +1,4 @@
+#include "../Client/Core/WorldContext.h"
 #include "StdAfx.h"
 #include "PhysicsObject.h"
 
@@ -174,4 +175,9 @@ CPhysicsObject::CPhysicsObject()
 
 CPhysicsObject::~CPhysicsObject()
 {
+}
+
+void CPhysicsObject::Update(float fElapsedTime, Client::Core::WorldContext& context)
+{
+	Update(fElapsedTime);
 }

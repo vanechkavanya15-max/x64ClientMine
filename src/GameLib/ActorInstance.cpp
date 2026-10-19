@@ -1,3 +1,4 @@
+#include "../Client/Core/WorldContext.h"
 #include "StdAfx.h"
 #include "ActorInstance.h"
 #include "AreaTerrain.h"
@@ -1054,3 +1055,8 @@ bool CActorInstance::Render()
 	return true;
 }
 
+
+void CActorInstance::Update(Client::Core::WorldContext& context)
+{
+	Update();
+}
