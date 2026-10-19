@@ -9,6 +9,7 @@
 
 #include "../../EterBase/StrongTypes.h"
 #include <shared_mutex>
+#include <mutex>
 
 namespace Client::World {
 
