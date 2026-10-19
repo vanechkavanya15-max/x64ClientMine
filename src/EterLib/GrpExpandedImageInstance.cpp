@@ -51,6 +51,16 @@ void CGraphicExpandedImageInstance::OnRender()
 	float eu = (c_rRect.left + m_RenderingRect.right + (c_rRect.right-c_rRect.left)) * texReverseWidth;
 	float ev = (c_rRect.top + m_RenderingRect.bottom + (c_rRect.bottom-c_rRect.top)) * texReverseHeight;
 
+	// T366: Scisly clamping UV do granic podobrazka c_rRect w atlasie (eliminacja atlas bleeding / efektu kodu kreskowego na paskach HP/SP/EXP)
+	const float minU = float(c_rRect.left) * texReverseWidth;
+	const float maxU = float(c_rRect.right) * texReverseWidth;
+	const float minV = float(c_rRect.top) * texReverseHeight;
+	const float maxV = float(c_rRect.bottom) * texReverseHeight;
+	su = std::max(minU, std::min(su, maxU));
+	eu = std::max(minU, std::min(eu, maxU));
+	sv = std::max(minV, std::min(sv, maxV));
+	ev = std::max(minV, std::min(ev, maxV));
+
 	TPDTVertex vertices[4];	
 	vertices[0].position.x	= m_v2Position.x - kUiHalfPixelOffset;
 	vertices[0].position.y	= m_v2Position.y - kUiHalfPixelOffset;
