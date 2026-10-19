@@ -110,13 +110,16 @@ int CPythonEventManager::RegisterEventSet(const char * c_szFileName)
 	if (!CPackManager::Instance().GetFile(c_szFileName, File))
 		return -1;
 
-	std::string strEventString;
-	strEventString.resize(File.size() + 1);
-	memcpy(strEventString.data(), File.data(), File.size());
+	std::string strEventString(reinterpret_cast<const char*>(File.data()), File.size());
 
 	TEventSet * pEventSet = m_EventSetPool.Alloc();
 	if (!pEventSet)
 		return -1;
+
+	pEventSet->pCurrentTextLine = NULL;
+	pEventSet->poEventHandler = NULL;
+	pEventSet->pConfirmTimeTextLine = NULL;
+	pEventSet->ScriptTextLineList.clear();
 
 	if (!pEventSet->ScriptGroup.Create(strEventString))
 	{
@@ -124,10 +127,8 @@ int CPythonEventManager::RegisterEventSet(const char * c_szFileName)
 		return -1;
 	}
 
-	strncpy(pEventSet->szFileName, c_szFileName, 32);
-
-	pEventSet->pCurrentTextLine = NULL;
-	pEventSet->poEventHandler = NULL;
+	strncpy(pEventSet->szFileName, c_szFileName, sizeof(pEventSet->szFileName) - 1);
+	pEventSet->szFileName[sizeof(pEventSet->szFileName) - 1] = '\0';
 
 	__InitEventSet(*pEventSet);
 
@@ -197,8 +198,11 @@ void CPythonEventManager::__ClearEventSetp(TEventSet * pEventSet)
 	for (TScriptTextLineList::iterator itor = pEventSet->ScriptTextLineList.begin(); itor != pEventSet->ScriptTextLineList.end(); ++itor)
 	{
 		TTextLine & rkLine = *itor;
-		rkLine.pInstance->Destroy();
-		m_ScriptTextLinePool.Free(rkLine.pInstance);
+		if (rkLine.pInstance)
+		{
+			rkLine.pInstance->Destroy();
+			m_ScriptTextLinePool.Free(rkLine.pInstance);
+		}
 	}
 	pEventSet->ScriptTextLineList.clear();
 
@@ -206,10 +210,19 @@ void CPythonEventManager::__ClearEventSetp(TEventSet * pEventSet)
 	{
 		pEventSet->pCurrentTextLine->Destroy();
 		m_ScriptTextLinePool.Free(pEventSet->pCurrentTextLine);
+		pEventSet->pCurrentTextLine = NULL;
 	}
-	pEventSet->pCurrentTextLine = NULL;
+
+	pEventSet->pConfirmTimeTextLine = NULL;
+	pEventSet->isConfirmWait = FALSE;
 	pEventSet->strCurrentLine = "";
 	pEventSet->iCurrentLetter = 0;
+
+	if (pEventSet->poEventHandler)
+	{
+		Py_DECREF(pEventSet->poEventHandler);
+		pEventSet->poEventHandler = NULL;
+	}
 
 	m_EventSetPool.Free(pEventSet);
 }
@@ -255,6 +268,14 @@ void CPythonEventManager::SetEventHandler(int iIndex, PyObject * poEventHandler)
 		return;
 	}
 
+	if (poEventHandler == Py_None)
+		poEventHandler = NULL;
+
+	Py_XINCREF(poEventHandler);
+	if (pEventSet->poEventHandler)
+	{
+		Py_DECREF(pEventSet->poEventHandler);
+	}
 	pEventSet->poEventHandler = poEventHandler;
 }
 
@@ -320,7 +341,7 @@ void CPythonEventManager::UpdateEventSet(int iIndex, int ix, int iy)
 
 	RefreshLinePosition(pEventSet);
 
-	if (pEventSet->isConfirmWait)
+	if (pEventSet->isConfirmWait && pEventSet->pConfirmTimeTextLine)
 	{
 		int iLeftTime = std::max(0ul, pEventSet->iConfirmEndTime - timeGetTime()/1000);
 		pEventSet->pConfirmTimeTextLine->SetValue(_getf(m_strLeftTimeString.c_str(), iLeftTime));
@@ -339,10 +360,23 @@ void CPythonEventManager::UpdateEventSet(int iIndex, int ix, int iy)
 		pEventSet->lLastDelayTime = std::max(0l, pEventSet->lLastDelayTime - lElapsedTime);
 	}
 
-	// Natychmiastowe procesowanie calego tekstu questu (zero typewriter delay)
+	// Natychmiastowe procesowanie calego tekstu questu z zabezpieczeniem watchdog (maks. 512 komend na klatke)
+	int iSafetyCounter = 0;
+	constexpr int MAX_COMMANDS_PER_FRAME = 512;
+
 	while (!pEventSet->isLock && !pEventSet->isWaitFlag && pEventSet->lLastDelayTime <= 0)
 	{
+		if (++iSafetyCounter > MAX_COMMANDS_PER_FRAME)
+		{
+			TraceError("CPythonEventManager::UpdateEventSet - Exceeded command limit per frame in %s", pEventSet->szFileName);
+			pEventSet->isLock = true;
+			break;
+		}
+
 		ProcessEventSet(pEventSet);
+
+		if (!CheckEventSetIndex(iIndex) || m_EventSetVector[iIndex] != pEventSet)
+			break;
 	}
 }
 

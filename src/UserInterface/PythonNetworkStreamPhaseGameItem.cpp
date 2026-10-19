@@ -66,9 +66,9 @@ bool CPythonNetworkStream::SendSafeBoxItemMovePacket(BYTE bySourcePos, BYTE byTa
 	TPacketCGItemMove kItemMove;
 	kItemMove.header = CG::SAFEBOX_ITEM_MOVE;
 	kItemMove.length = sizeof(kItemMove);
-	kItemMove.pos = TItemPos(INVENTORY, bySourcePos);
+	kItemMove.pos = TItemPos(SAFEBOX, bySourcePos);
 	kItemMove.num = byCount;
-	kItemMove.change_pos = TItemPos(INVENTORY, byTargetPos);
+	kItemMove.change_pos = TItemPos(SAFEBOX, byTargetPos);
 	if (!Send(sizeof(kItemMove), &kItemMove))
 		return false;
 
@@ -445,26 +445,23 @@ bool CPythonNetworkStream::SendShopBuyPacket(BYTE bPos)
 {
 	if (!__CanActMainInstance())
 		return true;
-	
-	TPacketCGShop PacketShop;
-	PacketShop.header = CG::SHOP;
-	PacketShop.length = sizeof(PacketShop) + sizeof(BYTE) + sizeof(BYTE);
-	PacketShop.subheader = ShopSub::CG::BUY;
 
-	if (!Send(sizeof(TPacketCGShop), &PacketShop))
+#pragma pack(push, 1)
+	struct TPacketCGShopBuy
 	{
-		Tracef("SendShopBuyPacket Error\n");
-		return false;
-	}
+		TPacketCGShop header;
+		BYTE count;
+		BYTE pos;
+	} packet;
+#pragma pack(pop)
 
-	BYTE bCount=1;
-	if (!Send(sizeof(BYTE), &bCount))
-	{
-		Tracef("SendShopBuyPacket Error\n");
-		return false;
-	}
+	packet.header.header = CG::SHOP;
+	packet.header.length = sizeof(packet);
+	packet.header.subheader = ShopSub::CG::BUY;
+	packet.count = 1;
+	packet.pos = bPos;
 
-	if (!Send(sizeof(BYTE), &bPos))
+	if (!Send(sizeof(packet), &packet))
 	{
 		Tracef("SendShopBuyPacket Error\n");
 		return false;
@@ -478,19 +475,22 @@ bool CPythonNetworkStream::SendShopSellPacket(BYTE bySlot)
 	if (!__CanActMainInstance())
 		return true;
 
-	TPacketCGShop PacketShop;
-	PacketShop.header = CG::SHOP;
-	PacketShop.length = sizeof(PacketShop) + sizeof(BYTE);
-	PacketShop.subheader = ShopSub::CG::SELL;
+#pragma pack(push, 1)
+	struct TPacketCGShopSell
+	{
+		TPacketCGShop header;
+		BYTE slot;
+	} packet;
+#pragma pack(pop)
 
-	if (!Send(sizeof(TPacketCGShop), &PacketShop))
+	packet.header.header = CG::SHOP;
+	packet.header.length = sizeof(packet);
+	packet.header.subheader = ShopSub::CG::SELL;
+	packet.slot = bySlot;
+
+	if (!Send(sizeof(packet), &packet))
 	{
 		Tracef("SendShopSellPacket Error\n");
-		return false;
-	}
-	if (!Send(sizeof(BYTE), &bySlot))
-	{
-		Tracef("SendShopAddSellPacket Error\n");
 		return false;
 	}
 
@@ -502,24 +502,24 @@ bool CPythonNetworkStream::SendShopSellPacketNew(BYTE bySlot, BYTE byCount)
 	if (!__CanActMainInstance())
 		return true;
 
-	TPacketCGShop PacketShop;
-	PacketShop.header = CG::SHOP;
-	PacketShop.length = sizeof(PacketShop) + sizeof(BYTE) + sizeof(BYTE);
-	PacketShop.subheader = ShopSub::CG::SELL2;
+#pragma pack(push, 1)
+	struct TPacketCGShopSellNew
+	{
+		TPacketCGShop header;
+		BYTE slot;
+		BYTE count;
+	} packet;
+#pragma pack(pop)
 
-	if (!Send(sizeof(TPacketCGShop), &PacketShop))
+	packet.header.header = CG::SHOP;
+	packet.header.length = sizeof(packet);
+	packet.header.subheader = ShopSub::CG::SELL2;
+	packet.slot = bySlot;
+	packet.count = byCount;
+
+	if (!Send(sizeof(packet), &packet))
 	{
-		Tracef("SendShopSellPacket Error\n");
-		return false;
-	}
-	if (!Send(sizeof(BYTE), &bySlot))
-	{
-		Tracef("SendShopAddSellPacket Error\n");
-		return false;
-	}
-	if (!Send(sizeof(BYTE), &byCount))
-	{
-		Tracef("SendShopAddSellPacket Error\n");
+		Tracef("SendShopSellPacketNew Error\n");
 		return false;
 	}
 
@@ -588,6 +588,21 @@ bool CPythonNetworkStream::SendItemUseToItemPacket(TItemPos source_pos, TItemPos
 	if (!__CanActMainInstance())
 		return true;	
 
+	if (CPythonExchange::Instance().isTrading())
+	{
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_AppendNotifyMessage", Py_BuildValue("(s)", "CANNOT_EQUIP_EXCHANGE"));
+		return true;
+	}
+
+	if (CPythonShop::Instance().IsOpen())
+	{
+		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_AppendNotifyMessage", Py_BuildValue("(s)", "CANNOT_EQUIP_SHOP"));
+		return true;
+	}
+
+	if (__IsPlayerAttacking())
+		return true;
+
 	TPacketCGItemUseToItem itemUseToItemPacket;
 	itemUseToItemPacket.header = CG::ITEM_USE_TO_ITEM;
 	itemUseToItemPacket.length = sizeof(itemUseToItemPacket);
@@ -601,7 +616,7 @@ bool CPythonNetworkStream::SendItemUseToItemPacket(TItemPos source_pos, TItemPos
 	}
 
 #ifdef _DEBUG
-	Tracef(" << SendItemUseToItemPacket(src=%d, dst=%d)\n", source_pos, target_pos);
+	Tracef(" << SendItemUseToItemPacket(src=%d, dst=%d)\n", source_pos.cell, target_pos.cell);
 #endif
 
 	return true;
@@ -740,24 +755,18 @@ bool CPythonNetworkStream::SendItemMovePacket(TItemPos pos, TItemPos change_pos,
 	if (!__CanActMainInstance())
 		return true;
 	
-	if (__IsEquipItemInSlot(pos))
+	if (pos.IsEquipCell() || change_pos.IsEquipCell() || __IsEquipItemInSlot(pos) || __IsEquipItemInSlot(change_pos))
 	{
 		if (CPythonExchange::Instance().isTrading())
 		{
-			if (pos.IsEquipCell() || change_pos.IsEquipCell())
-			{
-				PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_AppendNotifyMessage", Py_BuildValue("(s)", "CANNOT_EQUIP_EXCHANGE"));
-				return true;
-			}
+			PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_AppendNotifyMessage", Py_BuildValue("(s)", "CANNOT_EQUIP_EXCHANGE"));
+			return true;
 		}
 
 		if (CPythonShop::Instance().IsOpen())
 		{
-			if (pos.IsEquipCell() || change_pos.IsEquipCell())
-			{
-				PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_AppendNotifyMessage", Py_BuildValue("(s)", "CANNOT_EQUIP_SHOP"));
-				return true;
-			}
+			PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_AppendNotifyMessage", Py_BuildValue("(s)", "CANNOT_EQUIP_SHOP"));
+			return true;
 		}
 
 		if (__IsPlayerAttacking())

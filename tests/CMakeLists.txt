@@ -8074,6 +8074,19 @@ target_include_directories(test_c26_mount_rider_sync PRIVATE
 )
 add_test(NAME test_c26_mount_rider_sync COMMAND test_c26_mount_rider_sync)
 
+add_executable(test_c26_event_manager_anticrash test_c26_event_manager_anticrash.cpp)
+target_include_directories(test_c26_event_manager_anticrash PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+add_test(NAME test_c26_event_manager_anticrash COMMAND test_c26_event_manager_anticrash)
+
+add_executable(test_c26_item_protocol_antiexploit test_c26_item_protocol_antiexploit.cpp)
+target_include_directories(test_c26_item_protocol_antiexploit PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+add_test(NAME test_c26_item_protocol_antiexploit COMMAND test_c26_item_protocol_antiexploit)
+
+
 
 
 
