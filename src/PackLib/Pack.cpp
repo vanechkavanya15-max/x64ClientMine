@@ -3,6 +3,7 @@
 #include <zstd.h>
 #include <filesystem>
 #include <cstring>
+#include <algorithm>
 
 namespace
 {
@@ -20,6 +21,22 @@ namespace
 		}
 	};
 	static thread_local ThreadLocalZstdDCtx s_zstdDCtx;
+
+	// Bufor roboczy thread-local do deszyfrowania strumienia XChaCha20 bez alokacji na stercie
+	struct ThreadLocalDecryptScratch
+	{
+		std::vector<uint8_t> buffer;
+		uint8_t* EnsureCapacity(size_t needed)
+		{
+			if (buffer.size() < needed)
+			{
+				size_t newCap = (std::max)(needed, buffer.size() * 3 / 2);
+				buffer.resize(newCap);
+			}
+			return buffer.data();
+		}
+	};
+	static thread_local ThreadLocalDecryptScratch s_decryptScratch;
 }
 
 static ZSTD_DCtx* GetThreadLocalZSTDContext()
@@ -30,6 +47,29 @@ static ZSTD_DCtx* GetThreadLocalZSTDContext()
 void CPack::DecryptData(uint8_t* data, size_t len, const uint8_t* nonce)
 {
 	crypto_stream_xchacha20_xor(data, data, len, nonce, PACK_KEY.data());
+}
+
+bool CPack::IsZeroCopyEligible(const TPackFileEntry& entry) const noexcept
+{
+	return entry.encryption == 0 && entry.compressed_size == entry.file_size;
+}
+
+std::span<const uint8_t> CPack::GetFileView(const TPackFileEntry& entry) const noexcept
+{
+	if (m_file.size() == 0 || !m_file.is_open())
+		return {};
+
+	size_t offset = m_header.data_begin + entry.offset;
+	if (offset > m_file.size() || entry.compressed_size > m_file.size() - offset)
+		return {};
+
+	if (IsZeroCopyEligible(entry))
+	{
+		const uint8_t* pRaw = reinterpret_cast<const uint8_t*>(m_file.data()) + offset;
+		return { pRaw, static_cast<size_t>(entry.file_size) };
+	}
+
+	return {};
 }
 
 bool CPack::Load(const std::string& path)
@@ -95,38 +135,89 @@ bool CPack::GetFile(const TPackFileEntry& entry, TPackFile& result)
 
 bool CPack::GetFileWithPool(const TPackFileEntry& entry, TPackFile& result, CBufferPool* pPool)
 {
-	result.resize(entry.file_size);
+	if (m_file.size() == 0 || !m_file.is_open())
+		return false;
 
 	size_t offset = m_header.data_begin + entry.offset;
+
+	// Rygorystyczna kontrola granic (bounds check) wirtualnej mapy pliku
+	if (offset > m_file.size() || entry.compressed_size > m_file.size() - offset)
+	{
+		return false;
+	}
+
+	// Ochrona przed przepelnieniem i nierealistycznymi rozmiarami pliku (> 1GB)
+	if (entry.file_size > 1024ULL * 1024ULL * 1024ULL)
+	{
+		return false;
+	}
+
+	const uint8_t* pRawSource = reinterpret_cast<const uint8_t*>(m_file.data()) + offset;
+
+	// 1. Sciezka 100% Zero-Copy: plik nieszyfrowany i nieskompresowany w archiwum
+	if (IsZeroCopyEligible(entry))
+	{
+		result.SetView(std::span<const uint8_t>(pRawSource, static_cast<size_t>(entry.file_size)));
+		return true;
+	}
+
 	ZSTD_DCtx* dctx = GetThreadLocalZSTDContext();
 
 	switch (entry.encryption)
 	{
 		case 0: {
-			size_t decompressed_size = ZSTD_decompressDCtx(dctx, result.data(), result.size(), m_file.data() + offset, entry.compressed_size);
+			// Plik skompresowany ZSTD bez szyfrowania
+			// Alokacja bezposrednio w pamieci wirtualnej VirtualAlloc (zero fragmentacji sterty CRT)
+			if (!result.AllocateVirtual(static_cast<size_t>(entry.file_size))) {
+				return false;
+			}
+
+			size_t decompressed_size = ZSTD_decompressDCtx(
+				dctx,
+				result.data(),
+				result.size(),
+				pRawSource,
+				static_cast<size_t>(entry.compressed_size)
+			);
+
 			if (ZSTD_isError(decompressed_size) || decompressed_size != entry.file_size) {
+				result.clear();
 				return false;
 			}
 		} break;
 
 		case 1: {
-			std::vector<uint8_t> compressed_data;
-			if (pPool) {
-				compressed_data = pPool->Acquire(entry.compressed_size);
+			// Plik zaszyfrowany XChaCha20 i skompresowany ZSTD
+			if (entry.compressed_size == entry.file_size)
+			{
+				// Plik zaszyfrowany, ale nieskompresowany: deszyfrowanie bezposrednio w buforze docelowym
+				if (!result.AllocateVirtual(static_cast<size_t>(entry.file_size))) {
+					return false;
+				}
+				std::memcpy(result.data(), pRawSource, static_cast<size_t>(entry.file_size));
+				DecryptData(result.data(), static_cast<size_t>(entry.file_size), entry.nonce);
+				return true;
 			}
-			compressed_data.resize(entry.compressed_size);
 
-			memcpy(compressed_data.data(), m_file.data() + offset, entry.compressed_size);
+			// Uzycie thread-local scratch buffera zamiast alokacji vectora na stercie
+			uint8_t* pScratch = s_decryptScratch.EnsureCapacity(static_cast<size_t>(entry.compressed_size));
+			std::memcpy(pScratch, pRawSource, static_cast<size_t>(entry.compressed_size));
+			DecryptData(pScratch, static_cast<size_t>(entry.compressed_size), entry.nonce);
 
-			DecryptData(compressed_data.data(), entry.compressed_size, entry.nonce);
-
-			size_t decompressed_size = ZSTD_decompressDCtx(dctx, result.data(), result.size(), compressed_data.data(), compressed_data.size());
-
-			if (pPool) {
-				pPool->Release(std::move(compressed_data));
+			if (!result.AllocateVirtual(static_cast<size_t>(entry.file_size))) {
+				return false;
 			}
+
+			size_t decompressed_size = ZSTD_decompressDCtx(
+				dctx,
+				result.data(),
+				result.size(),
+				pScratch,
+				static_cast<size_t>(entry.compressed_size)
+			);
 
 			if (ZSTD_isError(decompressed_size) || decompressed_size != entry.file_size) {
+				result.clear();
 				return false;
 			}
 		} break;

@@ -870,6 +870,7 @@ class CPythonNetworkStream : public CNetworkStream, public CSingleton<CPythonNet
 
 		void		LogRecvPacket(uint16_t header, uint16_t length);
 		void		DumpRecentPackets() const;
+		void		HandleDesyncAndDisconnect(uint16_t header, const char* szReason);
 
 	private:
 		PacketLogEntry	m_aRecentRecvPackets[PACKET_LOG_SIZE] = {};

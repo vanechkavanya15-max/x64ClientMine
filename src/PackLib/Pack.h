@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <span>
 #include <mio/mmap.hpp>
 
 #include "config.h"
@@ -17,8 +18,15 @@ public:
 	const std::string& GetPackName() const { return m_packName; }
 	void SetPackName(const std::string& name) { m_packName = name; }
 
+	// Pobiera plik jako TPackFile (zero-copy view dla plikow nieskompresowanych lub pamiec mapowana wirtualnie)
 	bool GetFile(const TPackFileEntry& entry, TPackFile& result);
 	bool GetFileWithPool(const TPackFileEntry& entry, TPackFile& result, CBufferPool* pPool);
+
+	// Bezposredni dostep zero-copy std::span (zwraca widok jesli plik jest nieskompresowany i niezaszyfrowany)
+	std::span<const uint8_t> GetFileView(const TPackFileEntry& entry) const noexcept;
+
+	// Sprawdza czy dany wpis kwalifikuje sie do odczytu w 100% zero-copy
+	bool IsZeroCopyEligible(const TPackFileEntry& entry) const noexcept;
 
 private:
 	void DecryptData(uint8_t* data, size_t len, const uint8_t* nonce);

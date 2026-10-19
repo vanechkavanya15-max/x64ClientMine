@@ -419,8 +419,7 @@ bool CPythonNetworkStream::DispatchPacket(const PacketHandlerMap& handlers)
 				constexpr uint16_t MAX_PACKET_LENGTH = 65000;
 				if (packetFrame.length < PACKET_HEADER_SIZE || packetFrame.length > MAX_PACKET_LENGTH)
 				{
-					TraceError("DispatchPacket: Invalid modern packet length: header 0x%04X length: %u", header, packetFrame.length);
-					ClearRecvBuffer();
+					HandleDesyncAndDisconnect(header, "DispatchPacket: Nieprawidlowa dlugosc nowoczesnego pakietu dynamicznego");
 					return false;
 				}
 
@@ -443,9 +442,7 @@ bool CPythonNetworkStream::DispatchPacket(const PacketHandlerMap& handlers)
 				return true;
 			}
 
-			TraceError("Unknown packet header: 0x%04X (recv_seq #%u), Phase: %s", header, m_dwRecvPacketSeq, m_strPhase.c_str());
-			DumpRecentPackets();
-			ClearRecvBuffer();
+			HandleDesyncAndDisconnect(header, "DispatchPacket: Nieznany naglowek pakietu (brak handlera w mapie)");
 			return false;
 		}
 
@@ -465,10 +462,7 @@ bool CPythonNetworkStream::DispatchPacket(const PacketHandlerMap& handlers)
 			constexpr uint16_t MAX_PACKET_LENGTH = 65000;
 			if (packetFrame.length < PACKET_HEADER_SIZE || packetFrame.length > MAX_PACKET_LENGTH)
 			{
-				TraceError("DispatchPacket: Invalid packet length: header 0x%04X length: %u", header, packetFrame.length);
-				DumpRecentPackets();
-				ClearRecvBuffer();
-				PostQuitMessage(0);
+				HandleDesyncAndDisconnect(header, "DispatchPacket: Nieprawidlowa dlugosc pakietu dynamicznego");
 				return false;
 			}
 
@@ -555,11 +549,8 @@ bool CPythonNetworkStream::DispatchPacket(const PacketHandlerMap& handlers)
 
 bool CPythonNetworkStream::RecvErrorPacket(int header)
 {
-	TraceError("Phase %s does not handle header 0x%04X (recv_seq #%u)", m_strPhase.c_str(), header, m_dwRecvPacketSeq - 1);
-	DumpRecentPackets();
-
-	ClearRecvBuffer();
-	return true;
+	HandleDesyncAndDisconnect(static_cast<uint16_t>(header), "RecvErrorPacket: Biezaca faza nie obsluguje naglowka");
+	return false;
 }
 
 bool CPythonNetworkStream::RecvPhasePacket()
@@ -1254,6 +1245,47 @@ void CPythonNetworkStream::DumpRecentPackets() const
 		const auto& e = m_aSentPacketLog[idx % SENT_PACKET_LOG_SIZE];
 		TraceError("  SENT #%u: header=0x%04X len=%u", e.seq, e.header, e.length);
 	}
+}
+
+void CPythonNetworkStream::HandleDesyncAndDisconnect(uint16_t header, const char* szReason)
+{
+	TraceError("================================================================================");
+	TraceError("[NET_DESYNC] Krytyczna desynchronizacja strumienia TCP: %s", szReason ? szReason : "Nieznana przyczyna");
+	TraceError("[NET_DESYNC] Naglowek: 0x%04X, Faza: %s, Numer sekwencji RECV: #%u", header, m_strPhase.c_str(), m_dwRecvPacketSeq);
+
+	const int nAvail = GetRecvBufferSize();
+	if (nAvail > 0)
+	{
+		const int dumpLen = std::min(nAvail, 128);
+		std::vector<uint8_t> dumpBuf(dumpLen);
+		if (Peek(dumpLen, dumpBuf.data()))
+		{
+			std::string hexStr;
+			hexStr.reserve(dumpLen * 3 + 16);
+			char hexByte[8];
+			for (int i = 0; i < dumpLen; ++i)
+			{
+				snprintf(hexByte, sizeof(hexByte), "%02X ", dumpBuf[i]);
+				hexStr += hexByte;
+			}
+			TraceError("[NET_DESYNC] Hex dump bufora odbiorczego (pierwsze %d z %d bajtow):", dumpLen, nAvail);
+			TraceError("  HEX: %s", hexStr.c_str());
+		}
+		else
+		{
+			TraceError("[NET_DESYNC] Nie udalo sie pobrac danych bufora do zrzutu hex (Peek fail).");
+		}
+	}
+	else
+	{
+		TraceError("[NET_DESYNC] Bufor odbiorczy jest pusty (0 bajtow).");
+	}
+
+	DumpRecentPackets();
+	TraceError("================================================================================");
+
+	OnRemoteDisconnect();
+	Disconnect();
 }
 
 bool CPythonNetworkStream::ExtractAndEnqueueNextFrame(const PacketHandlerMap& handlers)
