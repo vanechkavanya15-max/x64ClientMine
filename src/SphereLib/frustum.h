@@ -18,7 +18,8 @@
 /***********************************************************************/
 
 #include "vector.h"
-#include <d3dx9math.h>
+#include "../Client/Actors/CollisionMathClean.h"
+#include "../Client/Math/PODMath.h"
 #include <cstddef>
 
 enum ViewState
@@ -39,6 +40,8 @@ enum EFrustumPlane
 	FRUSTUM_PLANE_COUNT = 6
 };
 
+struct CleanPlane { float a, b, c, d; };
+
 class Frustum 
 {
 	public:
@@ -51,14 +54,14 @@ class Frustum
 
 		// Zunifikowana ekstrakcja 6 plaszczyzn z macierzy widoku i projekcji (row-major DirectX).
 		// Parametr bNegatePlaneY pozwala na dostosowanie plaszczyzn do konwencji ze zwrocona osia Y.
-		static void ExtractPlanes(const D3DXMATRIX & mat, D3DXPLANE * pPlanesOut, bool bNegatePlaneY = false);
+		static void ExtractPlanes(const Client::Math::Mat4 & mat, CleanPlane * pPlanesOut, bool bNegatePlaneY = false);
 
-		void BuildViewFrustum(const D3DXMATRIX & mat, bool bNegatePlaneY = false);
-		void BuildViewFrustum(D3DXMATRIX & mat) { BuildViewFrustum(static_cast<const D3DXMATRIX&>(mat), false); }
-		void BuildViewFrustum2(const D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook);
-		void BuildViewFrustum2(D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook)
+		void BuildViewFrustum(const Client::Math::Mat4 & mat, bool bNegatePlaneY = false);
+		void BuildViewFrustum(Client::Math::Mat4 & mat) { BuildViewFrustum(static_cast<const Client::Math::Mat4&>(mat), false); }
+		void BuildViewFrustum2(const Client::Math::Mat4 & mat, float fNear, float fFar, float fFov, float fAspect, const Client::Collision::CleanVec3 & vCamera, const Client::Collision::CleanVec3 & vLook);
+		void BuildViewFrustum2(Client::Math::Mat4 & mat, float fNear, float fFar, float fFov, float fAspect, const Client::Collision::CleanVec3 & vCamera, const Client::Collision::CleanVec3 & vLook)
 		{
-			BuildViewFrustum2(static_cast<const D3DXMATRIX&>(mat), fNear, fFar, fFov, fAspect, vCamera, vLook);
+			BuildViewFrustum2(static_cast<const Client::Math::Mat4&>(mat), fNear, fFar, fFov, fAspect, vCamera, vLook);
 		}
 		
 		[[nodiscard]] ViewState ViewVolumeTest(const Vector3d &c_v3Center, const float c_fRadius) const;
@@ -70,19 +73,19 @@ class Frustum
 		[[nodiscard]] bool IsBoxVisible(const Vector3d &c_v3Min, const Vector3d &c_v3Max, const float c_fMargin = DEFAULT_HYSTERESIS_MARGIN, bool bNegateY = false) const;
 		[[nodiscard]] bool IsSphereVisible(const Vector3d &c_v3Center, const float c_fRadius, const float c_fMargin = DEFAULT_HYSTERESIS_MARGIN, bool bNegateY = false) const;
 
-		[[nodiscard]] const D3DXPLANE* GetPlanes() const noexcept { return m_plane; }
-		[[nodiscard]] const D3DXPLANE& GetPlane(size_t index) const noexcept { return m_plane[index]; }
+		[[nodiscard]] const CleanPlane* GetPlanes() const noexcept { return m_plane; }
+		[[nodiscard]] const CleanPlane& GetPlane(size_t index) const noexcept { return m_plane[index]; }
 
-		[[nodiscard]] const D3DXVECTOR3& GetCenter() const noexcept { return m_v3Center; }
+		[[nodiscard]] const Client::Collision::CleanVec3& GetCenter() const noexcept { return m_v3Center; }
 		[[nodiscard]] float GetRadius() const noexcept { return m_fRadius; }
 		[[nodiscard]] bool IsUsingSphere() const noexcept { return m_bUsingSphere; }
 
 	private:
 		bool m_bUsingSphere;
-		D3DXVECTOR3 m_v3Center;
+		Client::Collision::CleanVec3 m_v3Center;
 		float m_fRadius;
 		float m_fHysteresisMargin;
-		D3DXPLANE m_plane[6];
+		CleanPlane m_plane[6];
 };
 
 using CFrustum = Frustum;

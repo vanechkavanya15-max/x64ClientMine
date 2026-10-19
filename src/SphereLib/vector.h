@@ -11,7 +11,7 @@
 
 #include <math.h>
 #include <vector>
-#include <d3dx9math.h>
+#include "../Client/Actors/CollisionMathClean.h"
 
 
 /***********************************************************************/
@@ -20,7 +20,7 @@
 /**               Written by John W. Ratcliff jratcliff@att.net        */
 /***********************************************************************/
 
-class Vector3d : public D3DXVECTOR3
+class Vector3d : public Client::Collision::CleanVec3
 {
 public:
 	Vector3d(void) { };  // null constructor, does not inialize point.
@@ -32,7 +32,7 @@ public:
 		z = a.z;
 	};
 
-	Vector3d(const D3DXVECTOR3 &v) : D3DXVECTOR3(v) {}
+
 	
 	Vector3d(float a,float b,float c) // construct with initial point.
 	{
