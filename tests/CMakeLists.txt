@@ -8090,3 +8090,179 @@ add_test(NAME test_c26_item_protocol_antiexploit COMMAND test_c26_item_protocol_
 
 
 
+
+
+add_executable(test_c27_gltf_model_audit test_c27_gltf_model_audit.cpp)
+target_include_directories(test_c27_gltf_model_audit PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c27_gltf_model_audit PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c27_gltf_model_audit COMMAND test_c27_gltf_model_audit)
+
+
+add_executable(test_c27_gltf_model_audit_no_main test_c27_gltf_model_audit_no_main.cpp)
+target_include_directories(test_c27_gltf_model_audit_no_main PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c27_gltf_model_audit_no_main PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c27_gltf_model_audit_no_main COMMAND test_c27_gltf_model_audit_no_main)
+
+
+add_executable(test_c99_actor_render_extractor test_c99_actor_render_extractor.cpp)
+target_include_directories(test_c99_actor_render_extractor PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_c99_actor_render_extractor PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_c99_actor_render_extractor COMMAND test_c99_actor_render_extractor)
+
+
+add_executable(test_jules_render test_jules_render.cpp)
+target_include_directories(test_jules_render PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_jules_render PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_jules_render COMMAND test_jules_render)
+
+
+add_executable(test_jules_render2 test_jules_render2.cpp)
+target_include_directories(test_jules_render2 PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_jules_render2 PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_jules_render2 COMMAND test_jules_render2)
+
+
+add_executable(test_jules_render_align test_jules_render_align.cpp)
+target_include_directories(test_jules_render_align PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_jules_render_align PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_jules_render_align COMMAND test_jules_render_align)
+
+
+add_executable(test_jules_render_sort test_jules_render_sort.cpp)
+target_include_directories(test_jules_render_sort PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_jules_render_sort PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_jules_render_sort COMMAND test_jules_render_sort)
+
+
+add_executable(test_statemanager test_statemanager.cpp)
+target_include_directories(test_statemanager PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/Client
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/include
+    ${CMAKE_SOURCE_DIR}/vendor/libsodium/src/libsodium/include
+    ${CMAKE_SOURCE_DIR}/vendor/zstd-1.5.7/lib
+)
+target_link_libraries(test_statemanager PRIVATE
+    Client2026
+    EterLib
+    EterBase
+    libzstd_static
+    sodium
+    lzo2
+    mio
+    ws2_32
+)
+add_test(NAME test_statemanager COMMAND test_statemanager)

@@ -46,6 +46,22 @@ void CGraphicFontTexture::Initialize()
 
 void CGraphicFontTexture::Destroy()
 {
+	if (CTextureUploadBridge::Instance().IsWgpuActive())
+	{
+		CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(this));
+		if (m_lpd3dTexture)
+			CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(m_lpd3dTexture));
+		for (auto* pPage : m_pFontTextureVector)
+		{
+			if (pPage)
+			{
+				CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(pPage));
+				if (pPage->GetD3DTexture())
+					CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(pPage->GetD3DTexture()));
+			}
+		}
+	}
+
 	if (m_pAtlasBuffer)
 	{
 		delete[] reinterpret_cast<uint8_t*>(m_pAtlasBuffer);
@@ -108,6 +124,21 @@ bool CGraphicFontTexture::CreateDeviceObjects()
 
 void CGraphicFontTexture::DestroyDeviceObjects()
 {
+	if (CTextureUploadBridge::Instance().IsWgpuActive())
+	{
+		CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(this));
+		if (m_lpd3dTexture)
+			CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(m_lpd3dTexture));
+		for (auto* pPage : m_pFontTextureVector)
+		{
+			if (pPage)
+			{
+				CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(pPage));
+				if (pPage->GetD3DTexture())
+					CTextureUploadBridge::Instance().UnregisterTexture(reinterpret_cast<uintptr_t>(pPage->GetD3DTexture()));
+			}
+		}
+	}
 	CGraphicTexture::DestroyDeviceObjects();
 	stl_wipe(m_pFontTextureVector);
 	m_pageLastUsed.clear();
@@ -240,6 +271,18 @@ bool CGraphicFontTexture::AppendTexture()
 	m_activePageIndex = m_pFontTextureVector.size();
 	m_pFontTextureVector.push_back(pNewTexture);
 	m_pageLastUsed.push_back(++m_currentLruTick);
+
+	const size_t bufferBytes = (m_atlasFormat == EFontAtlasFormat::A8)
+		? (m_atlasWidth * m_atlasHeight * sizeof(uint8_t))
+		: (m_atlasWidth * m_atlasHeight * sizeof(DWORD));
+	if (m_pAtlasBuffer)
+		memset(m_pAtlasBuffer, 0, bufferBytes);
+
+	m_x = 0;
+	m_y = 0;
+	m_step = 0;
+	m_isDirty = false;
+	SetRectEmpty(&m_dirtyRect);
 	return true;
 }
 
@@ -278,7 +321,31 @@ bool CGraphicFontTexture::UpdateTexture()
 					reinterpret_cast<const uint8_t*>(m_pAtlasBuffer),
 					bufferBytes
 				);
+
+				if (pPage->GetD3DTexture())
+				{
+					CTextureUploadBridge::Instance().RegisterTexture(
+						reinterpret_cast<uintptr_t>(pPage->GetD3DTexture()),
+						static_cast<uint32_t>(m_atlasWidth),
+						static_cast<uint32_t>(m_atlasHeight),
+						format,
+						reinterpret_cast<const uint8_t*>(m_pAtlasBuffer),
+						bufferBytes
+					);
+				}
 			}
+		}
+
+		if (m_lpd3dTexture)
+		{
+			CTextureUploadBridge::Instance().RegisterTexture(
+				reinterpret_cast<uintptr_t>(m_lpd3dTexture),
+				static_cast<uint32_t>(m_atlasWidth),
+				static_cast<uint32_t>(m_atlasHeight),
+				format,
+				reinterpret_cast<const uint8_t*>(m_pAtlasBuffer),
+				bufferBytes
+			);
 		}
 	}
 

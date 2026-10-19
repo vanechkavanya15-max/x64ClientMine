@@ -428,20 +428,21 @@ namespace
 void CPythonApplication::ExtractSnapshot()
 {
 	CCullingManager::Instance().Update();
-	if (!m_pyBackground.IsMapReady())
-		return;
 
 	float fAspect = m_kWndMgr.GetAspect();
-	float fFarClip = m_pyBackground.GetFarClip();
+	float fFarClip = m_pyBackground.IsMapReady() ? m_pyBackground.GetFarClip() : 25600.0f;
 
-	m_pyGraphic.SetPerspective(30.0f, fAspect, 100.0, fFarClip);
+	m_pyGraphic.SetPerspective(30.0f, fAspect, 100.0f, fFarClip);
 
 	static uint32_t s_dwFrameIdx = 0;
 	++s_dwFrameIdx;
 	CCamera* pCam = CCameraManager::Instance().GetCurrentCamera();
 	CFrameSnapshot::Capture(pCam, 30.0f, fAspect, 100.0f, fFarClip, m_fGlobalTime, s_dwFrameIdx);
 
-	CCullingManager::Instance().Process();
+	if (m_pyBackground.IsMapReady())
+	{
+		CCullingManager::Instance().Process();
+	}
 
 	const TFrameSnapshot& snapshot = CFrameSnapshot::Current();
 	TRenderFrameUniforms uniforms = CRenderQueueManager::Instance().GetFrameUniforms();
@@ -453,7 +454,10 @@ void CPythonApplication::ExtractSnapshot()
 	uniforms.dwFrameIndex = snapshot.dwFrameIndex;
 
 	const TEnvironmentData* pEnvData = nullptr;
-	m_pyBackground.GetCurrentEnvironmentData(&pEnvData);
+	if (m_pyBackground.IsMapReady())
+	{
+		m_pyBackground.GetCurrentEnvironmentData(&pEnvData);
+	}
 	if (pEnvData)
 	{
 		uniforms.vSunLightDir = pEnvData->DirLights[ENV_DIRLIGHT_BACKGROUND].Direction;
@@ -791,8 +795,10 @@ bool CPythonApplication::Process()
 					RenderWorld3D();
 				}
 
-				// Faza 7B: Nakladka interfejsu 2D
+				// Faza 7B: Nakladka interfejsu 2D (izolacja stanu macierzy 3D)
+				m_pyGraphic.PushState();
 				RenderUI2D();
+				m_pyGraphic.PopState();
 
 				CRenderQueueManager::Instance().Flush(CRenderQueueManager::Instance().GetActiveBackend());
 
