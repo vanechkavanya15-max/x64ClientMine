@@ -1,4 +1,5 @@
 #include "StdAfx.h"
+#include "Client/Events/UIEvents.h"
 #include "PythonEventManager.h"
 #include "PythonNetworkStream.h"
 #include "PythonNonPlayer.h"
@@ -499,7 +500,7 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 		case EVENT_TYPE_DONE:
 		{
 			MakeNextButton(pEventSet, BUTTON_TYPE_DONE);
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "DoneEvent", Py_BuildValue("()"));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIDoneEvent(pEventSet->poEventHandler));
 			pEventSet->iAdjustLine += 2;
 			break;
 		}
@@ -518,19 +519,19 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 
 		case EVENT_TYPE_LEFT_IMAGE:
 		{
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "OnLeftImage", Py_BuildValue("(s)", GetArgument("src", ScriptCommand.argList)));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UILeftImageEvent(pEventSet->poEventHandler, GetArgument("src", ScriptCommand.argList)));
 			break;
 		}
 
 		case EVENT_TYPE_TOP_IMAGE:
 		{
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "OnTopImage", Py_BuildValue("(s)", GetArgument("src", ScriptCommand.argList)));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UITopImageEvent(pEventSet->poEventHandler, GetArgument("src", ScriptCommand.argList)));
 			break;
 		}
 
 		case EVENT_TYPE_BACKGROUND_IMAGE:
 		{
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "OnBackgroundImage", Py_BuildValue("(s)",GetArgument("src", ScriptCommand.argList)));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIBackgroundImageEvent(pEventSet->poEventHandler, GetArgument("src", ScriptCommand.argList)));
 			break;
 		}
 
@@ -540,7 +541,7 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 			int y = atoi(GetArgument("y", ScriptCommand.argList));
 			const char * src = GetArgument("src", ScriptCommand.argList);
 
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "OnImage", Py_BuildValue("(iis)", x, y, src));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIImageEvent(pEventSet->poEventHandler, x, y, src));
 			break;
 		}
 
@@ -556,11 +557,11 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 			{
 				const char * imageType = GetArgument("image_type", ScriptCommand.argList);
 				int iItemIndex = atoi(GetArgument("idx", ScriptCommand.argList));
-				PyCallClassMemberFunc(pEventSet->poEventHandler, "OnInsertItemIcon", Py_BuildValue("(sissii)", imageType, iItemIndex, title, desc, index, total));
+				::EterBase::EventBus::Instance().Publish(::Client::Events::UIInsertItemIconEvent(pEventSet->poEventHandler, imageType, iItemIndex, title, desc, index, total));
 			}
 			else
 			{
-				PyCallClassMemberFunc(pEventSet->poEventHandler, "OnInsertImage", Py_BuildValue("(ssssii)", imageFile.c_str(), title, title, desc, index, total));
+				::EterBase::EventBus::Instance().Publish(::Client::Events::UIInsertImageEvent(pEventSet->poEventHandler, imageFile.c_str(), title, title, desc, index, total));
 			}
 			pEventSet->iAdjustLine += 2;
 			break;
@@ -585,8 +586,7 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 		// HIDE_QUEST_LETTER
 		case EVENT_TYPE_QUEST_BUTTON_CLOSE:
 		{
-			PyCallClassMemberFunc(m_poInterface, "BINARY_ClearQuest", 
-				Py_BuildValue("(i)", atoi(GetArgument("idx", ScriptCommand.argList))));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIClearQuestEvent(m_poInterface, atoi(GetArgument("idx", ScriptCommand.argList))));
 			break;
 		}
 		// END_OF_HIDE_QUEST_LETTER
@@ -601,17 +601,16 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 			
 			// 퀘스트 UI 리뉴얼이 되면 해결 되므로 일단 용혼석만 땜빵 by chrislee
 			if (!strcmp(name, "조각난 용혼석?....")) {
-				PyCallClassMemberFunc(m_poInterface, "BINARY_RecvQuest", Py_BuildValue("(isss)", idx, name, "highlight", ""));
+				::EterBase::EventBus::Instance().Publish(::Client::Events::UIBinaryRecvQuestEvent(m_poInterface, idx, name, "highlight", ""));
 			}
 			else {
 				if (c_rstFile.empty())
 				{
-					PyCallClassMemberFunc(m_poInterface, "RecvQuest", Py_BuildValue("(is)", idx, name));
+					::EterBase::EventBus::Instance().Publish(::Client::Events::UIRecvQuestEvent(m_poInterface, idx, name));
 				}
 				else
 				{
-					PyCallClassMemberFunc(m_poInterface, "BINARY_RecvQuest", 
-						Py_BuildValue("(isss)", idx, name, c_rstType.c_str(), c_rstFile.c_str()));
+					::EterBase::EventBus::Instance().Publish(::Client::Events::UIBinaryRecvQuestEvent(m_poInterface, idx, name, c_rstType.c_str(), c_rstFile.c_str()));
 				}
 			}
 			break;
@@ -657,25 +656,25 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 		case EVENT_TYPE_FADE_OUT:
 		{
 			float fSpeed = (float)atof(GetArgument("speed", ScriptCommand.argList));
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "FadeOut", Py_BuildValue("(f)", fSpeed));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIFadeOutEvent(pEventSet->poEventHandler, fSpeed));
 			pEventSet->isWaitFlag = true;
 			break;
 		}
 		case EVENT_TYPE_FADE_IN:
 		{
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "FadeIn", Py_BuildValue("(f)", atof(GetArgument("speed", ScriptCommand.argList))));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIFadeInEvent(pEventSet->poEventHandler, atof(GetArgument("speed", ScriptCommand.argList))));
 			pEventSet->isWaitFlag = true;
 			break;
 		}
 		case EVENT_TYPE_WHITE_OUT:
 		{
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "WhiteOut", Py_BuildValue("(f)", atof(GetArgument("speed", ScriptCommand.argList))));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIWhiteOutEvent(pEventSet->poEventHandler, atof(GetArgument("speed", ScriptCommand.argList))));
 			pEventSet->isWaitFlag = true;
 			break;
 		}
 		case EVENT_TYPE_WHITE_IN:
 		{
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "WhiteIn", Py_BuildValue("(f)", atof(GetArgument("speed", ScriptCommand.argList))));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIWhiteInEvent(pEventSet->poEventHandler, atof(GetArgument("speed", ScriptCommand.argList))));
 			pEventSet->isWaitFlag = true;
 			break;
 		}
@@ -693,7 +692,7 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 		}
 		case EVENT_TYPE_TITLE_IMAGE:
 		{
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "OnTitleImage", Py_BuildValue("(s)", GetArgument("src", ScriptCommand.argList)));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UITitleImageEvent(pEventSet->poEventHandler, GetArgument("src", ScriptCommand.argList)));
 			break;
 		}
 		case EVENT_TYPE_DUNGEON_RESULT:
@@ -708,17 +707,7 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 			int total_time = atoi(GetArgument("total_time", ScriptCommand.argList));
 			int bonus_exp = atoi(GetArgument("bonus_exp", ScriptCommand.argList));
 
-			PyCallClassMemberFunc(m_poInterface, "ShowDungeonResult", 
-								  Py_BuildValue("(iiiiiiiii)",
-												killstone_count,
-												killmob_count,
-												find_hidden,
-												hidden_total,
-												use_potion,
-												is_revived,
-												killallmob,
-												total_time,
-												bonus_exp));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIShowDungeonResultEvent(m_poInterface, killstone_count, killmob_count, find_hidden, hidden_total, use_potion, is_revived, killallmob, total_time, bonus_exp));
 			break;
 		}
 		case EVENT_TYPE_ITEM_NAME:
@@ -764,13 +753,13 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 		{
 			int iWidth = atoi(GetArgument("width", ScriptCommand.argList));
 			int iHeight = atoi(GetArgument("height", ScriptCommand.argList));
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "OnSize", Py_BuildValue("(ii)", iWidth, iHeight));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UISizeEvent(pEventSet->poEventHandler, iWidth, iHeight));
 			break;
 		}
 		case EVENT_TYPE_INPUT:
 		{
 			__InsertLine(*pEventSet);
-			PyCallClassMemberFunc(pEventSet->poEventHandler, "OnInput", Py_BuildValue("()"));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIInputEvent(pEventSet->poEventHandler));
 			break;
 		}
 		case EVENT_TYPE_CONFIRM_WAIT:
@@ -798,13 +787,13 @@ void CPythonEventManager::ProcessEventSet(TEventSet * pEventSet)
 				pSet->pConfirmTimeTextLine = NULL;
 				pSet->iConfirmEndTime = 0;
 
-				PyCallClassMemberFunc(pSet->poEventHandler, "CloseSelf", Py_BuildValue("()"));
+				::EterBase::EventBus::Instance().Publish(::Client::Events::UICloseSelfEvent(pSet->poEventHandler));
 			}
 			break;
 		}
 		case EVENT_TYPE_SELECT_ITEM:
 		{
-			PyCallClassMemberFunc(m_poInterface, "BINARY_OpenSelectItemWindow", Py_BuildValue("()"));
+			::EterBase::EventBus::Instance().Publish(::Client::Events::UIOpenSelectItemWindowEvent(m_poInterface));
 			break;
 		}
 	}
@@ -895,7 +884,7 @@ void CPythonEventManager::EndEventProcess(int iIndex)
 void CPythonEventManager::MakeNextButton(TEventSet * pEventSet, int iButtonType)
 {
 	__AddSpace(*pEventSet, c_fLine_Temp+5);
-	PyCallClassMemberFunc(pEventSet->poEventHandler, "MakeNextButton", Py_BuildValue("(i)", iButtonType));
+	::EterBase::EventBus::Instance().Publish(::Client::Events::UIMakeNextButtonEvent(pEventSet->poEventHandler, iButtonType));
 }
 
 void CPythonEventManager::MakeQuestion(TEventSet * pEventSet, script::TArgList & rArgumentList)
@@ -903,14 +892,14 @@ void CPythonEventManager::MakeQuestion(TEventSet * pEventSet, script::TArgList &
 	if (rArgumentList.empty())
 		return;
 
-	PyCallClassMemberFunc(pEventSet->poEventHandler, "MakeQuestion", Py_BuildValue("(i)", rArgumentList.size()));
+	::EterBase::EventBus::Instance().Publish(::Client::Events::UIMakeQuestionEvent(pEventSet->poEventHandler, rArgumentList.size()));
 	pEventSet->nAnswer = rArgumentList.size();
 
 	int iIndex = 0;
 	for (script::TArgList::iterator itor=rArgumentList.begin(); itor!=rArgumentList.end(); ++itor)
 	{
 		script::TArg & rArgument = *itor;
-		PyCallClassMemberFunc(pEventSet->poEventHandler, "AppendQuestion", Py_BuildValue("(si)", rArgument.strValue.c_str(), iIndex));
+		::EterBase::EventBus::Instance().Publish(::Client::Events::UIAppendQuestionEvent(pEventSet->poEventHandler, rArgument.strValue.c_str(), iIndex));
 		++iIndex;
 	}
 }
