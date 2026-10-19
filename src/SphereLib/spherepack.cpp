@@ -8,7 +8,7 @@
  * "Portions Copyright (C) John W. Ratcliff, 2001"
  */
 
-#include "Stdafx.h"
+
 #include "spherepack.h"
 
 #if DEMO
@@ -662,7 +662,7 @@ void SpherePackFactory::RayTrace(const Vector3d &p1,
 	mRoot->RayTrace(p1,dir,dist,this);
 }
 
-#include "EterBase/Debug.h"
+
 
 void SpherePackFactory::RangeTest(const Vector3d &center,float radius,SpherePackCallback *callback)
 {
